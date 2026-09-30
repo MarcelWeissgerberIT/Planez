@@ -6,6 +6,14 @@ import { AC_TYPES, CITIES, AIRPORT } from '../config.js';
 import { fmtClock, esc } from '../util.js';
 import { syncList, setHTML, toast } from './dom.js';
 import { sfx } from '../audio.js';
+import { updateSequence, isSeqArrival, seqEta, seqSlot, seqMove, seqMoveTo, seqSortByEta, seqIndex } from '../sim/sequence.js';
+
+// Farben der Pistenfolge (auch Radar/Karte)
+export const SEQ_COL = { land: '#22d3ee', landClr: '#a5f3fc', dep: '#f59e0b', depClr: '#e879f9' };
+export function seqColor(ac) {
+  if (isSeqArrival(ac)) return ac.clr.land ? SEQ_COL.landClr : SEQ_COL.land;
+  return ac.clr.takeoff ? SEQ_COL.depClr : SEQ_COL.dep;
+}
 
 export const REQ_DE = {
   approach: 'wartet auf Anflugfreigabe',
@@ -57,11 +65,14 @@ export class TowerPanel {
       <div class="p-body">
         <div class="rwy-box" id="tw-rwy"></div>
         <div class="toggle-row"><span>Rollverkehr automatisch (nur Luftraum &amp; Piste selbst)</span><button class="switch" id="tw-gauto"></button></div>
-        <div class="p-sec"><span>Anflug</span><span class="cnt" id="tw-c-arr">0</span></div>
+        <div class="p-sec seq-head" id="tw-seq-head"></div>
+        <div class="seq-legend"><span><i style="background:${SEQ_COL.land}"></i>Landung</span><span><i style="background:${SEQ_COL.landClr}"></i>Landung frei</span><span><i style="background:${SEQ_COL.dep}"></i>Start</span><span><i style="background:${SEQ_COL.depClr}"></i>Startfreigabe</span></div>
+        <div id="tw-seq"></div>
+        <div class="p-sec"><span>Anflug · noch ohne Freigabe</span><span class="cnt" id="tw-c-arr">0</span></div>
         <div id="tw-arr"></div>
         <div class="p-sec"><span>Rollverkehr</span><span class="cnt" id="tw-c-gnd">0</span></div>
         <div id="tw-gnd"></div>
-        <div class="p-sec"><span>Abflug</span><span class="cnt" id="tw-c-dep">0</span></div>
+        <div class="p-sec"><span>Abflug · in der Luft</span><span class="cnt" id="tw-c-dep">0</span></div>
         <div id="tw-dep"></div>
         <div class="p-sec"><span>An Parkpositionen</span><span class="cnt" id="tw-c-stand">0</span></div>
         <div class="empty" id="tw-stand-hint">Abfertigung läuft automatisch. Sobald ein Flug fertig ist, meldet er sich für den Pushback.</div>
@@ -71,9 +82,12 @@ export class TowerPanel {
       arr: root.querySelector('#tw-arr'),
       gnd: root.querySelector('#tw-gnd'),
       dep: root.querySelector('#tw-dep'),
+      seq: root.querySelector('#tw-seq'),
+      seqHead: root.querySelector('#tw-seq-head'),
       gauto: root.querySelector('#tw-gauto'),
     };
     root.addEventListener('click', (e) => this.onClick(e));
+    this.wireDrag();
     this.el.gauto.addEventListener('click', () => {
       const s = this.game.state;
       s.settings.towerGroundAuto = !s.settings.towerGroundAuto;
@@ -98,8 +112,100 @@ export class TowerPanel {
       requestRunwayChange(s, rw.dataset.rwy);
       return;
     }
+    const mv = e.target.closest('[data-seqmv]');
+    if (mv) {
+      if (seqMove(s, mv.dataset.ac, Number(mv.dataset.seqmv))) sfx.click();
+      this.update(s);
+      return;
+    }
+    if (e.target.closest('[data-seqsort]')) {
+      seqSortByEta(s);
+      sfx.click();
+      toast('Pistenfolge wird wieder automatisch geplant', 'info', 2200);
+      this.update(s);
+      return;
+    }
     const strip = e.target.closest('.strip');
     if (strip) this.game.select(strip.dataset.key, true);
+  }
+
+  wireDrag() {
+    const box = this.el.seq;
+    let dragId = null;
+    const clear = () => box.querySelectorAll('.drop-before,.drop-after').forEach((x) => x.classList.remove('drop-before', 'drop-after'));
+    box.addEventListener('dragstart', (e) => {
+      const st = e.target.closest('.strip');
+      if (!st) return;
+      dragId = st.dataset.key;
+      st.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragId);
+      this.game.panelHold = true;
+    });
+    box.addEventListener('dragover', (e) => {
+      const st = e.target.closest('.strip');
+      if (!dragId || !st) return;
+      e.preventDefault();
+      clear();
+      const r = st.getBoundingClientRect();
+      st.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after');
+    });
+    box.addEventListener('drop', (e) => {
+      const st = e.target.closest('.strip');
+      if (!dragId || !st) return;
+      e.preventDefault();
+      const s = this.game.state;
+      const after = st.classList.contains('drop-after');
+      let before = st.dataset.key;
+      if (after) {
+        const i = s.seq.indexOf(before);
+        before = s.seq[i + 1] === dragId ? s.seq[i + 2] : s.seq[i + 1];
+      }
+      if (before !== dragId && seqMoveTo(s, dragId, before || null)) sfx.click();
+      clear();
+    });
+    box.addEventListener('dragend', () => {
+      box.querySelectorAll('.dragging').forEach((x) => x.classList.remove('dragging'));
+      clear();
+      dragId = null;
+      this.game.panelHold = false;
+      this.update(this.game.state);
+    });
+  }
+
+  seqStrip(state, ac, idx, gapNm) {
+    const t = AC_TYPES[ac.type];
+    const sel = this.game.ui.selected === ac.id;
+    const land = isSeqArrival(ac);
+    const col = seqColor(ac);
+    const raw = seqEta(state, ac);
+    const slot = seqSlot(state, ac.id) ?? raw;
+    const eta = Math.max(0, Math.round(slot / 60));
+    const shift = Math.round((slot - raw) / 60); // Wartezeit durch die Folge
+    let where = '';
+    if (land) {
+      if (ac.mode === 'air') where = `${distToLand(ac).toFixed(1)} NM · ${String(Math.round(ac.alt / 100)).padStart(3, '0')} · ${Math.round(ac.spd)} kt`;
+      else where = ac.phase === PH.ROLLOUT ? 'auf der Piste' : 'kurzer Endanflug';
+    } else where = { STARTUP: 'Triebwerksstart', TAXI_OUT: 'rollt zum Rollhalt', HOLDING: `Rollhalt ${ac.rwy}`, LINEUP: 'rollt auf die Piste', LINED_UP: 'aufgestellt', TAKEOFF: 'Startlauf' }[ac.phase] || PHASE_DE[ac.phase];
+    let gap = '';
+    if (gapNm != null) {
+      const c = gapNm < 3 ? 'var(--bad)' : gapNm < 5 ? 'var(--warn)' : 'var(--muted)';
+      gap = ` · <span style="color:${c}">Abstand ${gapNm.toFixed(1)} NM</span>`;
+    }
+    let st = land ? (ac.clr.land ? '🛬 Landung frei' : '🛬 Landung') : ac.clr.takeoff ? '🛫 Startfreigabe erteilt' : ac.clr.lineup ? '🛫 Line up & wait' : '🛫 Start';
+    if (ac.holdPos) st += ' · HALT';
+    if (ac.blockedBy && ac.mode === 'map' && ac.v === 0) {
+      const b = state.acs.find((o) => o.id === ac.blockedBy);
+      if (b) st += ` · wartet auf ${esc(b.cs)}`;
+    }
+    const rq = ac.req ? ` · <span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
+    const info = `<div class="s-info"><div class="s-cs">${esc(ac.cs)}<small>${ac.type}/${t.wake}${ac.emergency ? ' · 7700' : ''}</small></div><div class="s-alt" title="geplante Pistenzeit laut Folge">${eta <= 0 ? 'jetzt' : '~' + eta + ' min'}${shift >= 1 ? ` <small style="color:var(--warn)">+${shift}</small>` : ''}</div><div class="s-sub">${esc(acRoute(state, ac))} · ${esc(where)}${gap}</div><div class="s-state"><b style="color:${col}">${st}</b>${rq}</div></div>`;
+    const ctl = `<button class="mini" data-seqmv="-1" data-ac="${ac.id}" title="früher (W)">▲</button><span class="grip" title="Ziehen zum Umsortieren">⠿</span><button class="mini" data-seqmv="1" data-ac="${ac.id}" title="später (S)">▼</button>`;
+    return {
+      cls: `strip seqs ${land ? (ac.clr.land ? 'k-landclr' : 'k-land') : ac.clr.takeoff ? 'k-depclr' : 'k-dep'}${sel ? ' sel' : ''}${ac.req ? ' req' : ''}${ac.emergency ? ' emg' : ''}${ac.conflict ? ' conf' : ''}`,
+      wrap: () => `<div class="s-bar"></div><div class="s-num"></div><div class="s-main"><div class="s-infobox"></div><div class="s-btns"></div></div><div class="s-ctl"></div>`,
+      parts: { 's-num': `<span style="background:${col}">${idx}</span>`, 's-infobox': info, 's-btns': cmdButtons(state, ac, false, sel), 's-ctl': ctl },
+    };
   }
 
   strip(state, ac, kind) {
@@ -151,9 +257,26 @@ export class TowerPanel {
     setHTML(this.el.rwy, h);
     this.el.gauto.classList.toggle('on', !!state.settings.towerGroundAuto);
 
-    const arr = state.acs.filter((a) => ARR_PH.includes(a.phase)).map((a) => ({ a, d: distToLand(a) })).sort((x, y) => x.d - y.d).map((x) => x.a);
-    const gnd = state.acs.filter((a) => GND_PH.includes(a.phase) || (a.phase === PH.STAND && a.req === 'push')).sort((a, b) => (b.req ? 1 : 0) - (a.req ? 1 : 0) || (a.reqT || 0) - (b.reqT || 0));
-    const dep = state.acs.filter((a) => DEP_PH.includes(a.phase) || (a.phase === PH.DEPART && Math.hypot(a.pos.x, a.pos.y) < 10));
+    // Pistenfolge (Landungen + Starts gemeinsam)
+    updateSequence(state);
+    const byId = new Map(state.acs.map((a) => [a.id, a]));
+    const seq = state.seq.map((id) => byId.get(id)).filter(Boolean);
+    const inSeq = new Set(state.seq);
+    setHTML(this.el.seqHead, `<span>Pistenfolge RWY ${state.rwy} <small style="text-transform:none;letter-spacing:0">${state.seqManual ? '· manuell sortiert' : '· automatisch geplant'}</small></span><span>${state.seqManual ? '<button class="mini" data-seqsort title="wieder automatisch planen">⇅ automatisch</button> ' : ''}<span class="cnt">${seq.length}</span></span>`);
+    let lastArr = null;
+    const gaps = new Map();
+    for (const a of seq) {
+      if (!isSeqArrival(a)) continue;
+      if (lastArr && a.mode === 'air') gaps.set(a.id, lastArr.mode === 'air' ? Math.hypot(a.pos.x - lastArr.pos.x, a.pos.y - lastArr.pos.y) : distToLand(a));
+      lastArr = a;
+    }
+    syncList(this.el.seq, seq, (a) => a.id, (a) => this.seqStrip(state, a, seq.indexOf(a) + 1, gaps.get(a.id)));
+    for (const el of this.el.seq.children) if (el.classList.contains('strip')) el.draggable = true;
+    if (!seq.length && !this.el.seq.querySelector('.empty')) this.el.seq.innerHTML = '<div class="empty">Noch keine Landungen mit Anflugfreigabe oder rollbereite Starts.</div>';
+
+    const arr = state.acs.filter((a) => ARR_PH.includes(a.phase) && !inSeq.has(a.id)).map((a) => ({ a, d: distToLand(a) })).sort((x, y) => x.d - y.d).map((x) => x.a);
+    const gnd = state.acs.filter((a) => !inSeq.has(a.id) && (GND_PH.includes(a.phase) || (a.phase === PH.STAND && a.req === 'push'))).sort((a, b) => (b.req ? 1 : 0) - (a.req ? 1 : 0) || (a.reqT || 0) - (b.reqT || 0));
+    const dep = state.acs.filter((a) => !inSeq.has(a.id) && (DEP_PH.includes(a.phase) || (a.phase === PH.DEPART && Math.hypot(a.pos.x, a.pos.y) < 10)));
     syncList(this.el.arr, arr, (a) => a.id, (a) => this.strip(state, a, 'arr'));
     syncList(this.el.gnd, gnd, (a) => a.id, (a) => this.strip(state, a, 'gnd'));
     syncList(this.el.dep, dep, (a) => a.id, (a) => this.strip(state, a, 'dep'));
@@ -162,7 +285,7 @@ export class TowerPanel {
     cnt('#tw-c-gnd', gnd.length);
     cnt('#tw-c-dep', dep.length);
     cnt('#tw-c-stand', state.acs.filter((a) => a.phase === PH.STAND).length);
-    for (const [el, list, txt] of [[this.el.arr, arr, 'Kein Anflugverkehr.'], [this.el.gnd, gnd, 'Kein Rollverkehr.'], [this.el.dep, dep, 'Keine Abflüge am Rollhalt.']]) {
+    for (const [el, list, txt] of [[this.el.arr, arr, 'Kein Anflugverkehr.'], [this.el.gnd, gnd, 'Kein Rollverkehr.'], [this.el.dep, dep, 'Keine Abflüge in der Luft.']]) {
       if (!list.length && !el.querySelector('.empty')) el.innerHTML = `<div class="empty">${txt}</div>`;
     }
   }
@@ -173,6 +296,11 @@ export class TowerPanel {
     const ac = id && state.acs.find((a) => a.id === id);
     if (!ac) return false;
     const k = e.key.toUpperCase();
+    if ((k === 'W' || k === 'S') && seqIndex(state, ac.id)) {
+      if (seqMove(state, ac.id, k === 'W' ? -1 : 1)) sfx.click();
+      this.update(state);
+      return true;
+    }
     for (const key of validCommands(state, ac)) {
       if (CMDS[key].key === k) {
         const r = command(state, ac, key);

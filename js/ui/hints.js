@@ -16,6 +16,8 @@ function towerHint(s) {
   if (push) return `<b>${esc(push.cs)}</b> ist abgefertigt – Pushback freigeben (P). Achte auf Verkehr auf der Vorfeldstraße.`;
   const tx = s.acs.find((a) => a.req === 'taxi_out');
   if (tx) return `<b>${esc(tx.cs)}</b> ist startklar – Rollfreigabe zum Rollhalt (R).`;
+  const first = s.seq && s.seq.length ? s.acs.find((a) => a.id === s.seq[0]) : null;
+  if (first && first.phase === PH.HOLDING && !first.clr.takeoff && !first.clr.lineup) return `<b>${esc(first.cs)}</b> ist #1 der Pistenfolge und wartet am Rollhalt – Startfreigabe (T) oder erst „Line up“ (U).`;
   const to = s.acs.find((a) => a.req === 'takeoff');
   if (to) return `<b>${esc(to.cs)}</b> wartet am Rollhalt. Startfreigabe (T), wenn der nächste Anflug noch mindestens ~5 NM entfernt ist.`;
   const app = s.acs.filter((a) => a.phase === PH.APPROACH || a.phase === PH.FINAL).length;

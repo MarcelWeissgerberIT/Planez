@@ -2,7 +2,7 @@
 import { loadAssets } from './assets.js';
 import { Camera } from './render/camera.js';
 import { MapRenderer } from './render/map.js';
-import { Radar } from './render/radar.js';
+import { Radar, seqChips } from './render/radar.js';
 import { newGame, loadGame, saveGame, hasSave, setRole, ROLES } from './state.js';
 import { run, hooks } from './sim/sim.js';
 import { listeners } from './sim/messages.js';
@@ -21,6 +21,7 @@ import { fmtClock, fmtMoney, dayOf, esc, clamp, hourOf } from './util.js';
 import { WEATHER } from './sim/events.js';
 import { PH } from './sim/aircraft.js';
 import * as LY from './layout.js';
+import { seqColor } from './ui/tower.js';
 
 const game = {
   state: null,
@@ -168,6 +169,7 @@ function applyRole() {
   $('#btn-role').textContent = `${ROLES[s.role].icon} ${ROLES[s.role].short} ▾`;
   toggleRadar(s.role === 'tower');
   game.ui.labelFn = labelFn(s.role);
+  game.ui.seqCol = (ac) => (s.seq && s.seq.includes(ac.id) ? seqColor(ac) : null);
   $('#hud-name').textContent = s.name;
   updateHUD(true);
 }
@@ -175,6 +177,11 @@ function applyRole() {
 function labelFn(role) {
   return (ac) => {
     const s = game.state;
+    const n = s.seq ? s.seq.indexOf(ac.id) + 1 : 0;
+    if (role === 'tower' && n) {
+      const what = ac.clr.takeoff ? 'Start frei' : ac.clr.land ? 'Landung frei' : ac.req ? REQ_DE[ac.req].replace('bittet um ', '').replace('wartet auf ', '') : ac.arr && !['STARTUP', 'TAXI_OUT', 'HOLDING', 'LINEUP', 'LINED_UP', 'TAKEOFF'].includes(ac.phase) ? 'Landung' : 'Start';
+      return `#${n} · ${what}`;
+    }
     if (role === 'tower') {
       if (ac.req) return REQ_DE[ac.req].replace('bittet um ', '').replace('wartet auf ', '');
       if (ac.phase === PH.FINAL) return ac.clr.land ? 'Landung frei' : 'keine Freigabe!';
@@ -210,6 +217,7 @@ function loop(ts) {
   if (game.uiTimer <= 0) {
     game.uiTimer = 0.2;
     updateHUD();
+    if (game.ui.radarOn) setHTML($('#radar-seq'), seqChips(s));
     if (!game.panelHold && !(document.activeElement && document.activeElement.tagName === 'SELECT')) game.panel.update(s);
     if (!(document.activeElement && document.activeElement.tagName === 'SELECT' && document.activeElement.closest('#info'))) renderInfo($('#info'), s, game.ui);
     watchAlerts(s);
@@ -419,6 +427,10 @@ function wireGame() {
     const id = game.radar.pick(e.offsetX, e.offsetY);
     if (id) game.select(id, 'map');
     else game.select(null);
+  });
+  $('#radar-seq').addEventListener('click', (e) => {
+    const c = e.target.closest('[data-id]');
+    if (c) game.select(c.dataset.id, true);
   });
   $('#radar-big').addEventListener('click', () => {
     game.ui.radarBig = !game.ui.radarBig;
@@ -761,6 +773,7 @@ function showHelp(first) {
       <li><b>Anflug frei</b> <kbd>A</kbd> schickt Anflüge vom Fix (z.B. NOLTA) auf den Endanflug. Halte mindestens <b>3 NM</b> Abstand (auf dem Radar sichtbar) – nutze Geschwindigkeiten und <b>Warteschleife</b> <kbd>H</kbd>. Im Warteschleifen-Stapel zuerst den Untersten freigeben.</li>
       <li><b>Landefreigabe</b> <kbd>L</kbd> nur bei freier Piste – sonst startet der Flieger durch. Ohne Freigabe bei 1 NM: Durchstarten.</li>
       <li>Am Boden: <b>Rollen zur Position</b> <kbd>R</kbd>, <b>Pushback</b> <kbd>P</kbd>, <b>Rollen zum Rollhalt</b> <kbd>R</kbd>, <b>Line up</b> <kbd>U</kbd>, <b>Startfreigabe</b> <kbd>T</kbd>, <b>Halt</b> <kbd>X</kbd>.</li>
+      <li><b>Pistenfolge:</b> Landungen (ab Anflugfreigabe) und Starts (ab Rollbereitschaft) stehen gemeinsam nummeriert oben im Panel – mit den passenden Freigaben. Reihenfolge per ▲▼, Ziehen oder <kbd>W</kbd>/<kbd>S</kbd> festlegen; „⇅ automatisch“ plant wieder selbst. Die Nummer erscheint auch auf Karte und Radar: <span style="color:#22d3ee">■ Landung</span> <span style="color:#a5f3fc">■ Landung frei</span> <span style="color:#f59e0b">■ Start</span> <span style="color:#e879f9">■ Startfreigabe</span>. Die Startfreigabe kann schon während des Rollens erteilt werden.</li>
       <li><kbd>N</kbd> / <kbd>Tab</kbd> springt zur nächsten offenen Anfrage. <kbd>F</kbd> vergrößert das Radar. Bei Rückenwind die Betriebsrichtung wechseln.</li>
     </ul>
     <h3>🦺 Vorfeld &amp; Abfertigung</h3>

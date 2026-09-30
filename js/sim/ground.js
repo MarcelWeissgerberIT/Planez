@@ -79,6 +79,12 @@ export function onBlock(state, ac) {
     st.resv = null;
   }
   ac.engines = false;
+  // Freigaben des Ankunftsflugs gelten nicht für den Abflug
+  ac.clr = {};
+  ac.holdPos = false;
+  ac.spdOverride = null;
+  ac.altRestr = undefined;
+  ac.vacated = false;
   ac.ta = { tasks: makeTasks(state, ac, st), onBlock: state.time };
   if (rot) {
     rot.status = 'onblock';

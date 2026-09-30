@@ -6,6 +6,13 @@ import * as LY from '../layout.js';
 import { PH, tel, windStr, goAround, startTaxiIn, startPushback, startTaxiOut, startLineUp, runwayBlocker, runwayOccupants, setReq, fmtAlt } from './aircraft.js';
 import { radio, log, notify } from './messages.js';
 import { penalize } from './economy.js';
+import { updateSequence, seqNumber } from './sequence.js';
+
+const numTxt = (s, ac, suffix = '') => {
+  updateSequence(s);
+  const n = seqNumber(s, ac);
+  return n > 1 ? `number ${n}${suffix}, ` : '';
+};
 
 const onFinal = (ac) => ac.phase === PH.APPROACH && ac.route.length && ac.route[0].thr;
 const say = (state, ac, atc, readback) => {
@@ -27,7 +34,7 @@ export const CMDS = {
       ac.req = null;
       ac.altRestr = undefined;
       ac.stackAlt = ac.stackFix = null;
-      say(s, ac, `${tel(ac)}, cleared ILS approach runway ${ac.rwy}, descend 5000 feet.`, `Cleared ILS ${ac.rwy}, ${tel(ac)}.`);
+      say(s, ac, `${tel(ac)}, ${numTxt(s, ac)}cleared ILS approach runway ${ac.rwy}, descend 5000 feet.`, `Cleared ILS ${ac.rwy}, ${tel(ac)}.`);
     },
   },
   direct: {
@@ -41,7 +48,7 @@ export const CMDS = {
       ac.clr.app = true;
       ac.req = null;
       ac.altRestr = undefined;
-      say(s, ac, `${tel(ac)}, turn direct final approach fix, cleared ILS runway ${ac.rwy}.`, `Direct FAF, cleared ILS ${ac.rwy}, ${tel(ac)}.`);
+      say(s, ac, `${tel(ac)}, turn direct final approach fix, ${numTxt(s, ac)}cleared ILS runway ${ac.rwy}.`, `Direct FAF, cleared ILS ${ac.rwy}, ${tel(ac)}.`);
     },
   },
   hold: {
@@ -62,7 +69,7 @@ export const CMDS = {
       ac.clr.land = true;
       ac.clr.landGivenBlocked = !!runwayBlocker(s, ac) && !(runwayBlocker(s, ac).phase === PH.TAKEOFF);
       ac.req = null;
-      say(s, ac, `${tel(ac)}, runway ${ac.rwy}, cleared to land, ${windStr(s)}.`, `Cleared to land ${ac.rwy}, ${tel(ac)}.`);
+      say(s, ac, `${tel(ac)}, ${numTxt(s, ac)}runway ${ac.rwy}, cleared to land, ${windStr(s)}.`, `Cleared to land ${ac.rwy}, ${tel(ac)}.`);
     },
   },
   goaround: {
@@ -103,7 +110,8 @@ export const CMDS = {
     run: (s, ac) => {
       ac.clr.taxiOut = true;
       ac.req = null;
-      say(s, ac, `${tel(ac)}, taxi to holding point runway ${ac.rwy} via L and A.`, `Taxi holding point ${ac.rwy}, ${tel(ac)}.`);
+      const nd = numTxt(s, ac, ' for departure');
+      say(s, ac, `${tel(ac)}, taxi to holding point runway ${ac.rwy} via L and A${nd ? ', ' + nd.slice(0, -2) : ''}.`, `Taxi holding point ${ac.rwy}, ${tel(ac)}.`);
       if (ac.phase === PH.STARTUP && s.time - ac.startT > 55) startTaxiOut(s, ac);
     },
   },
@@ -118,7 +126,7 @@ export const CMDS = {
   },
   takeoff: {
     label: 'Startfreigabe', key: 'T', big: true,
-    valid: (s, ac) => [PH.HOLDING, PH.LINEUP, PH.LINED].includes(ac.phase) && !ac.clr.takeoff,
+    valid: (s, ac) => [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(ac.phase) && !ac.clr.takeoff,
     run: (s, ac) => {
       ac.clr.takeoff = true;
       ac.req = null;

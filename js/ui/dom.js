@@ -30,6 +30,18 @@ export function syncList(container, items, keyFn, renderFn, tag = 'div') {
         el._built = true;
       }
       for (const [p, html] of Object.entries(r.parts)) {
+        // Teil fehlt (z.B. neue Vorlage)? -> neu aufbauen
+        if (!el.querySelector('.' + p.split(' ')[0])) {
+          el._built = false;
+          el._parts = {};
+        }
+      }
+      if (!el._built) {
+        el.innerHTML = Object.keys(r.parts).map((p) => `<div class="${p}"></div>`).join('');
+        if (r.wrap) el.innerHTML = r.wrap(el.innerHTML);
+        el._built = true;
+      }
+      for (const [p, html] of Object.entries(r.parts)) {
         if (el._parts[p] !== html) {
           const box = el.querySelector('.' + p.split(' ')[0]);
           if (box) box.innerHTML = html;

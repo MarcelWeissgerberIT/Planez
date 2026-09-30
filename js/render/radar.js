@@ -3,7 +3,28 @@ import * as AS from '../sim/airspace.js';
 import * as LY from '../layout.js';
 import { PH } from '../sim/aircraft.js';
 import { AC_TYPES } from '../config.js';
-import { clamp } from '../util.js';
+import { clamp, esc } from '../util.js';
+import { isSeqArrival } from '../sim/sequence.js';
+
+// Farben der Pistenfolge (RGB)
+const SC = { land: [34, 211, 238], landClr: [165, 243, 252], dep: [245, 158, 11], depClr: [232, 121, 249] };
+const seqRgb = (ac) => (isSeqArrival(ac) ? (ac.clr.land ? SC.landClr : SC.land) : ac.clr.takeoff ? SC.depClr : SC.dep);
+const rgbStr = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+
+// Chip-Leiste der Pistenfolge (HTML unter dem Radar)
+export function seqChips(state) {
+  const byId = new Map(state.acs.map((a) => [a.id, a]));
+  const items = (state.seq || []).map((id, i) => {
+    const a = byId.get(id);
+    if (!a) return '';
+    const arr = isSeqArrival(a);
+    let info;
+    if (arr) info = a.mode === 'air' ? `${AS.routeDistance(a.pos, a.route.length ? a.route : [AS.THR[a.rwy]]).toFixed(1)} NM` : a.phase === PH.ROLLOUT ? 'Piste' : 'kurz';
+    else info = a.clr.takeoff ? 'frei' : a.phase === PH.HOLDING ? 'Rollhalt' : a.phase === PH.LINED || a.phase === PH.LINEUP ? 'Piste' : 'rollt';
+    return `<button class="rs-chip" data-id="${a.id}" style="--c:${rgbStr(seqRgb(a))}"><b>${i + 1}</b>${esc(a.cs)} ${arr ? '↓' : '↑'} <small>${info}</small></button>`;
+  });
+  return items.join('') || '<span class="rs-empty">Pistenfolge leer</span>';
+}
 
 // Fiktive Landschaft (Flüsse, Städte) für die Karte im Hintergrund
 function makeTerrain() {
@@ -208,6 +229,40 @@ export class Radar {
     ctx.lineTo(cx + Math.cos(sw) * R, cy + Math.sin(sw) * R);
     ctx.stroke();
 
+    // Pistenfolge: Verbindungslinie der Landungen und Startmarker
+    const seq = state.seq || [];
+    const seqPos = new Map(seq.map((id, i) => [id, i + 1]));
+    const byIdR = new Map(state.acs.map((a) => [a.id, a]));
+    const nmOf = (a) => (a.mode === 'air' ? a.pos : LY.tileToNm(a.x, a.y));
+    const seqAcs = seq.map((id) => byIdR.get(id)).filter(Boolean);
+    const lands = seqAcs.filter((a) => isSeqArrival(a));
+    if (lands.length > 1) {
+      ctx.setLineDash([3, 4]);
+      ctx.strokeStyle = rgbStr(SC.land, 0.45);
+      ctx.beginPath();
+      lands.forEach((a, i) => {
+        const q = this.toScreen(nmOf(a).x, nmOf(a).y);
+        i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    const deps = seqAcs.filter((a) => !isSeqArrival(a) && !(a.phase === PH.TAKEOFF && a.z > 0));
+    if (deps.length) {
+      const q = this.toScreen(AS.THR[state.rwy].x, 0);
+      const cleared = deps.some((a) => a.clr.takeoff);
+      const c = cleared ? SC.depClr : SC.dep;
+      ctx.fillStyle = rgbStr(c, 0.95);
+      ctx.beginPath();
+      ctx.moveTo(q.x, q.y + 6);
+      ctx.lineTo(q.x + 6, q.y + 16);
+      ctx.lineTo(q.x - 6, q.y + 16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.font = '700 10px ui-monospace, Menlo, monospace';
+      ctx.fillText(`${deps.map((a) => seqPos.get(a.id)).join('·')} ↑`, q.x + 9, q.y + 16);
+    }
+
     // Flugzeuge
     this.blips = [];
     const blink = Math.floor(performance.now() / 400) % 2 === 0;
@@ -232,6 +287,8 @@ export class Radar {
       const glow = 0.55 + 0.45 * (1 - since / (Math.PI * 2));
       let col = ac.arr ? [110, 255, 170] : [170, 255, 220];
       if (ac.phase === PH.DEPART) col = [150, 220, 255];
+      const sp = seqPos.get(ac.id);
+      if (sp) col = seqRgb(ac);
       if (ac.predConflict) col = [255, 200, 60];
       if (ac.conflict) col = blink ? [255, 70, 70] : [255, 160, 160];
       if (ac.emergency) col = blink ? [255, 80, 220] : [255, 200, 240];
@@ -272,14 +329,27 @@ export class Radar {
         ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
         ctx.stroke();
       }
+      // Folgenummer
+      if (sp) {
+        const txt = String(sp);
+        const bw2 = 7 + txt.length * 6.5;
+        ctx.fillStyle = rgbStr(seqRgb(ac), 0.95);
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(p.x - bw2 - 6, p.y - 6, bw2, 12, 3) : ctx.rect(p.x - bw2 - 6, p.y - 6, bw2, 12);
+        ctx.fill();
+        ctx.fillStyle = '#04121a';
+        ctx.font = '800 10px ui-monospace, Menlo, monospace';
+        ctx.fillText(txt, p.x - bw2 - 2.5, p.y + 3.5);
+        ctx.font = `600 ${this.R > 200 ? 11 : 10}px ui-monospace, Menlo, monospace`;
+      }
       // Datenblock
       const fl = String(Math.round(alt / 100)).padStart(3, '0');
       const trend = ac.mode === 'air' ? (ac.tAlt > ac.alt + 150 ? '↑' : ac.tAlt < ac.alt - 150 ? '↓' : ' ') : '↓';
       const spd = String(Math.round((ac.mode === 'air' ? ac.spd : 140) / 10)).padStart(2, '0');
       const t = AC_TYPES[ac.type];
-      const l1 = ac.cs + (ac.req ? ' ●' : '');
+      const l1 = (ac.mode === 'map' && sp ? '#' + sp + ' ' : '') + ac.cs + (ac.req ? ' ●' : '');
       const l2 = `${fl}${trend} ${spd}`;
-      const l3 = ac.emergency ? '7700 EMERG' : `${ac.type}/${t.wake}${ac.clr.land ? ' LND' : ac.phase === PH.APPROACH ? ' APP' : ac.phase === PH.HOLD ? ' HLD' : ''}`;
+      const l3 = ac.emergency ? '7700 EMERG' : `${sp ? '#' + sp + ' ' : ''}${ac.type}/${t.wake}${ac.clr.land ? ' LND' : ac.phase === PH.APPROACH ? ' APP' : ac.phase === PH.HOLD ? ' HLD' : ''}`;
       // Datenblock-Position: freie Ecke suchen (Überlappungen vermeiden)
       const compact = ac.mode === 'map';
       const bw = compact ? 48 : 78, bh = compact ? 12 : 38;

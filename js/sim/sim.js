@@ -7,6 +7,7 @@ import { autoAtc, updateConflicts } from './atc.js';
 import { updateEconomy, closeDay } from './economy.js';
 import { generateDay, dailyContracts, maybeOffer } from './schedule.js';
 import { updateEvents } from './events.js';
+import { updateSequence } from './sequence.js';
 import { log } from './messages.js';
 import * as LY from '../layout.js';
 
@@ -30,6 +31,7 @@ export function step(state, dt) {
   updateEvents(state, dt);
   autoAtc(state, dt);
   updateAircraft(state, dt);
+  updateSequence(state);
   updateGround(state, dt);
   updateConflicts(state, dt);
   updateEconomy(state, dt);

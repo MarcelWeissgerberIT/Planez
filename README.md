@@ -5,7 +5,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 
 | Station | Deine Aufgabe | Automatisch |
 |---|---|---|
-| 🎧 **Tower-Lotse** | Radar & Flugstreifen: Anflüge sequenzieren, Warteschleifen, Lande-/Startfreigaben, Pushback, Rollverkehr, Pistenwechsel bei Rückenwind | Abfertigung, Management |
+| 🎧 **Tower-Lotse** | Radar & Flugstreifen: gemeinsame Pistenfolge aus Landungen und Starts (selbst sortierbar, farbig auf Radar und Karte), Warteschleifen, Lande-/Startfreigaben, Pushback, Rollverkehr, Pistenwechsel bei Rückenwind | Abfertigung, Management |
 | 🦺 **Vorfeld & Abfertigung** | Parkpositionen vergeben, Turnaround steuern (Aussteigen, Entladen, Reinigung, Catering, Betankung, Einsteigen, Beladen, Pushback), Fahrzeuge disponieren | Flugsicherung, Management |
 | 💼 **Flughafen-Manager** | Airline-Verträge, Gebühren, Ausbau (Positionen, Terminal, Hotel, ILS CAT III …), Fuhrpark, Personal, Finanzen | Flugsicherung, Abfertigung |
 | 👁️ **Beobachter** | zurücklehnen | alles |
@@ -15,6 +15,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 ## Features
 - Isometrische, animierte Flughafenansicht mit Tag/Nacht-Zyklus, Befeuerung (Pisten-, Rollweg-, Anflug-Lauflicht), Wetter (Regen, Nebel, Gewitter), Wind & Windsack
 - Luftraum mit Radar (Sweep, Datenblöcke, Warteschleifen-Fixes, Endanflug, Konfliktwarnung/STCA)
+- Pistenfolge: Landungen und Starts in einer nummerierten Liste mit geplanten Pistenzeiten; Farben auf Radar/Karte: türkis = Landung, hellblau = Landung frei, bernstein = Start, magenta = Startfreigabe
 - Echte Abläufe: Warteschleifen-Stapel, ILS-Anflug, Landefreigabe, Durchstarten, Abrollwege, Rollwege mit Vorfahrt/Kollisionsvermeidung, Pushback mit Schlepper, Line-up, Start
 - Turnaround mit Abhängigkeiten und Fahrzeugflotte (Schlepper, Gepäckzüge, Tankwagen, Catering, Reinigung, Vorfeldbusse), Fluggastbrücken
 - Wirtschaft: Lande-, Passagier- und Positionsentgelte, Shops, Parken, Fracht, Vertragsstrafen, Airline-Zufriedenheit, Tagesberichte
@@ -23,7 +24,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 
 ## Steuerung
 - Karte ziehen = verschieben · Mausrad / Pinch = Zoom · Klick = auswählen
-- `Leertaste` Pause · `1`–`5` Tempo · `B` Beschriftungen · `N`/`Tab` nächste Anfrage · `F` Radar groß
+- `Leertaste` Pause · `1`–`5` Tempo · `B` Beschriftungen · `N`/`Tab` nächste Anfrage · `F` Radar groß · `W`/`S` Flug in der Pistenfolge vor/zurück (auch ▲▼ oder Ziehen)
 - Tower: `A` Anflug frei · `D` Direkt FAF · `H` Warteschleife · `L` Landefreigabe · `G` Durchstarten · `R` Rollfreigabe · `P` Pushback · `U` Line up · `T` Startfreigabe · `X` Halt · `C` Weiterrollen
 
 ## Technik

@@ -690,7 +690,9 @@ export class MapRenderer {
       const bh = line2 ? fs * 2 + 8 : fs + 7;
       const bx = p.x + 10, by = p.y - 26 - bh / 2;
       let border = 'rgba(255,255,255,0.25)';
+      const sc = ui.seqCol ? ui.seqCol(ac) : null;
       if (ac.req) border = '#fbbf24';
+      if (sc) border = sc;
       if (ac.emergency) border = '#f43f5e';
       if (isSel) border = '#38bdf8';
       ctx.strokeStyle = border;
@@ -702,13 +704,13 @@ export class MapRenderer {
       ctx.fillStyle = isSel ? 'rgba(8,40,60,0.9)' : 'rgba(10,14,22,0.78)';
       roundRect(ctx, bx, by, bw, bh, 4);
       ctx.fill();
-      ctx.lineWidth = isSel || ac.req ? 1.6 : 1;
+      ctx.lineWidth = isSel || ac.req || sc ? 1.8 : 1;
       ctx.stroke();
       ctx.fillStyle = ac.emergency ? '#fda4af' : '#f8fafc';
       ctx.fillText(ac.cs, bx + 5, by + fs / 2 + 4);
       if (line2) {
         ctx.font = `500 ${fs - 1}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-        ctx.fillStyle = ac.req ? '#fcd34d' : '#94a3b8';
+        ctx.fillStyle = sc || (ac.req ? '#fcd34d' : '#94a3b8');
         ctx.fillText(line2, bx + 5, by + fs * 1.5 + 5);
         ctx.font = `700 ${fs}px ui-monospace, SFMono-Regular, Menlo, monospace`;
       }
