@@ -5,6 +5,7 @@ import { dispatch, assignStand, releaseReservation, standFits, standFree, fleetS
 import { fmtClock, esc } from '../util.js';
 import { syncList, setHTML, toast } from './dom.js';
 import { sfx } from '../audio.js';
+import { flagHtml } from './marks.js';
 
 const KIND_DE = { contact: 'Gebäude', remote: 'Vorfeld', cargo: 'Fracht' };
 
@@ -125,7 +126,7 @@ export class GroundPanel {
       return {
         cls: `inb-row${need ? ' need' : ''}`,
         parts: {
-          'inb-t': `<span class="cs" data-sel="${a.id}">${esc(a.cs)}</span> <small style="color:var(--muted)">${a.type} · ${AC_TYPES[a.type].size}</small>`,
+          'inb-t': `<span class="cs" data-sel="${a.id}">${esc(a.cs)}</span> <small style="color:var(--muted)">${a.type} · ${AC_TYPES[a.type].size}</small>${flagHtml(a)}`,
           'inb-e': `<span class="eta">${need ? '⚠ wartet' : PHASE_DE[a.phase].split(' ')[0]} · ${eta}</span>`,
           'inb-s': locked ? `<b>P${a.stand}</b>` : `<select data-assign="${a.id}">${standOptions(state, a)}</select>`,
         },
@@ -145,7 +146,7 @@ export class GroundPanel {
       return {
         cls: `stand-row${sel ? ' sel' : ''}${left < 0 ? ' late' : ''}`,
         parts: {
-          'sr-head': `<span class="sr-id">P${st ? st.id : '?'}</span><span class="sr-ac" data-sel="${a.id}">${esc(a.cs)} <small>${a.type} → ${CITIES[rot?.city]?.name || ''} · <span class="sr-kind">${st ? KIND_DE[st.kind] : ''}</span></small></span><span class="sr-std ${cls}">${rot ? fmtClock(rot.std) : ''} ${left >= 0 ? `(${left}′)` : `(+${-left}′)`}</span>`,
+          'sr-head': `<span class="sr-id">P${st ? st.id : '?'}</span><span class="sr-ac" data-sel="${a.id}">${esc(a.cs)}${flagHtml(a)} <small>${a.type} → ${CITIES[rot?.city]?.name || ''} · <span class="sr-kind">${st ? KIND_DE[st.kind] : ''}</span></small></span><span class="sr-std ${cls}">${rot ? fmtClock(rot.std) : ''} ${left >= 0 ? `(${left}′)` : `(+${-left}′)`}</span>`,
           tasks: taskChips(state, a),
         },
       };

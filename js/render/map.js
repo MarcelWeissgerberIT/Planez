@@ -5,6 +5,8 @@ import * as LY from '../layout.js';
 import { AC_TYPES, AIRLINES, VEH_TYPES, ZS } from '../config.js';
 import { PH } from '../sim/aircraft.js';
 import { hourOf, roundedPath, clamp, lerp } from '../util.js';
+import { MARKS } from '../ui/marks.js';
+const markOf = (ac) => (ac.mark && MARKS[ac.mark.c] ? MARKS[ac.mark.c] : null);
 
 const BH = { hall: 1.3, tower: 5, hangar: 1.8, cargo: 0.9, depot: 0.7, fire: 0.8, fuel: 0.9, parking: 1.1, hotel: 3.2, radar: 2.6 };
 const MARGIN = 8;
@@ -407,6 +409,20 @@ export class MapRenderer {
     }
     const zb = ac.z + 0.07;
     if (ui && ui.selected === ac.id) this.selRing(ac.x, ac.y, L * 0.62, ac.z);
+    const mk = markOf(ac);
+    if (mk) {
+      // Markierung: gestrichelter Ring in Markierungsfarbe
+      cam.setIso(ctx, 0.02);
+      ctx.strokeStyle = mk.hex;
+      ctx.lineWidth = 0.09;
+      ctx.setLineDash([0.28, 0.16]);
+      ctx.lineDashOffset = -this.time * 0.4;
+      ctx.beginPath();
+      ctx.arc(ac.x, ac.y, L * 0.74, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
+    }
     cam.setIso(ctx, zb);
     ctx.save();
     ctx.translate(ac.x, ac.y);
@@ -678,16 +694,19 @@ export class MapRenderer {
     for (const ac of state.acs) {
       if (ac.mode !== 'map') continue;
       const isSel = ui.selected === ac.id;
-      if (!ui.labels && !isSel && !ac.req && !ac.emergency) continue;
+      const mk = markOf(ac);
+      if (!ui.labels && !isSel && !ac.req && !ac.emergency && !mk) continue;
       const p = cam.toScreen(ac.x, ac.y, ac.z + 0.3);
       if (p.x < -80 || p.y < -40 || p.x > cam.w + 80 || p.y > cam.h + 40) continue;
       const line2 = ui.labelFn ? ui.labelFn(ac) : '';
+      const line3 = mk && ac.mark.note ? `⚑ ${ac.mark.note}` : '';
       const w1 = ctx.measureText(ac.cs).width;
       ctx.font = `500 ${fs - 1}px ui-monospace, SFMono-Regular, Menlo, monospace`;
       const w2 = line2 ? ctx.measureText(line2).width : 0;
+      const w3 = line3 ? ctx.measureText(line3).width : 0;
       ctx.font = `700 ${fs}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-      const bw = Math.max(w1, w2) + 10;
-      const bh = line2 ? fs * 2 + 8 : fs + 7;
+      const bw = Math.max(w1, w2, w3) + 10 + (mk ? 4 : 0);
+      const bh = (line2 ? fs * 2 + 8 : fs + 7) + (line3 ? fs + 2 : 0);
       const bx = p.x + 10, by = p.y - 26 - bh / 2;
       let border = 'rgba(255,255,255,0.25)';
       const sc = ui.seqCol ? ui.seqCol(ac) : null;
@@ -706,14 +725,23 @@ export class MapRenderer {
       ctx.fill();
       ctx.lineWidth = isSel || ac.req || sc ? 1.8 : 1;
       ctx.stroke();
-      ctx.fillStyle = ac.emergency ? '#fda4af' : '#f8fafc';
-      ctx.fillText(ac.cs, bx + 5, by + fs / 2 + 4);
-      if (line2) {
-        ctx.font = `500 ${fs - 1}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-        ctx.fillStyle = sc || (ac.req ? '#fcd34d' : '#94a3b8');
-        ctx.fillText(line2, bx + 5, by + fs * 1.5 + 5);
-        ctx.font = `700 ${fs}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      const tx = bx + 5 + (mk ? 4 : 0);
+      if (mk) {
+        ctx.fillStyle = mk.hex;
+        ctx.fillRect(bx + 1, by + 1, 4, bh - 2);
       }
+      ctx.fillStyle = ac.emergency ? '#fda4af' : '#f8fafc';
+      ctx.fillText(ac.cs, tx, by + fs / 2 + 4);
+      if (line2 || line3) ctx.font = `500 ${fs - 1}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      if (line2) {
+        ctx.fillStyle = sc || (ac.req ? '#fcd34d' : '#94a3b8');
+        ctx.fillText(line2, tx, by + fs * 1.5 + 5);
+      }
+      if (line3) {
+        ctx.fillStyle = mk.hex;
+        ctx.fillText(line3, tx, by + (line2 ? fs * 2.5 + 6 : fs * 1.5 + 5));
+      }
+      ctx.font = `700 ${fs}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     }
   }
 

@@ -13,6 +13,7 @@ import { ManagerPanel } from './ui/managerPanel.js';
 import { $, toast, openModal, closeModal, modalOpen, setHTML } from './ui/dom.js';
 import { renderInfo } from './ui/info.js';
 import { currentHint } from './ui/hints.js';
+import { initMarkMenu, openMarkMenu, closeMarkMenu, markMenuOpen, cycleMark, clearMark, setMark, MARKS } from './ui/marks.js';
 import { sfx, setSound, setTTS, speak, unlock } from './audio.js';
 import { command } from './sim/atc.js';
 import { dispatch, assignStand, standFits, standFree } from './sim/ground.js';
@@ -55,6 +56,11 @@ const game = {
     const strip = document.querySelector(`#panel [data-key="${id}"]`);
     if (strip && focus !== 'map') strip.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   },
+};
+game.refreshUi = () => {
+  game.uiTimer = 0;
+  const info = document.getElementById('info');
+  if (info) info._html = null;
 };
 window.planez = game; // für Tests/Debugging
 
@@ -377,7 +383,21 @@ function wireGame() {
       const [a, b] = [...pointers.values()];
       pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: game.cam.zoom };
       down = null;
-    } else down = { x: e.offsetX, y: e.offsetY, lx: e.offsetX, ly: e.offsetY, moved: false, btn: e.button };
+    } else {
+      down = { x: e.offsetX, y: e.offsetY, lx: e.offsetX, ly: e.offsetY, moved: false, btn: e.button, cx: e.clientX, cy: e.clientY };
+      // langes Drücken (Touch) = Markieren
+      if (e.pointerType === 'touch') {
+        const d0 = down;
+        d0.lp = setTimeout(() => {
+          if (down !== d0 || d0.moved) return;
+          const p = game.map.pick(d0.x, d0.y, ['ac']);
+          if (!p) return;
+          d0.longpress = true;
+          game.select(p.id, 'map');
+          openMarkMenu(game, p.id, d0.cx, d0.cy);
+        }, 550);
+      }
+    }
   });
   canvas.addEventListener('pointermove', (e) => {
     const p = pointers.get(e.pointerId);
@@ -409,7 +429,8 @@ function wireGame() {
     pointers.delete(e.pointerId);
     canvas.classList.remove('dragging');
     if (pointers.size < 2) pinch = null;
-    if (down && !down.moved) clickMap(e.offsetX, e.offsetY);
+    if (down) clearTimeout(down.lp);
+    if (down && !down.moved && !down.longpress && down.btn !== 2) clickMap(e.offsetX, e.offsetY);
     down = null;
   };
   canvas.addEventListener('pointerup', up);
@@ -419,7 +440,14 @@ function wireGame() {
     e.preventDefault();
     game.cam.zoomAt(Math.exp(-e.deltaY * 0.0015), e.offsetX, e.offsetY);
   }, { passive: false });
-  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const p = game.map.pick(e.offsetX, e.offsetY, ['ac']);
+    if (!p) return;
+    game.select(p.id, 'map');
+    openMarkMenu(game, p.id, e.clientX, e.clientY);
+  });
+  initMarkMenu(game);
 
   // Radar
   const rc = $('#radar');
@@ -427,6 +455,18 @@ function wireGame() {
     const id = game.radar.pick(e.offsetX, e.offsetY);
     if (id) game.select(id, 'map');
     else game.select(null);
+  });
+  rc.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const id = game.radar.pick(e.offsetX, e.offsetY);
+    if (!id) return;
+    game.select(id, 'map');
+    openMarkMenu(game, id, e.clientX, e.clientY);
+  });
+  $('#radar-mf').addEventListener('click', () => {
+    game.ui.markFilter = !game.ui.markFilter;
+    $('#radar-mf').classList.toggle('on', game.ui.markFilter);
+    toast(game.ui.markFilter ? 'Radar: nur markierte Flüge hervorgehoben' : 'Radar: alle Flüge normal', 'info', 1800);
   });
   $('#radar-seq').addEventListener('click', (e) => {
     const c = e.target.closest('[data-id]');
@@ -482,6 +522,19 @@ function wireGame() {
       if (!r.ok && r.msg) toast(r.msg, 'warn');
       else sfx.click();
       info._html = null;
+      return;
+    }
+    const im = e.target.closest('[data-imark]');
+    if (im) {
+      const ac = s.acs.find((a) => a.id === im.dataset.ac);
+      if (ac) im.dataset.imark === 'x' ? clearMark(ac) : setMark(ac, im.dataset.imark);
+      info._html = null;
+      game.refreshUi();
+      return;
+    }
+    const imm = e.target.closest('[data-imarkmenu]');
+    if (imm) {
+      openMarkMenu(game, imm.dataset.imarkmenu, e.clientX, e.clientY - 180);
       return;
     }
     const d = e.target.closest('[data-disp]');
@@ -575,7 +628,19 @@ function onKey(e) {
   }
   if (e.key === '+' || e.key === '=') return game.cam.zoomAt(1.2, game.cam.w / 2, game.cam.h / 2);
   if (e.key === '-') return game.cam.zoomAt(0.83, game.cam.w / 2, game.cam.h / 2);
-  if (e.key === 'Escape') return game.select(null);
+  if (e.key === 'Escape') {
+    if (markMenuOpen()) return closeMarkMenu();
+    return game.select(null);
+  }
+  if (e.key === 'm' || e.key === 'M') {
+    const ac = game.ui.selected && s.acs.find((a) => a.id === game.ui.selected);
+    if (!ac) return toast('Erst ein Flugzeug auswählen, dann M zum Markieren', 'info', 1800);
+    if (e.shiftKey) clearMark(ac);
+    else cycleMark(ac);
+    toast(ac.mark ? `⚑ ${ac.cs} markiert: ${MARKS[ac.mark.c].name}` : `${ac.cs}: Markierung entfernt`, 'info', 1400);
+    game.refreshUi();
+    return;
+  }
   if (s.role === 'tower' && game.panel.key && !e.ctrlKey && !e.metaKey && game.panel.key(e, s)) return;
   const k = e.key.toLowerCase();
   if (k === 'b') {
@@ -774,6 +839,7 @@ function showHelp(first) {
       <li><b>Landefreigabe</b> <kbd>L</kbd> nur bei freier Piste – sonst startet der Flieger durch. Ohne Freigabe bei 1 NM: Durchstarten.</li>
       <li>Am Boden: <b>Rollen zur Position</b> <kbd>R</kbd>, <b>Pushback</b> <kbd>P</kbd>, <b>Rollen zum Rollhalt</b> <kbd>R</kbd>, <b>Line up</b> <kbd>U</kbd>, <b>Startfreigabe</b> <kbd>T</kbd>, <b>Halt</b> <kbd>X</kbd>.</li>
       <li><b>Pistenfolge:</b> Landungen (ab Anflugfreigabe) und Starts (ab Rollbereitschaft) stehen gemeinsam nummeriert oben im Panel – mit den passenden Freigaben. Reihenfolge per ▲▼, Ziehen oder <kbd>W</kbd>/<kbd>S</kbd> festlegen; „⇅ automatisch“ plant wieder selbst. Die Nummer erscheint auch auf Karte und Radar: <span style="color:#22d3ee">■ Landung</span> <span style="color:#a5f3fc">■ Landung frei</span> <span style="color:#f59e0b">■ Start</span> <span style="color:#e879f9">■ Startfreigabe</span>. Die Startfreigabe kann schon während des Rollens erteilt werden.</li>
+      <li><b>Markieren:</b> ⚑ auf dem Flugstreifen, Rechtsklick (Handy: lange drücken) auf ein Flugzeug in Karte oder Radar, die Farbpunkte in der Info-Karte oder <kbd>M</kbd> (weiterschalten, <kbd>Shift</kbd>+<kbd>M</kbd> entfernt). Farbe plus Notiz erscheinen als Ring und Fähnchen auf dem Radar, gestrichelter Ring auf der Karte und als Fahne auf dem Streifen. „⚑ Filter“ im Radar hebt nur markierte Flüge hervor.</li>
       <li><kbd>N</kbd> / <kbd>Tab</kbd> springt zur nächsten offenen Anfrage. <kbd>F</kbd> vergrößert das Radar. Bei Rückenwind die Betriebsrichtung wechseln.</li>
     </ul>
     <h3>🦺 Vorfeld &amp; Abfertigung</h3>

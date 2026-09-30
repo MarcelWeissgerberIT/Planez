@@ -7,6 +7,7 @@ import { cmdButtons, acRoute, REQ_DE, distToLand } from './tower.js';
 import { taskChips, standOptions } from './groundPanel.js';
 import { standBuildCost } from '../sim/economy.js';
 import { BUILDINGS } from '../layout.js';
+import { MARKS, MARK_KEYS, flagHtml } from './marks.js';
 
 const BDESC = {
   hall: 'Hauptterminal mit Check-in, Sicherheitskontrolle und Gepäcksortierung.',
@@ -57,6 +58,7 @@ export function renderInfo(el, state, ui) {
     if (ac.arr && ac.mode === 'air' && [PH.INBOUND, PH.HOLD, PH.APPROACH].includes(ac.phase)) h += `<div><span>Bis Landung</span><b>${distToLand(ac).toFixed(1)} NM</b></div>`;
     h += `</div>`;
     if (ac.req) h += `<div style="margin-top:6px;color:var(--warn);font-size:12px;font-weight:700">● ${REQ_DE[ac.req] || ac.req}</div>`;
+    h += `<div class="i-marks"><span>⚑ Markieren</span>${MARK_KEYS.map((k) => `<button data-imark="${k}" data-ac="${ac.id}" class="${ac.mark && ac.mark.c === k ? 'cur' : ''}" style="--m:${MARKS[k].hex}" title="${MARKS[k].name}" aria-label="${MARKS[k].name}"></button>`).join('')}<button class="mini" data-imarkmenu="${ac.id}">Notiz…</button>${ac.mark ? `<button class="mini" data-imark="x" data-ac="${ac.id}">✕</button>` : ''}${flagHtml(ac)}</div>`;
     const role = state.role;
     if (role === 'tower') {
       const b = cmdButtons(state, ac, true);

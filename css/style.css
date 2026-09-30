@@ -126,6 +126,27 @@ b { font-weight: 700; }
 .switch.on { background: color-mix(in srgb, var(--role) 55%, transparent); border-color: var(--role); }
 .switch.on::after { left: 19px; background: white; }
 
+/* Markierungen */
+.flag-btn { border: 1px solid var(--line-2); background: transparent; color: var(--dim); border-radius: 5px; font-size: 11px; line-height: 1; padding: 2px 4px; margin-right: 6px; vertical-align: 2px; }
+.flag-btn:hover { color: var(--txt); border-color: var(--txt); }
+.flag-btn.on { background: var(--m); border-color: var(--m); color: #0b1220; }
+.mflag { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 4px; background: color-mix(in srgb, var(--m) 22%, transparent); border: 1px solid var(--m); color: #f8fafc; font-family: var(--sans); font-size: 10.5px; font-weight: 700; vertical-align: 1px; white-space: nowrap; }
+.markpop { position: fixed; z-index: 40; width: 236px; background: #101a2c; border: 1px solid var(--line-2); border-radius: 12px; padding: 10px; box-shadow: 0 16px 40px rgba(0,0,0,.55); font-size: 12.5px; }
+.mp-head { margin-bottom: 8px; }
+.mp-sw { display: flex; gap: 6px; margin-bottom: 8px; }
+.mp-sw button, .i-marks button[data-imark]:not([data-imark=x]) { width: 26px; height: 26px; border-radius: 50%; background: var(--m); border: 2px solid rgba(255,255,255,.2); padding: 0; }
+.mp-sw button.cur, .i-marks button.cur { border-color: #fff; box-shadow: 0 0 0 2px var(--m); }
+.mp-pre { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.mp-pre button { border: 1px solid var(--line-2); background: rgba(255,255,255,.05); border-radius: 6px; font-size: 11px; padding: 3px 6px; }
+.mp-pre button.cur, .mp-pre button:hover { border-color: var(--accent); }
+.mp-in { display: flex; gap: 6px; }
+.mp-in input { flex: 1; min-width: 0; background: rgba(255,255,255,.06); color: var(--txt); border: 1px solid var(--line-2); border-radius: 7px; padding: 5px 7px; font-size: 12px; }
+.mp-del { margin-top: 8px; width: 100%; }
+.i-marks { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.i-marks button[data-imark]:not([data-imark=x]) { width: 20px; height: 20px; }
+.rs-flag { display: inline-block; width: 8px; height: 10px; background: var(--f); clip-path: polygon(0 0, 100% 30%, 0 60%); margin-left: 2px; }
+#radar-mf.on { color: #04121a; background: #fde047; border-color: #fde047; }
+
 /* Tipps */
 .hint { margin: 8px 10px 0; padding: 8px 8px 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--role) 10%, transparent); border: 1px solid color-mix(in srgb, var(--role) 45%, transparent); font-size: 12.5px; line-height: 1.4; display: flex; gap: 8px; align-items: flex-start; }
 .hint-t { flex: 1; color: #e2e8f0; }

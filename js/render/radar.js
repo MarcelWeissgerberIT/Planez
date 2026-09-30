@@ -5,6 +5,7 @@ import { PH } from '../sim/aircraft.js';
 import { AC_TYPES } from '../config.js';
 import { clamp, esc } from '../util.js';
 import { isSeqArrival } from '../sim/sequence.js';
+import { markHex } from '../ui/marks.js';
 
 // Farben der Pistenfolge (RGB)
 const SC = { land: [34, 211, 238], landClr: [165, 243, 252], dep: [245, 158, 11], depClr: [232, 121, 249] };
@@ -21,7 +22,8 @@ export function seqChips(state) {
     let info;
     if (arr) info = a.mode === 'air' ? `${AS.routeDistance(a.pos, a.route.length ? a.route : [AS.THR[a.rwy]]).toFixed(1)} NM` : a.phase === PH.ROLLOUT ? 'Piste' : 'kurz';
     else info = a.clr.takeoff ? 'frei' : a.phase === PH.HOLDING ? 'Rollhalt' : a.phase === PH.LINED || a.phase === PH.LINEUP ? 'Piste' : 'rollt';
-    return `<button class="rs-chip" data-id="${a.id}" style="--c:${rgbStr(seqRgb(a))}"><b>${i + 1}</b>${esc(a.cs)} ${arr ? '↓' : '↑'} <small>${info}</small></button>`;
+    const mk = markHex(a);
+    return `<button class="rs-chip" data-id="${a.id}" style="--c:${rgbStr(seqRgb(a))}"><b>${i + 1}</b>${mk ? `<i class="rs-flag" style="--f:${mk}"></i>` : ''}${esc(a.cs)} ${arr ? '↓' : '↑'} <small>${info}</small></button>`;
   });
   return items.join('') || '<span class="rs-empty">Pistenfolge leer</span>';
 }
@@ -281,6 +283,8 @@ export class Radar {
         alt = ac.z * 150;
       }
       const p = this.toScreen(pos.x, pos.y);
+      const mk = markHex(ac);
+      ctx.globalAlpha = ui && ui.markFilter && !mk && sel !== ac.id ? 0.25 : 1;
       // Nachglühen je nach Sweep-Winkel
       const ang = Math.atan2(p.y - cy, p.x - cx);
       const since = ((sw - ang) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
@@ -329,6 +333,28 @@ export class Radar {
         ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
         ctx.stroke();
       }
+      // Markierung: Ring + Fähnchen
+      if (mk) {
+        const pulse = 11 + Math.sin(performance.now() / 260) * 1.2;
+        ctx.strokeStyle = mk;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, pulse, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        ctx.fillStyle = mk;
+        ctx.beginPath();
+        ctx.moveTo(p.x + 7, p.y - 8);
+        ctx.lineTo(p.x + 7, p.y - 19);
+        ctx.lineTo(p.x + 15, p.y - 16);
+        ctx.lineTo(p.x + 7, p.y - 13);
+        ctx.fill();
+        ctx.strokeStyle = mk;
+        ctx.beginPath();
+        ctx.moveTo(p.x + 7, p.y - 8);
+        ctx.lineTo(p.x + 7, p.y - 19);
+        ctx.stroke();
+      }
       // Folgenummer
       if (sp) {
         const txt = String(sp);
@@ -352,7 +378,8 @@ export class Radar {
       const l3 = ac.emergency ? '7700 EMERG' : `${sp ? '#' + sp + ' ' : ''}${ac.type}/${t.wake}${ac.clr.land ? ' LND' : ac.phase === PH.APPROACH ? ' APP' : ac.phase === PH.HOLD ? ' HLD' : ''}`;
       // Datenblock-Position: freie Ecke suchen (Überlappungen vermeiden)
       const compact = ac.mode === 'map';
-      const bw = compact ? 48 : 78, bh = compact ? 12 : 38;
+      const noteTxt = mk && ac.mark.note ? `⚑ ${ac.mark.note}` : '';
+      const bw = compact ? 48 : 78, bh = (compact ? 12 : 38) + (noteTxt ? 12 : 0);
       const cands = [[12, -26], [12, 8], [-bw - 10, -26], [-bw - 10, 8], [14, -44], [-bw - 12, -44]];
       let best = cands[0], bestO = 1e9;
       for (const [ox, oy] of cands) {
@@ -384,6 +411,11 @@ export class Radar {
         ctx.fillStyle = cs(0.7);
         ctx.fillText(l3, tx, ty + 32);
       }
+      if (noteTxt) {
+        ctx.fillStyle = mk;
+        ctx.fillText(noteTxt, tx, ty + (compact ? 20 : 44));
+      }
+      ctx.globalAlpha = 1;
       this.blips.push({ id: ac.id, x: p.x, y: p.y, tx, ty });
     }
     ctx.restore();

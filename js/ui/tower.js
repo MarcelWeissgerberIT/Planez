@@ -6,6 +6,7 @@ import { AC_TYPES, CITIES, AIRPORT } from '../config.js';
 import { fmtClock, esc } from '../util.js';
 import { syncList, setHTML, toast } from './dom.js';
 import { sfx } from '../audio.js';
+import { flagButton, flagHtml, openMarkMenu } from './marks.js';
 import { updateSequence, isSeqArrival, seqEta, seqSlot, seqMove, seqMoveTo, seqSortByEta, seqIndex } from '../sim/sequence.js';
 
 // Farben der Pistenfolge (auch Radar/Karte)
@@ -112,6 +113,12 @@ export class TowerPanel {
       requestRunwayChange(s, rw.dataset.rwy);
       return;
     }
+    const fb = e.target.closest('[data-mark]');
+    if (fb) {
+      this.game.select(fb.dataset.mark, false);
+      openMarkMenu(this.game, fb.dataset.mark, e.clientX, e.clientY);
+      return;
+    }
     const mv = e.target.closest('[data-seqmv]');
     if (mv) {
       if (seqMove(s, mv.dataset.ac, Number(mv.dataset.seqmv))) sfx.click();
@@ -199,7 +206,7 @@ export class TowerPanel {
       if (b) st += ` · wartet auf ${esc(b.cs)}`;
     }
     const rq = ac.req ? ` · <span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
-    const info = `<div class="s-info"><div class="s-cs">${esc(ac.cs)}<small>${ac.type}/${t.wake}${ac.emergency ? ' · 7700' : ''}</small></div><div class="s-alt" title="geplante Pistenzeit laut Folge">${eta <= 0 ? 'jetzt' : '~' + eta + ' min'}${shift >= 1 ? ` <small style="color:var(--warn)">+${shift}</small>` : ''}</div><div class="s-sub">${esc(acRoute(state, ac))} · ${esc(where)}${gap}</div><div class="s-state"><b style="color:${col}">${st}</b>${rq}</div></div>`;
+    const info = `<div class="s-info"><div class="s-cs">${flagButton(ac)}${esc(ac.cs)}<small>${ac.type}/${t.wake}${ac.emergency ? ' · 7700' : ''}</small>${flagHtml(ac)}</div><div class="s-alt" title="geplante Pistenzeit laut Folge">${eta <= 0 ? 'jetzt' : '~' + eta + ' min'}${shift >= 1 ? ` <small style="color:var(--warn)">+${shift}</small>` : ''}</div><div class="s-sub">${esc(acRoute(state, ac))} · ${esc(where)}${gap}</div><div class="s-state"><b style="color:${col}">${st}</b>${rq}</div></div>`;
     const ctl = `<button class="mini" data-seqmv="-1" data-ac="${ac.id}" title="früher (W)">▲</button><span class="grip" title="Ziehen zum Umsortieren">⠿</span><button class="mini" data-seqmv="1" data-ac="${ac.id}" title="später (S)">▼</button>`;
     return {
       cls: `strip seqs ${land ? (ac.clr.land ? 'k-landclr' : 'k-land') : ac.clr.takeoff ? 'k-depclr' : 'k-dep'}${sel ? ' sel' : ''}${ac.req ? ' req' : ''}${ac.emergency ? ' emg' : ''}${ac.conflict ? ' conf' : ''}`,
@@ -235,7 +242,7 @@ export class TowerPanel {
       if (b) st += ` · wartet auf ${b.cs}`;
     }
     const rq = ac.req ? ` · <span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
-    const info = `<div class="s-info"><div class="s-cs">${esc(ac.cs)}<small>${ac.type}/${t.wake}${ac.emergency ? ' · 7700' : ''}</small></div><div class="s-alt">${alt}</div><div class="s-sub">${esc(sub)}</div><div class="s-state">${esc(st)}${rq}</div></div>`;
+    const info = `<div class="s-info"><div class="s-cs">${flagButton(ac)}${esc(ac.cs)}<small>${ac.type}/${t.wake}${ac.emergency ? ' · 7700' : ''}</small>${flagHtml(ac)}</div><div class="s-alt">${alt}</div><div class="s-sub">${esc(sub)}</div><div class="s-state">${esc(st)}${rq}</div></div>`;
     const cls = `strip ${kind}${sel ? ' sel' : ''}${ac.req ? ' req' : ''}${ac.emergency ? ' emg' : ''}${ac.conflict ? ' conf' : ''}`;
     return {
       cls,
