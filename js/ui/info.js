@@ -8,6 +8,21 @@ import { taskChips, standOptions } from './groundPanel.js';
 import { standBuildCost } from '../sim/economy.js';
 import { BUILDINGS } from '../layout.js';
 import { MARKS, MARK_KEYS, flagHtml } from './marks.js';
+import { projects, standProject, projectFor, standBuildHours, upgradeHours, STAND_HOURS, remainingHours } from '../sim/construction.js';
+import { progressBar, projectStatus, projectRefund, fmtHours } from './projects.js';
+
+const SITE_DESC = {
+  stand: 'Neue Parkposition: Aushub, Betonplatte, Markierungen und Befeuerung.',
+  standL: 'Umbau auf Großraumjets (Klasse L) – die Position ist während der Arbeiten gesperrt.',
+  hotel: 'Rohbau des Flughafenhotels – Stockwerk für Stockwerk.',
+  parking: 'Erweiterung der Parkfläche an der Landseite.',
+  retail: 'Terminal-Anbau für Shops & Gastronomie.',
+  security: 'Terminal-Anbau mit zusätzlichen Kontrollspuren.',
+  lounge: 'Terminal-Anbau für die Premium-Lounge.',
+  ils3: 'Neue Landekurs- und Gleitweg-Antennen für CAT III.',
+  rapidExit: 'Schnellabrollwege werden asphaltiert – Rollwege mit Pylonen abgesperrt.',
+  apronLights: 'Kabelgraben und LED-Masten entlang des Vorfelds.',
+};
 
 const BDESC = {
   hall: 'Hauptterminal mit Check-in, Sicherheitskontrolle und Gepäcksortierung.',
@@ -79,10 +94,12 @@ export function renderInfo(el, state, ui) {
     const resv = st.resv ? state.acs.find((a) => a.id === st.resv) : null;
     const kind = { contact: 'Gebäudeposition mit Fluggastbrücke', remote: 'Vorfeldposition (Busse)', cargo: 'Frachtposition' }[st.kind];
     h += `<div class="i-head"><div><div class="i-cs">Parkposition ${st.id}</div><div class="i-sub">${kind} · Klasse ${st.size}${st.size === 'L' ? ' (Großraum)' : ''}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
-    h += `<div class="i-grid"><div><span>Status</span><b>${!st.built ? 'nicht gebaut' : occ ? 'belegt' : resv ? 'reserviert' : 'frei'}</b></div><div><span>Flugzeug</span><b>${occ ? esc(occ.cs) : resv ? esc(resv.cs) : '—'}</b></div></div>`;
-    if (state.role === 'manager') {
-      if (!st.built) h += `<div class="i-acts"><button class="btn btn-good" data-act="stand" data-v="${st.id}">Bauen · ${fmtMoney(standBuildCost(st))}</button></div>`;
-      else if (st.size !== 'L' && st.kind !== 'cargo') h += `<div class="i-acts"><button class="btn" data-act="standL" data-v="${st.id}">Für Großraumjets ausbauen · ${fmtMoney(STAND_COSTS.upgradeL)}</button></div>`;
+    h += `<div class="i-grid"><div><span>Status</span><b>${!st.built ? (standProject(state, st.id) ? 'im Bau' : 'nicht gebaut') : st.closed ? 'gesperrt (Umbau)' : occ ? 'belegt' : resv ? 'reserviert' : 'frei'}</b></div><div><span>Flugzeug</span><b>${occ ? esc(occ.cs) : resv ? esc(resv.cs) : '—'}</b></div></div>`;
+    const pj = standProject(state, st.id);
+    if (pj) h += `<div class="i-site">🏗️ ${esc(pj.name)} ${progressBar(pj)}<small>${projectStatus(state, pj)}</small><button class="mini" data-act="pshow" data-v="${pj.id}">Baustelle</button></div>`;
+    else if (state.role === 'manager') {
+      if (!st.built) h += `<div class="i-acts"><button class="btn btn-good" data-act="stand" data-v="${st.id}">Bauen · ${fmtMoney(standBuildCost(st))} · ${standBuildHours(st)} h</button></div>`;
+      else if (st.size !== 'L' && st.kind !== 'cargo') h += `<div class="i-acts"><button class="btn" data-act="standL" data-v="${st.id}">Für Großraumjets ausbauen · ${fmtMoney(STAND_COSTS.upgradeL)} · ${STAND_HOURS.upgradeL} h</button></div>`;
     }
   } else if (sel.type === 'veh') {
     const v = state.vehicles.find((x) => x.id === sel.id);
@@ -95,10 +112,28 @@ export function renderInfo(el, state, ui) {
     if (!b) return;
     h += `<div class="i-head"><div><div class="i-cs">${b.name}</div><div class="i-sub">${BDESC[b.id] || ''}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
     const up = BUP[b.id];
-    if (up && state.role === 'manager') {
+    const pj = up && projectFor(state, 'upgrade', up);
+    if (pj) h += `<div class="i-site">🏗️ ${esc(pj.name)} ${progressBar(pj)}<small>${projectStatus(state, pj)}</small><button class="mini" data-act="pshow" data-v="${pj.id}">Baustelle</button></div>`;
+    else if (up && state.role === 'manager') {
       const u = UPGRADES[up];
       const lvl = state.upgrades[up] || 0;
-      if (lvl < u.max) h += `<div class="i-acts"><button class="btn btn-good" data-act="up" data-v="${up}">${u.name} Stufe ${lvl + 1} · ${fmtMoney(u.cost[lvl])}</button></div>`;
+      if (lvl < u.max) h += `<div class="i-acts"><button class="btn btn-good" data-act="up" data-v="${up}">${u.name} Stufe ${lvl + 1} · ${fmtMoney(u.cost[lvl])} · ${upgradeHours(up, lvl + 1)} h</button></div>`;
+    }
+  } else if (sel.type === 'site') {
+    const p = projects(state).find((x) => x.id === sel.id);
+    if (!p) {
+      ui.sel = null;
+      el.classList.remove('show');
+      return;
+    }
+    const rem = remainingHours(p);
+    const key = p.kind === 'upgrade' ? p.target : p.kind;
+    h += `<div class="i-head"><div><div class="i-cs">🏗️ ${esc(p.name)}</div><div class="i-sub">${SITE_DESC[key] || 'Baustelle'}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
+    h += progressBar(p);
+    h += `<div class="i-grid"><div><span>Status</span><b>${p.status === 'waiting' ? 'wartet' : state.weather.kind === 'storm' ? 'Pause (Gewitter)' : 'in Arbeit'}</b></div><div><span>Restzeit</span><b>${p.status === 'waiting' ? '—' : fmtHours(rem)}</b></div><div><span>Baubeginn</span><b>${fmtClock(p.start)}</b></div><div><span>Bauzeit</span><b>${p.hours} h</b></div><div><span>Investition</span><b>${fmtMoney(p.cost)}</b></div><div><span>Fertig</span><b>${p.status === 'waiting' ? '—' : fmtClock(state.time + rem * 3600)}</b></div></div>`;
+    if (state.role === 'manager') {
+      const armed = ui.armP === p.id && performance.now() - ui.armT < 5000;
+      h += `<div class="i-acts"><button class="btn${armed ? ' btn-bad' : ''}" data-act="pcancel" data-v="${p.id}">${armed ? `Wirklich abbrechen? +${fmtMoney(projectRefund(p))}` : `Abbrechen (Erstattung ${fmtMoney(projectRefund(p))})`}</button></div>`;
     }
   }
   el.classList.add('show');

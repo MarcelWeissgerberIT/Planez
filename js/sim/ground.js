@@ -11,7 +11,7 @@ export const BRIDGE_SPEED = 1 / 40; // pro Spielsekunde
 
 // ---------- Parkpositionen ----------
 export function standFits(stand, ac) {
-  if (!stand.built) return false;
+  if (!stand.built || stand.closed || stand.closing) return false;
   const t = AC_TYPES[ac.type];
   if (SIZE_RANK[stand.size] < SIZE_RANK[t.size]) return false;
   if (t.cargo && stand.kind !== 'cargo') return false;

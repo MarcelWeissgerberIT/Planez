@@ -5,6 +5,7 @@ import { log, notify } from './messages.js';
 import { acceptOffer, feeIndex, standDemand } from './schedule.js';
 import { makeVehicle, freeBay, vehicleAvailable, efficiency } from './ground.js';
 import { PH } from './aircraft.js';
+import { startProject, standProject, projectFor, standBuildHours, upgradeHours, STAND_HOURS, UPGRADE_NAMES } from './construction.js';
 
 export const REV_CATS = { landing: 'Landegebühren', pax: 'Passagierentgelte', parking: 'Parkpositionen', handling: 'Abfertigung', fuel: 'Treibstoff', retail: 'Shops & Gastro', carpark: 'Parken (Landseite)', cargo: 'Fracht', hotel: 'Hotel', other: 'Sonstiges' };
 export const COST_CATS = { staff: 'Personal Boden', atc: 'Flugsicherung', infra: 'Instandhaltung', vehicles: 'Fahrzeuge', admin: 'Verwaltung', utilities: 'Energie & Betrieb', penalties: 'Vertragsstrafen', incidents: 'Vorfälle', marketing: 'Marketing' };
@@ -182,35 +183,32 @@ export function standBuildCost(stand) {
   if (stand.kind === 'cargo') return STAND_COSTS.contactM;
   return STAND_COSTS.remote;
 }
+// Bauaufträge: bezahlt wird bei Baubeginn, fertig erst nach der Bauzeit
 export function buildStand(state, id) {
   const st = state.stands.find((s) => s.id === id);
-  if (!st || st.built) return false;
+  if (!st || st.built || standProject(state, id)) return false;
   const cost = standBuildCost(st);
   if (state.cash < cost) return notify(state, 'Nicht genug Geld', 'bad'), false;
   capex(state, cost, `Parkposition ${id}`);
-  st.built = true;
-  notify(state, `🏗️ Parkposition ${id} eröffnet`, 'good');
+  startProject(state, 'stand', id, { name: `Parkposition ${id}`, cost, hours: standBuildHours(st) });
   return true;
 }
 export function upgradeStand(state, id) {
   const st = state.stands.find((s) => s.id === id);
-  if (!st || !st.built || st.size === 'L') return false;
+  if (!st || !st.built || st.size === 'L' || standProject(state, id)) return false;
   if (state.cash < STAND_COSTS.upgradeL) return notify(state, 'Nicht genug Geld', 'bad'), false;
   capex(state, STAND_COSTS.upgradeL, `Position ${id} für Großraumflugzeuge`);
-  st.size = 'L';
-  notify(state, `🏗️ Position ${id} jetzt für Großraumjets`, 'good');
+  startProject(state, 'standL', id, { name: `Position ${id} → Großraum`, cost: STAND_COSTS.upgradeL, hours: STAND_HOURS.upgradeL });
   return true;
 }
 export function buyUpgrade(state, key) {
   const u = UPGRADES[key];
   const lvl = state.upgrades[key] || 0;
-  if (!u || lvl >= u.max) return false;
+  if (!u || lvl >= u.max || projectFor(state, 'upgrade', key)) return false;
   const cost = u.cost[lvl];
   if (state.cash < cost) return notify(state, 'Nicht genug Geld', 'bad'), false;
   capex(state, cost, `${u.name} Stufe ${lvl + 1}`);
-  state.upgrades[key] = lvl + 1;
-  if (key === 'hotel') rep(state, 3);
-  notify(state, `🏗️ ${u.name} ausgebaut`, 'good');
+  startProject(state, 'upgrade', key, { name: UPGRADE_NAMES(key, lvl + 1), cost, hours: upgradeHours(key, lvl + 1), level: lvl + 1 });
   return true;
 }
 export function buyVehicle(state, type) {
@@ -293,7 +291,9 @@ export function autoManager(state) {
   const paxNeed = need.S + need.M + need.L;
   if (state.acs.some((a) => (a.phase === PH.VACATED || a.phase === PH.TAXI_WAIT) && !a.stand)) state.standShortage = (state.standShortage || 0) + 1;
   let saving = false;
-  if (paxNeed > cap.pax * 0.62 || (state.standShortage || 0) > 2) {
+  const paxSite = state.stands.some((s) => !s.built && s.kind !== 'cargo' && standProject(state, s.id));
+  if (paxSite) state.standShortage = 0; // Baustelle läuft bereits
+  else if (paxNeed > cap.pax * 0.62 || (state.standShortage || 0) > 2) {
     const next = state.stands.find((s) => !s.built && s.kind !== 'cargo');
     if (next) {
       saving = true;
@@ -315,7 +315,9 @@ export function autoManager(state) {
   if (efficiency(state) < 0.95 && state.cash > reserve * 0.5 && state.hourTick % 3 === 0) hire(state, 3);
   const cargoWaiting = state.acs.some((a) => (a.phase === PH.VACATED || a.phase === PH.TAXI_WAIT || a.phase === PH.HOLD) && !a.stand && AC_TYPES[a.type].cargo);
   if (cargoWaiting) state.cargoShortage = (state.cargoShortage || 0) + 1;
-  if ((need.cargo > cap.cargo * 0.75 && state.hourTick % 5 === 0) || (state.cargoShortage || 0) > 2) {
+  const cargoSite = state.stands.some((s) => !s.built && s.kind === 'cargo' && standProject(state, s.id));
+  if (cargoSite) state.cargoShortage = 0;
+  else if ((need.cargo > cap.cargo * 0.75 && state.hourTick % 5 === 0) || (state.cargoShortage || 0) > 2) {
     const next = state.stands.find((s) => !s.built && s.kind === 'cargo');
     if (next && state.cash > standBuildCost(next) + reserve * 0.6) {
       buildStand(state, next.id);

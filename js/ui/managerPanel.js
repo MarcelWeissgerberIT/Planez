@@ -7,6 +7,8 @@ import { acceptOffer, declineOffer, cancelContract, feeIndex, standDemand } from
 import { fleetSummary, efficiency } from '../sim/ground.js';
 import { PH } from '../sim/aircraft.js';
 import { sfx } from '../audio.js';
+import { projects, standProject, projectFor, cancelProject, standBuildHours, upgradeHours, STAND_HOURS, remainingHours } from '../sim/construction.js';
+import { projectCard, projectInline, fmtHours } from './projects.js';
 
 const TABS = [
   ['over', 'Übersicht'],
@@ -91,6 +93,20 @@ export class ManagerPanel {
       case 'mkt':
         ok = EC.marketing(s);
         break;
+      case 'pcancel':
+        if (this.armP !== v || performance.now() - this.armT > 5000) {
+          this.armP = v;
+          this.armT = performance.now();
+          this.body._html = null;
+          this.update(s);
+          return;
+        }
+        this.armP = null;
+        ok = cancelProject(s, v) > 0;
+        break;
+      case 'pshow':
+        this.game.showSite && this.game.showSite(v);
+        return;
       case 'feereset':
         s.fees = { ...DEFAULT_FEES };
         break;
@@ -143,6 +159,11 @@ export class ManagerPanel {
       <div class="k"><span>Pünktlich</span><b>${deps ? Math.round((t.onTime / deps) * 100) : 100} %</b></div>
     </div>`;
     if (s.offers.length) h += `<div class="card offer"><div class="row"><span class="t">📨 ${s.offers.length} Vertragsangebot${s.offers.length > 1 ? 'e' : ''} warten</span><button class="btn" data-tab="contracts">Ansehen</button></div></div>`;
+    const ps = projects(s);
+    if (ps.length) {
+      const next = [...ps].filter((p) => p.status !== 'waiting').sort((a, b) => remainingHours(a) - remainingHours(b))[0];
+      h += `<div class="card site"><div class="row"><span class="t">🏗️ ${ps.length} Baustelle${ps.length > 1 ? 'n' : ''} aktiv</span><button class="btn" data-tab="build">Ansehen</button></div><div class="s">${next ? `Als Nächstes fertig: ${esc(next.name)} in ${fmtHours(remainingHours(next))}` : 'wartet auf freie Position'}</div></div>`;
+    }
     if (waiting) h += `<div class="card" style="border-color:var(--bad)">🅿️ ${waiting} Flugzeug${waiting > 1 ? 'e warten' : ' wartet'} auf eine freie Parkposition – Ausbau prüfen.</div>`;
     h += `<div class="p-sec"><span>Auslastung Parkpositionen (Plan)</span></div>`;
     h += meter('Passagierpositionen', paxUse) + meter('Großraum (Klasse L)', lUse) + meter('Fracht', cUse);
@@ -194,15 +215,22 @@ export class ManagerPanel {
 
   // ---------- Ausbau ----------
   build(s) {
-    let h = `<div class="p-sec"><span>Parkpositionen</span></div>`;
+    if (this.armP && performance.now() - this.armT > 5000) this.armP = null;
+    const ps = projects(s);
+    let h = `<div class="p-sec"><span>🏗️ Baustellen</span><span class="cnt">${ps.length}</span></div>`;
+    if (!ps.length) h += `<div class="empty">Keine laufenden Bauprojekte. Aufträge unten starten – jedes Projekt braucht Bauzeit und ist auf der Karte als Baustelle zu sehen.</div>`;
+    for (const p of ps) h += projectCard(s, p, this.armP === p.id);
+    h += `<div class="p-sec"><span>Parkpositionen</span></div>`;
     for (const st of s.stands) {
       const occ = st.occ ? s.acs.find((a) => a.id === st.occ) : null;
+      const pj = standProject(s, st.id);
       if (!st.built) {
         const cost = EC.standBuildCost(st);
-        h += `<div class="card"><div class="row"><span class="t">P${st.id} · ${KIND_DE[st.kind]} · Klasse ${st.size}</span><button class="btn btn-good" data-act="stand" data-v="${st.id}" ${s.cash < cost ? 'disabled' : ''}>Bauen ${fmtMoney(cost)}</button></div></div>`;
+        const right = pj ? projectInline(pj) : `<button class="btn btn-good" data-act="stand" data-v="${st.id}" ${s.cash < cost ? 'disabled' : ''}>Bauen ${fmtMoney(cost)}</button>`;
+        h += `<div class="card${pj ? ' site' : ''}"><div class="row"><span class="t">P${st.id} · ${KIND_DE[st.kind]} · Klasse ${st.size}</span>${right}</div>${pj ? '' : `<div class="s">Bauzeit ${standBuildHours(st)} h</div>`}</div>`;
       } else {
-        const up = st.size !== 'L' && st.kind !== 'cargo' ? `<button class="mini" data-act="standL" data-v="${st.id}" ${s.cash < STAND_COSTS.upgradeL ? 'disabled' : ''}>→ Klasse L (${fmtMoney(STAND_COSTS.upgradeL)})</button>` : '';
-        h += `<div class="card"><div class="row"><span class="t">P${st.id} · ${KIND_DE[st.kind]} · ${st.size}</span><span style="font-size:12px;color:var(--muted)">${occ ? esc(occ.cs) : st.resv ? 'reserviert' : 'frei'}</span></div>${up ? `<div class="acts">${up}</div>` : ''}</div>`;
+        const up = pj ? projectInline(pj) : st.size !== 'L' && st.kind !== 'cargo' ? `<button class="mini" data-act="standL" data-v="${st.id}" ${s.cash < STAND_COSTS.upgradeL ? 'disabled' : ''}>→ Klasse L (${fmtMoney(STAND_COSTS.upgradeL)} · ${STAND_HOURS.upgradeL} h, Position gesperrt)</button>` : '';
+        h += `<div class="card${pj ? ' site' : ''}"><div class="row"><span class="t">P${st.id} · ${KIND_DE[st.kind]} · ${st.size}</span><span style="font-size:12px;color:var(--muted)">${st.closed ? 'gesperrt (Bau)' : occ ? esc(occ.cs) : st.resv ? 'reserviert' : 'frei'}</span></div>${up ? `<div class="acts">${up}</div>` : ''}</div>`;
       }
     }
     const cats = {};
@@ -213,8 +241,10 @@ export class ManagerPanel {
         const lvl = s.upgrades[k] || 0;
         const maxed = lvl >= u.max;
         const cost = maxed ? 0 : u.cost[lvl];
-        const dots = Array.from({ length: u.max }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
-        h += `<div class="card"><div class="row"><span class="t">${u.name}<span class="lvl">${dots}</span></span>${maxed ? '<span style="color:var(--good);font-size:12px">✓ voll ausgebaut</span>' : `<button class="btn btn-good" data-act="up" data-v="${k}" ${s.cash < cost ? 'disabled' : ''}>${fmtMoney(cost)}</button>`}</div><div class="s">${u.desc}</div></div>`;
+        const pj = projectFor(s, 'upgrade', k);
+        const dots = Array.from({ length: u.max }, (_, i) => `<i class="${i < lvl ? 'on' : pj && i === lvl ? 'bld' : ''}"></i>`).join('');
+        const right = pj ? projectInline(pj) : maxed ? '<span style="color:var(--good);font-size:12px">✓ voll ausgebaut</span>' : `<button class="btn btn-good" data-act="up" data-v="${k}" ${s.cash < cost ? 'disabled' : ''}>${fmtMoney(cost)}</button>`;
+        h += `<div class="card${pj ? ' site' : ''}"><div class="row"><span class="t">${u.name}<span class="lvl">${dots}</span></span>${right}</div><div class="s">${u.desc}${!pj && !maxed ? ` · Bauzeit ${upgradeHours(k, lvl + 1)} h` : ''}</div></div>`;
       }
     }
     const mk = s.marketingUntil > s.time;

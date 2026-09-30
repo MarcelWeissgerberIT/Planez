@@ -23,6 +23,8 @@ import { WEATHER } from './sim/events.js';
 import { PH } from './sim/aircraft.js';
 import * as LY from './layout.js';
 import { seqColor } from './ui/tower.js';
+import { siteGeom } from './render/sites.js';
+import { projects, cancelProject } from './sim/construction.js';
 
 const game = {
   state: null,
@@ -56,6 +58,18 @@ const game = {
     const strip = document.querySelector(`#panel [data-key="${id}"]`);
     if (strip && focus !== 'map') strip.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   },
+};
+// Baustelle auf der Karte zeigen und auswählen
+game.showSite = (id) => {
+  const s = game.state;
+  const p = projects(s).find((x) => x.id === id);
+  const g = p && siteGeom(s, p);
+  if (!g) return;
+  game.ui.sel = { type: 'site', id };
+  game.ui.selected = null;
+  game.cam.focus((g.x0 + g.x1) / 2, (g.y0 + g.y1) / 2);
+  if (game.ui.radarBig) toggleRadar(false);
+  game.refreshUi();
 };
 game.refreshUi = () => {
   game.uiTimer = 0;
@@ -548,6 +562,20 @@ function wireGame() {
     const a = e.target.closest('[data-act]');
     if (a) {
       const v = a.dataset.v;
+      if (a.dataset.act === 'pshow') return game.showSite(v);
+      if (a.dataset.act === 'pcancel') {
+        const u = game.ui;
+        if (u.armP !== v || performance.now() - u.armT > 5000) {
+          u.armP = v;
+          u.armT = performance.now();
+        } else {
+          u.armP = null;
+          if (cancelProject(s, v) > 0) sfx.click();
+          u.sel = null;
+        }
+        info._html = null;
+        return;
+      }
       const fn = { stand: () => EC.buildStand(s, Number(v)), standL: () => EC.upgradeStand(s, Number(v)), up: () => EC.buyUpgrade(s, v) }[a.dataset.act];
       if (fn && fn()) sfx.cash();
       info._html = null;
@@ -688,6 +716,9 @@ function hover(x, y) {
   } else if (p.type === 'building') {
     const b = LY.BUILDINGS.find((q) => q.id === p.id);
     if (b) txt = b.name;
+  } else if (p.type === 'site') {
+    const q = projects(s).find((x) => x.id === p.id);
+    if (q) txt = `🏗️ ${q.name} · ${q.status === 'waiting' ? 'wartet' : Math.floor(q.prog * 100) + ' %'}`;
   }
   if (!txt) return;
   tip.textContent = txt;
@@ -851,6 +882,7 @@ function showHelp(first) {
     <h3>💼 Manager</h3>
     <ul>
       <li>Verträge annehmen, Gebühren festlegen, Parkpositionen und Terminal ausbauen, Fahrzeuge kaufen, Personal einstellen.</li>
+      <li><b>Baustellen:</b> Jeder Ausbau braucht Bauzeit (Spielstunden). Die Baustelle ist mit Zaun, Kran, Bagger und Betonmischer auf der Karte zu sehen, ein Schild zeigt Fortschritt und Restzeit. Im Tab <i>Ausbau</i> stehen alle Baustellen mit Fortschrittsbalken – „📍 Zeigen“ springt hin, „Abbrechen“ erstattet 50 % der noch nicht verbauten Kosten. Bei Gewitter ruhen die Arbeiten; der Umbau einer Position auf Klasse L sperrt sie, sobald sie frei ist.</li>
       <li>Zu hohe Gebühren verärgern Airlines, zu wenig Kapazität verursacht Wartezeiten und Verspätungen.</li>
     </ul>
     <h3>Steuerung</h3>

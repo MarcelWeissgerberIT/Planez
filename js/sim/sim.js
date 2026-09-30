@@ -8,6 +8,7 @@ import { updateEconomy, closeDay } from './economy.js';
 import { generateDay, dailyContracts, maybeOffer } from './schedule.js';
 import { updateEvents } from './events.js';
 import { updateSequence } from './sequence.js';
+import { updateConstruction } from './construction.js';
 import { log } from './messages.js';
 import * as LY from '../layout.js';
 
@@ -35,6 +36,7 @@ export function step(state, dt) {
   updateGround(state, dt);
   updateConflicts(state, dt);
   updateEconomy(state, dt);
+  updateConstruction(state, dt);
   maybeOffer(state, dt);
   updateFire(state, dt);
 }

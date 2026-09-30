@@ -47,6 +47,7 @@ export function newGame(opts = {}) {
     log: [],
     ledger: { rev: {}, cost: {}, capex: 0 },
     history: [],
+    projects: [],
     stats: { today: freshToday(), vehWait: {} },
     settings: {
       standAuto: true,

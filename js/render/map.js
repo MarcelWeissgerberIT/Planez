@@ -6,6 +6,7 @@ import { AC_TYPES, AIRLINES, VEH_TYPES, ZS } from '../config.js';
 import { PH } from '../sim/aircraft.js';
 import { hourOf, roundedPath, clamp, lerp } from '../util.js';
 import { MARKS } from '../ui/marks.js';
+import { siteGeom, drawSiteGround, siteItems, permanentItems, drawSiteLabel } from './sites.js';
 const markOf = (ac) => (ac.mark && MARKS[ac.mark.c] ? MARKS[ac.mark.c] : null);
 
 const BH = { hall: 1.3, tower: 5, hangar: 1.8, cargo: 0.9, depot: 0.7, fire: 0.8, fuel: 0.9, parking: 1.1, hotel: 3.2, radar: 2.6 };
@@ -111,6 +112,16 @@ export class MapRenderer {
     // Wolkenschatten
     if (state.weather.kind !== 'clear' && state.weather.kind !== 'fog') this.cloudShadows(ctx, state);
 
+    // Baustellen (Boden)
+    const sites = [];
+    for (const p of state.projects || []) {
+      const g = siteGeom(state, p);
+      if (g) sites.push({ p, g });
+    }
+    this.sites = sites;
+    this.siteLights = [];
+    for (const s of sites) drawSiteGround(this, state, s.p, s.g);
+
     // Objekte sammeln
     const items = [];
     for (const b of LY.BUILDINGS) {
@@ -118,6 +129,8 @@ export class MapRenderer {
       const x0 = b.fx - b.w, y0 = b.fy - b.d;
       items.push({ d: (x0 + b.fx) / 2 + (y0 + b.fy) / 2, f: () => this.drawBuilding(b) });
     }
+    for (const s of sites) siteItems(this, state, s.p, s.g, items);
+    permanentItems(this, state, items, sites);
     const T = LY.TERMINAL;
     for (let x = T.x0; x < T.x1 - 1e-6; x += 1) {
       const xb = Math.min(T.x1, x + 1);
@@ -130,6 +143,7 @@ export class MapRenderer {
     const view = this.viewRect();
     for (const t of this.trees) {
       if (!inView(view, t.x, t.y, 2)) continue;
+      if (sites.some((q) => q.g.fence && t.x > q.g.x0 - 0.4 && t.x < q.g.x1 + 0.4 && t.y > q.g.y0 - 0.4 && t.y < q.g.y1 + 0.4)) continue;
       items.push({ d: t.x + t.y, f: () => this.drawTree(t) });
     }
     for (const car of this.cars) {
@@ -195,6 +209,12 @@ export class MapRenderer {
         ctx.globalAlpha = a * 0.9;
         ctx.drawImage(IMG.glow, p.x - c, p.y - c, c * 2, c * 2);
       }
+    }
+    // Warnlichter der Baukräne
+    for (const L of this.siteLights) {
+      const s = 22 * zf;
+      ctx.globalAlpha = 0.95;
+      ctx.drawImage(glowTinted('#ff2a20'), L.sx - s / 2, L.sy - s / 2, s, s);
     }
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
@@ -644,6 +664,7 @@ export class MapRenderer {
   drawOverlays(state, ui) {
     const ctx = this.ctx, cam = this.cam;
     const role = state.role;
+    const sites = this.sites || [];
     const showStands = ui && (ui.showStands || role === 'ground' || role === 'manager');
     if (showStands) {
       cam.setScreen(ctx);
@@ -653,7 +674,11 @@ export class MapRenderer {
       for (const st of state.stands) {
         const p = cam.toScreen(st.x, LY.LANE - 1.6);
         let col = '#2ecc71', txt = `P${st.id}`;
-        if (!st.built) {
+        const sp = sites.find((q) => (q.p.kind === 'stand' || q.p.kind === 'standL') && q.p.target === st.id);
+        if (sp) {
+          col = '#fbbf24';
+          txt = sp.p.status === 'waiting' ? `P${st.id} ⏳` : `P${st.id} ${Math.floor(sp.p.prog * 100)}%`;
+        } else if (!st.built) {
           col = 'rgba(160,160,160,0.8)';
           txt = `P${st.id} +`;
         } else if (st.occ) col = '#94a3b8';
@@ -661,7 +686,8 @@ export class MapRenderer {
         const hl = ui && (ui.hoverStand === st.id || ui.selStand === st.id);
         const r = Math.max(9, 13 * cam.zoom) * (hl ? 1.25 : 1);
         ctx.fillStyle = 'rgba(10,15,25,0.72)';
-        roundRect(ctx, p.x - r * 1.6, p.y - r * 0.7, r * 3.2, r * 1.4, 4);
+        const wl = sp ? 2.3 : 1.6;
+        roundRect(ctx, p.x - r * wl, p.y - r * 0.7, r * wl * 2, r * 1.4, 4);
         ctx.fill();
         ctx.strokeStyle = col;
         ctx.lineWidth = hl ? 2.5 : 1.5;
@@ -683,6 +709,11 @@ export class MapRenderer {
       for (let i = sel.pi + 1; i < sel.path.length; i++) ctx.lineTo(sel.path[i].x, sel.path[i].y);
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+    // Baustellen-Schilder (Manager/Beobachter oder ausgewählt)
+    for (const q of sites) {
+      const selSite = ui && ui.sel && ui.sel.type === 'site' && ui.sel.id === q.p.id;
+      if (role === 'manager' || role === 'observer' || selSite) drawSiteLabel(this, state, q.p, q.g, selSite);
     }
     // Labels
     if (!ui) return;
