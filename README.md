@@ -85,6 +85,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 - ↗ Abflugrouten (SIDs): Starts fliegen je nach Ziel über NOLTA, SUDEN, RIMOS oder WELDA (farbige Kennung auf dem Streifen); gleiche Route hintereinander braucht 2 Minuten, verschiedene Routen nur den normalen Abstand – Pilot, Auto-Lotse, Pistenfolge-Planung und Warteanzeige („gleiche Abflugroute“) berücksichtigen das. Zweiter Fehlanflug kurz nach dem ersten dreht seitlich ab und steigt nur auf 3000 ft.
 - 🚦 Haltebalken (Stop Bars): rote Lichterreihe am Rollhalt der aktiven Bahn (und an den Kreuzungen der Nordbahn, sobald die Parallelbahn gebaut ist) – erlischt mit Line-up-/Start- bzw. Kreuzungsfreigabe, dann führen grüne Lichter auf die Bahn; tagsüber gedämpft, nachts leuchtend.
 - 📻 Betriebsfunk im Vorfeld: Bodencrews melden sich auf Deutsch (Auftrag übernommen, Betankung mit Menge, Laderaum zu, Kabine sauber, Boarding fertig, Pushback, Einweiser „Keile liegen“, leerer Tankwagen, Panne) – mit „Echter Funk“ als deutsche Sprachausgabe mit Funkrauschen und fester Stimme je Fahrzeug; Wichtiges immer, Routine nur bei freiem Kanal und 1×.
+- 🔁 Anschlussflüge (Vorfeld): verspätete Ankunft mit Umsteigern für einen Abflug derselben Airline – warten (Boarding +9 min, Passagiere an Bord, Airline zufrieden), umbuchen (Hotel/Umbuchung) oder ohne sie abfliegen (Ansehen und Airline-Zufriedenheit sinken). Dringende Karten wie diese kommen, sobald die Lage passt.
 
 ## Technik
 Reines HTML/CSS/JavaScript (ES-Module, Canvas 2D) ohne Build-Schritt – läuft direkt auf GitHub Pages.

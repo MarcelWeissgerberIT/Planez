@@ -1382,7 +1382,8 @@ function helpGuide(first) {
       <li>Im Turnaround werden <b>gelbe Aufgaben</b> fällig: anklicken = nächstes freies Fahrzeug losschicken. Reihenfolge: Aussteigen → Reinigung/Catering → Einsteigen, Entladen → Beladen, Betankung, zum Schluss der Pushback-Schlepper.</li>
       <li><b>TOBT</b> zeigt, wann ein Flug voraussichtlich fertig ist. Liegt sie nach der STD, wird er verspätet – und ein Slot (CTOT) kann verfallen.</li>
       <li><b>Tankwagen</b> fassen 36 t. Großraumflugzeuge brauchen 2–3 Ladungen; leere Tankwagen fahren selbst zum Tanklager. Ist das Tanklager leer, stockt die Betankung.</li>
-          <li><b>📻 Betriebsfunk:</b> Die Bodencrews melden sich auf Deutsch – „Tank 2: verstanden, rolle zu Position 5“, „Laderaum zu“, „Push läuft“, „Einweiser 6: Keile liegen“, „leer – brauche Ablösung!“. Mit <i>Echter Funk</i> (🔊 oder Einstellungen) sprechen sie mit Funkrauschen; Wichtiges (Pushback, Boarding fertig, Pannen, leerer Tankwagen) immer, Routine nur bei ruhigem Kanal und 1×.</li>
+          <li><b>🔁 Anschlussflüge:</b> Kommt eine Maschine verspätet, warten manchmal Umsteiger auf einen Abflug derselben Airline. Du entscheidest: warten (Boarding länger, Airline zufrieden), auf Kosten umbuchen oder ohne sie abfliegen (Ansehen und Airline leiden).</li>
+      <li><b>📻 Betriebsfunk:</b> Die Bodencrews melden sich auf Deutsch – „Tank 2: verstanden, rolle zu Position 5“, „Laderaum zu“, „Push läuft“, „Einweiser 6: Keile liegen“, „leer – brauche Ablösung!“. Mit <i>Echter Funk</i> (🔊 oder Einstellungen) sprechen sie mit Funkrauschen; Wichtiges (Pushback, Boarding fertig, Pannen, leerer Tankwagen) immer, Routine nur bei ruhigem Kanal und 1×.</li>
 </ul>
     <h3>💼 Manager</h3>
     <ul>

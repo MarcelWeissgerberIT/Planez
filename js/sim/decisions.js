@@ -81,6 +81,32 @@ export const CATALOG = {
       };
     },
   },
+  // Anschlussflug: verspätete Ankunft mit Umsteigern für einen Abflug derselben Airline
+  connection: {
+    role: 'ground', weight: 0.3, timeout: 6 * MIN, urgent: 3 * H,
+    cond: (s) => {
+      const late = s.acs.filter((a) => a.arr && a.mode === 'air' && [PH.INBOUND, PH.HOLD, PH.APPROACH].includes(a.phase) && ((s.rots[a.rot]?.arrDelay || 0) >= 3 || a.phase === PH.HOLD));
+      for (const a of late) {
+        const deps = s.acs.filter((d) => d.phase === PH.STAND && d.airline === a.airline && d.ta && task(d, 'board') && task(d, 'board').st !== 'done' && s.rots[d.rot] && s.rots[d.rot].std - s.time < 50 * MIN && s.rots[d.rot].std - s.time > 8 * MIN);
+        if (deps.length) return { arr: a.id, dep: pick(s, deps).id, n: randInt(s, 8, 34) };
+      }
+      return null;
+    },
+    card: (s, p) => {
+      const a = byId(s, p.arr), d = byId(s, p.dep);
+      const dr = d && s.rots[d.rot];
+      const city = dr ? CITIES[dr.city]?.name : '…';
+      return {
+        icon: '🔁', title: `Anschluss: ${p.n} Umsteiger von ${a?.cs || '…'}`,
+        text: `${a?.cs || 'Die Ankunft'} ist verspätet. ${p.n} Umsteiger wollen noch auf ${d?.cs || '…'} nach ${city} (P${d?.stand || '?'}). Warten verschiebt das Boarding, ohne sie zu starten verärgert Reisende und Airline.`,
+        options: [
+          { label: 'Auf die Umsteiger warten', detail: 'Boarding +9 min · Airline zufrieden', run: (st) => { const dd = byId(st, p.dep); const t = task(dd, 'board'); if (t) t.dur += 9 * MIN; const r = dd && st.rots[dd.rot]; if (r) r.paxOut += p.n; satDelta(contractOfAc(st, dd), 3); } },
+          { label: 'Umbuchen auf den nächsten Flug', detail: `${fmtMoney(p.n * 180)} Hotel & Umbuchung · Ansehen −0,5`, run: (st) => { spend(st, 'other', p.n * 180); repDelta(st, -0.5); } },
+          { label: 'Ohne sie abfliegen', detail: 'Ansehen −1,5 · Airline verärgert', run: (st) => { repDelta(st, -1.5); satDelta(contractOfAc(st, byId(st, p.dep)), -4); } },
+        ],
+      };
+    },
+  },
   fuelSpill: {
     role: 'ground', weight: 0.7, timeout: 5 * MIN,
     cond: (s) => {
@@ -367,6 +393,21 @@ export function updateDecisions(state, dt) {
   if (!PLAYABLE[role]) return;
   if (state.settings.events === false) return;
   if (D.active.some((d) => d.role === role)) return;
+  // dringende Karten (z. B. Anschlussflug) nicht dem Zufall überlassen: sobald die Lage passt, höchstens alle paar Stunden
+  D.urgT = (D.urgT || 0) - dt;
+  if (D.urgT <= 0) {
+    D.urgT = 120;
+    D.lastUrgent = D.lastUrgent || {};
+    for (const [key, c] of Object.entries(CATALOG)) {
+      if (c.role !== role || !c.urgent || state.time - (D.lastUrgent[key] ?? -1e9) < c.urgent) continue;
+      const p = c.cond(state);
+      if (!p) continue;
+      D.lastUrgent[key] = state.time;
+      D.active.push({ id: 'd' + Math.floor(state.time) + key, key, p, role, t: state.time, expires: state.time + c.timeout });
+      notify(state, `${c.card(state, p).icon} Entscheidung: ${c.card(state, p).title}`, 'warn');
+      return;
+    }
+  }
   if (D.next[role] === undefined) D.next[role] = state.time + nextGap(state, role) * 0.5;
   if (state.time < D.next[role]) return;
   D.next[role] = state.time + nextGap(state, role);
