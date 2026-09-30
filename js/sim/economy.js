@@ -4,6 +4,7 @@ import { clamp, fmtMoney, rand, dayOf } from '../util.js';
 import { log, notify, fx } from './messages.js';
 import { newsDayEnd } from './news.js';
 import { acceptOffer, feeIndex, standDemand } from './schedule.js';
+import { diff } from './difficulty.js';
 import { scoreLanding, scoreTakeoff, scoreOffBlock, scoreIncident, scoreDayEnd, scoreState } from './score.js';
 import { makeVehicle, freeBay, vehicleAvailable, efficiency } from './ground.js';
 import { PH } from './aircraft.js';
@@ -146,8 +147,9 @@ const PEN = {
 export function penalize(state, kind, ac) {
   const p = PEN[kind];
   if (!p) return;
-  rep(state, p.rep);
-  spend(state, p.cat, p.cost);
+  const f = diff(state).penalty;
+  rep(state, p.rep * f);
+  spend(state, p.cat, p.cost * f);
   if (kind !== 'goaround' && !p.minor) {
     state.stats.today.incidents++;
     scoreIncident(state, ac);

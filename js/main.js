@@ -192,7 +192,8 @@ function wireMenu() {
     const name = $('#inp-name').value.trim() || 'Planez International';
     const density = Number($('#inp-density').value) || 1;
     const slot = Number(($('#inp-slot') || {}).value) || 1;
-    const st = applyPrefs(newGame({ role, name, density, slot }));
+    const difficulty = ($('#inp-diff') || {}).value || 'normal';
+    const st = applyPrefs(newGame({ role, name, density, slot, difficulty }));
     startGame(st);
     try {
       localStorage.setItem('planez_help_seen', '1');

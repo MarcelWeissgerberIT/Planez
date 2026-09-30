@@ -11,6 +11,7 @@ import { slotOpen, acdmOnTakeoff } from './acdm.js';
 import { wakeDepSec } from './wake.js';
 import { runwayClosed, decelFactor, onRunwayLanding, brakingAction, stripGeom, rwyName, closeRunway } from './runway.js';
 import { scoreGoAround } from './score.js';
+import { diff } from './difficulty.js';
 
 export const PH = {
   INBOUND: 'ARR_INBOUND', HOLD: 'ARR_HOLD', APPROACH: 'ARR_APPROACH', GOAROUND: 'GO_AROUND',
@@ -119,7 +120,7 @@ function makeAircraft(state, rot, o) {
     engines: true,
     arr: true,
     // Treibstoff für Anflug + Reserve in Minuten (Warteschleifen zehren daran)
-    fuelMin: 16 + randRange(state, 28, 50) + (t.size === 'L' ? 8 : 0),
+    fuelMin: (16 + randRange(state, 28, 50) + (t.size === 'L' ? 8 : 0)) * diff(state).fuel,
   };
   return ac;
 }

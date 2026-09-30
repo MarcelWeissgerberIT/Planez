@@ -57,6 +57,7 @@ export function newGame(opts = {}) {
       vehAuto: Object.fromEntries(Object.keys(VEH_TYPES).map((k) => [k, false])),
       towerGroundAuto: false,
       density: opts.density || 1,
+      difficulty: opts.difficulty || 'normal',
       labels: true,
       tts: false,
       sound: true,

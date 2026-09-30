@@ -50,6 +50,13 @@
         <div class="mm-setup">
           <label><span>Flughafenname</span><input id="inp-name" maxlength="40" value="Planez International" /></label>
           <label><span>Speicherplatz</span><select id="inp-slot"></select></label>
+          <label><span>Schwierigkeit</span>
+            <select id="inp-diff" title="Entspannt: mehr Treibstoffreserve, seltener Zwischenfälle, milde Strafen, keine Fahrzeugdefekte · Profi: knappe Reserven, häufige Zwischenfälle, harte Strafen">
+              <option value="easy">Entspannt</option>
+              <option value="normal" selected>Normal</option>
+              <option value="hard">Profi</option>
+            </select>
+          </label>
           <label><span>Verkehr</span>
             <select id="inp-density">
               <option value="0.7">Ruhig</option>

@@ -3,6 +3,7 @@ import { rand, randRange, randInt, pick, pickWeighted, hourOf, clamp, degNorm, f
 import { log, notify, radio } from './messages.js';
 import { spawnSpecial, PH, divert, goAround } from './aircraft.js';
 import * as AS from './airspace.js';
+import { diff } from './difficulty.js';
 import { VEH_TYPES, AIRLINES } from '../config.js';
 import { command } from './atc.js';
 import { fodEvent } from './runway.js';
@@ -109,7 +110,7 @@ export function updateEvents(state, dt) {
   // Zufallsereignisse
   state.eventTimer = (state.eventTimer ?? 3 * 3600) - dt;
   if (state.eventTimer <= 0) {
-    state.eventTimer = randRange(state, 2.5, 6) * 3600;
+    state.eventTimer = randRange(state, 2.5, 6) * 3600 * diff(state).events;
     randomEvent(state);
   }
 }
@@ -155,7 +156,7 @@ function randomEvent(state) {
   const opts = [
     ['vip', h > 7 && h < 21 ? 3 : 0.3],
     ['emergency', 1.6],
-    ['breakdown', 2.5],
+    ['breakdown', diff(state).breakdowns ? 2.5 : 0],
     ['strike', 0.6],
     ['birdstrike', 1],
     ['fod', 0.7],
