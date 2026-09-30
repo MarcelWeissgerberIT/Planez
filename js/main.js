@@ -124,6 +124,7 @@ const LOAD_TIPS = [
   'Tipp: Mit <kbd>V</kbd> (gedrückt halten) funkst du im Tower selbst – auf Englisch, wie echte Lotsen.',
   'Tipp: 📷 bzw. <kbd>Umschalt</kbd>+<kbd>P</kbd> öffnet den Fotomodus mit Filtern und PNG-Export.',
   'Tipp: <kbd>?</kbd> zeigt im Spiel alle Tastenkürzel deiner Station.',
+  'Tipp: Unter Wettbewerb siehst du deinen Marktanteil gegen Nordhafen – Ansehen und Pünktlichkeit zählen am meisten.',
   'Tipp: Im Tower lohnt sich Hinhören – ein falscher Readback lässt sich mit Q korrigieren.',
   'Tipp: Etwa jede 18. Maschine trägt eine Sonderlackierung – fotografiere sie fürs 📒 Spotterbuch.',
   'Tipp: Eine Landung im Gewitter oder ein Nachtstart bringt im Spotterbuch Extrapunkte für den Moment.',
@@ -1300,6 +1301,7 @@ function helpGuide(first) {
       <li><b>Piste:</b> Landungen hinterlassen Gummiabrieb – der Zustand sinkt. Reinigung oder Sanierung laufen nachts in Verkehrspausen und sperren die Piste solange.</li>
       <li><b>Baustellen:</b> jeder Ausbau braucht Bauzeit und ist mit Zaun, Kran, Bagger und Betonmischer zu sehen. „📍 Zeigen“ springt hin, „Abbrechen“ erstattet 50 % der noch nicht verbauten Kosten.</li>
       <li><b>Kredite</b> überbrücken Engpässe (30 Tagesraten). <b>Nachtflüge</b> bringen Nachtentgelte, aber Lärmbeschwerden; ein Nachtflugverbot verärgert Frachtairlines.</li>
+      <li><b>🏢 Wettbewerb:</b> Der Nachbarflughafen <b>Nordhafen</b> kämpft um dieselben Airlines. Der <b>Marktanteil</b> (Management-Zentrale › Wettbewerb) ergibt sich aus Ansehen, Pünktlichkeit, Entgelten und Kapazität beider Flughäfen – mehr Anteil bringt häufiger Angebote und bessere Verlängerungschancen. Nordhafen senkt Entgelte, baut aus, macht Werbung und <b>wirbt Verbindungen ab</b> (Gegenangebot, Service-Paket oder ziehen lassen). Ist Nordhafen gesperrt, kannst du <b>Umleitungen</b> annehmen – Zusatzentgelte, Ansehen und im Tower spürbar mehr Verkehr. Liegst du vorn, greift Nordhafen öfter an.</li>
     </ul>
     <h3>🎯 Ziele &amp; Rang</h3>
     <p>Jede Station hat drei Ziele (🏅 oben rechts). Erreichte Ziele bringen Prämie und XP; der Flughafen steigt vom Regionalflughafen bis zum Weltflughafen auf – höhere Ränge ziehen mehr Airlines an.</p>

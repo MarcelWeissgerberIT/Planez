@@ -10,6 +10,8 @@ import { closeRunway } from './runway.js';
 import { birdstrikeOn } from './events.js';
 import { fuelState, FUEL, maxOrder } from './fuel.js';
 import { CMDS, command } from './atc.js';
+import { RIVAL_NAME, rivalState, acceptDiversions } from './rival.js';
+import { pushNews } from './news.js';
 
 const MIN = 60, H = 3600;
 const repDelta = (state, d) => (state.reputation = clamp(state.reputation + d, 0, 100));
@@ -219,6 +221,42 @@ export const CATALOG = {
       ],
     }),
   },
+  // Wettbewerb (nur über pushDecision, nie zufällig)
+  rivalPoach: {
+    role: 'manager', weight: 0, timeout: 3 * H,
+    cond: () => null,
+    ai: (s, p) => {
+      const c = s.contracts.find((x) => x.id === p.c);
+      return c && (c.sat || 50) < 40 && s.cash > 400000 ? 1 : 0;
+    },
+    card: (s, p) => {
+      const c = s.contracts.find((x) => x.id === p.c);
+      const al = AIRLINES[c?.airline] || AIRLINES.AUR;
+      const cost = Math.round((70000 + (c?.freq || 1) * 30000) / 1000) * 1000;
+      return {
+        icon: '🏢', title: `${RIVAL_NAME} wirbt ${al.name} ab`,
+        text: `${RIVAL_NAME} bietet ${al.name} für die Strecke nach ${CITIES[c?.city]?.name || '…'} günstigere Entgelte. Die Airline (Zufriedenheit ${Math.round(c?.sat ?? 50)}) will wissen, was du bietest.`,
+        options: [
+          { label: 'Gegenangebot: −15 % Entgelte', detail: 'Verbindung bleibt, +10 Tage Laufzeit · Zufriedenheit +8', run: (st) => { const k = st.contracts.find((x) => x.id === p.c); if (!k) return; k.feeMult = Math.round((k.feeMult || 1) * 0.85 * 100) / 100; k.days += 10; satDelta(k, 8); } },
+          { label: 'Service-Paket', detail: `${fmtMoney(cost)} · Zufriedenheit +14 · Ansehen +1`, run: (st) => { const k = st.contracts.find((x) => x.id === p.c); spend(st, 'other', cost); satDelta(k, 14); repDelta(st, 1); } },
+          { label: 'Ziehen lassen', detail: 'Verbindung endet in 2 Tagen', run: (st) => { const k = st.contracts.find((x) => x.id === p.c); if (!k) return; k.days = Math.min(k.days, 2); rivalState(st).poached++; pushNews(st, `${AIRLINES[k.airline].name} wechselt mit der Strecke nach ${CITIES[k.city].name} zu ${RIVAL_NAME}.`, 'bad', '🏢'); } },
+        ],
+      };
+    },
+  },
+  rivalDivert: {
+    role: 'manager', weight: 0, timeout: 40 * MIN,
+    cond: () => null,
+    ai: (s) => (s.stands.filter((x) => x.built && !x.occ && !x.closed).length >= 2 ? 0 : 1),
+    card: (s, p) => ({
+      icon: '⛔', title: `${RIVAL_NAME} gesperrt – Umleitungen?`,
+      text: `${RIVAL_NAME} ist gesperrt (${p.why}). ${p.n} Flüge suchen einen Ausweichflughafen. Das bringt Zusatzentgelte und Ansehen, aber auch Betrieb auf Piste und Vorfeld.`,
+      options: [
+        { label: `${p.n} Umleitungen annehmen`, detail: '+40 % Entgelte · Ansehen +1 · Marktanteil', run: (st) => acceptDiversions(st, p.n) },
+        { label: 'Ablehnen', detail: 'Kapazität schonen', run: () => {} },
+      ],
+    }),
+  },
   rent: {
     role: 'manager', weight: 0.6, timeout: 3 * H,
     cond: (s) => (!(s.rentUntil > s.time) ? {} : null),
@@ -232,6 +270,22 @@ export const CATALOG = {
     }),
   },
 };
+
+// Karte von außen einreihen (Wettbewerb). Spielt die KI den Manager, entscheidet sie sofort.
+export function pushDecision(state, key, p) {
+  const c = CATALOG[key];
+  if (!c) return;
+  const D = decisionsState(state);
+  const d = { id: 'd' + Math.floor(state.time) + key, key, p, role: c.role, t: state.time, expires: state.time + c.timeout };
+  if (state.role !== c.role || state.settings.events === false) {
+    D.active.push(d);
+    choose(state, d.id, c.ai ? c.ai(state, p) : 0);
+    return;
+  }
+  D.active.push(d);
+  const card = c.card(state, p);
+  notify(state, `${card.icon} Entscheidung: ${card.title}`, 'warn');
+}
 
 // ---------------- Ablauf ----------------
 const PLAYABLE = { tower: true, ground: true, manager: true };

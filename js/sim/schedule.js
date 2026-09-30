@@ -131,7 +131,7 @@ export function dailyContracts(state) {
     c.days -= 1;
     if (c.days === 0) {
       const al = AIRLINES[c.airline];
-      const p = clamp(c.sat / 100 + (state.reputation - 60) / 200, 0.1, 0.97);
+      const p = clamp(c.sat / 100 + (state.reputation - 60) / 200 + ((state.rival && state.rival.renew) || 0), 0.1, 0.97);
       if (rand(state) < p) {
         c.days = randInt(state, 20, 45);
         log(state, 'mgr', `${al.name} verlängert den Vertrag ${c.city} (${c.type}) um ${c.days} Tage.`);
@@ -154,7 +154,7 @@ export function maybeOffer(state, dt) {
   const feeIdx = feeIndex(state);
   const mkt = state.marketingUntil > state.time ? 0.6 : 1;
   const rankF = (1 - 0.08 * ((state.goals && state.goals.rank) || 0)) * (state.upgrades.rwy2 ? 0.8 : 1); // höherer Rang / zweite Bahn: mehr Interesse
-  state.offerTimer = randRange(state, 3, 7) * 3600 * clamp(feeIdx, 0.6, 2) * mkt * (1.4 - state.reputation / 200) * rankF * (state.upgrades.rail ? 0.8 : 1);
+  state.offerTimer = randRange(state, 3, 7) * 3600 * clamp(feeIdx, 0.6, 2) * mkt * (1.4 - state.reputation / 200) * rankF * (state.upgrades.rail ? 0.8 : 1) * ((state.rival && state.rival.offerF) || 1);
   if (state.offers.length >= 4) return;
   const pool = Object.values(AIRLINES).filter((a) => a.code !== 'VIP');
   let al = pickWeighted(state, pool, (a) => (a.types.some((t) => AC_TYPES[t].size === 'L') ? (state.upgrades.lounge ? 1.6 : 0.8) : 1));

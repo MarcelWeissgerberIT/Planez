@@ -14,6 +14,9 @@ export function newsState(state) {
   return state.news;
 }
 
+export function pushNews(state, text, tone = 'info', icon = '📰') {
+  push(state, text, tone, icon);
+}
 function push(state, text, tone = 'info', icon = '📰') {
   const N = newsState(state);
   N.items.unshift({ t: state.time, text, tone, icon });

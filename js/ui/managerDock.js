@@ -1,5 +1,6 @@
 // Kompakter Leitstand (Manager/Beobachter): das Wichtigste auf einen Blick, Details in der Management-Zentrale
 import { setHTML } from './dom.js';
+import { rivalState } from '../sim/rival.js';
 import { esc, fmtMoney, fmtClock } from '../util.js';
 import { projects, remainingHours } from '../sim/construction.js';
 import { fuelState, FUEL } from '../sim/fuel.js';
@@ -49,7 +50,7 @@ export class ManagerDock {
     const tile = (k, v, cls = '', open = '') => `<div class="k${open ? ' link' : ''}" ${open ? `data-open="${open}"` : ''}><span>${k}</span><b class="${cls}">${v}</b></div>`;
     setHTML(
       this.root.querySelector('#dk-kpi'),
-      `<div class="kpis dock-kpis">${tile('Ergebnis heute', fmtMoney(rev - cost), rev - cost >= 0 ? 'pos' : 'neg', 'fin')}${tile('Ansehen', `${Math.round(s.reputation)}/100`, '', 'over')}${tile('Pünktlich', deps ? Math.round((t.onTime / deps) * 100) + ' %' : '—', '', 'over')}${tile('Bewegungen', t.mov, '', 'over')}${tile('Tanklager', `${Math.round(fu.stock)} t`, fu.stock < FUEL.cap * 0.15 ? 'neg' : '', 'fuel')}${tile('Piste', `${cond} % · ${BRAKE_DE[brakingAction(s)]}`, cond < 45 ? 'neg' : '', 'runways')}${tile('Sicherheitskontrolle', `${Math.round(secState(s).wait)} min Wartezeit`, secState(s).wait > 15 ? 'neg' : '', 'terminal')}</div>`
+      `<div class="kpis dock-kpis">${tile('Ergebnis heute', fmtMoney(rev - cost), rev - cost >= 0 ? 'pos' : 'neg', 'fin')}${tile('Ansehen', `${Math.round(s.reputation)}/100`, '', 'over')}${tile('Pünktlich', deps ? Math.round((t.onTime / deps) * 100) + ' %' : '—', '', 'over')}${tile('Bewegungen', t.mov, '', 'over')}${tile('Tanklager', `${Math.round(fu.stock)} t`, fu.stock < FUEL.cap * 0.15 ? 'neg' : '', 'fuel')}${tile('Piste', `${cond} % · ${BRAKE_DE[brakingAction(s)]}`, cond < 45 ? 'neg' : '', 'runways')}${tile('Sicherheitskontrolle', `${Math.round(secState(s).wait)} min Wartezeit`, secState(s).wait > 15 ? 'neg' : '', 'terminal')}${tile('Marktanteil', `${Math.round(rivalState(s).share)} % vs. Nordhafen`, rivalState(s).share < 45 ? 'neg' : rivalState(s).share > 55 ? 'pos' : '', 'rival')}</div>`
     );
     // Aufgaben
     const todo = [];

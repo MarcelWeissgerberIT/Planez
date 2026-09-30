@@ -18,6 +18,7 @@ import { updateAcdm } from './acdm.js';
 import { updateScenario } from './scenarios.js';
 import { updateSecurity } from './security.js';
 import { updateReadback } from './readback.js';
+import { updateRival, rivalDayEnd } from './rival.js';
 import { updateFuel } from './fuel.js';
 import { dailyLoans } from './finance.js';
 import { spend } from './economy.js';
@@ -53,6 +54,7 @@ export function step(state, dt) {
   updateAtis(state);
   updateSecurity(state, dt);
   updateReadback(state, dt);
+  updateRival(state, dt);
   updateGround(state, dt);
   updateConflicts(state, dt);
   updateAcdm(state, dt);
@@ -77,6 +79,7 @@ function dayRollover(state) {
   const rec = closeDay(state);
   dailyLoans(state, spend);
   goalsDayEnd(state, rec);
+  rivalDayEnd(state);
   dailyContracts(state);
   const day = dayOf(state.time);
   generateDay(state, day + 1);

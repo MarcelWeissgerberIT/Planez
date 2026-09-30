@@ -60,7 +60,7 @@ export function spawnArrival(state, rot) {
   rot.ac = ac.id;
   rot.status = 'inbound';
   state.acs.push(ac);
-  radio(state, ac.cs, `${AIRPORT.name.split(' ')[0]} Approach, ${tel(ac)}, FL${Math.round(alt / 100)}, information ${atis(state)}.`);
+  radio(state, ac.cs, `${AIRPORT.name.split(' ')[0]} Approach, ${tel(ac)}, FL${Math.round(alt / 100)}${rot.special === 'diversion' ? ', diverting from Nordhafen' : ''}, information ${atis(state)}.`);
   if (state.auto.ground || state.settings.standAuto) assignStandAuto(state, ac);
   return ac;
 }

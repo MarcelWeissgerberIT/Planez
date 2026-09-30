@@ -1,6 +1,7 @@
 // Management: Verträge, Ausbau, Fuhrpark, Gebühren, Finanzen
 import { AC_TYPES, AIRLINES, CITIES, VEH_TYPES, UPGRADES, FEE_LIMITS, DEFAULT_FEES, MARKETING, STAND_COSTS } from '../config.js';
-import { fmtMoney, fmtInt, esc, clamp, fmtClock } from '../util.js';
+import { rivalState, shareTarget, ourScore, rivalScore, offerFactor, renewBonus, RIVAL_NAME } from '../sim/rival.js';
+import { fmtMoney, fmtInt, esc, clamp, fmtClock, dayOf } from '../util.js';
 import { setHTML, toast } from './dom.js';
 import * as EC from '../sim/economy.js';
 import { acceptOffer, declineOffer, cancelContract, feeIndex, standDemand, negotiateOffer, negotiateChance, interestLabel } from '../sim/schedule.js';
@@ -177,7 +178,7 @@ export class ManagerPanel {
 
   // Inhalt eines Bereichs (für die Management-Zentrale)
   section(key, s) {
-    const fn = { over: this.over, contracts: this.contracts, sites: this.sitesHtml, runways: this.runwaysHtml, stands: this.standsHtml, terminal: this.terminalHtml, ops: this.ops, fuel: this.fuel, fees: this.fees, fin: this.fin, goals: this.goalsHtml }[key] || this.over;
+    const fn = { rival: rivalHtml, over: this.over, contracts: this.contracts, sites: this.sitesHtml, runways: this.runwaysHtml, stands: this.standsHtml, terminal: this.terminalHtml, ops: this.ops, fuel: this.fuel, fees: this.fees, fin: this.fin, goals: this.goalsHtml }[key] || this.over;
     return fn.call(this, s);
   }
 
@@ -656,4 +657,42 @@ function voicesHtml(s) {
   h += N.quotes.slice(0, 4).map((q) => `<div class="card voice"><div class="v-st">${'★'.repeat(q.stars)}<span>${'★'.repeat(5 - q.stars)}</span></div><div class="v-t">„${esc(q.text)}“</div><div class="s">${esc(q.who)} · ${fmtClock(q.t)}</div></div>`).join('');
   h += `<div class="p-sec"><span>📰 Nachrichten</span></div>` + N.items.slice(0, 5).map((i) => `<div class="card news ${i.tone}"><span>${i.icon}</span><div><div class="v-t">${esc(i.text)}</div><div class="s">${fmtClock(i.t)}</div></div></div>`).join('');
   return h;
+}
+
+// Wettbewerb gegen Nordhafen: Marktanteil, Vergleich, Züge der Konkurrenz
+function rivalHtml(s) {
+  const R = rivalState(s);
+  const sh = Math.round(R.share);
+  const tgt = shareTarget(s);
+  const trend = tgt > R.share + 1 ? '▲ steigt' : tgt < R.share - 1 ? '▼ sinkt' : '• stabil';
+  const tcls = tgt > R.share + 1 ? 'up' : tgt < R.share - 1 ? 'down' : '';
+  const o = ourScore(s), r = rivalScore(s);
+  const row = (label, a, b, fmt, higher = true, tip = '') => {
+    const win = higher ? a > b + 1e-6 : a < b - 1e-6;
+    const lose = higher ? a < b - 1e-6 : a > b + 1e-6;
+    return `<tr title="${tip}"><td>${label}</td><td class="${win ? 'w' : lose ? 'l' : ''}">${fmt(a)}</td><td class="${lose ? 'w' : win ? 'l' : ''}">${fmt(b)}</td></tr>`;
+  };
+  const pct = (v) => Math.round(v * 100) + ' %';
+  const offerF = offerFactor(s);
+  let h = `<div class="rv-wrap"><div class="rv-hero"><div class="rv-big"><span>Marktanteil in der Region</span><b>${sh} %</b><em class="${tcls}">${trend}</em></div>
+    <div class="rv-mid"><div class="rv-lab"><span class="a">✈️ ${esc(s.name)}</span><span class="b">${RIVAL_NAME} 🏢</span></div><div class="rv-bar"><i style="width:${R.share}%"></i><span class="a">${sh} %</span><span class="b">${100 - sh} %</span></div></div>
+    <div class="rv-spark">${R.hist.length > 1 ? spark([...R.hist, R.share], '#38bdf8') : '<small>Verlauf ab dem zweiten Tag</small>'}</div></div>`;
+  h += `<div class="rv-grid"><table class="rv-tab"><thead><tr><th></th><th>${esc(s.name)}</th><th>${RIVAL_NAME}</th></tr></thead><tbody>
+    ${row('Ansehen', o.rep, r.rep, (v) => Math.round(v * 100), true, 'wichtigster Faktor')}
+    ${row('Pünktlichkeit', o.punct, r.punct, pct, true, 'gestern')}
+    ${row('Entgelte (Index)', o.fees, r.fees, (v) => v.toFixed(2).replace('.', ','), false, 'niedriger ist attraktiver für Airlines')}
+    ${row('Kapazität', o.cap, r.cap, (v) => v.toFixed(2).replace('.', ','), true, 'Positionen, Parallelbahn, Rang')}
+    </tbody></table>
+    <div class="rv-fx"><div class="p-sec"><span>Auswirkungen</span></div>
+      <div class="s">📨 Neue Airline-Angebote kommen <b>${offerF < 1 ? Math.round((1 / offerF - 1) * 100) + ' % öfter' : offerF > 1 ? Math.round((1 - 1 / offerF) * 100) + ' % seltener' : 'normal oft'}</b></div>
+      <div class="s">✍️ Vertragsverlängerungen <b>${renewBonus(s) >= 0 ? '+' : ''}${Math.round(renewBonus(s) * 100)} %</b></div>
+      <div class="s">🏢 Abgeworbene Verbindungen: <b>${R.poached}</b> · 🛬 übernommene Umleitungen: <b>${R.won}</b></div>
+      ${R.feeCutUntil > s.time ? `<div class="s warn">💸 ${RIVAL_NAME} lockt mit −12 % Entgelten bis ${fmtClock(R.feeCutUntil)} (Tag ${dayOf(R.feeCutUntil)})</div>` : ''}
+      ${R.closedUntil > s.time ? `<div class="s good">⛔ ${RIVAL_NAME} ist gesperrt bis ${fmtClock(R.closedUntil)}</div>` : ''}
+      <div class="p-sec"><span>So gewinnst du Anteile</span></div>
+      <div class="s">Ansehen und Pünktlichkeit hochhalten, Entgelte nicht über ${RIVAL_NAME} setzen, Positionen und Parallelbahn ausbauen. Abwerbeversuche mit Gegenangebot oder Service-Paket abwehren, Umleitungen bei Sperrungen annehmen.</div>
+    </div></div>`;
+  h += `<div class="p-sec"><span>📰 Aus ${RIVAL_NAME}</span></div>`;
+  h += R.news.length ? `<div class="rv-news">${R.news.map((i) => `<div class="card news ${i.tone}"><span>${i.icon}</span><div><div class="v-t">${esc(i.text)}</div><div class="s">Tag ${dayOf(i.t)} · ${fmtClock(i.t)}</div></div></div>`).join('')}</div>` : '<div class="empty">Noch ruhig in Nordhafen – die Konkurrenz beobachtet dich.</div>';
+  return h + '</div>';
 }
