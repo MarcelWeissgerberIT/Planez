@@ -3,6 +3,7 @@ import { ROLES, slotInfo, loadGame, deleteSave, freeSlot } from '../state.js';
 import { esc, fmtMoney, fmtClock, dayOf } from '../util.js';
 import { RANKS, goalsState, activeGoals, goalText, goalFraction } from '../sim/goals.js';
 import { glossify } from './glossary.js';
+import { sfx } from '../audio.js';
 import { scenarioListHtml, scenarioSide } from './scenarioUi.js';
 import { SCENARIOS, totalStars } from '../sim/scenarios.js';
 
@@ -134,9 +135,17 @@ function renumber(list) {
   }
 }
 function setActive(list, btn) {
+  if (btn && btn.classList.contains('on')) return;
   for (const b of list.querySelectorAll('.mm-item.on, .mm-toggle.on')) b.classList.remove('on');
-  if (btn) btn.classList.add('on');
+  if (btn) {
+    btn.classList.add('on');
+    if (loadPrefs().sound !== false) sfx.hover();
+  }
 }
+// Auswahlklang für alle Menüknöpfe
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.mm-item, .mm-toggle, .mm-back, [data-so], [data-ru]') && loadPrefs().sound !== false) sfx.select();
+}, true);
 function moveActive(list, d) {
   const items = [...list.querySelectorAll('.mm-item, .mm-toggle')].filter((b) => b.offsetParent !== null);
   if (!items.length) return null;

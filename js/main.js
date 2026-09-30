@@ -104,7 +104,25 @@ game.refreshUi = () => {
 window.planez = game; // für Tests/Debugging
 
 // ---------------- Start ----------------
+// Tipps auf dem Ladebildschirm
+const LOAD_TIPS = [
+  'Tipp: Mit <kbd>K</kbd> startet der Kino-Modus – die Kamera sucht sich selbst die besten Szenen.',
+  'Tipp: Im Tower zeigt die Karte „⏳ Landung zuerst“, wenn ein Start noch warten sollte.',
+  'Tipp: Der Positionsplan (<kbd>G</kbd>) im Vorfeld zeigt, welche Position wann frei wird.',
+  'Tipp: Bei Angeboten kannst du verhandeln – die Erfolgschance steht direkt auf dem Knopf.',
+  'Tipp: Die Wettervorhersage im Kopfbereich kündigt Gewitter 30 Minuten vorher an.',
+  'Tipp: Unter „Herausforderungen“ warten neun Szenarien mit Sternen – von der Morgenwelle bis zum Winterchaos.',
+  'Tipp: „🎥 Folgen“ auf der Info-Karte lässt die Kamera ein Flugzeug durch den ganzen Umlauf begleiten.',
+  'Wusstest du? Hinter einem Heavy braucht ein leichtes Flugzeug bis zu 6 NM Abstand – Wirbelschleppen.',
+  'Wusstest du? Unter 550 m Pistensichtweite reicht ILS CAT I nicht mehr – dann hilft nur CAT III.',
+  'Wusstest du? Das Martinshorn der deutschen Feuerwehr spielt eine Quarte – „Tatü-tata“.',
+  'Tipp: Mit <kbd>V</kbd> (gedrückt halten) funkst du im Tower selbst – auf Englisch, wie echte Lotsen.',
+  'Tipp: 📷 bzw. <kbd>Umschalt</kbd>+<kbd>P</kbd> öffnet den Fotomodus mit Filtern und PNG-Export.',
+];
+
 async function boot() {
+  const tip = $('#load-tip');
+  if (tip) tip.innerHTML = LOAD_TIPS[Math.floor(Math.random() * LOAD_TIPS.length)];
   const fill = $('#load-fill');
   await loadAssets((p) => (fill.style.width = `${Math.round(p * 100)}%`));
   game.map = new MapRenderer($('#map'), game.cam);

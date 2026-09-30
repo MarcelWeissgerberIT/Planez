@@ -81,6 +81,17 @@ export const sfx = {
     tone(1046, 0.08, 'triangle', 0.05);
     tone(1568, 0.14, 'triangle', 0.05, 0.07);
   },
+  // Menü: leises Ticken beim Überfahren, heller Klang beim Auswählen
+  hover() {
+    const now = performance.now();
+    if (now - lastClick < 45) return;
+    lastClick = now;
+    tone(2200, 0.025, 'sine', 0.012);
+  },
+  select() {
+    tone(880, 0.06, 'triangle', 0.035);
+    tone(1320, 0.1, 'triangle', 0.03, 0.05);
+  },
   // kleine Fanfare (Dur-Arpeggio mit Schlussakkord)
   fanfare() {
     [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.22, 'triangle', 0.06, i * 0.12));
