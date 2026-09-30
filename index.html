@@ -36,6 +36,7 @@
           <button class="mm-item" id="btn-continue" data-side="save"><span class="n"></span><span class="l"><b>Weiterspielen</b><small id="continue-info"></small></span></button>
         </div>
         <button class="mm-item" data-mm="new" data-side="new"><span class="n"></span><span class="l"><b>Neues Spiel</b><small>Flughafen gründen und Station wählen</small></span></button>
+        <button class="mm-item" data-mm="slots" data-side="slots"><span class="n"></span><span class="l"><b>Spielstände</b><small>Drei Speicherplätze – laden oder löschen</small></span></button>
         <button class="mm-item" data-mm="scn" data-side="scnall"><span class="n"></span><span class="l"><b>Herausforderungen</b><small>Szenarien mit Zielen und Sternen – Nebel, Gewitter, Winter …</small></span></button>
         <button class="mm-item" data-role-start="observer" data-side="observer"><span class="n"></span><span class="l"><b>Nur zuschauen</b></span></button>
         <button class="mm-item" id="btn-help-menu" data-side="help"><span class="n"></span><span class="l"><b>So funktioniert es</b></span></button>
@@ -47,6 +48,7 @@
         <button class="mm-back" data-mm="back">← Zurück</button>
         <div class="mm-setup">
           <label><span>Flughafenname</span><input id="inp-name" maxlength="40" value="Planez International" /></label>
+          <label><span>Speicherplatz</span><select id="inp-slot"></select></label>
           <label><span>Verkehr</span>
             <select id="inp-density">
               <option value="0.7">Ruhig</option>
@@ -63,6 +65,8 @@
       </nav>
 
       <nav class="mm-list hidden" id="mm-scn" aria-label="Herausforderungen"></nav>
+
+      <nav class="mm-list hidden" id="mm-slots" aria-label="Spielstände"></nav>
 
       <nav class="mm-list hidden" id="mm-settings" aria-label="Einstellungen">
         <button class="mm-back" data-mm="back">← Zurück</button>

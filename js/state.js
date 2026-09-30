@@ -29,6 +29,7 @@ export function newGame(opts = {}) {
     name: (opts.name || AIRPORT.name).slice(0, 40),
     role,
     time: (opts.hour ?? 6) * 3600,
+    slot: opts.slot || 1,
     speed: DEFAULT_SPEED[role] || 1,
     rwy: '27',
     rwyPending: null,
@@ -138,36 +139,84 @@ export function setRole(state, role) {
   state.auto = autoFor(role);
 }
 
+// Speicherplätze: Platz 1 ist der bisherige Spielstand, dazu Platz 2 und 3
+export const SLOTS = [1, 2, 3];
+const slotKey = (n) => (n === 1 ? SAVE_KEY : `planez_save_slot${n}`);
+const META_KEY = 'planez_slots_meta';
+function readMeta() {
+  try {
+    return JSON.parse(localStorage.getItem(META_KEY) || '{}');
+  } catch (e) {
+    return {};
+  }
+}
 export function saveGame(state) {
   if (state.scenario) return false; // Herausforderungen werden nicht als Spielstand gespeichert
+  const n = state.slot || 1;
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    localStorage.setItem(slotKey(n), JSON.stringify(state));
+    const meta = readMeta();
+    meta[n] = { name: state.name, role: state.role, time: state.time, cash: state.cash, rep: state.reputation, rank: state.goals ? state.goals.rank : 0, saved: Date.now() };
+    meta.last = n;
+    localStorage.setItem(META_KEY, JSON.stringify(meta));
     return true;
   } catch (e) {
     console.warn('Speichern fehlgeschlagen', e);
     return false;
   }
 }
-export function loadGame() {
+// zuletzt gespeicherter Platz (für „Weiterspielen“)
+export function lastSlot() {
+  const meta = readMeta();
+  if (meta.last && hasSave(meta.last)) return meta.last;
+  return SLOTS.find((n) => hasSave(n)) || 1;
+}
+export function loadGame(n = lastSlot()) {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(slotKey(n));
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (!s || s.version !== 1) return null;
+    s.slot = n;
     return s;
   } catch (e) {
     return null;
   }
 }
-export function hasSave() {
+export function hasSave(n) {
   try {
-    return !!localStorage.getItem(SAVE_KEY);
+    if (n) return !!localStorage.getItem(slotKey(n));
+    return SLOTS.some((k) => !!localStorage.getItem(slotKey(k)));
   } catch (e) {
     return false;
   }
 }
-export function deleteSave() {
+export function deleteSave(n = 1) {
   try {
-    localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem(slotKey(n));
+    const meta = readMeta();
+    delete meta[n];
+    if (meta.last === n) delete meta.last;
+    localStorage.setItem(META_KEY, JSON.stringify(meta));
   } catch (e) {}
+}
+// Übersicht für das Menü (ohne alle Stände zu parsen, wenn Metadaten vorhanden sind)
+export function slotInfo() {
+  const meta = readMeta();
+  return SLOTS.map((n) => {
+    if (!hasSave(n)) return { n, empty: true };
+    let m = meta[n];
+    if (!m) {
+      const s = loadGame(n);
+      m = s ? { name: s.name, role: s.role, time: s.time, cash: s.cash, rep: s.reputation, rank: s.goals ? s.goals.rank : 0, saved: 0 } : null;
+    }
+    return m ? { n, ...m, last: meta.last === n } : { n, empty: true };
+  });
+}
+// erster freier Platz (sonst der älteste)
+export function freeSlot() {
+  const info = slotInfo();
+  const free = info.find((x) => x.empty);
+  if (free) return free.n;
+  return info.slice().sort((a, b) => (a.saved || 0) - (b.saved || 0))[0].n;
 }

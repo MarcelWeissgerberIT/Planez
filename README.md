@@ -51,6 +51,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 - Wirtschaft: Lande-, Passagier- und Positionsentgelte, Shops, Parken, Fracht, Vertragsstrafen, Airline-Zufriedenheit, Tagesberichte
 - Ereignisse: Notfälle (Squawk 7700 + Feuerwehr; bei Triebwerksbrand oder Rauch zieht das Flugzeug eine Rauchfahne, hält auf der Piste an, die Löschfahrzeuge umstellen es und löschen mit Schaum – die Bahn ist währenddessen gesperrt), Vogelschlag, VIP-Jets, Streik, Fahrzeugdefekte, Winddrehungen
 - Hauptmenü und Pausenmenü mit großem Titel, nummerierten Einträgen (Maus oder ↑↓/Enter/Esc) und Status-Panel; im Hintergrund ein nahtloser Video-Loop durch fünf Flughafenszenen (Anflug im Morgengrauen, Tower, Vorfeld bei Nacht, Frachtverladung im Regen, Start in den Sonnenuntergang)
+- 💾 Drei Speicherplätze: „Weiterspielen“ lädt den zuletzt gespielten Flughafen, „Spielstände“ zeigt Name, Spieltag, Station, Kasse und Speicherzeit mit Laden und Löschen; beim neuen Spiel wird der Platz gewählt (freier Platz zuerst)
 - Speichern im Browser, Funkprotokoll (englische Phraseologie, optional per Sprachausgabe)
 
 ## Steuerung

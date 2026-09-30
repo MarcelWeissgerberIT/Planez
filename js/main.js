@@ -111,6 +111,13 @@ async function boot() {
   initMainMenu({
     gloss: () => showHelp(false, 'gloss'),
     scenario: (id) => startScenario(id),
+    loadSlot: (n) => {
+      unlock();
+      const st = loadGame(n);
+      if (!st) return toast('Spielstand konnte nicht geladen werden', 'bad');
+      st.settings.tts = loadPrefs().tts;
+      startGame(st);
+    },
     prefsChanged: (p) => {
       setGlossaryEnabled(p.glossary);
       setSound(p.sound);
@@ -161,7 +168,8 @@ function wireMenu() {
     unlock();
     const name = $('#inp-name').value.trim() || 'Planez International';
     const density = Number($('#inp-density').value) || 1;
-    const st = applyPrefs(newGame({ role, name, density }));
+    const slot = Number(($('#inp-slot') || {}).value) || 1;
+    const st = applyPrefs(newGame({ role, name, density, slot }));
     startGame(st);
     try {
       localStorage.setItem('planez_help_seen', '1');

@@ -1,5 +1,5 @@
 // Hauptmenü und Pausenmenü: großer Titel, nummerierte Einträge, Status-Panel, Szenen-Video im Hintergrund
-import { ROLES } from '../state.js';
+import { ROLES, slotInfo, loadGame, deleteSave, freeSlot } from '../state.js';
 import { esc, fmtMoney, fmtClock, dayOf } from '../util.js';
 import { RANKS, goalsState, activeGoals, goalText, goalFraction } from '../sim/goals.js';
 import { glossify } from './glossary.js';
@@ -86,11 +86,42 @@ const SIDE = {
     <div class="ms-sec">Start</div><ul><li>6 Uhr morgens, erste Maschinen sind schon im Anflug</li><li>5 Mio € Startkapital, 20 Airline-Verträge</li><li>Station jederzeit im Spiel wechselbar</li></ul></div></div>`,
   help: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">So funktioniert es</div><ul><li>Jede Station spielt sich anders: Lotse, Abfertigung oder Management.</li><li>💡 Tipps oben im Panel zeigen die nächste sinnvolle Aktion.</li><li>Unterstrichene Abkürzungen erklären sich beim Überfahren.</li><li>🏅 Ziele bringen Prämien und heben den Flughafen-Rang.</li></ul></div></div>`,
   gloss: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Glossar</div><div class="ms-subt">Über 100 Begriffe – ein paar Beispiele:</div><dl class="ms-dl"><dt>ILS</dt><dd>Instrumentenlandesystem</dd><dt>TOBT</dt><dd>Zielzeit „Abfertigung fertig“</dd><dt>CTOT</dt><dd>Startslot, Fenster −5/+10 min</dd><dt>RVR</dt><dd>Pistensichtweite</dd><dt>STCA</dt><dd>Konfliktwarnung im Radar</dd><dt>FL</dt><dd>Flugfläche in 100 ft</dd></dl></div></div>`,
+  slots: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Spielstände</div><div class="ms-subt">Drei Speicherplätze – jeder Flughafen speichert automatisch alle 45 Sekunden und zum Tagesende.</div><ul><li>„Weiterspielen“ lädt den zuletzt gespielten Platz</li><li>Beim neuen Spiel wählst du den Platz</li><li>Herausforderungen belegen keinen Platz</li></ul></div></div>`,
+  slotEmpty: (n) => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Platz ${n}</div><div class="ms-subt">Noch leer – über „Neues Spiel“ einen Flughafen auf diesem Platz gründen.</div></div></div>`,
   settings: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Einstellungen</div><div class="ms-subt">Gelten für neue Spiele und lassen sich im Pausenmenü jederzeit ändern.</div></div></div>`,
   scnall: () => `<div class="ms-card"><div class="ms-img" style="background-image:url(assets/scn/storm.webp)"></div><div class="ms-body"><div class="ms-h">Herausforderungen</div><div class="ms-subt">${SCENARIOS.length} Szenarien · ⭐ ${totalStars()} / ${SCENARIOS.length * 3} Sterne</div>
     <ul><li>Kurze Einsätze mit festem Start: Morgenwelle, Nebel, Gewitterfront, Notfälle, Streik, Winterchaos, Sanierungsfall …</li><li>Jedes Ziel bringt 1–3 Sterne – der Bestwert bleibt gespeichert</li><li>Mit einem Stern schaltest du die nächste Stufe deiner Station frei</li></ul></div></div>`,
   about: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Über Planez</div><ul><li>Airport-Simulation mit isometrischer Karte, Radar und Wirtschaft</li><li>Grafiken, Porträts und Hintergrundvideos: Higgsfield AI (GPT Image, Kling)</li><li>Alle Airlines, Rufzeichen und Flüge sind fiktiv</li><li>Reines HTML/JavaScript – läuft direkt im Browser</li></ul></div></div>`,
 };
+
+// ---------- Speicherplätze ----------
+const fmtSaved = (t) => {
+  if (!t) return '';
+  const d = new Date(t);
+  const today = new Date();
+  const hm = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  return d.toDateString() === today.toDateString() ? `heute ${hm}` : `${d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })} ${hm}`;
+};
+function slotListHtml() {
+  return `<button class="mm-back" data-mm="back">← Zurück</button>` + slotInfo().map((x) => x.empty
+    ? `<button class="mm-item slot-item locked" data-slot-load="${x.n}" data-side="slot:${x.n}"><span class="n"></span><span class="l"><b>Platz ${x.n} · leer</b><small>Über „Neues Spiel“ belegen</small></span></button>`
+    : `<div class="slot-row"><button class="mm-item slot-item" data-slot-load="${x.n}" data-side="slot:${x.n}"><span class="n"></span><span class="l"><b>${esc(x.name)}</b><small>Platz ${x.n} · Tag ${dayOf(x.time)} · ${fmtClock(x.time)} · ${esc(ROLES[x.role]?.short || '')} · ${fmtMoney(x.cash)}${x.saved ? ` · gespeichert ${fmtSaved(x.saved)}` : ''}${x.last ? ' · zuletzt gespielt' : ''}</small></span></button><button class="mini slot-del" data-slot-del="${x.n}" title="Spielstand löschen">🗑</button></div>`).join('');
+}
+function renderSlotSelect(root) {
+  const sel = root.querySelector('#inp-slot');
+  if (!sel) return;
+  const info = slotInfo();
+  const pick = freeSlot();
+  sel.innerHTML = info.map((x) => `<option value="${x.n}" ${x.n === pick ? 'selected' : ''}>Platz ${x.n} – ${x.empty ? 'frei' : `überschreibt „${esc(x.name)}“ (Tag ${dayOf(x.time)})`}</option>`).join('');
+}
+function refreshContinue() {
+  if (!mm) return;
+  const any = slotInfo().some((x) => !x.empty);
+  mm.save = any ? loadGame() : null;
+  const box = mm.root.querySelector('#continue-box');
+  box.classList.toggle('hidden', !mm.save);
+  if (mm.save) mm.root.querySelector('#continue-info').textContent = `${mm.save.name} · Tag ${dayOf(mm.save.time)} · ${fmtClock(mm.save.time)} · ${ROLES[mm.save.role]?.name || ''}`;
+}
 
 // ---------- Tastatur-/Maus-Navigation einer Liste ----------
 function renumber(list) {
@@ -121,7 +152,7 @@ function moveActive(list, d) {
 let mm = null;
 export function initMainMenu(api) {
   const root = document.getElementById('menu');
-  const lists = { main: root.querySelector('#mm-main'), new: root.querySelector('#mm-new'), scn: root.querySelector('#mm-scn'), settings: root.querySelector('#mm-settings') };
+  const lists = { main: root.querySelector('#mm-main'), new: root.querySelector('#mm-new'), scn: root.querySelector('#mm-scn'), slots: root.querySelector('#mm-slots'), settings: root.querySelector('#mm-settings') };
   const side = root.querySelector('#mm-side');
   const scene = root.querySelector('#mm-scene');
   const video = root.querySelector('#menu-video');
@@ -131,6 +162,12 @@ export function initMainMenu(api) {
     let html = '';
     if (key === 'save' && mm.save) html = statusPanel(mm.save, 'Letzter Spielstand');
     else if (key.startsWith('scn:')) html = scenarioSide(key.slice(4));
+    else if (key.startsWith('slot:')) {
+      const n = Number(key.slice(5));
+      mm.slotCache = mm.slotCache || {};
+      if (!(n in mm.slotCache)) mm.slotCache[n] = loadGame(n);
+      html = mm.slotCache[n] ? statusPanel(mm.slotCache[n], `Speicherplatz ${n}`) : SIDE.slotEmpty(n);
+    }
     else if (ROLE_INFO[key]) html = sideRole(key);
     else if (SIDE[key]) html = SIDE[key]();
     else html = mm.save ? statusPanel(mm.save, 'Letzter Spielstand') : SIDE.new();
@@ -151,10 +188,16 @@ export function initMainMenu(api) {
     root.classList.toggle('scn-open', key === 'scn');
     if (key === 'settings') renderPrefs();
     if (key === 'scn') lists.scn.innerHTML = scenarioListHtml();
+    if (key === 'slots') {
+      mm.slotCache = {};
+      mm.delArm = null;
+      lists.slots.innerHTML = slotListHtml();
+    }
+    if (key === 'new') renderSlotSelect(root);
     renumber(lists[key]);
     const first = lists[key].querySelector('.mm-item, .mm-toggle');
     setActive(lists[key], first);
-    const f = key === 'scn' && lists.scn.querySelector('.mm-item:not(.locked)');
+    const f = (key === 'scn' || key === 'slots') && lists[key].querySelector('.mm-item:not(.locked)');
     if (f) setActive(lists[key], f);
     showSide(key === 'new' ? 'new' : key === 'settings' ? 'settings' : f ? f.dataset.side : mm.save ? 'save' : 'new');
   };
@@ -171,10 +214,34 @@ export function initMainMenu(api) {
       const a = t.dataset.mm;
       if (a === 'new') openList('new');
       else if (a === 'scn') openList('scn');
+      else if (a === 'slots') openList('slots');
       else if (a === 'settings') openList('settings');
       else if (a === 'back') openList('main');
       else if (a === 'gloss') api.gloss();
       else if (a === 'about') showSide('about');
+      return;
+    }
+    const del = e.target.closest('[data-slot-del]');
+    if (del) {
+      const n = Number(del.dataset.slotDel);
+      if (mm.delArm === n) {
+        deleteSave(n);
+        mm.delArm = null;
+        mm.slotCache = {};
+        lists.slots.innerHTML = slotListHtml();
+        renumber(lists.slots);
+        showSide(`slot:${n}`);
+        refreshContinue();
+      } else {
+        mm.delArm = n;
+        del.textContent = 'Wirklich löschen?';
+        del.classList.add('armed');
+      }
+      return;
+    }
+    const sl = e.target.closest('[data-slot-load]');
+    if (sl) {
+      if (!sl.classList.contains('locked')) api.loadSlot && api.loadSlot(Number(sl.dataset.slotLoad));
       return;
     }
     const sc = e.target.closest('[data-scn]');
@@ -351,7 +418,7 @@ function renderPause() {
       <div class="mm-tag"><span>${esc(s.name.toUpperCase())} · TAG ${dayOf(s.time)}</span><i></i></div>
       <nav class="mm-list">
         ${item('resume', 'Weiter', 'Der Flughafen läuft da weiter, wo er stand.')}
-        ${item('save', 'Jetzt speichern', 'Automatisch alle 45 Sekunden und zum Tagesende')}
+        ${s.scenario ? '' : item('save', 'Jetzt speichern', `Platz ${s.slot || 1} · automatisch alle 45 Sekunden und zum Tagesende`)}
         ${item('settings', 'Einstellungen', pz.showSettings ? '' : 'Sound, Sprachausgabe, Tooltips, Tipps')}
         ${prefs}
         ${item('role', 'Station wechseln', `aktuell: ${esc(ROLES[s.role].name)}`)}
