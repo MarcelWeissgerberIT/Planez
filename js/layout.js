@@ -241,6 +241,7 @@ export function servicePoint(kind, ac) {
     deboard: [0.18 * L, -0.95, 0],
     board: [0.18 * L, -0.95, 0],
     push: [0.5 * L + 0.3, 0, Math.PI],
+    deice: [-0.08 * L, -(0.4 + L * 0.2), 0],
   }[kind] || [0, 0.6, 0];
   const h = ac.hdg; // Weltwinkel der Nase
   const fx = Math.cos(h), fy = Math.sin(h);

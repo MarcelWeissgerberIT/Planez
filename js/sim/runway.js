@@ -5,6 +5,7 @@ import { log, notify, radio } from './messages.js';
 import { PH } from './aircraft.js';
 import * as AS from './airspace.js';
 import * as LY from '../layout.js';
+import { snowBraking } from './winter.js';
 
 export const BRAKE_DE = { good: 'gut', medium: 'mittel', poor: 'schlecht' };
 export const BRAKE_EN = { good: 'good', medium: 'medium', poor: 'poor' };
@@ -45,7 +46,8 @@ export const isWet = (state) => state.weather.kind === 'rain' || state.weather.k
 // Bremswirkung aus Zustand und Nässe
 export function brakingAction(state, strip = 'N') {
   const c = rwyCond(state, strip) - (isWet(state) ? 28 : 0);
-  return c >= 60 ? 'good' : c >= 35 ? 'medium' : 'poor';
+  const lvl = Math.max(c >= 60 ? 0 : c >= 35 ? 1 : 2, snowBraking(state, strip));
+  return ['good', 'medium', 'poor'][lvl];
 }
 export const decelFactor = (state, strip = 'N') => ({ good: 1, medium: 0.86, poor: 0.72 }[brakingAction(state, strip)]);
 

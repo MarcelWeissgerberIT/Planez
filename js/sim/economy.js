@@ -11,7 +11,7 @@ import { onNightMovement, takeLoan, repayLoan, loanLimit, loans } from './financ
 import { rwyCond } from './runway.js';
 import { bump } from './goals.js';
 
-export const REV_CATS = { landing: 'Landegebühren', pax: 'Passagierentgelte', parking: 'Parkpositionen', handling: 'Abfertigung', fuel: 'Kerosinverkauf (Marge)', retail: 'Shops & Gastro', carpark: 'Parken (Landseite)', cargo: 'Fracht', hotel: 'Hotel', night: 'Nacht-/Lärmentgelte', other: 'Sonstiges' };
+export const REV_CATS = { landing: 'Landegebühren', pax: 'Passagierentgelte', parking: 'Parkpositionen', handling: 'Abfertigung', fuel: 'Kerosinverkauf (Marge)', retail: 'Shops & Gastro', carpark: 'Parken (Landseite)', cargo: 'Fracht', hotel: 'Hotel', night: 'Nacht-/Lärmentgelte', deice: 'Enteisung', other: 'Sonstiges' };
 export const COST_CATS = { staff: 'Personal Boden', atc: 'Flugsicherung', infra: 'Instandhaltung', vehicles: 'Fahrzeuge', admin: 'Verwaltung', utilities: 'Energie & Betrieb', penalties: 'Vertragsstrafen & Bußgelder', incidents: 'Vorfälle', marketing: 'Marketing', interest: 'Kreditzinsen' };
 
 export function earn(state, cat, amount) {
@@ -325,11 +325,22 @@ export function capacity(state) {
   }
   return cap;
 }
+// Pistenkapazität in Bewegungen pro Tag (eine Bahn ≈ 150, Schnellabrollwege +12 %, Parallelbahn ×1,9)
+export function runwayCapacity(state) {
+  const u = state.upgrades;
+  return Math.round(150 * (u.rapidExit ? 1.12 : 1) * (u.rwy2 ? 1.9 : 1));
+}
+// geplante Bewegungen pro Tag aus den Verträgen (Landung + Start je Umlauf)
+export function plannedMovements(state) {
+  return state.contracts.reduce((t, c) => t + c.perDay * 2, 0);
+}
 export function offerFits(state, o) {
   const t = AC_TYPES[o.type];
   const cap = capacity(state);
   const need = standDemand(state);
   const add = (o.perDay * (t.turn + 35)) / 60;
+  // Piste: ohne Luft entstehen Warteschleifen, Treibstoffnot und Vorfälle
+  if (plannedMovements(state) + o.perDay * 2 > runwayCapacity(state) * 0.9) return false;
   if (t.cargo) return need.cargo + add <= cap.cargo * 0.85;
   const paxNeed = need.S + need.M + need.L + add;
   if (t.size === 'L' && need.L + add > cap.L * 0.85) return false;

@@ -2,6 +2,7 @@
 import { IMG, shadowOf, glowTinted } from '../assets.js';
 import { drawAircraftBody, drawVehicleBody, drawCarBody } from './volume.js';
 import { Ambient } from './ambient.js';
+import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowySprite } from './snow.js';
 import { HALF_W, HALF_H } from './camera.js';
 import * as LY from '../layout.js';
 import { AC_TYPES, AIRLINES, VEH_TYPES, ZS } from '../config.js';
@@ -264,6 +265,10 @@ export class MapRenderer {
     const sx1 = Math.min(k.c.width, (cam.w - dx) / sc), sy1 = Math.min(k.c.height, (cam.h - dy) / sc);
     if (sx1 > sx0 && sy1 > sy0) ctx.drawImage(k.c, sx0, sy0, sx1 - sx0, sy1 - sy0, dx + sx0 * sc, dy + sy0 * sc, (sx1 - sx0) * sc, (sy1 - sy0) * sc);
 
+    // Winter: Schneedecke und verschneite Pisten
+    drawSnowCover(this, state);
+    drawRunwaySnow(this, state);
+
     // Wolkenschatten
     if (state.weather.kind !== 'clear' && state.weather.kind !== 'fog') this.cloudShadows(ctx, state);
 
@@ -340,6 +345,8 @@ export class MapRenderer {
     if (state.fire) for (const t of state.fire.trucks) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
     items.push({ d: 66 + 35.6, f: () => this.drawWindsock(state) });
     this.runwayWorkItems(state, items, lights);
+    plowItems(this, state, items, lights);
+    deiceFx(this, state, items);
     items.sort((a, b) => a.d - b.d);
     for (const it of items) it.f();
     flying.sort((a, b) => a.x + a.y - (b.x + b.y));
@@ -398,6 +405,7 @@ export class MapRenderer {
 
     // Wetter
     if (wx === 'rain' || wx === 'storm') this.drawRain(ctx, dtReal, wx === 'storm' ? 1 : 0.6, state);
+    if (wx === 'snow') drawSnowfall(this, dtReal, state);
     if (wx === 'fog') {
       const g = ctx.createLinearGradient(0, 0, 0, cam.h);
       g.addColorStop(0, 'rgba(215,222,230,0.85)');
@@ -487,6 +495,15 @@ export class MapRenderer {
     const dh = (dw * img.height) / img.width;
     const fc = cam.toScreen(b.fx, b.fy);
     ctx.drawImage(img, fc.x - b.frac * dw, fc.y - dh, dw, dh);
+    const snow = this.state ? this.state.snow || 0 : 0;
+    if (snow > 0.03) {
+      const sn = snowySprite(b.sprite);
+      if (sn) {
+        ctx.globalAlpha = clamp(snow * 1.2, 0, 1);
+        ctx.drawImage(sn, fc.x - b.frac * dw, fc.y - dh, dw, dh);
+        ctx.globalAlpha = 1;
+      }
+    }
     if (b.id === 'tower' || b.id === 'hangar') {
       // Höhe der Gebäudespitze für Hindernisfeuer
       const cx = b.fx - b.w / 2, cy = b.fy - b.d / 2;
@@ -523,6 +540,13 @@ export class MapRenderer {
     const k = cam.zoom / G.Z;
     const fc = cam.toScreen(b.fx, b.fy);
     ctx.drawImage(G.c, fc.x - G.fx * k, fc.y - G.fy * k, G.c.width * k, G.c.height * k);
+    const snowG = this.state ? this.state.snow || 0 : 0;
+    if (snowG > 0.03) {
+      cam.setIso(ctx, this.topZ.garage - 0.06);
+      ctx.fillStyle = `rgba(246,249,253,${clamp(snowG * 0.7, 0, 0.65)})`;
+      ctx.fillRect(b.fx - b.w, b.fy - b.d, b.w, b.d);
+      cam.setScreen(ctx);
+    }
     // Ausbau im Gange: neues Parkdeck wächst auf dem Dach (Stützen, Schalung, Beton nach Fortschritt)
     const pj = (this.state && (this.state.projects || []).find((q) => q.kind === 'upgrade' && q.target === 'parking' && q.status !== 'waiting')) || null;
     if (pj) {
@@ -552,6 +576,11 @@ export class MapRenderer {
     const PX = roof.px;
     const sx = Math.max(0, (xa - 0.01 - T.x0) * PX), ex = Math.min(roof.width, (xb + 0.02 - T.x0) * PX);
     if (ex > sx) ctx.drawImage(roof, sx, 0, ex - sx, roof.height, T.x0 + sx / PX, T.y0, (ex - sx) / PX, T.y1 - T.y0);
+    const snow = this.state ? this.state.snow || 0 : 0;
+    if (snow > 0.03) {
+      ctx.fillStyle = `rgba(246,249,253,${clamp(snow * 0.9, 0, 0.85)})`;
+      ctx.fillRect(xa - 0.01, T.y0, xb - xa + 0.03, T.y1 - T.y0);
+    }
     // Fassaden
     this.facade(xa, xb, T.y1, h, 'x', 0, night);
     if (last) this.facade(T.y0, T.y1, T.x1, h, 'y', 0.22, night);
@@ -1252,7 +1281,7 @@ function prism(ctx, cam, pts, z0, z1, cTop, cA, cB) {
 }
 
 // Aufbauhöhe der Vorfeldfahrzeuge (Kacheln)
-const VEH_H = { tug: 0.075, baggage: 0.07, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13 };
+const VEH_H = { tug: 0.075, baggage: 0.07, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13, deice: 0.15 };
 // Lackfarbe -> Dach/Seiten + getönte Scheiben (gecacht)
 const carShadeCache = {};
 function carShades(hex) {

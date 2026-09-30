@@ -5,6 +5,11 @@ import { esc } from '../util.js';
 // cat: Kategorie für die Glossar-Liste; auto: im Text automatisch erklären
 const E = (t, long, desc, cat, auto = true) => ({ t, long, desc, cat, auto });
 export const GLOSSARY = [
+  // Winterbetrieb
+  E('De-Icing', 'Enteisung', 'Vor dem Start werden Tragflächen und Leitwerk mit heißer Glykol-Lösung von Schnee und Eis befreit (Enteisungsfahrzeug). Danach läuft die Holdover-Zeit – in der Zeit muss das Flugzeug starten.', 'Winter'),
+  E('Enteisung', 'De-Icing', 'Letzte Abfertigungsaufgabe im Winter (❄️ Eis), braucht ein Enteisungsfahrzeug. Bei Schneefall oder Frost mit Feuchtigkeit darf ohne Enteisung nicht gestartet werden.', 'Winter', false),
+  E('Schneeräumung', 'Snow Clearing', 'Räumdienst: Pflüge und Kehrblasgeräte fahren in Staffelformation über die Piste. Die Bahn ist dafür einige Minuten gesperrt; danach ist die Bremswirkung wieder gut.', 'Winter', false),
+  E('Holdover', 'Holdover Time', 'Zeitspanne, in der das Enteisungsmittel vor neuem Eis schützt – bei starkem Schneefall nur wenige Minuten.', 'Winter', false),
   // Flugsicherung
   E('ATC', 'Air Traffic Control', 'Flugverkehrskontrolle – die Lotsen, die Abstände zwischen Flugzeugen sicherstellen und Freigaben erteilen.', 'Flugsicherung'),
   E('TWR', 'Tower', 'Platzkontrolle im Kontrollturm: zuständig für Starts, Landungen und den Rollverkehr auf dem Flughafen.', 'Flugsicherung'),

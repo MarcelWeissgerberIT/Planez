@@ -64,6 +64,7 @@ export const VEH_TYPES = {
   catering: { id: 'catering', name: 'Catering-LKW', short: 'Catering', sprite: 'veh_catering', len: 0.62, price: 160000, upkeep: 110, speed: 0.19, color: '#e5e7eb' },
   cleaning: { id: 'cleaning', name: 'Reinigungsteam', short: 'Reinigung', sprite: 'veh_cleaning', len: 0.36, price: 60000, upkeep: 60, speed: 0.22, color: '#22c55e' },
   bus: { id: 'bus', name: 'Vorfeldbus', short: 'Bus', sprite: 'veh_bus', len: 0.8, price: 300000, upkeep: 150, speed: 0.19, color: '#3b82f6' },
+  deice: { id: 'deice', name: 'Enteisungsfahrzeug', short: 'Enteiser', sprite: 'veh_deice', len: 0.82, price: 380000, upkeep: 170, speed: 0.17, color: '#f97316' },
 };
 
 // Abfertigungs-Aufgaben (Basisdauer in Minuten für A320)
@@ -75,9 +76,10 @@ export const TASKS = {
   fuel: { name: 'Betankung', short: 'Tank', icon: '⛽', base: 12, veh: 'fuel' },
   board: { name: 'Einsteigen', short: 'Ein', icon: '🎫', base: 16, pax: true },
   load: { name: 'Beladen', short: 'Bel', icon: '📦', base: 11, veh: 'baggage' },
+  deice: { name: 'Enteisung', short: 'Eis', icon: '❄️', base: 7, veh: 'deice' },
   push: { name: 'Pushback', short: 'Push', icon: '🚜', base: 0, veh: 'tug' },
 };
-export const TASK_ORDER = ['deboard', 'unload', 'clean', 'cater', 'fuel', 'board', 'load', 'push'];
+export const TASK_ORDER = ['deboard', 'unload', 'clean', 'cater', 'fuel', 'board', 'load', 'deice', 'push'];
 
 // Fixkosten pro Tag
 export const COSTS = {

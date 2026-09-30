@@ -9,6 +9,7 @@ import { onOffBlock } from './economy.js';
 import { acdmOnBlock } from './acdm.js';
 import { FUEL, fuelState, upliftFor, sellFuel, truckTakeFuel } from './fuel.js';
 import { earn } from './economy.js';
+import { needsDeice } from './winter.js';
 
 export const BRIDGE_SPEED = 1 / 40; // pro Spielsekunde
 
@@ -72,6 +73,8 @@ function makeTasks(state, ac, stand) {
   tasks.fuel.uplift = upliftFor(state, ac); // Tonnen Kerosin
   tasks.fuel.delivered = 0;
   mk('load', TASKS.load.base * (t.cargo ? Math.max(1, (rot?.cargoOut || t.cargo) / 55) : sizeF), 'baggage', ['unload']);
+  // Enteisung als letzte Arbeit vor dem Pushback (Winter)
+  if (needsDeice(state)) mk('deice', TASKS.deice.base * Math.max(0.6, sizeF), 'deice', Object.keys(tasks));
   mk('push', 0, 'tug', Object.keys(tasks));
   return tasks;
 }
@@ -169,6 +172,11 @@ export function updateGround(state, dt) {
     const st = state.stands.find((s) => s.id === ac.stand);
     const rot = getRot(state, ac);
     const tasks = ac.ta.tasks;
+    if (!tasks.deice && tasks.push && tasks.push.st === 'wait' && needsDeice(state)) {
+      const t = AC_TYPES[ac.type];
+      tasks.deice = { k: 'deice', st: 'wait', dur: TASKS.deice.base * Math.max(0.6, t.scale) * 60, prog: 0, need: 'deice', after: Object.keys(tasks).filter((x) => x !== 'push' && x !== 'deice'), veh: null };
+      tasks.push.after = [...new Set([...tasks.push.after, 'deice'])];
+    }
     for (const k of TASK_ORDER) {
       const task = tasks[k];
       if (!task) continue;
@@ -226,6 +234,10 @@ export function updateGround(state, dt) {
             if (v) releaseVehicle(state, v, false);
           }
           if (k === 'board') log(state, 'gnd', `${ac.cs}: Boarding abgeschlossen.`);
+          if (k === 'deice') {
+            earn(state, 'deice', { S: 1800, M: 3200, L: 7500 }[AC_TYPES[ac.type].size] || 3200);
+            log(state, 'gnd', `${ac.cs}: enteist – Holdover-Zeit läuft, zügig starten.`);
+          }
         }
       }
     }

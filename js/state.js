@@ -72,7 +72,7 @@ export function newGame(opts = {}) {
     offerTimer: 2 * 3600,
     eventTimer: 4 * 3600,
   };
-  const fleet = { tug: 3, baggage: 4, fuel: 2, catering: 2, cleaning: 2, bus: 2 };
+  const fleet = { tug: 3, baggage: 4, fuel: 2, catering: 2, cleaning: 2, bus: 2, deice: 2 };
   for (const [type, n] of Object.entries(fleet)) for (let i = 0; i < n; i++) state.vehicles.push(makeVehicle(state, type, freeBay(state)));
   for (const v of state.vehicles) if (v.type === 'fuel') v.load = FUEL.truckCap * (0.7 + 0.25 * (v.bay % 2));
   fuelState(state);

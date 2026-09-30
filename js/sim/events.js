@@ -5,6 +5,7 @@ import { spawnSpecial, PH, divert } from './aircraft.js';
 import { VEH_TYPES, AIRLINES } from '../config.js';
 import { command } from './atc.js';
 import { fodEvent } from './runway.js';
+import { winterWeather, isWinter } from './winter.js';
 
 export const WEATHER = {
   clear: { name: 'Klar', icon: '☀️' },
@@ -12,6 +13,7 @@ export const WEATHER = {
   rain: { name: 'Regen', icon: '🌧️' },
   fog: { name: 'Nebel', icon: '🌫️' },
   storm: { name: 'Gewitter', icon: '⛈️' },
+  snow: { name: 'Schnee', icon: '🌨️' },
 };
 
 export const belowMinima = (state) => state.weather.kind === 'fog' && (state.weather.rvr ?? 400) < 550 && !state.upgrades.ils3;
@@ -42,9 +44,10 @@ export function updateEvents(state, dt) {
       ['rain', 12],
       ['fog', h < 9 || h > 21 ? 9 : 1],
       ['storm', h > 13 && h < 20 ? 7 : 1.5],
+      ['snow', isWinter(state) ? 30 : 0],
     ];
-    const kind = pickWeighted(state, opts, (o) => o[1])[0];
-    const dur = kind === 'storm' ? randRange(state, 0.5, 1.2) : kind === 'fog' ? randRange(state, 1, 3) : randRange(state, 2, 6);
+    const kind = winterWeather(state, pickWeighted(state, opts, (o) => o[1])[0]);
+    const dur = kind === 'storm' ? randRange(state, 0.5, 1.2) : kind === 'fog' ? randRange(state, 1, 3) : kind === 'snow' ? randRange(state, 1.5, 4) : randRange(state, 2, 6);
     // Pistensichtweite (RVR) im Nebel; unter 550 m reicht ILS CAT I nicht mehr
     wx.rvr = kind === 'fog' ? Math.round(randRange(state, 200, 1300) / 25) * 25 : null;
     if (kind !== wx.kind) {
@@ -53,6 +56,7 @@ export function updateEvents(state, dt) {
         notify(state, `🌫️ Nebel, RVR ${wx.rvr} m – ${!dense ? 'LVP aktiv, Landungen mit CAT I möglich (mehr Abstand).' : state.upgrades.ils3 ? 'ILS CAT III aktiv – Landungen möglich.' : 'unter CAT-I-Minimum: ohne ILS CAT III müssen Anflüge ausweichen.'}`, dense && !state.upgrades.ils3 ? 'bad' : 'warn');
       }
       if (kind === 'storm') notify(state, '⛈️ Gewitter – Vorfeld gesperrt, Abfertigung pausiert', 'warn');
+      if (kind === 'snow') notify(state, '🌨️ Schneefall – Abflüge müssen enteist werden, Pisten werden regelmäßig geräumt', 'warn');
       if (wx.kind === 'storm') notify(state, 'Gewitter vorbei – Vorfeld wieder frei', 'good');
       log(state, 'sys', `Wetter: ${WEATHER[kind].name}.`);
     }

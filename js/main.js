@@ -21,6 +21,8 @@ import { DecisionCard } from './ui/decision.js';
 import { NewsTicker } from './ui/ticker.js';
 import { Cinema } from './ui/cinema.js';
 import { soundscape } from './soundscape.js';
+import { season, temperature } from './sim/winter.js';
+import { makeVehicle, freeBay } from './sim/ground.js';
 import { command } from './sim/atc.js';
 import { dispatch, assignStand, standFits, standFree } from './sim/ground.js';
 import * as EC from './sim/economy.js';
@@ -183,6 +185,9 @@ function startGame(state) {
   if (state.fees.night === undefined) state.fees.night = 600;
   if (!state.loans) state.loans = [];
   if (!state.life) state.life = {};
+  // Winter: ältere Spielstände bekommen zwei Enteisungsfahrzeuge
+  if (!state.vehicles.some((v) => v.type === 'deice')) for (let i = 0; i < 2; i++) state.vehicles.push(makeVehicle(state, 'deice', freeBay(state)));
+  if (state.settings.vehAuto && state.settings.vehAuto.deice === undefined) state.settings.vehAuto.deice = false;
   fuelState(state);
   goalsState(state);
   setGlossaryEnabled(state.settings.glossary !== false);
@@ -327,7 +332,8 @@ function updateHUD(force) {
   const sp = SPEEDS.map((v, i) => `<button data-speed="${v}" class="${s.speed === v ? 'on' : ''}" title="${v ? `${v}-fach – ein Tag dauert ca. ${Math.round(dayMinutes(v))} Minuten` : 'Pause'} (Taste ${i})">${v === 0 ? '❚❚' : v + '×'}</button>`).join('');
   setHTML($('#speeds'), sp);
   const w = WEATHER[s.weather.kind];
-  setHTML($('#hud-wx'), `${w.icon} ${w.name} · ${Math.round(s.wind.dir / 10) * 10}°/${Math.round(s.wind.spd)} kt`);
+  const se = season(s);
+  setHTML($('#hud-wx'), `<span title="${se.name}">${se.icon}</span> ${w.icon} ${w.name} · ${temperature(s).toFixed(0)} °C · ${Math.round(s.wind.dir / 10) * 10}°/${Math.round(s.wind.spd)} kt`);
   setHTML($('#hud-rwy'), `RWY <b>${s.rwy}</b>${s.rwyPending ? ` <span class="pend">→ ${s.rwyPending}</span>` : ''}`);
   const cash = $('#hud-cash');
   setHTML(cash, fmtMoney(s.cash));

@@ -32,7 +32,7 @@ const C2 = '#d95926'; // Kosten (Kategorie 2)
 
 
 // Bilder zu Ausbauten, Fahrzeugen & Co. (Management-Zentrale), damit man sieht, was man kauft
-const PICS = new Set(['retail', 'security', 'lounge', 'parking', 'hotel', 'rwy2', 'ils3', 'rapidExit', 'apronLights', 'marketing', 'stand_contact', 'stand_remote', 'stand_heavy', 'veh_tug', 'veh_baggage', 'veh_fuel', 'veh_catering', 'veh_cleaning', 'veh_bus', 'staff', 'fuel_farm', 'rwy_maint']);
+const PICS = new Set(['retail', 'security', 'lounge', 'parking', 'hotel', 'rwy2', 'ils3', 'rapidExit', 'apronLights', 'marketing', 'stand_contact', 'stand_remote', 'stand_heavy', 'veh_tug', 'veh_baggage', 'veh_fuel', 'veh_catering', 'veh_cleaning', 'veh_bus', 'veh_deice', 'staff', 'fuel_farm', 'rwy_maint']);
 const pic = (k, tag = '') => (PICS.has(k) ? `<div class="card-pic" style="background-image:url(assets/menu/${k}.webp)">${tag ? `<span class="pic-tag">${tag}</span>` : ''}</div>` : '');
 
 export class ManagerPanel {
@@ -208,6 +208,7 @@ export class ManagerPanel {
     const paxUse = clamp((need.S + need.M + need.L) / Math.max(1, cap.pax), 0, 1.5);
     const lUse = clamp(need.L / Math.max(1, cap.L), 0, 1.5);
     const cUse = clamp(need.cargo / Math.max(1, cap.cargo), 0, 1.5);
+    const rUse = clamp(EC.plannedMovements(s) / Math.max(1, EC.runwayCapacity(s)), 0, 1.5);
     const meter = (label, v) => {
       const col = v > 0.9 ? 'var(--bad)' : v > 0.7 ? 'var(--warn)' : 'var(--good)';
       const tag = v > 0.9 ? '⚠ voll' : v > 0.7 ? '▲ hoch' : '✓ ok';
@@ -250,8 +251,9 @@ export class ManagerPanel {
       h += `<div class="card site"><div class="row"><span class="t">🏗️ ${ps.length} Baustelle${ps.length > 1 ? 'n' : ''} aktiv</span><button class="btn" data-tab="build">Ansehen</button></div><div class="s">${next ? `Als Nächstes fertig: ${esc(next.name)} in ${fmtHours(remainingHours(next))}` : 'wartet auf freie Position'}</div></div>`;
     }
     if (waiting) h += `<div class="card" style="border-color:var(--bad)">🅿️ ${waiting} Flugzeug${waiting > 1 ? 'e warten' : ' wartet'} auf eine freie Parkposition – Ausbau prüfen.</div>`;
-    h += `<div class="p-sec"><span>Auslastung Parkpositionen (Plan)</span></div>`;
-    h += meter('Passagierpositionen', paxUse) + meter('Großraum (Klasse L)', lUse) + meter('Fracht', cUse);
+    h += `<div class="p-sec"><span>Auslastung (Plan)</span></div>`;
+    h += meter(`Piste (${EC.plannedMovements(s)} von ~${EC.runwayCapacity(s)} Bewegungen/Tag)`, rUse) + meter('Passagierpositionen', paxUse) + meter('Großraum (Klasse L)', lUse) + meter('Fracht', cUse);
+    if (rUse > 0.9) h += `<div class="card" style="border-color:var(--bad)">🛬 Die Piste ist ausgelastet – weitere Verträge führen zu langen Warteschleifen, Treibstoffnot und Vorfällen. Schnellabrollwege oder die Parallelbahn schaffen Kapazität.</div>`;
     h += `<div class="p-sec"><span>Airline-Zufriedenheit</span></div>`;
     const byAl = {};
     for (const c of s.contracts) {

@@ -10,6 +10,7 @@ import { updateEvents } from './events.js';
 import { updateSequence } from './sequence.js';
 import { updateDecisions } from './decisions.js';
 import { updateNews } from './news.js';
+import { updateWinter } from './winter.js';
 import { updateConstruction } from './construction.js';
 import { updateAcdm } from './acdm.js';
 import { updateFuel } from './fuel.js';
@@ -42,6 +43,7 @@ export function step(state, dt) {
   updateSequence(state);
   updateDecisions(state, dt);
   updateNews(state, dt);
+  updateWinter(state, dt);
   updateGround(state, dt);
   updateConflicts(state, dt);
   updateAcdm(state, dt);
