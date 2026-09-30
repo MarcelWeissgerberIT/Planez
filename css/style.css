@@ -1141,3 +1141,4 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .kr span { white-space: nowrap; }
 .kr em { font-style: normal; color: #cbd5e1; text-align: right; }
 @media (max-width: 700px) { .keys-cols { grid-template-columns: 1fr; } }
+.ms-card.wn ul { margin: 0 0 4px; padding-left: 16px; font-size: 13px; line-height: 1.55; }

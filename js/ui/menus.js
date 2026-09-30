@@ -92,6 +92,20 @@ const SIDE = {
   settings: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Einstellungen</div><div class="ms-subt">Gelten für neue Spiele und lassen sich im Pausenmenü jederzeit ändern.</div></div></div>`,
   scnall: () => `<div class="ms-card"><div class="ms-img" style="background-image:url(assets/scn/storm.webp)"></div><div class="ms-body"><div class="ms-h">Herausforderungen</div><div class="ms-subt">${SCENARIOS.length} Szenarien · ⭐ ${totalStars()} / ${SCENARIOS.length * 3} Sterne</div>
     <ul><li>Kurze Einsätze mit festem Start: Morgenwelle, Nebel, Gewitterfront, Notfälle, Streik, Winterchaos, Sanierungsfall …</li><li>Jedes Ziel bringt 1–3 Sterne – der Bestwert bleibt gespeichert</li><li>Mit einem Stern schaltest du die nächste Stufe deiner Station frei</li></ul></div></div>`,
+  whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
+    <div class="ms-sec">Spielen</div><ul>
+      <li>⭐ <b>Herausforderungen</b>: 9 Szenarien mit Sternen und Punkte-Rekorden</li>
+      <li>⭐ <b>Schichtpunkte</b> mit Kombo für Tower und Vorfeld</li>
+      <li>🎚️ <b>Schwierigkeit</b> Entspannt / Normal / Profi · 💾 <b>3 Speicherplätze</b></li>
+      <li>🦺 <b>Positionsplan</b> (G) mit Drag &amp; Drop im Vorfeld</li>
+      <li>🤝 <b>Verhandeln</b> bei Airline-Angeboten · 🌍 <b>Streckennetz-Karte</b></li>
+      <li>🚶 <b>Sicherheitskontrolle</b> mit Schlangen · 🌦️ <b>Wettervorhersage</b> (TAF)</li>
+      <li>🌪️ <b>Windscherung</b> · 🚒 <b>Feuerwehreinsatz</b> auf der Piste · 🐋 <b>A380-Besuch</b></li>
+    </ul><div class="ms-sec">Sehen &amp; Hören</div><ul>
+      <li>🌅 Goldene Stunde, 🍂 Jahreszeiten, 🌧️ nasser Asphalt mit Spiegelungen</li>
+      <li>🐦 Vogelschwärme, 🚁 Rettungshubschrauber, 🚨 Martinshorn</li>
+      <li>🎥 <b>Folgen</b>-Kamera · 🎬 Kino-Modus als Live-Übertragung · <kbd>?</kbd> Tastenkürzel</li>
+    </ul></div></div>`,
   about: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Über Planez</div><ul><li>Airport-Simulation mit isometrischer Karte, Radar und Wirtschaft</li><li>Grafiken, Porträts und Hintergrundvideos: Higgsfield AI (GPT Image, Kling)</li><li>Alle Airlines, Rufzeichen und Flüge sind fiktiv</li><li>Reines HTML/JavaScript – läuft direkt im Browser</li></ul></div></div>`,
 };
 
@@ -228,6 +242,7 @@ export function initMainMenu(api) {
       else if (a === 'back') openList('main');
       else if (a === 'gloss') api.gloss();
       else if (a === 'about') showSide('about');
+      else if (a === 'whatsnew') showSide('whatsnew');
       return;
     }
     const del = e.target.closest('[data-slot-del]');
