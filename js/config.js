@@ -20,6 +20,7 @@ export const AC_TYPES = {
   B789: { id: 'B789', name: 'Boeing 787-9', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.03, mtow: 254, pax: 290, vapp: 145, turn: 75, fuel: 60000, scale: 1.7, finH: 0.7 },
   A359: { id: 'A359', name: 'Airbus A350-900', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.29, mtow: 280, pax: 325, vapp: 142, turn: 80, fuel: 70000, scale: 1.85, finH: 0.75 },
   B77W: { id: 'B77W', name: 'Boeing 777-300ER', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.81, mtow: 351, pax: 396, vapp: 150, turn: 90, fuel: 90000, scale: 2.1, finH: 0.8 },
+  A388: { id: 'A388', name: 'Airbus A380-800', sprite: 'plane_super', size: 'L', wake: 'H', len: 5.0, mtow: 575, pax: 520, vapp: 140, turn: 110, fuel: 120000, scale: 2.4, finH: 0.95 },
   B748F: { id: 'B748F', name: 'Boeing 747-8F', sprite: 'plane_cargo', size: 'L', wake: 'H', len: 4.94, mtow: 448, pax: 0, cargo: 130, vapp: 155, turn: 100, fuel: 110000, scale: 2.2, finH: 0.9 },
   B77F: { id: 'B77F', name: 'Boeing 777F', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.16, mtow: 348, pax: 0, cargo: 100, vapp: 150, turn: 90, fuel: 85000, scale: 2, finH: 0.78 },
   C68A: { id: 'C68A', name: 'Citation Latitude', sprite: 'plane_bizjet', size: 'S', wake: 'L', len: 1.3, mtow: 14, pax: 8, vapp: 120, turn: 30, fuel: 3000, scale: 0.4, finH: 0.25 },

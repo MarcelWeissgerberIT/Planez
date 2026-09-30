@@ -95,6 +95,7 @@ export class Cinema {
       let w = { land: 6, dep: 6, goaround: 9, push: 3, taxi: 1.5 }[kind];
       if (ac.emergency) w += 8;
       if (AC_TYPES[ac.type].size === 'L') w *= 1.6;
+      if (ac.type === 'A388') w *= 3;
       if (recent.includes(ac.id)) w *= 0.15;
       out.push({ kind, id: ac.id, w });
     }

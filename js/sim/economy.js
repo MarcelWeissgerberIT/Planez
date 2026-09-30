@@ -60,6 +60,12 @@ export function onLanding(state, ac) {
   bump(state, 'safeStreak');
   if (ac.wakeReq > 3 && !ac.wakeBad) bump(state, 'wakeStreak');
   if (rot) bump(state, 'pax', rot.paxIn);
+  if (ac.type === 'A388') {
+    state.life.a380landed = (state.life.a380landed || 0) + 1;
+    rep(state, 1);
+    fx(state, ac.x, ac.y - 1, '🐋 Superjumbo gelandet – die Spotter jubeln!', 'good');
+    log(state, 'mgr', `${ac.cs}: Airbus A380 gelandet – ${rot ? rot.paxIn : 500} Reisende, Spotter säumen den Zaun (+1 Ansehen).`);
+  }
   if (rot) {
     rot.status = 'landed';
     if (ac.emergency) state.life.emgLanded = (state.life.emgLanded || 0) + 1;

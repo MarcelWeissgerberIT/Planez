@@ -155,6 +155,7 @@ function randomEvent(state) {
   const h = hourOf(state.time);
   const opts = [
     ['vip', h > 7 && h < 21 ? 3 : 0.3],
+    ['a380', h > 8 && h < 19 ? 0.8 + 0.3 * ((state.goals && state.goals.rank) || 0) : 0],
     ['emergency', 1.6],
     ['breakdown', diff(state).breakdowns ? 2.5 : 0],
     ['strike', 0.6],
@@ -166,7 +167,17 @@ function randomEvent(state) {
 
 // Ereignis gezielt auslösen (auch für Szenarien); gibt das betroffene Flugzeug zurück, falls es eins gibt
 export function triggerEvent(state, kind, opt = {}) {
-  if (kind === 'vip') {
+  if (kind === 'a380') {
+    // Superjumbo-Besuch: nur mit freier Großraumposition
+    if (!state.stands.some((st) => st.built && st.size === 'L' && st.kind !== 'cargo')) return null;
+    const n = randInt(state, 380, 389) * 2;
+    const ac = spawnSpecial(state, { airline: 'OPL', type: 'A388', arrNo: `OPL${n}`, depNo: `OPL${n + 1}`, city: pick(state, ['DXB', 'SIN', 'HKG', 'PVG']), special: 'a380', feeMult: 1.6 });
+    notify(state, '🛬 Sonderbesuch: Ein Airbus A380 – der größte Passagierjet der Welt – ist im Anflug!', 'good');
+    log(state, 'sys', `Superjumbo ${ac.cs} (A380) angekündigt – Spotter strömen an den Zaun.`);
+    state.life = state.life || {};
+    state.life.a380 = (state.life.a380 || 0) + 1;
+    return ac;
+  } else if (kind === 'vip') {
     const n = randInt(state, 100, 999);
     spawnSpecial(state, { airline: 'VIP', type: 'C68A', arrNo: `VIP${n}`, depNo: `VIP${n + 1}`, city: pick(state, ['NCE', 'GVA', 'OLB', 'LHR']), pax: randInt(state, 2, 8), special: 'vip', feeMult: 2.5 });
     notify(state, '🕴️ VIP-Charter im Anflug – bitte bevorzugt abfertigen', 'info');

@@ -12,6 +12,7 @@ const ENGINES = {
   plane_prop: [[0.355, 0.28, 0.478, 0.045], [0.641, 0.28, 0.478, 0.045]],
   plane_cargo: [[0.33, 0.32, 0.433, 0.057], [0.666, 0.32, 0.433, 0.057], [0.189, 0.393, 0.498, 0.057], [0.807, 0.393, 0.498, 0.057]],
   plane_bizjet: [[0.416, 0.609, 0.775, 0.073], [0.59, 0.609, 0.775, 0.073]],
+  plane_super: [[0.318, 0.278, 0.378, 0.06], [0.678, 0.278, 0.378, 0.06], [0.182, 0.372, 0.468, 0.056], [0.814, 0.372, 0.468, 0.056]],
 };
 // Flügellage: tief (unter dem Rumpf), hoch (Schulterdecker) – Triebwerke am Heck beim Bizjet
 const WING = { plane_prop: 'high', plane_bizjet: 'low' };
