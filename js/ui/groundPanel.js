@@ -1,4 +1,5 @@
 // Vorfeld-Leitstand: Parkpositionen, Turnaround, Fahrzeuge
+import { StandPlan } from './standPlan.js';
 import { AC_TYPES, TASKS, TASK_ORDER, VEH_TYPES, CITIES } from '../config.js';
 import { PH, PHASE_DE } from '../sim/aircraft.js';
 import { dispatch, assignStand, releaseReservation, standFits, standFree, fleetSummary, efficiency } from '../sim/ground.js';
@@ -53,6 +54,7 @@ export class GroundPanel {
         <div id="gp-alert"></div>
         <div class="p-sec"><span>Ankünfte · Parkpositionen${qm('inb')}</span><span class="cnt" id="gp-c-inb">0</span></div>
         <div class="toggle-row"><span>Positionen automatisch vergeben</span><button class="switch" id="gp-sauto"></button></div>
+        <button class="btn gp-plan" id="gp-plan" title="Zeitstrahl aller Positionen – Ankünfte per Ziehen zuweisen (Taste G)">📊 Positionsplan <kbd>G</kbd></button>
         <div id="gp-inb"></div>
         <div class="p-sec"><span>Abfertigung (Turnaround)${qm('ta')}</span><span class="cnt" id="gp-c-ta">0</span></div>
         <div class="gp-bar"><button class="btn btn-good" id="gp-all" title="Alle gelben Aufgaben mit freien Fahrzeugen bedienen (Taste D)">⚡ Alles bedienen <kbd>D</kbd></button><small>Dringendste oben · Balken = Zeit bis TOBT, ▼ = voraussichtlich fertig</small></div>
@@ -117,6 +119,10 @@ export class GroundPanel {
   onClick(e) {
     const s = this.game.state;
     if (e.target.closest('#gp-all')) return this.dispatchAll(s);
+    if (e.target.closest('#gp-plan')) {
+      if (!this.game.splan) this.game.splan = new StandPlan(this.game);
+      return this.game.splan.toggle();
+    }
     const d = e.target.closest('[data-disp]');
     if (d) {
       const ac = s.acs.find((a) => a.id === d.dataset.ac);

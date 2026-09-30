@@ -45,6 +45,7 @@ import { ManagerDock } from './ui/managerDock.js';
 import { projects, cancelProject } from './sim/construction.js';
 import { scenarioById, applyScenario, scenarioListeners } from './sim/scenarios.js';
 import { ScenarioUi } from './ui/scenarioUi.js';
+import { StandPlan } from './ui/standPlan.js';
 
 const game = {
   state: null,
@@ -264,6 +265,7 @@ function applyRole() {
   root.classList.remove('dock');
   if (!game.mgmt) game.mgmt = new ManagementPage(game);
   game.mgmt.close();
+  if (game.splan) game.splan.toggle(false);
   if (game.panel && game.panel.destroy) game.panel.destroy();
   if (game.ui.radarBig) {
     game.ui.radarBig = false;
@@ -379,6 +381,7 @@ function loop(ts) {
     game.ticker.update(s);
     if (game.tutorial) game.tutorial.update();
     if (game.scn) game.scn.update();
+    if (game.splan) game.splan.update(s);
     watchAlerts(s);
     game.hintT = (game.hintT || 0) + 0.2;
     if (game.hintT >= 1.2) {
@@ -942,6 +945,10 @@ function onKey(e) {
     game.refreshUi();
     return;
   }
+  if ((e.key === 'g' || e.key === 'G') && s.role === 'ground' && !e.ctrlKey && !e.metaKey) {
+    if (!game.splan) game.splan = new StandPlan(game);
+    return game.splan.toggle();
+  }
   if ((s.role === 'tower' || s.role === 'ground') && game.panel.key && !e.ctrlKey && !e.metaKey && game.panel.key(e, s)) return;
   const k = e.key.toLowerCase();
   if (k === 'b') {
@@ -1145,6 +1152,7 @@ function helpGuide(first) {
     <ul>
       <li><b>Alles bedienen</b> <kbd>D</kbd>: schickt für alle gelben Aufgaben freie Fahrzeuge los – die dringendste Abfertigung zuerst. Die Tafel ist nach <b>Puffer</b> sortiert: Balken = verstrichene Zeit bis zur TOBT, ▼ = voraussichtlich fertig (grün Puffer, gelb knapp, rot zu spät).</li>
       <li>Ankünfte brauchen eine <b>Parkposition</b> (automatisch oder per Auswahl – oder Flugzeug anklicken, dann Position auf der Karte).</li>
+      <li><b>📊 Positionsplan</b> <kbd>G</kbd>: Zeitstrahl aller Positionen über die nächsten 3 Stunden – orange = belegt bis TOBT, gestrichelt = reservierte Ankunft, rot = Überschneidung (die Ankunft muss warten). Ankünfte ohne Position aus der rechten Liste auf eine grün leuchtende Zeile ziehen; reservierte Balken lassen sich umlegen. Unten rechts siehst du, was später noch kommt (Größe beachten: L nur auf L-Positionen, Fracht nur auf die Frachtposition).</li>
       <li>Im Turnaround werden <b>gelbe Aufgaben</b> fällig: anklicken = nächstes freies Fahrzeug losschicken. Reihenfolge: Aussteigen → Reinigung/Catering → Einsteigen, Entladen → Beladen, Betankung, zum Schluss der Pushback-Schlepper.</li>
       <li><b>TOBT</b> zeigt, wann ein Flug voraussichtlich fertig ist. Liegt sie nach der STD, wird er verspätet – und ein Slot (CTOT) kann verfallen.</li>
       <li><b>Tankwagen</b> fassen 36 t. Großraumflugzeuge brauchen 2–3 Ladungen; leere Tankwagen fahren selbst zum Tanklager. Ist das Tanklager leer, stockt die Betankung.</li>

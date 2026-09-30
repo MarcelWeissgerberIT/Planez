@@ -29,6 +29,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 - 🎬 Kino-Modus (`K`): automatische Kamerafahrten zu Landungen, Starts, Durchstarts, Abfertigung, Baustellen, Landseite und Nachtbetrieb, Letterbox und Bildunterschrift – ideal für den Beobachter
 - 🌍 Streckennetz in „Airlines & Verträge“: polare Karte um den Flughafen (Peilung wie im Spiel, Entfernung logarithmisch) mit allen Routen in Airline-Farbe, Linienstärke nach Frequenz, fliegenden Punkten, Angeboten gestrichelt und Tooltip je Ziel (Airlines, Umläufe, Typ, Zufriedenheit)
 - Manager: Nachrichten-Ticker (Rekorde, Wetter, Kerosinpreis, Airlines, Baustellen), Passagierstimmen mit Sternen (zeigen, wo es hakt: Parkplatz, Sicherheitskontrolle, Shops …), Trendkurven über die letzten 14 Tage
+- 📊 Vorfeld-Positionsplan (`G`): Gantt-Zeitstrahl je Parkposition für die nächsten 3 Stunden mit Belegung bis TOBT, reservierten Ankünften und Überschneidungen; Ankünfte per Drag & Drop auf passende Positionen legen (passende Zeilen leuchten grün), Vorschau der später erwarteten Flüge mit Größe
 - Vorfeld: Tafel nach Zeitpuffer sortiert mit Zeitleiste bis TOBT und voraussichtlichem Ende, „Alles bedienen“ (`D`)
 - Belebter Flughafen: Besucher fahren ins Parkhaus und auf den Parkplatz, Vorfahrt und Taxis am Terminal, Busse, Fußgänger mit Koffern, Bodenpersonal an den Flugzeugen, Follow-me-Wagen, Arbeiter und Kipper auf den Baustellen; das Parkhaus wächst beim Ausbau sichtbar um ein Deck (mit Kran); nachts Flutlicht auf Baustellen, Hindernisfeuer und Tower-Rundumlicht; Verkehr folgt der Tageszeit. Baustellen zeigen die Restzeit auch in echten Minuten.
 - Bilder in der Management-Zentrale: jeder Ausbau, jede Parkposition, jedes Fahrzeug, Personal, Tanklager und Pistenwartung mit Illustration (Higgsfield), damit man sieht, was man kauft
@@ -60,6 +61,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 - Karte ziehen = verschieben · Mausrad / Pinch = Zoom · Klick = auswählen
 - `Leertaste` Pause · `1`–`5` Tempo (1×, 2×, 5×, 10×, 20×; bei 10× dauert ein Spieltag ca. 10 Minuten, Manager/Beobachter starten mit 10×) · `B` Beschriftungen · `N`/`Tab` nächste Anfrage · `F` Radar groß · `W`/`S` Flug in der Pistenfolge vor/zurück (auch ◀ ▶ oder Karte ziehen)
 - Markieren: `M` (Farbe weiterschalten, `Shift`+`M` entfernen), ⚑ auf dem Flugstreifen oder Rechtsklick / langes Drücken auf ein Flugzeug in Karte bzw. Radar – mit Farbe und Notiz, sichtbar auf Radar, Karte und Streifen („⚑ Filter“ im Radar)
+- Vorfeld: `D` alles bedienen · `G` Positionsplan
 - Tower: `V` gedrückt halten = Sprechtaste (Freigabe auf Englisch einsprechen) · `A` Anflug frei · `D` Direkt FAF · `H` Warteschleife · `L` Landefreigabe · `G` Durchstarten · `R` Rollfreigabe · `P` Pushback · `E` Warten bis TSAT · `U` Line up · `T` Startfreigabe · `X` Halt · `C` Weiterrollen
 
 ## Technik
