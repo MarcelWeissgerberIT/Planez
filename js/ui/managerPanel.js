@@ -6,6 +6,7 @@ import * as EC from '../sim/economy.js';
 import { acceptOffer, declineOffer, cancelContract, feeIndex, standDemand } from '../sim/schedule.js';
 import { fleetSummary, efficiency } from '../sim/ground.js';
 import { newsState, paxRating } from '../sim/news.js';
+import { achievementsHtml } from './achUi.js';
 import { PH } from '../sim/aircraft.js';
 import { sfx } from '../audio.js';
 import { projects, standProject, projectFor, cancelProject, standBuildHours, upgradeHours, STAND_HOURS, remainingHours } from '../sim/construction.js';
@@ -384,6 +385,7 @@ export class ManagerPanel {
     const next = RANKS[G.rank + 1];
     const pct = next ? Math.round(((G.xp - RANKS[G.rank].xp) / (next.xp - RANKS[G.rank].xp)) * 100) : 100;
     let h = `<div class="p-sec"><span>🏅 Flughafen-Rang${qm('goals')}</span></div><div class="card"><div class="row"><span class="t">${RANKS[G.rank].name}</span><span style="font-family:var(--mono);font-size:12px">${G.xp} XP</span></div><div class="bar"><i style="width:${pct}%;background:linear-gradient(90deg,#f59e0b,#fde047)"></i></div><div class="s">${next ? `Nächster Rang „${next.name}“ ab ${next.xp} XP` : 'Höchster Rang erreicht'} · ${G.done} Ziele erreicht</div><div class="rank-steps">${RANKS.map((r, i) => `<span class="${i <= G.rank ? 'on' : ''}">${i + 1}. ${r.name}</span>`).join('')}</div></div>`;
+    h += achievementsHtml(s);
     h += `<div class="p-sec"><span>🎯 Ziele</span></div>`;
     for (const g of activeGoals(s)) {
       const f = goalFraction(s, g);

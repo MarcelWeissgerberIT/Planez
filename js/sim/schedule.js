@@ -185,6 +185,8 @@ export function acceptOffer(state, offerId) {
   c.sat = 78;
   state.contracts.push(c);
   state.life = state.life || {};
+  state.life.contractsAll = (state.life.contractsAll || 0) + 1;
+  state.life = state.life || {};
   state.life.contracts = (state.life.contracts || 0) + 1;
   state.offers = state.offers.filter((x) => x !== o);
   // ab morgen im Flugplan

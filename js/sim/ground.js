@@ -235,6 +235,8 @@ export function updateGround(state, dt) {
           }
           if (k === 'board') log(state, 'gnd', `${ac.cs}: Boarding abgeschlossen.`);
           if (k === 'deice') {
+            state.life = state.life || {};
+            state.life.deiced = (state.life.deiced || 0) + 1;
             earn(state, 'deice', { S: 1800, M: 3200, L: 7500 }[AC_TYPES[ac.type].size] || 3200);
             log(state, 'gnd', `${ac.cs}: enteist – Holdover-Zeit läuft, zügig starten.`);
           }

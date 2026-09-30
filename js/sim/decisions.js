@@ -255,7 +255,7 @@ export function describe(state, d) {
   return c ? c.card(state, d.p) : null;
 }
 
-export function choose(state, id, idx) {
+export function choose(state, id, idx, byPlayer = false) {
   const D = decisionsState(state);
   const d = D.active.find((x) => x.id === id);
   if (!d) return false;
@@ -263,6 +263,10 @@ export function choose(state, id, idx) {
   const o = card && card.options[idx];
   D.active = D.active.filter((x) => x !== d);
   if (!o) return false;
+  if (byPlayer) {
+    state.life = state.life || {};
+    state.life.decided = (state.life.decided || 0) + 1;
+  }
   try {
     o.run(state, d.p);
   } catch (e) {}

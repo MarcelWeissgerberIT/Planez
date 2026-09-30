@@ -139,6 +139,8 @@ function complete(state, p) {
       log(state, 'mgr', 'Neue Parallelbahn eröffnet – getrennter Betrieb: Landungen Süd, Starts Nord. Ankünfte kreuzen die Startbahn.');
     }
   }
+  state.life = state.life || {};
+  state.life.built = (state.life.built || 0) + 1;
   log(state, 'mgr', `Fertiggestellt: ${p.name}.`);
   notify(state, `✅ Fertiggestellt: ${p.name}`, 'good');
 }

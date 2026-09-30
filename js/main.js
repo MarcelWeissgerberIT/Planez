@@ -21,6 +21,7 @@ import { DecisionCard } from './ui/decision.js';
 import { NewsTicker } from './ui/ticker.js';
 import { Cinema } from './ui/cinema.js';
 import { Tutorial } from './ui/tutorial.js';
+import { showAchievement, achievementsHtml } from './ui/achUi.js';
 import { soundscape } from './soundscape.js';
 import { season, temperature } from './sim/winter.js';
 import { makeVehicle, freeBay } from './sim/ground.js';
@@ -403,6 +404,9 @@ function addLog(m, silent = false) {
 }
 listeners.radio.push((m) => {
   if (game.running) addLog(m);
+});
+listeners.ach.push((a) => {
+  if (game.running) showAchievement(a);
 });
 listeners.fx.push((f) => {
   if (game.running && game.map) game.map.addFx(f);
@@ -1093,6 +1097,7 @@ function showGoals() {
     <div class="rank-steps">${RANKS.map((r, i) => `<span class="${i <= G.rank ? 'on' : ''}" title="${r.xp} XP">${i + 1}. ${r.name}</span>`).join('')}</div>
     <div class="p-sec"><span>Ziele · ${ROLES[s.role].name}</span></div>
     ${goals}
+    ${achievementsHtml(s)}
     <p style="font-size:12px;color:var(--muted)">Prämie und XP gibt es sofort beim Erreichen; danach folgt ein neues Ziel. Jeder Tag bringt zusätzlich XP für Sicherheit, Pünktlichkeit und Gewinn. Höhere Ränge: mehr Vertragsangebote und Ansehen.</p>
     <div class="modal-acts"><button class="btn btn-primary" data-x>Weiter</button></div>`,
     (box) => box.querySelector('[data-x]').addEventListener('click', closeModal)

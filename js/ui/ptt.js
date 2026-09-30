@@ -103,6 +103,8 @@ export function initPTT(game) {
       sfx.alert();
     } else {
       show(`✓ ${r.ac.cs} · ${CMDS[r.cmd].label}`, 'ok');
+      s.life = s.life || {};
+      s.life.voiceCmd = (s.life.voiceCmd || 0) + 1;
       game.select(r.ac.id, false);
     }
     hide(2200);

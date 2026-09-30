@@ -61,6 +61,7 @@ export function updateEvents(state, dt) {
       log(state, 'sys', `Wetter: ${WEATHER[kind].name}.`);
     }
     wx.kind = kind;
+    if (kind === 'fog') state.stats.today.hadFog = true;
     wx.until = state.time + dur * 3600;
     wx.cells = kind === 'storm' ? makeCells(state) : [];
   }

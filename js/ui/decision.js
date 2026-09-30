@@ -17,7 +17,7 @@ export class DecisionCard {
       const b = e.target.closest('[data-opt]');
       if (!b || !this.cur) return;
       const s = this.game.state;
-      if (choose(s, this.cur, Number(b.dataset.opt))) sfx.click();
+      if (choose(s, this.cur, Number(b.dataset.opt), true)) sfx.click();
       this.cur = null;
       this.update(s);
     });

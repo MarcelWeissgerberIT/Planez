@@ -88,7 +88,7 @@ export function activeGoals(state) {
   return list;
 }
 
-function addXp(state, xp) {
+export function addXp(state, xp) {
   const G = goalsState(state);
   const before = G.rank;
   G.xp += xp;

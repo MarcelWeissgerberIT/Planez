@@ -77,6 +77,8 @@ export function updateWinter(state, dt) {
       const min = Math.round(randRange(state, 7, 10));
       closeRunway(state, min, 'Schneeräumung', strip);
       state.plow = { strip, start: state.time, until: state.time + min * 60, from: state.rwySnow[strip] };
+      state.life = state.life || {};
+      state.life.plows = (state.life.plows || 0) + 1;
       const name = rwyName(state, strip);
       radio(state, 'TWR', `All stations, runway ${name} closed for snow clearing, expect ${min} minutes.`, 'atc');
       notify(state, `❄️ Räumdienst auf Bahn ${name} – gesperrt bis ${fmtClock(state.plow.until)}`, 'warn');

@@ -39,6 +39,8 @@ export function repayLoan(state, id) {
   state.cash -= l.rest;
   state.ledger.repay = (state.ledger.repay || 0) + l.rest;
   state.loans = loans(state).filter((x) => x !== l);
+  state.life = state.life || {};
+  state.life.loansRepaid = (state.life.loansRepaid || 0) + 1;
   log(state, 'mgr', `Kredit vorzeitig getilgt (${fmtMoney(l.rest)}).`);
   return true;
 }
@@ -54,7 +56,12 @@ export function dailyLoans(state, spend) {
     l.rest -= principal;
     l.days--;
   }
+  const n0 = loans(state).length;
   state.loans = loans(state).filter((l) => l.rest > 1 && l.days > 0);
+  if (state.loans.length < n0) {
+    state.life = state.life || {};
+    state.life.loansRepaid = (state.life.loansRepaid || 0) + (n0 - state.loans.length);
+  }
 }
 
 // Nachtbewegung: Lärmentgelt oder – bei Nachtflugverbot – Bußgeld für Ausnahmen

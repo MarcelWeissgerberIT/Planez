@@ -51,6 +51,7 @@ export function onLanding(state, ac) {
   if (rot) bump(state, 'pax', rot.paxIn);
   if (rot) {
     rot.status = 'landed';
+    if (ac.emergency) state.life.emgLanded = (state.life.emgLanded || 0) + 1;
     rot.landT = state.time;
     state.stats.today.pax += rot.paxIn;
   }
@@ -183,6 +184,10 @@ function hourly(state) {
 }
 
 export function closeDay(state) {
+  if (state.stats.today.hadFog && !state.stats.today.diversions) {
+    state.life = state.life || {};
+    state.life.fogDayOk = (state.life.fogDayOk || 0) + 1;
+  }
   const L = state.ledger;
   const rev = Object.values(L.rev).reduce((a, b) => a + b, 0);
   const cost = Object.values(L.cost).reduce((a, b) => a + b, 0);
