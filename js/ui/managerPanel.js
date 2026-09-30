@@ -277,7 +277,8 @@ export class ManagerPanel {
 
   // ---------- Verträge ----------
   contracts(s) {
-    let h = `<div class="p-sec"><span>Angebote${qm('contracts')}</span><span class="cnt">${s.offers.length}</span></div>`;
+    let h = this.page ? `<div class="rm-wrap"><div class="p-sec"><span>🌍 Streckennetz</span><span class="cnt">${new Set(s.contracts.map((c) => c.city)).size} Ziele</span></div><div class="rm-slot"></div></div>` : '';
+    h += `<div class="p-sec"><span>Angebote${qm('contracts')}</span><span class="cnt">${s.offers.length}</span></div>`;
     if (!s.offers.length) h += `<div class="empty">Keine offenen Angebote. Gutes Ansehen, faire Gebühren und Marketing bringen neue Airlines.</div>`;
     for (const o of s.offers) {
       const al = AIRLINES[o.airline];

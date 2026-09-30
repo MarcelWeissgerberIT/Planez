@@ -8,6 +8,7 @@ import { rwyCond, hasRwy2 } from '../sim/runway.js';
 import { loans } from '../sim/finance.js';
 import { goalsState, RANKS } from '../sim/goals.js';
 import { PH } from '../sim/aircraft.js';
+import { RouteMap } from './routeMap.js';
 
 export const CATS = [
   ['over', 'Übersicht', 'Kennzahlen, Auslastung und Airline-Zufriedenheit'],
@@ -162,5 +163,11 @@ export class ManagementPage {
     // Eingaben (Schieberegler) nicht während der Bedienung neu aufbauen
     if (document.activeElement && this.body.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
     setHTML(this.body, this.panel.section(this.cat, s));
+    // Streckennetz-Karte bleibt als eigenes Element erhalten und wird in den Platzhalter gehängt
+    const slot = this.body.querySelector('.rm-slot');
+    if (slot) {
+      if (!this.routeMap) this.routeMap = new RouteMap(this.game);
+      this.routeMap.attach(slot);
+    }
   }
 }
