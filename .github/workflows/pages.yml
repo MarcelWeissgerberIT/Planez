@@ -1,0 +1,24 @@
+# Veröffentlicht den Stand von main auf dem Branch gh-pages (Quelle von GitHub Pages)
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: main -> gh-pages
+        run: git push --force origin HEAD:refs/heads/gh-pages
