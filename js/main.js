@@ -12,6 +12,7 @@ import { GroundPanel } from './ui/groundPanel.js';
 import { ManagerPanel } from './ui/managerPanel.js';
 import { $, toast, openModal, closeModal, modalOpen, setHTML } from './ui/dom.js';
 import { renderInfo } from './ui/info.js';
+import { currentHint } from './ui/hints.js';
 import { sfx, setSound, setTTS, speak, unlock } from './audio.js';
 import { command } from './sim/atc.js';
 import { dispatch, assignStand, standFits, standFree } from './sim/ground.js';
@@ -151,6 +152,19 @@ function applyRole() {
     game.panel = new ManagerPanel(root, game);
     root.querySelector('.p-title').innerHTML = '👁️ Beobachter <small id="mp-sub"></small>';
   }
+  const head = root.querySelector('.p-head');
+  if (head) {
+    const h = document.createElement('div');
+    h.id = 'hint';
+    h.className = 'hint hidden';
+    h.innerHTML = '<span class="hint-i">💡</span><span class="hint-t"></span><button class="mini" title="Tipps ausblenden">✕</button>';
+    h.querySelector('button').addEventListener('click', () => {
+      s.settings.hints = false;
+      h.classList.add('hidden');
+      toast('Tipps ausgeblendet – im Menü wieder einschaltbar', 'info', 2500);
+    });
+    head.after(h);
+  }
   $('#btn-role').textContent = `${ROLES[s.role].icon} ${ROLES[s.role].short} ▾`;
   toggleRadar(s.role === 'tower');
   game.ui.labelFn = labelFn(s.role);
@@ -199,6 +213,16 @@ function loop(ts) {
     if (!game.panelHold && !(document.activeElement && document.activeElement.tagName === 'SELECT')) game.panel.update(s);
     if (!(document.activeElement && document.activeElement.tagName === 'SELECT' && document.activeElement.closest('#info'))) renderInfo($('#info'), s, game.ui);
     watchAlerts(s);
+    game.hintT = (game.hintT || 0) + 0.2;
+    if (game.hintT >= 1.2) {
+      game.hintT = 0;
+      const el = $('#hint');
+      if (el) {
+        const txt = s.settings.hints === false ? null : currentHint(s);
+        el.classList.toggle('hidden', !txt);
+        if (txt) setHTML(el.querySelector('.hint-t'), txt);
+      }
+    }
   }
   game.saveTimer += dt;
   if (game.saveTimer > 45) {
@@ -284,14 +308,33 @@ hooks.dayEnd.push((rec) => {
   const s = game.state;
   if (!s) return;
   saveGame(s);
-  if (s.role === 'manager' || s.role === 'observer') showReport(rec);
-  else toast(`📊 Tag ${rec.day}: ${rec.mov} Bewegungen, ${rec.onTime} % pünktlich, Ergebnis ${fmtMoney(rec.rev - rec.cost)}`, rec.rev > rec.cost ? 'good' : 'warn', 7000);
+  showReport(rec);
 });
+
+// Tagesbewertung (0–5 Sterne)
+function rateDay(rec) {
+  let p = rec.onTime >= 95 ? 2 : rec.onTime >= 85 ? 1.5 : rec.onTime >= 75 ? 1 : rec.onTime >= 60 ? 0.5 : 0;
+  let safe = rec.incidents === 0 ? 1.5 : rec.incidents === 1 ? 1 : rec.incidents === 2 ? 0.5 : 0;
+  safe = Math.max(0, safe - Math.max(0, rec.goArounds - 2) * 0.25 - rec.diversions * 0.5);
+  const profit = rec.rev - rec.cost;
+  const eco = profit > 200000 ? 1.5 : profit > 0 ? 1 : 0;
+  return Math.round((p + safe + eco) * 2) / 2;
+}
+const GOALS = {
+  tower: 'Ziel Tower: keine Staffelungsverstöße, wenige Durchstarts, keine Ausweichlandungen.',
+  ground: 'Ziel Vorfeld: mindestens 90 % pünktliche Abflüge.',
+  manager: 'Ziel Management: positives Betriebsergebnis, zufriedene Airlines, wachsendes Ansehen.',
+  observer: 'Der Flughafen lief heute vollautomatisch.',
+};
 
 function showReport(rec) {
   const prevSpeed = game.state.speed;
+  const stars = rateDay(rec);
+  const starHtml = Array.from({ length: 5 }, (_, i) => (stars >= i + 1 ? '★' : stars >= i + 0.5 ? '⯪' : '☆')).join('');
   openModal(
     `<h2>📊 Tagesbericht – Tag ${rec.day}</h2>
+    <div style="font-size:30px;color:var(--manager);letter-spacing:4px;margin:4px 0 2px" aria-label="${stars} von 5 Sternen">${starHtml}</div>
+    <p style="margin:0 0 10px;color:var(--muted)">${GOALS[game.state.role] || ''} · Durchstarts ${rec.goArounds} · Ausweichlandungen ${rec.diversions}</p>
     <div class="report-grid">
       <div><span>Umsatz</span><b>${fmtMoney(rec.rev)}</b></div>
       <div><span>Betriebskosten</span><b>${fmtMoney(rec.cost)}</b></div>
@@ -659,6 +702,7 @@ function showGameMenu() {
     <div class="toggle-row"><span>Sound-Effekte</span><button class="switch ${s.settings.sound ? 'on' : ''}" data-set="sound"></button></div>
     <div class="toggle-row"><span>Funksprüche vorlesen (Englisch, Tower-Rolle)</span><button class="switch ${s.settings.tts ? 'on' : ''}" data-set="tts"></button></div>
     <div class="toggle-row"><span>Beschriftungen auf der Karte</span><button class="switch ${game.ui.labels ? 'on' : ''}" data-set="labels"></button></div>
+    <div class="toggle-row"><span>Tipps anzeigen</span><button class="switch ${s.settings.hints !== false ? 'on' : ''}" data-set="hints"></button></div>
     <div class="modal-acts">
       <button class="btn" data-m="help">❓ Anleitung</button>
       <button class="btn" data-m="role">🔁 Station wechseln</button>
@@ -676,8 +720,8 @@ function showGameMenu() {
             b.classList.toggle('on', game.ui.labels);
             return;
           }
-          s.settings[k] = !s.settings[k];
-          b.classList.toggle('on', s.settings[k]);
+          s.settings[k] = k === 'hints' ? s.settings.hints === false : !s.settings[k];
+          b.classList.toggle('on', s.settings[k] !== false && !!s.settings[k]);
           setSound(s.settings.sound);
           setTTS(s.settings.tts);
         })

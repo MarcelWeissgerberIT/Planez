@@ -1,6 +1,4 @@
-# Veröffentlicht den Stand von main auf GitHub Pages.
-# Funktioniert mit beiden Pages-Quellen: "GitHub Actions" (deploy-pages)
-# und "Deploy from branch: gh-pages" (Spiegel-Branch).
+# Veröffentlicht den Stand von main auf GitHub Pages (Quelle: GitHub Actions).
 name: Deploy GitHub Pages
 
 on:
@@ -9,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -25,10 +23,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Spiegel main -> gh-pages
-        run: git push --force origin HEAD:refs/heads/gh-pages
       - name: Seite zusammenstellen
         run: |
           mkdir -p _site

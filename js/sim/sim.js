@@ -41,7 +41,7 @@ function spawnDue(state) {
   state.spawnCheck = (state.spawnCheck || 0) + 1;
   if (state.spawnCheck % 5) return;
   for (const r of Object.values(state.rots)) {
-    if (r.status === 'planned' && r.spawnAt <= state.time) spawnArrival(state, r);
+    if (r.status === 'planned' && r.spawnAt <= state.time && !spawnArrival(state, r)) r.spawnAt = state.time + 90;
   }
 }
 

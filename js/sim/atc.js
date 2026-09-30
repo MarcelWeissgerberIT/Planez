@@ -26,6 +26,7 @@ export const CMDS = {
       ac.clr.app = true;
       ac.req = null;
       ac.altRestr = undefined;
+      ac.stackAlt = ac.stackFix = null;
       say(s, ac, `${tel(ac)}, cleared ILS approach runway ${ac.rwy}, descend 5000 feet.`, `Cleared ILS ${ac.rwy}, ${tel(ac)}.`);
     },
   },
@@ -248,7 +249,7 @@ function autoArrivals(state) {
     const lowestInStack = (c) => c.phase !== PH.HOLD || !cands.some((o) => o !== c && o.phase === PH.HOLD && o.holdFix && c.holdFix && o.holdFix.name === c.holdFix.name && o.alt < c.alt - 100);
     const scored = cands.filter(lowestInStack).map((c) => {
       // Flugzeuge oberhalb eines Stapels nicht durch den Stapel sinken lassen
-      const below = state.acs.some((o) => o !== c && o.phase === PH.HOLD && o.alt < c.alt - 300 && Math.hypot(o.pos.x - c.pos.x, o.pos.y - c.pos.y) < 9);
+      const below = state.acs.some((o) => o !== c && o.mode === 'air' && o.alt < c.alt - 300 && ((o.phase === PH.HOLD && Math.hypot(o.pos.x - c.pos.x, o.pos.y - c.pos.y) < 9) || (Math.hypot(o.pos.x - c.pos.x, o.pos.y - c.pos.y) < 6 && o.alt > 4500)));
       return { c, d: AS.routeDistance(c.pos, AS.approachRoute(c.pos, rwy)) + (below ? 50 : 0), blocked: below };
     });
     scored.sort((x, y) => (y.c.emergency ? 1 : 0) - (x.c.emergency ? 1 : 0) || x.d - y.d);
@@ -388,7 +389,8 @@ function predict(a, t) {
 
 function resolve(state, a, b) {
   // Tower-Verkehr im Endanflug nicht anfassen
-  const movable = (x) => x.phase === PH.DEPART || x.phase === PH.INBOUND || x.phase === PH.GOAROUND || x.phase === PH.HOLD;
+  const preIp = (x) => x.phase === PH.APPROACH && x.route.length > 2;
+  const movable = (x) => x.phase === PH.DEPART || x.phase === PH.INBOUND || x.phase === PH.GOAROUND || x.phase === PH.HOLD || preIp(x);
   const lower = a.alt <= b.alt ? a : b;
   const upper = lower === a ? b : a;
   if (lower.phase === PH.DEPART && movable(lower)) {

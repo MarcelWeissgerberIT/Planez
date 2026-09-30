@@ -42,7 +42,14 @@ export function spawnArrival(state, rot) {
   const brg = CITIES[rot.city].brg + randRange(state, -10, 10);
   const pos = AS.spawnPoint(brg);
   const rwy = state.rwy;
-  const alt = 13000 + randInt(state, 0, 3) * 1000;
+  let alt = 13000 + randInt(state, 0, 3) * 1000;
+  // Einflug-Staffelung: nicht in der Nähe anderer Flugzeuge erzeugen
+  const near = (al) => state.acs.some((o) => o.mode === 'air' && Math.hypot(o.pos.x - pos.x, o.pos.y - pos.y) < 12 && Math.abs(o.alt - al) < 2500);
+  if (near(alt)) {
+    const alt2 = alt >= 15000 ? alt - 4000 : alt + 4000;
+    if (near(alt2)) return null;
+    alt = alt2;
+  }
   const ac = makeAircraft(state, rot, { pos, alt, crs: degNorm(brg + 180), route: AS.inboundRoute(pos, rwy) });
   rot.ac = ac.id;
   rot.status = 'inbound';
@@ -160,10 +167,18 @@ export function updateAircraft(state, dt) {
   resolveDeadlocks(state, dt);
 }
 
-function holdingAltitude(state, ac, fix) {
-  const used = new Set(state.acs.filter((o) => o !== ac && o.phase === PH.HOLD && o.holdFix && o.holdFix.name === fix.name).map((o) => o.tAlt));
-  for (let a = 7000; a <= 14000; a += 1000) if (!used.has(a)) return a;
-  return 15000;
+// Stapelhöhe am Fix: belegte und reservierte Höhen sowie gerade abfliegende Maschinen meiden
+export function holdingAltitude(state, ac, fix) {
+  const used = new Set();
+  let floor = 7000;
+  for (const o of state.acs) {
+    if (o === ac || o.mode !== 'air') continue;
+    if (o.phase === PH.HOLD && o.holdFix && o.holdFix.name === fix.name) used.add(o.tAlt);
+    else if (o.stackFix === fix.name && o.stackAlt) used.add(o.stackAlt);
+    else if (Math.hypot(o.pos.x - fix.x, o.pos.y - fix.y) < 10 && o.alt > 5200) floor = Math.max(floor, Math.ceil((o.alt + 1000) / 1000) * 1000);
+  }
+  for (let a = floor; a <= 15000; a += 1000) if (!used.has(a)) return a;
+  return 16000;
 }
 
 function enterHold(state, ac, fix) {
@@ -171,7 +186,9 @@ function enterHold(state, ac, fix) {
   ac.holdFix = { name: fix.name, x: fix.x, y: fix.y };
   ac.holdIdx = 1;
   ac.holdStart = state.time;
-  ac.tAlt = holdingAltitude(state, ac, fix);
+  ac.tAlt = ac.stackFix === fix.name && ac.stackAlt ? ac.stackAlt : holdingAltitude(state, ac, fix);
+  ac.stackFix = null;
+  ac.stackAlt = null;
   ac.tSpd = 220;
   ac.route = [];
   radio(state, ac.cs, `${tel(ac)}, entering hold at ${fix.name}, ${fmtAlt(ac.tAlt)}.`);
@@ -240,11 +257,18 @@ function updateAir(state, ac, dt) {
       }
     } else {
       ac.tSpd = ac.spdOverride || (beforeFaf ? 180 : 210);
-      ac.tAlt = beforeFaf ? 3000 : 5000;
+      if (beforeFaf) ac.altRestr = undefined;
+      ac.tAlt = Math.max(beforeFaf ? 3000 : 5000, ac.altRestr ?? 0);
     }
   } else if (ac.phase === PH.INBOUND) {
     const nextIaf = ac.route.length && ac.route[0].iaf;
-    ac.tAlt = ac.altRestr ?? (nextIaf ? 8000 : 13000);
+    // Stapelhöhe reservieren, sobald der Fix näher kommt
+    if (nextIaf && !ac.stackAlt && Math.hypot(ac.route[0].x - ac.pos.x, ac.route[0].y - ac.pos.y) < 22) {
+      ac.stackAlt = holdingAltitude(state, ac, ac.route[0]);
+      ac.stackFix = ac.route[0].name;
+    }
+    if (!nextIaf) ac.stackAlt = ac.stackFix = null;
+    ac.tAlt = ac.altRestr ?? (nextIaf ? ac.stackAlt || 9000 : 13000);
     ac.tSpd = ac.spdOverride || (ac.alt > 10500 ? 280 : 250);
   } else if (ac.phase === PH.HOLD) {
     ac.tSpd = ac.spdOverride || 220;

@@ -126,6 +126,11 @@ b { font-weight: 700; }
 .switch.on { background: color-mix(in srgb, var(--role) 55%, transparent); border-color: var(--role); }
 .switch.on::after { left: 19px; background: white; }
 
+/* Tipps */
+.hint { margin: 8px 10px 0; padding: 8px 8px 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--role) 10%, transparent); border: 1px solid color-mix(in srgb, var(--role) 45%, transparent); font-size: 12.5px; line-height: 1.4; display: flex; gap: 8px; align-items: flex-start; }
+.hint-t { flex: 1; color: #e2e8f0; }
+.hint .mini { flex-shrink: 0; }
+
 /* Flugstreifen */
 .strip { position: relative; display: grid; grid-template-columns: 6px 1fr; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 10px; margin: 6px 0; overflow: hidden; transition: border-color .15s, background .15s; }
 .strip:hover { border-color: var(--line-2); }
