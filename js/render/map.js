@@ -5,9 +5,10 @@ import { Ambient } from './ambient.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { Polish } from './polish.js';
 import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowySprite } from './snow.js';
+import { updateWetness, drawWetGround, drawWetReflections } from './wet.js';
 import { HALF_W, HALF_H } from './camera.js';
 import * as LY from '../layout.js';
-import { AC_TYPES, AIRLINES, VEH_TYPES, ZS } from '../config.js';
+import { AC_TYPES, AIRLINES, VEH_TYPES, ZS, TIME_SCALE } from '../config.js';
 import { PH } from '../sim/aircraft.js';
 import { hourOf, roundedPath, clamp, lerp } from '../util.js';
 import { MARKS } from '../ui/marks.js';
@@ -277,6 +278,9 @@ export class MapRenderer {
     // Winter: Schneedecke und verschneite Pisten
     drawSnowCover(this, state);
     drawRunwaySnow(this, state);
+    // Regen: nasser, glänzender Asphalt mit Pfützen
+    updateWetness(this, state, dtReal * (state.speed || 0) * TIME_SCALE);
+    drawWetGround(this);
 
     // Wolkenschatten
     if (state.weather.kind !== 'clear' && state.weather.kind !== 'fog') this.cloudShadows(ctx, state);
@@ -410,6 +414,7 @@ export class MapRenderer {
 
     // Lichter
     this.staticLights(state, lights, night);
+    drawWetReflections(this, lights, night);
     ctx.globalCompositeOperation = 'lighter';
     const intensity = 0.3 + 0.7 * night;
     const zf = Math.max(0.55, Math.sqrt(cam.zoom));

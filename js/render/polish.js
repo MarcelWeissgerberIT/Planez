@@ -76,10 +76,14 @@ export class Polish {
     const vis = clamp((1.15 - cam.zoom) / 0.6, 0, 1);
     if (vis <= 0.02) return;
     if (!this.cloudImg) this.cloudImg = makeCloud();
+    // abgedunkelte Varianten vorberechnen (ctx.filter ist pro Bild sehr teuer)
+    const dk = kind === 'storm' ? 'storm' : kind === 'rain' || kind === 'snow' ? 'rain' : 'clear';
+    this.cloudDark = this.cloudDark || {};
+    if (!this.cloudDark[dk]) this.cloudDark[dk] = dk === 'clear' ? this.cloudImg : darken(this.cloudImg, dk === 'storm' ? 0.55 : 0.8);
+    const img = this.cloudDark[dk];
     const n = kind === 'clouds' ? 5 : 8;
     const t = r.time * 0.25 + state.time * 0.002;
     const wd = ((state.wind.dir + 180 - 90) * Math.PI) / 180;
-    const dark = kind === 'storm' ? 0.55 : kind === 'rain' || kind === 'snow' ? 0.8 : 1;
     cam.setScreen(ctx);
     for (let i = 0; i < n; i++) {
       const bx = ((i * 37.7 + Math.cos(wd) * t * 3) % 120) - 20;
@@ -90,12 +94,23 @@ export class Polish {
       const s = cam.toScreen(x - 2.2, y - 1.2, 7);
       const w = rx * 2.6 * 32 * cam.zoom, h = w * 0.55;
       ctx.globalAlpha = vis * (kind === 'clouds' ? 0.5 : 0.62);
-      ctx.filter = dark < 1 ? `brightness(${dark})` : 'none';
-      ctx.drawImage(this.cloudImg, s.x - w / 2, s.y - h / 2, w, h);
+      if (s.x + w / 2 < 0 || s.x - w / 2 > cam.w || s.y + h / 2 < 0 || s.y - h / 2 > cam.h) continue;
+      ctx.drawImage(img, s.x - w / 2, s.y - h / 2, w, h);
     }
-    ctx.filter = 'none';
     ctx.globalAlpha = 1;
   }
+}
+
+function darken(src, f) {
+  const c = document.createElement('canvas');
+  c.width = src.width;
+  c.height = src.height;
+  const g = c.getContext('2d');
+  g.drawImage(src, 0, 0);
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = `rgba(0,0,0,${1 - f})`;
+  g.fillRect(0, 0, c.width, c.height);
+  return c;
 }
 
 // weiche Kumuluswolke aus überlagerten Kreisen
