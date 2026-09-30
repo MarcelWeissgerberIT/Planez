@@ -157,8 +157,14 @@ export function maybeOffer(state, dt) {
   state.offerTimer = randRange(state, 3, 7) * 3600 * clamp(feeIdx, 0.6, 2) * mkt * (1.4 - state.reputation / 200) * rankF * (state.upgrades.rail ? 0.8 : 1);
   if (state.offers.length >= 4) return;
   const pool = Object.values(AIRLINES).filter((a) => a.code !== 'VIP');
-  const al = pickWeighted(state, pool, (a) => (a.types.some((t) => AC_TYPES[t].size === 'L') ? (state.upgrades.lounge ? 1.6 : 0.8) : 1));
-  const type = pick(state, al.types);
+  let al = pickWeighted(state, pool, (a) => (a.types.some((t) => AC_TYPES[t].size === 'L') ? (state.upgrades.lounge ? 1.6 : 0.8) : 1));
+  let type = pick(state, al.types);
+  // ab „Internationaler Flughafen“: Orient Pearl bietet manchmal eine feste A380-Verbindung an
+  const rank = (state.goals && state.goals.rank) || 0;
+  if (rank >= 2 && rand(state) < 0.12 && !state.contracts.some((c) => c.type === 'A388')) {
+    al = AIRLINES.OPL;
+    type = 'A388';
+  }
   const t = AC_TYPES[type];
   const cands = t.cargo ? ['LEJ', 'HKG', 'DXB', 'ORD', 'PVG', 'JFK', 'YYZ'] : citiesFor(state, type);
   const city = pick(state, cands);
