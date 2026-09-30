@@ -240,6 +240,32 @@ export const voice = {
     setTimeout(done, 1500 + u.text.length * 95);
     this.emit();
   },
+  // Kommentator (Kino-Modus): deutsche Studiostimme ohne Funkrauschen, nur wenn der Funk gerade frei ist
+  narrate(text) {
+    if (!this.on || !window.speechSynthesis || this.current || this.queue.length) return false;
+    const u = new SpeechSynthesisUtterance(text);
+    const v = deVoices.find((x) => /de-DE/i.test(x.lang)) || deVoices[0];
+    if (v) {
+      u.voice = v;
+      u.lang = v.lang;
+    } else u.lang = 'de-DE';
+    u.rate = 1.04 * this.rate;
+    u.pitch = 1;
+    u.volume = this.vol * 0.9;
+    const m = { kind: 'narr', from: 'Kommentar', text };
+    this.current = m;
+    const done = () => {
+      if (this.current !== m) return;
+      this.current = null;
+      this.emit();
+      setTimeout(() => this.pump(), 400);
+    };
+    u.onend = done;
+    u.onerror = done;
+    speechSynthesis.speak(u);
+    setTimeout(done, 1500 + text.length * 90);
+    return true;
+  },
   supported: () => typeof window !== 'undefined' && !!window.speechSynthesis,
 };
 

@@ -8,7 +8,11 @@ import { listeners } from '../sim/messages.js';
 import { fmtClock, dayOf } from '../util.js';
 import { WEATHER } from '../sim/events.js';
 import { temperature } from '../sim/winter.js';
+import { voice } from '../voice.js';
+import { SPECIALS } from '../sim/spotter.js';
 
+// Phasen eines ankommenden Flugs (ac.arr bleibt über den ganzen Umlauf gesetzt)
+const ARR_PH = new Set([PH.INBOUND, PH.HOLD, PH.APPROACH, PH.GOAROUND, PH.FINAL, PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN]);
 const PHASE_SHOT = {
   [PH.FINAL]: 'land',
   [PH.ROLLOUT]: 'land',
@@ -31,13 +35,13 @@ export class Cinema {
     el.id = 'cinema';
     el.className = 'hidden';
     el.innerHTML = `<div class="cn-bar top"></div><div class="cn-bar bot"></div>
-      <div class="cn-cap"><div class="cn-k"></div><div class="cn-t"></div><div class="cn-s"></div></div>
+      <div class="cn-cap"><div class="cn-k"></div><div class="cn-t"></div><div class="cn-s"></div><div class="cn-n"></div></div>
       <div class="cn-brand">${esc(AIRPORT.name || 'Planez')} · LIVE</div>
       <div class="cn-help">K / Esc beenden · ← → nächste Szene</div>
       <div class="cn-clock"></div><div class="cn-data"></div><div class="cn-sub"></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
-    this.cap = { k: el.querySelector('.cn-k'), t: el.querySelector('.cn-t'), s: el.querySelector('.cn-s') };
+    this.cap = { k: el.querySelector('.cn-k'), t: el.querySelector('.cn-t'), s: el.querySelector('.cn-s'), n: el.querySelector('.cn-n') };
     el.addEventListener('click', () => this.next(true));
     this.clockEl = el.querySelector('.cn-clock');
     this.dataEl = el.querySelector('.cn-data');
@@ -138,6 +142,10 @@ export class Cinema {
       this.cap.k.textContent = k;
       this.cap.t.textContent = t;
       this.cap.s.textContent = sub;
+      // Kommentar zur Szene (eingeblendet, mit Echter Funk auch gesprochen)
+      const line = commentary(s, sh, ac);
+      this.cap.n.textContent = line || '';
+      if (line && s.settings.tts && voice.on) voice.narrate(line);
       this.el.querySelector('.cn-cap').classList.remove('in');
       void this.el.offsetWidth;
       this.el.querySelector('.cn-cap').classList.add('in');
@@ -147,7 +155,7 @@ export class Cinema {
       const al = AIRLINES[a.airline];
       const rot = s.rots[a.rot];
       const city = rot ? CITIES[rot.city]?.name : '';
-      return { t: `${al ? al.name : ''} ${a.cs.replace(/^[A-Z]+/, '')}`, sub: `${AC_TYPES[a.type].name}${city ? (a.arr && [PH.FINAL, PH.ROLLOUT, PH.TAXI_IN].includes(a.phase) ? ` · aus ${city}` : ` · nach ${city}`) : ''}` };
+      return { t: `${al ? al.name : ''} ${a.cs.replace(/^[A-Z]+/, '')}`, sub: `${AC_TYPES[a.type].name}${city ? (ARR_PH.has(a.phase) ? ` · aus ${city}` : ` · nach ${city}`) : ''}` };
     };
     if (ac) {
       const x = acText(ac);
@@ -229,4 +237,46 @@ export class Cinema {
       }
     }
   }
+}
+
+// ---------- Kommentar ----------
+let nComm = 0;
+const pickC = (list) => list[(nComm++ * 7 + list.length) % list.length];
+const CAT = { short: 'Kurzstrecke', mid: 'Mittelstrecke', long: 'Langstrecke' };
+function commentary(s, sh, ac) {
+  if (ac) {
+    const al = AIRLINES[ac.airline];
+    const rot = s.rots[ac.rot];
+    const city = rot ? CITIES[rot.city] : null;
+    const cn = city ? city.name : 'unbekannt';
+    const t = AC_TYPES[ac.type];
+    const who = `${al ? al.name : ''} ${ac.cs.replace(/^[A-Z]+/, '')}`;
+    const arriving = ARR_PH.has(ac.phase);
+    const pax = rot ? (arriving ? rot.paxIn : rot.paxOut) : 0;
+    const wet = ['rain', 'storm', 'snow'].includes(s.weather.kind);
+    if (ac.emergency) return pickC([`Hier läuft ein Notfall: ${who} landet, die Feuerwehr steht bereit.`, `Spannung am Platz – ${who} hat einen Notfall gemeldet und bekommt Vorrang.`]);
+    if (ac.nordo) return `Ohne Funk unterwegs: ${who} bekommt vom Tower nur Lichtsignale.`;
+    if (ac.type === 'A388' && (sh.kind === 'land' || sh.kind === 'dep')) return pickC([`Der Superjumbo! Die A380 von ${al.name} – über 500 Tonnen ${sh.kind === 'land' ? 'auf dem Weg zur Bahn' : 'heben gleich ab'}.`, `Das größte Passagierflugzeug der Welt – ${who} mit ${pax || 'über 500'} Menschen an Bord.`]);
+    if (ac.special && SPECIALS[ac.special]) return pickC([`Ein echter Hingucker: ${al.name} in der Sonderlackierung „${SPECIALS[ac.special].name}“!`, `Spotter aufgepasst – ${who} trägt heute „${SPECIALS[ac.special].name}“.`]);
+    if (sh.kind === 'land') return pickC([`Und da kommt ${who} rein – eine ${t.name} aus ${cn}.`, `${t.name} von ${al.name} im kurzen Endanflug${pax ? `, an Bord ${pax} Passagiere` : ''} aus ${cn}.`, wet ? `Bei diesem Wetter keine leichte Landung für ${who} – die Bahn ist nass.` : `Bilderbuchanflug: ${who} setzt gleich auf.`]);
+    if (sh.kind === 'dep') return pickC([`Startlauf für ${who} – ${city ? CAT[city.cat] + ' nach ' + cn : 'auf dem Weg'}.`, `Volle Schubkraft: die ${t.name} von ${al.name} hebt gleich ab Richtung ${cn}.`, `${who} rollt an – ${pax ? pax + ' Reisende' : 'die Crew'} auf dem Weg nach ${cn}.`]);
+    if (sh.kind === 'goaround') return pickC([`Durchstarten! ${who} bricht den Anflug ab und kommt noch einmal herum.`, `Da passt etwas nicht – ${who} startet durch.`]);
+    if (sh.kind === 'push') return pickC([`Pushback an Position ${ac.stand || '—'}: ${who} nach ${cn} macht sich auf den Weg.`, `Der Schlepper schiebt ${who} zurück – gleich geht es nach ${cn}.`]);
+    if (sh.kind === 'taxi') return pickC([`Auf dem Rollweg: ${who} ${arriving ? `rollt nach der Landung aus ${cn} zur Position` : `rollt zur Startbahn, Ziel ${cn}`}.`, `Rollverkehr – ${t.name} von ${al.name} ${arriving ? 'kommt gerade von der Bahn' : 'auf dem Weg zum Rollhalt'}.`]);
+    if (sh.kind === 'turn' && ac.ta) {
+      const tk = Object.values(ac.ta.tasks);
+      const done = tk.filter((x) => x.st === 'done').length;
+      return pickC([`Boxenstopp an Position ${ac.stand}: ${done} von ${tk.length} Arbeiten erledigt.`, `Tanken, Catering, Gepäck – die Crews wuseln um ${who}.`]);
+    }
+    return '';
+  }
+  if (sh.kind === 'site') {
+    const p = (s.projects || []).find((q) => q.id === sh.id);
+    return p ? `Hier wird gebaut: ${p.name} – ${Math.floor(p.prog * 100)} Prozent fertig.` : '';
+  }
+  if (sh.kind === 'land-side') return pickC([`Vor dem Terminal ist Betrieb – heute schon ${s.stats.today.pax.toLocaleString('de-DE')} Reisende.`, 'Taxis, Busse, Koffer – die Landseite erwacht.']);
+  if (sh.kind === 'night') return pickC([`Nachtbetrieb in ${s.name} – die Befeuerung weist den Weg.`, 'Ruhige Stunden am Flughafen, nur die Lichter blinken.']);
+  const t = s.stats.today;
+  const d = t.onTime + t.delayed;
+  return pickC([`Ein Blick über ${s.name}: ${s.acs.filter((a) => a.mode === 'map').length} Flugzeuge am Platz.`, `${t.mov} Bewegungen bisher heute${d ? `, ${Math.round((t.onTime / d) * 100)} Prozent pünktlich` : ''}.`]);
 }
