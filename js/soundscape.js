@@ -98,6 +98,15 @@ function init() {
   else sg.connect(bus);
   so.start();
   L.siren = { o: so, g: sg, pan: sp };
+  // Hubschrauber: tiefes Rauschen, rhythmisch moduliert (Rotorschlag)
+  L.heli = loop(A, brown, [filt(A, 'lowpass', 380)]);
+  const hl = A.createOscillator();
+  hl.frequency.value = 17;
+  const hg = A.createGain();
+  hg.gain.value = 0;
+  hl.connect(hg).connect(L.heli.g.gain);
+  hl.start();
+  L.heliLfo = hg;
   return true;
 }
 
@@ -210,6 +219,16 @@ export const soundscape = {
       L.siren.o.frequency.setTargetAtTime(hi ? 622 : 466, A.currentTime, 0.01);
       if (L.siren.pan) set(L.siren.pan.pan, sPan, 0.3);
     }
+    // Hubschrauber in der Nähe
+    const hc = map && map.wildlife && map.wildlife.heli;
+    let hv = 0;
+    if (hc) {
+      const d = Math.hypot(hc.x - cam.x, hc.y - cam.y);
+      hv = clamp(1 - d / (30 / Math.max(0.4, cam.zoom)), 0, 1) * zoomF;
+      if (L.heli.pan) set(L.heli.pan.pan, clamp((hc.x - hc.y - (cam.x - cam.y)) * 0.05, -0.8, 0.8), 0.3);
+    }
+    set(L.heli.g.gain, 0.05 * hv, 0.4);
+    set(L.heliLfo.gain, 0.045 * hv, 0.4);
     // Wetter
     const w = state.weather.kind;
     const windSpd = state.wind ? state.wind.spd : 8;

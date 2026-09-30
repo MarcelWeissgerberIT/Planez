@@ -6,6 +6,7 @@ import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { Polish } from './polish.js';
 import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowySprite } from './snow.js';
 import { updateWetness, drawWetGround, drawWetReflections } from './wet.js';
+import { Wildlife } from './wildlife.js';
 import { HALF_W, HALF_H } from './camera.js';
 import * as LY from '../layout.js';
 import { AC_TYPES, AIRLINES, VEH_TYPES, ZS, TIME_SCALE } from '../config.js';
@@ -370,6 +371,10 @@ export class MapRenderer {
     // Reifenrauch, Gischt, Wolken
     this.polish.update(this, state, dtReal * (state.speed ? Math.min(3, 0.6 + state.speed * 0.4) : 0));
     this.polish.drawParticles(this);
+    // Vögel und Hubschrauber (Echtzeit, bei Pause stehend)
+    if (!this.wildlife) this.wildlife = new Wildlife();
+    this.wildlife.update(state, dtReal * (state.speed ? Math.min(2.5, 0.7 + state.speed * 0.3) : 0));
+    this.wildlife.draw(this, state);
     this.polish.drawClouds(this, state);
 
     // Nacht / Dämmerung
