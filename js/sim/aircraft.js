@@ -321,6 +321,13 @@ function updateAir(state, ac, dt) {
   } else if (ac.phase === PH.DEPART) {
     ac.tAlt = ac.altRestr ?? 24000;
     ac.tSpd = ac.alt < 10000 ? 250 : 300;
+    // Übergabe an die Abflugkontrolle nach dem Steigen durch 2000 ft
+    if (!ac.handoff && ac.alt > 2000 && !ac.emergency) {
+      ac.handoff = true;
+      const f = ['119.305', '124.475', '127.275'][ac.id.length % 3];
+      radio(state, 'TWR', `${tel(ac)}, contact Langen Radar ${f}, goodbye.`, 'atc');
+      radio(state, ac.cs, `${f}, ${tel(ac)}, good day.`);
+    }
     if (Math.hypot(ac.pos.x, ac.pos.y) > AS.RADAR_RANGE + 2 || !ac.route.length) {
       ac.phase = PH.GONE;
       return;
