@@ -37,7 +37,7 @@ export function newGame(opts = {}) {
     cash: 5000000,
     reputation: 62,
     fees: { ...DEFAULT_FEES, night: 600 },
-    upgrades: { retail: 0, security: 0, lounge: 0, parking: 0, hotel: 0, ils3: 0, rapidExit: 0, apronLights: 0, rwy2: 0 },
+    upgrades: { retail: 0, security: 0, lounge: 0, parking: 0, hotel: 0, ils3: 0, rapidExit: 0, apronLights: 0, rwy2: 0, solar: 0, rail: 0 },
     rwyMode: 'single',
     staff: 44,
     stands: STAND_DEFS.map((s) => ({ ...s, built: s.built || s.id === 6, occ: null, resv: null, bridge: 0 })),

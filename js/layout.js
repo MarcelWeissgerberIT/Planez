@@ -51,6 +51,10 @@ export const BUILDINGS = [
   { id: 'radar', sprite: 'radar', fx: 6.5, fy: 48.5, w: 1.7, d: 1.5, frac: 0.53, name: 'Radar' },
 ];
 
+// Solarpark südlich der Piste, Bahnhof im Westen der Landseite
+export const SOLAR = { x0: 47.5, x1: 62.5, y0: 45.3, y1: 49.6 };
+export const RAIL = { y: 5.15, x0: -16, x1: 10.2, station: { x0: 2.0, x1: 8.0, y0: 1.9, y1: 3.7 }, platform: { y0: 4.1, y1: 4.78 } };
+
 export const DEPOT_BAYS = (() => {
   const bays = [];
   for (let r = 0; r < 3; r++) for (let c = 0; c < 8; c++) bays.push({ x: 66.9 + c * 0.95, y: 16.4 + r * 1.25 });

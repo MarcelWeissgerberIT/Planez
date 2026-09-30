@@ -22,6 +22,8 @@ export const UPGRADE_HOURS = {
   rapidExit: [16],
   apronLights: [6],
   rwy2: [40],
+  solar: [14],
+  rail: [34],
 };
 
 export function standBuildHours(st) {
@@ -125,6 +127,11 @@ function complete(state, p) {
   } else if (p.kind === 'upgrade') {
     state.upgrades[p.target] = Math.max(state.upgrades[p.target] || 0, p.level);
     if (p.target === 'hotel') state.reputation = Math.min(100, state.reputation + 3);
+    if (p.target === 'solar') state.reputation = Math.min(100, state.reputation + 4);
+    if (p.target === 'rail') {
+      state.reputation = Math.min(100, state.reputation + 5);
+      notify(state, '🚆 Der Flughafen-Bahnhof ist eröffnet – die ersten Züge rollen ein', 'good');
+    }
     if (p.target === 'rwy2') {
       state.rwyMode = 'seg';
       state.rwyCondS = 100;

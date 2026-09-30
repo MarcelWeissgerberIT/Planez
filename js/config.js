@@ -107,6 +107,8 @@ export const UPGRADES = {
   ils3: { name: 'ILS CAT III', desc: 'Landungen auch bei dichtem Nebel möglich.', max: 1, cost: [3000000], cat: 'Betrieb' },
   rapidExit: { name: 'Schnellabrollwege', desc: 'Kürzere Pistenbelegung nach der Landung.', max: 1, cost: [2500000], cat: 'Betrieb' },
   apronLights: { name: 'LED-Vorfeldbeleuchtung', desc: 'Nachts 15 % schnellere Abfertigung, weniger Stromkosten.', max: 1, cost: [700000], cat: 'Betrieb' },
+  solar: { name: 'Solarpark', icon: '☀️', desc: 'Photovoltaik südlich der Piste: Energiekosten −60 %, Stromverkauf ca. 9.000 €/Tag, Ansehen +4 („grüner Flughafen“).', max: 1, cost: [1200000], cat: 'Betrieb' },
+  rail: { name: 'Flughafen-Bahnhof', icon: '🚆', big: true, desc: 'S-Bahn-Anschluss direkt am Terminal: mehr Airline-Angebote (+20 %), Ansehen +5, Anteil an Fahrkarten ca. 7.000 €/Tag – dafür 15 % weniger Parkerlöse.', more: 'Züge fahren sichtbar ein und aus; weniger Autos auf der Landseite.', max: 1, cost: [5200000], cat: 'Landseite' },
 };
 
 export const STAND_COSTS = { contactM: 1800000, contactL: 2600000, remote: 700000, upgradeL: 900000 };

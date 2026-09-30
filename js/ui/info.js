@@ -15,6 +15,8 @@ import { projects, standProject, projectFor, standBuildHours, upgradeHours, STAN
 import { progressBar, projectStatus, projectRefund, fmtHours } from './projects.js';
 
 const SITE_DESC = {
+  solar: 'Solarpark: Fundamente, Gestelle und Module werden Reihe für Reihe montiert.',
+  rail: 'Flughafen-Bahnhof: Gleisbett, Bahnsteig und Empfangshalle entstehen.',
   stand: 'Neue Parkposition: Aushub, Betonplatte, Markierungen und Befeuerung.',
   standL: 'Umbau auf Großraumjets (Klasse L) – die Position ist während der Arbeiten gesperrt.',
   hotel: 'Rohbau des Flughafenhotels – Stockwerk für Stockwerk.',

@@ -5,6 +5,7 @@ import { clamp, hourOf } from '../util.js';
 import * as LY from '../layout.js';
 import { PH } from '../sim/aircraft.js';
 import { ZS } from '../config.js';
+import { trainPos } from './infra.js';
 
 const CAR_COLS = ['#e2e8f0', '#1f2937', '#b91c1c', '#1d4ed8', '#9ca3af', '#065f46', '#f8fafc', '#475569', '#7c2d12', '#a16207'];
 const SHIRTS = ['#1d4ed8', '#b91c1c', '#f8fafc', '#111827', '#15803d', '#a855f7', '#f59e0b', '#0e7490', '#be185d', '#57534e'];
@@ -39,7 +40,24 @@ export class Ambient {
     const dt = Math.min(0.1, realDt) * f;
     if (!dt) return;
     this.vt += dt;
-    const tr = this.traffic(state);
+    const tr = this.traffic(state) * (state.upgrades.rail ? 0.8 : 1);
+    // Bahnhof: beim Halt steigen Fahrgäste aus und gehen zum Terminal (und umgekehrt)
+    if (state.upgrades.rail) {
+      const tp = trainPos(this.vt);
+      const dwell = !!(tp && tp.dwell);
+      if (dwell && !this.wasDwell) {
+        const R = LY.RAIL;
+        const n = Math.round(4 + tr * 8);
+        for (let k = 0; k < n; k++) {
+          const sx = R.station.x0 + 0.5 + this.rnd() * (R.station.x1 - R.station.x0 - 1);
+          const tx = 16 + this.rnd() * 18;
+          const toT = [{ x: sx, y: R.platform.y1 - 0.1, fadeIn: true }, { x: sx, y: R.station.y1 + 0.15 }, { x: R.station.x1 + 0.3, y: R.station.y1 + 0.15 }, { x: R.station.x1 + 0.3, y: 2.92 }, { x: 12.0, y: 2.92 }, { x: 12.0, y: 1.0 }, { x: tx, y: 1.0 }, { x: tx, y: 1.18, fade: true }];
+          this.peds.push(this.ped(toT, true, k * 0.6));
+          if (k % 2) this.peds.push(this.ped([...toT].reverse().map((p, i, arr) => ({ ...p, fadeIn: i === 0, fade: i === arr.length - 1 })), true, k * 0.5));
+        }
+      }
+      this.wasDwell = dwell;
+    }
     this.spawnT -= dt;
     if (this.spawnT <= 0 && this.cars.length < 12 + tr * 22) {
       this.spawnT = (1.4 + this.rnd() * 1.6) / tr;

@@ -60,6 +60,14 @@ export function siteGeom(state, p) {
         label: 'Parallelbahn',
       };
     }
+    case 'solar': {
+      const S = LY.SOLAR;
+      return { x0: S.x0 - 0.4, y0: S.y0 - 0.3, x1: S.x1 + 0.4, y1: S.y1 + 0.2, fence: true, ground: 'gravel', solar: true, machines: [m('excavator', S.x0 + 2 + (S.x1 - S.x0 - 4) * clamp(p.prog, 0, 1), S.y0 + 2.2, { dig: true }), m('site_office', S.x1 - 0.8, S.y1 - 0.4), m('mixer', S.x0 + 1.2, S.y1 - 0.5, { shake: true })], label: 'Solar' };
+    }
+    case 'rail': {
+      const R = LY.RAIL;
+      return { x0: R.station.x0 - 1.2, y0: R.station.y0 - 0.4, x1: R.station.x1 + 1.8, y1: R.y + 0.6, fence: true, ground: 'gravel', rail: true, machines: [m('crane', R.station.x0 + 3.5, R.station.y0 + 0.8), m('excavator', R.station.x0 + 0.5, R.y, { dig: true }), m('mixer', R.station.x1 + 0.8, R.station.y1, { shake: true }), m('site_office', R.station.x1 + 1.2, R.station.y0 + 0.4)], label: 'Bahnhof' };
+    }
     case 'apronLights':
       // Kabelgraben entlang der Vorfeldkante
       return { x0: 14, y0: 25.45, x1: 66, y1: 26.35, fence: false, cones: null, ground: 'trench', machines: [m('excavator', 14 + 52 * clamp(p.prog, 0.02, 0.98), 26.3, { dig: true })], label: 'Licht' };

@@ -2,6 +2,7 @@
 import { IMG, shadowOf, glowTinted } from '../assets.js';
 import { drawAircraftBody, drawVehicleBody, drawCarBody } from './volume.js';
 import { Ambient } from './ambient.js';
+import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowySprite } from './snow.js';
 import { HALF_W, HALF_H } from './camera.js';
 import * as LY from '../layout.js';
@@ -211,7 +212,7 @@ export class MapRenderer {
   }
 
   groundKey(state) {
-    return state.stands.map((s) => (s.built ? s.size : '-')).join('') + '|' + state.upgrades.parking + state.upgrades.hotel + state.upgrades.rapidExit + (state.upgrades.rwy2 || 0) + '|' + Math.round((state.rwyCond ?? 88) / 10) + Math.round((state.rwyCondS ?? 100) / 10);
+    return state.stands.map((s) => (s.built ? s.size : '-')).join('') + '|' + state.upgrades.parking + state.upgrades.hotel + state.upgrades.rapidExit + (state.upgrades.rwy2 || 0) + (state.upgrades.rail || 0) + '|' + Math.round((state.rwyCond ?? 88) / 10) + Math.round((state.rwyCondS ?? 100) / 10);
   }
 
   // ---------- Boden-Cache ----------
@@ -310,6 +311,7 @@ export class MapRenderer {
     for (const t of this.trees) {
       if (!inView(view, t.x, t.y, 2)) continue;
       if (sites.some((q) => q.g.fence && t.x > q.g.x0 - 0.4 && t.x < q.g.x1 + 0.4 && t.y > q.g.y0 - 0.4 && t.y < q.g.y1 + 0.4)) continue;
+      if (treeBlocked(state, t)) continue;
       items.push({ d: t.x + t.y, f: () => this.drawTree(t) });
     }
     for (const car of this.cars) {
@@ -346,6 +348,7 @@ export class MapRenderer {
     items.push({ d: 66 + 35.6, f: () => this.drawWindsock(state) });
     this.runwayWorkItems(state, items, lights);
     plowItems(this, state, items, lights);
+    infraItems(this, state, items, lights, night);
     deiceFx(this, state, items);
     items.sort((a, b) => a.d - b.d);
     for (const it of items) it.f();
@@ -696,6 +699,10 @@ export class MapRenderer {
       lights.push({ x: p.x + Math.cos(p.h) * 0.3, y: p.y + Math.sin(p.h) * 0.3, z: 0.03, c: '#fff4d0', s: 14, a: 0.7 });
       lights.push({ x: p.x - Math.cos(p.h) * 0.18, y: p.y - Math.sin(p.h) * 0.18, z: 0.03, c: '#ff3020', s: 8, a: 0.7 });
     }
+  }
+
+  prism(pts, z0, z1, cTop, cA, cB) {
+    prism(this.ctx, this.cam, pts, z0, z1, cTop, cA, cB);
   }
 
   // schwebende Rückmeldungen (Weltposition, steigen auf und blenden aus)
@@ -1379,6 +1386,7 @@ function drawGround(g, state, trees) {
   // Fahrgassen-Pfeile
   g.fillStyle = 'rgba(255,255,255,0.45)';
   for (const ay of [3.2, 4.65]) for (let x = 57.5; x < 56 + pw - 1; x += 3) g.fillRect(x, ay - 0.02, 0.5, 0.04);
+  drawRailGround(g, state);
   // Zaun Luft-/Landseite
   g.strokeStyle = 'rgba(60,60,60,0.55)';
   g.lineWidth = 0.05;

@@ -153,7 +153,7 @@ export function maybeOffer(state, dt) {
   const feeIdx = feeIndex(state);
   const mkt = state.marketingUntil > state.time ? 0.6 : 1;
   const rankF = (1 - 0.08 * ((state.goals && state.goals.rank) || 0)) * (state.upgrades.rwy2 ? 0.8 : 1); // höherer Rang / zweite Bahn: mehr Interesse
-  state.offerTimer = randRange(state, 3, 7) * 3600 * clamp(feeIdx, 0.6, 2) * mkt * (1.4 - state.reputation / 200) * rankF;
+  state.offerTimer = randRange(state, 3, 7) * 3600 * clamp(feeIdx, 0.6, 2) * mkt * (1.4 - state.reputation / 200) * rankF * (state.upgrades.rail ? 0.8 : 1);
   if (state.offers.length >= 4) return;
   const pool = Object.values(AIRLINES).filter((a) => a.code !== 'VIP');
   const al = pickWeighted(state, pool, (a) => (a.types.some((t) => AC_TYPES[t].size === 'L') ? (state.upgrades.lounge ? 1.6 : 0.8) : 1));

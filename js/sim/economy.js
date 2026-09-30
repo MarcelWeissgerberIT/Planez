@@ -11,7 +11,7 @@ import { onNightMovement, takeLoan, repayLoan, loanLimit, loans } from './financ
 import { rwyCond } from './runway.js';
 import { bump } from './goals.js';
 
-export const REV_CATS = { landing: 'Landegebühren', pax: 'Passagierentgelte', parking: 'Parkpositionen', handling: 'Abfertigung', fuel: 'Kerosinverkauf (Marge)', retail: 'Shops & Gastro', carpark: 'Parken (Landseite)', cargo: 'Fracht', hotel: 'Hotel', night: 'Nacht-/Lärmentgelte', deice: 'Enteisung', other: 'Sonstiges' };
+export const REV_CATS = { landing: 'Landegebühren', pax: 'Passagierentgelte', parking: 'Parkpositionen', handling: 'Abfertigung', fuel: 'Kerosinverkauf (Marge)', retail: 'Shops & Gastro', carpark: 'Parken (Landseite)', cargo: 'Fracht', hotel: 'Hotel', night: 'Nacht-/Lärmentgelte', deice: 'Enteisung', energy: 'Stromverkauf (Solar)', rail: 'Bahnhof', other: 'Sonstiges' };
 export const COST_CATS = { staff: 'Personal Boden', atc: 'Flugsicherung', infra: 'Instandhaltung', vehicles: 'Fahrzeuge', admin: 'Verwaltung', utilities: 'Energie & Betrieb', penalties: 'Vertragsstrafen & Bußgelder', incidents: 'Vorfälle', marketing: 'Marketing', interest: 'Kreditzinsen' };
 
 export function earn(state, cat, amount) {
@@ -109,7 +109,7 @@ export function onTakeoff(state, ac) {
   earnF('handling', handling);
   const satF = clamp(0.75 + state.reputation / 250 + u.security * 0.04, 0.6, 1.2);
   earnF('retail', (rot.paxIn + rot.paxOut) * 6.5 * (1 + 0.3 * u.retail) * satF);
-  earnF('carpark', rot.paxOut * 2.1 * (1 + 0.4 * u.parking));
+  earnF('carpark', rot.paxOut * 2.1 * (1 + 0.4 * u.parking) * (u.rail ? 0.85 : 1));
   if (t.cargo) earnF('cargo', (rot.cargoIn + rot.cargoOut) * 55);
   else earnF('cargo', (rot.cargoIn + rot.cargoOut) * 40);
   if (rot.special === 'vip') earnF('other', 18000);
@@ -145,7 +145,7 @@ export function dailyFixedCosts(state) {
     infra: built * COSTS.standDaily + COSTS.runwayDaily * (1 + (u.rwy2 || 0)) + COSTS.terminalDaily * (1 + 0.08 * (u.retail + u.security + u.lounge)),
     vehicles: state.vehicles.reduce((t, v) => t + VEH_TYPES[v.type].upkeep, 0),
     admin: COSTS.adminDaily,
-    utilities: COSTS.utilitiesDaily * (u.apronLights ? 0.85 : 1) * (1 + 0.05 * u.parking),
+    utilities: COSTS.utilitiesDaily * (u.apronLights ? 0.85 : 1) * (1 + 0.05 * u.parking) * (u.solar ? 0.4 : 1),
   };
 }
 
@@ -162,6 +162,10 @@ function hourly(state) {
   const fc = dailyFixedCosts(state);
   for (const [k, v] of Object.entries(fc)) spend(state, k, v / 24);
   if (state.upgrades.hotel) earn(state, 'hotel', 21000 / 24);
+  // Solarstrom (tagsüber) und Anteil an Bahnfahrkarten
+  const hh = (state.time / 3600) % 24;
+  if (state.upgrades.solar && hh > 7 && hh < 19) earn(state, 'energy', (9000 / 12) * (state.weather.kind === 'clear' ? 1.3 : state.weather.kind === 'clouds' ? 0.8 : 0.45));
+  if (state.upgrades.rail) earn(state, 'rail', 7000 / 24);
   // Airline-Zufriedenheit driftet mit Gebühren/Ansehen
   const fi = feeIndex(state);
   const nightF = state.settings.curfew ? 22 : ((state.fees.night ?? 600) / 4000) * 12;
@@ -348,7 +352,7 @@ export function offerFits(state, o) {
 }
 
 // ---------- Management-KI ----------
-const AUTO_UPGRADES = ['security', 'retail', 'apronLights', 'parking', 'rapidExit', 'retail', 'ils3', 'security', 'lounge', 'parking', 'retail', 'hotel', 'rwy2', 'security'];
+const AUTO_UPGRADES = ['security', 'retail', 'apronLights', 'parking', 'rapidExit', 'solar', 'retail', 'ils3', 'security', 'lounge', 'parking', 'retail', 'hotel', 'rwy2', 'rail', 'security'];
 export function autoManager(state) {
   const reserve = 1500000;
   // Angebote
