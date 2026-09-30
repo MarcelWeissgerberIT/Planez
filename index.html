@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Planez – Airport Simulator</title>
+  <meta name="description" content="Isometrische Flughafen-Simulation: Tower-Lotse, Vorfeld-Abfertigung oder Flughafen-Manager – der Rest läuft automatisch." />
+  <meta name="theme-color" content="#0b1220" />
+  <link rel="icon" type="image/webp" href="assets/sprites/plane_narrow.webp" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <meta property="og:title" content="Planez – Airport Simulator" />
+  <meta property="og:image" content="assets/ui/title.jpg" />
+</head>
+<body>
+  <!-- Ladebildschirm -->
+  <div id="loading">
+    <img src="assets/ui/logo.webp" alt="Planez" class="load-logo" />
+    <div class="load-bar"><div id="load-fill"></div></div>
+    <div class="load-txt">Lade Flughafen …</div>
+  </div>
+
+  <!-- Hauptmenü -->
+  <div id="menu" class="hidden">
+    <video id="menu-video" autoplay muted loop playsinline poster="assets/ui/title.jpg">
+      <source src="assets/ui/title_loop.mp4" type="video/mp4" />
+    </video>
+    <div class="menu-shade"></div>
+    <div class="menu-inner">
+      <img src="assets/ui/logo.webp" alt="Planez – Airport Simulator" class="menu-logo" />
+      <p class="menu-tag">Simulation · Wirtschaft · Logistik — wähle deine Station, den Rest erledigt der Flughafen.</p>
+      <div id="continue-box" class="continue hidden">
+        <button id="btn-continue" class="btn btn-primary btn-lg">▶ Weiterspielen</button>
+        <span id="continue-info"></span>
+      </div>
+      <div class="menu-setup">
+        <label>Flughafenname
+          <input id="inp-name" maxlength="40" value="Planez International" />
+        </label>
+        <label>Verkehr
+          <select id="inp-density">
+            <option value="0.7">Ruhig</option>
+            <option value="1" selected>Normal</option>
+            <option value="1.4">Hektisch</option>
+          </select>
+        </label>
+      </div>
+      <div class="roles">
+        <button class="role-card" data-role="tower">
+          <img src="assets/ui/role_tower.jpg" alt="" />
+          <div class="rc-body">
+            <div class="rc-title">🎧 Tower-Lotse</div>
+            <div class="rc-desc">Radar &amp; Flugstreifen: Anflüge sequenzieren, Lande- und Startfreigaben, Rollverkehr lenken.</div>
+          </div>
+        </button>
+        <button class="role-card" data-role="ground">
+          <img src="assets/ui/role_ground.jpg" alt="" />
+          <div class="rc-body">
+            <div class="rc-title">🦺 Vorfeld &amp; Abfertigung</div>
+            <div class="rc-desc">Parkpositionen vergeben, Schlepper, Tankwagen, Catering &amp; Busse disponieren – pünktlich rausbringen.</div>
+          </div>
+        </button>
+        <button class="role-card" data-role="manager">
+          <img src="assets/ui/role_manager.jpg" alt="" />
+          <div class="rc-body">
+            <div class="rc-title">💼 Flughafen-Manager</div>
+            <div class="rc-desc">Airline-Verträge, Gebühren, Ausbau, Fuhrpark und Personal – wachse profitabel.</div>
+          </div>
+        </button>
+      </div>
+      <div class="menu-foot">
+        <button class="btn btn-ghost" data-role-start="observer">👁️ Nur zuschauen</button>
+        <button class="btn btn-ghost" id="btn-help-menu">❓ Anleitung</button>
+      </div>
+      <div class="credits">Grafiken, Porträts &amp; Titelvideo generiert mit Higgsfield AI · Alle Airlines sind fiktiv</div>
+    </div>
+  </div>
+
+  <!-- Spiel -->
+  <div id="game" class="hidden">
+    <canvas id="map"></canvas>
+
+    <header id="hud">
+      <div class="hud-l">
+        <button class="icon-btn" id="btn-menu" title="Menü">☰</button>
+        <img src="assets/ui/logo.webp" class="hud-logo" alt="Planez" />
+        <div class="hud-name" id="hud-name"></div>
+      </div>
+      <div class="hud-c">
+        <div class="clock"><span id="hud-day"></span><b id="hud-time"></b></div>
+        <div class="speeds" id="speeds"></div>
+        <div class="wx" id="hud-wx"></div>
+        <div class="rwy" id="hud-rwy"></div>
+      </div>
+      <div class="hud-r">
+        <div class="kpi"><span>Kasse</span><b id="hud-cash"></b></div>
+        <div class="kpi"><span>Ansehen</span><b id="hud-rep"></b></div>
+        <div class="kpi hide-sm"><span>Pünktlich</span><b id="hud-ontime"></b></div>
+        <button class="role-btn" id="btn-role"></button>
+      </div>
+    </header>
+
+    <aside id="panel"></aside>
+    <button id="panel-toggle" class="icon-btn" title="Panel ein-/ausblenden">⟩</button>
+
+    <section id="radar-wrap" class="hidden">
+      <div class="radar-head">
+        <span>📡 Radar <small id="radar-range"></small></span>
+        <span class="radar-btns">
+          <button class="mini" id="radar-rng">Reichweite</button>
+          <button class="mini" id="radar-big">⤢</button>
+        </span>
+      </div>
+      <canvas id="radar"></canvas>
+    </section>
+
+    <section id="log-wrap">
+      <div class="log-head"><span>📻 Funk &amp; Meldungen</span><button class="mini" id="log-toggle">–</button></div>
+      <div id="log"></div>
+    </section>
+
+    <div id="map-ctrls">
+      <button class="icon-btn" id="z-in" title="Hineinzoomen">＋</button>
+      <button class="icon-btn" id="z-out" title="Herauszoomen">－</button>
+      <button class="icon-btn" id="t-labels" title="Beschriftungen">🏷️</button>
+      <button class="icon-btn" id="t-radar" title="Radar">📡</button>
+      <button class="icon-btn" id="t-help" title="Hilfe">❓</button>
+    </div>
+
+    <div id="info"></div>
+    <div id="toasts"></div>
+    <div id="tooltip"></div>
+  </div>
+
+  <div id="modal" class="hidden"><div class="modal-box" id="modal-box"></div></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

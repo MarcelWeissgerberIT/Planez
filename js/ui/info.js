@@ -1,0 +1,104 @@
+// Info-Karte zum ausgewählten Objekt
+import { AC_TYPES, AIRLINES, CITIES, VEH_TYPES, UPGRADES, STAND_COSTS } from '../config.js';
+import { PH, PHASE_DE, fmtAlt } from '../sim/aircraft.js';
+import { fmtClock, fmtMoney, esc } from '../util.js';
+import { setHTML } from './dom.js';
+import { cmdButtons, acRoute, REQ_DE, distToLand } from './tower.js';
+import { taskChips, standOptions } from './groundPanel.js';
+import { standBuildCost } from '../sim/economy.js';
+import { BUILDINGS } from '../layout.js';
+
+const BDESC = {
+  hall: 'Hauptterminal mit Check-in, Sicherheitskontrolle und Gepäcksortierung.',
+  tower: 'Kontrollturm – Sitz der Flugsicherung (Tower & Vorfeldkontrolle).',
+  hangar: 'Wartungshangar für Linienwartung und Checks.',
+  cargo: 'Frachtterminal – Umschlag für Frachtflüge.',
+  depot: 'Fahrzeugdepot – hier warten Schlepper, Tankwagen, Busse & Co.',
+  fire: 'Flughafenfeuerwehr – rückt bei Notfällen aus.',
+  fuel: 'Tanklager – versorgt die Tankwagen mit Kerosin.',
+  parking: 'Parkhaus – Erlöse aus Parkgebühren.',
+  hotel: 'Flughafenhotel – zusätzliche Einnahmen und Ansehen.',
+  radar: 'Flughafen-Rundsichtradar (ASR).',
+};
+const BUP = { parking: 'parking', hall: 'retail', hotel: 'hotel' };
+const VST = { idle: 'bereit', drive: 'fährt zum Einsatz', work: 'im Einsatz', return: 'fährt zurück ins Depot', attached: 'schiebt zurück' };
+
+export function renderInfo(el, state, ui) {
+  const sel = ui.sel;
+  if (!sel) {
+    el.classList.remove('show');
+    return;
+  }
+  let h = '';
+  if (sel.type === 'ac') {
+    const ac = state.acs.find((a) => a.id === sel.id);
+    if (!ac) {
+      ui.sel = null;
+      ui.selected = null;
+      el.classList.remove('show');
+      return;
+    }
+    const t = AC_TYPES[ac.type];
+    const al = AIRLINES[ac.airline];
+    const rot = state.rots[ac.rot];
+    const dep = !ac.arr || [PH.STAND, PH.PUSH, PH.STARTUP, PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAKEOFF, PH.DEPART].includes(ac.phase);
+    let delay = '';
+    if (rot) {
+      const d = dep ? Math.round(((rot.offBlock || state.time) - rot.std) / 60) : rot.arrDelay;
+      delay = d > 0 ? `+${d} min` : 'pünktlich';
+    }
+    h += `<div class="i-head"><div><div class="i-cs"><i class="al-dot" style="background:${al.color}"></i>${esc(ac.cs)}${ac.emergency ? ' 🚨' : ''}</div><div class="i-sub">${al.name} · ${t.name} · Wirbelschleppe ${t.wake}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
+    h += `<div class="i-grid">`;
+    h += `<div><span>Status</span><b>${PHASE_DE[ac.phase] || ac.phase}</b></div>`;
+    h += `<div><span>Strecke</span><b>${esc(acRoute(state, ac))}</b></div>`;
+    if (rot) h += `<div><span>${dep ? 'Abflug (STD)' : 'Ankunft (STA)'}</span><b>${fmtClock(dep ? rot.std : rot.sta)}</b></div><div><span>Verspätung</span><b>${delay}</b></div>`;
+    if (ac.mode === 'air') h += `<div><span>Höhe</span><b>${fmtAlt(ac.alt)}</b></div><div><span>Geschw.</span><b>${Math.round(ac.spd)} kt</b></div><div><span>Kurs</span><b>${String(Math.round(ac.crs)).padStart(3, '0')}°</b></div><div><span>Squawk</span><b>${ac.squawk}</b></div>`;
+    else h += `<div><span>Position</span><b>${ac.stand ? 'P' + ac.stand : '—'}</b></div><div><span>Passagiere</span><b>${rot ? (dep ? rot.paxOut : rot.paxIn) : '—'}</b></div>`;
+    if (ac.arr && ac.mode === 'air' && [PH.INBOUND, PH.HOLD, PH.APPROACH].includes(ac.phase)) h += `<div><span>Bis Landung</span><b>${distToLand(ac).toFixed(1)} NM</b></div>`;
+    h += `</div>`;
+    if (ac.req) h += `<div style="margin-top:6px;color:var(--warn);font-size:12px;font-weight:700">● ${REQ_DE[ac.req] || ac.req}</div>`;
+    const role = state.role;
+    if (role === 'tower') {
+      const b = cmdButtons(state, ac, true);
+      if (b) h += `<div class="i-acts" data-part="cmds">${b}</div>`;
+    }
+    if (role === 'ground' || role === 'observer' || role === 'manager') {
+      if (ac.ta) h += `<div class="tasks" style="margin-top:8px">${taskChips(state, ac, role === 'ground')}</div>`;
+      if (role === 'ground' && ac.arr && !ac.ta && ac.phase !== PH.TAXI_IN) h += `<div class="i-acts"><select data-assign="${ac.id}">${standOptions(state, ac)}</select></div>`;
+    }
+    if (role === 'manager' && rot) {
+      const est = state.fees.landing * t.mtow + rot.paxOut * state.fees.pax;
+      h += `<div class="i-sub" style="margin-top:6px">Entgelte dieses Umlaufs ≈ ${fmtMoney(est)} · Vertrag ${rot.contract ? 'regulär' : 'Sonderflug'}</div>`;
+    }
+  } else if (sel.type === 'stand') {
+    const st = state.stands.find((s) => s.id === sel.id);
+    if (!st) return;
+    const occ = st.occ ? state.acs.find((a) => a.id === st.occ) : null;
+    const resv = st.resv ? state.acs.find((a) => a.id === st.resv) : null;
+    const kind = { contact: 'Gebäudeposition mit Fluggastbrücke', remote: 'Vorfeldposition (Busse)', cargo: 'Frachtposition' }[st.kind];
+    h += `<div class="i-head"><div><div class="i-cs">Parkposition ${st.id}</div><div class="i-sub">${kind} · Klasse ${st.size}${st.size === 'L' ? ' (Großraum)' : ''}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
+    h += `<div class="i-grid"><div><span>Status</span><b>${!st.built ? 'nicht gebaut' : occ ? 'belegt' : resv ? 'reserviert' : 'frei'}</b></div><div><span>Flugzeug</span><b>${occ ? esc(occ.cs) : resv ? esc(resv.cs) : '—'}</b></div></div>`;
+    if (state.role === 'manager') {
+      if (!st.built) h += `<div class="i-acts"><button class="btn btn-good" data-act="stand" data-v="${st.id}">Bauen · ${fmtMoney(standBuildCost(st))}</button></div>`;
+      else if (st.size !== 'L' && st.kind !== 'cargo') h += `<div class="i-acts"><button class="btn" data-act="standL" data-v="${st.id}">Für Großraumjets ausbauen · ${fmtMoney(STAND_COSTS.upgradeL)}</button></div>`;
+    }
+  } else if (sel.type === 'veh') {
+    const v = state.vehicles.find((x) => x.id === sel.id);
+    if (!v) return;
+    const job = v.job ? state.acs.find((a) => a.id === v.job.ac) : null;
+    h += `<div class="i-head"><div><div class="i-cs">${esc(v.name)}</div><div class="i-sub">${VEH_TYPES[v.type].name}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
+    h += `<div class="i-grid"><div><span>Status</span><b>${v.brokenUntil > state.time ? 'defekt – in Reparatur' : VST[v.st] || v.st}</b></div><div><span>Einsatz</span><b>${job ? esc(job.cs) + (job.stand ? ' · P' + job.stand : '') : '—'}</b></div></div>`;
+  } else if (sel.type === 'building') {
+    const b = BUILDINGS.find((x) => x.id === sel.id);
+    if (!b) return;
+    h += `<div class="i-head"><div><div class="i-cs">${b.name}</div><div class="i-sub">${BDESC[b.id] || ''}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
+    const up = BUP[b.id];
+    if (up && state.role === 'manager') {
+      const u = UPGRADES[up];
+      const lvl = state.upgrades[up] || 0;
+      if (lvl < u.max) h += `<div class="i-acts"><button class="btn btn-good" data-act="up" data-v="${up}">${u.name} Stufe ${lvl + 1} · ${fmtMoney(u.cost[lvl])}</button></div>`;
+    }
+  }
+  el.classList.add('show');
+  setHTML(el, h);
+}
