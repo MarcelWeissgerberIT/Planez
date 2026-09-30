@@ -1032,3 +1032,5 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
   #scn-bar { top: 124px; left: 8px; right: 8px; transform: none; justify-content: space-between; }
   #game.scn-on #toasts { top: 180px; }
 }
+.wx-next { margin-left: 4px; padding: 1px 6px; border-radius: 6px; background: rgba(148,163,184,.14); color: #cbd5e1; font-size: 11px; white-space: nowrap; }
+.wx-next.warn { background: rgba(251,191,36,.18); color: #fcd34d; }

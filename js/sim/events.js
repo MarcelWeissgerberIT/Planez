@@ -1,5 +1,5 @@
 // Wetter, Wind und Zufallsereignisse
-import { rand, randRange, randInt, pick, pickWeighted, hourOf, clamp, degNorm } from '../util.js';
+import { rand, randRange, randInt, pick, pickWeighted, hourOf, clamp, degNorm, fmtClock } from '../util.js';
 import { log, notify, radio } from './messages.js';
 import { spawnSpecial, PH, divert } from './aircraft.js';
 import { VEH_TYPES, AIRLINES } from '../config.js';
@@ -34,22 +34,14 @@ export function updateEvents(state, dt) {
   w.spd += clamp(w.tSpd - w.spd, -0.002 * dt, 0.002 * dt);
   w.gust = (w.gust || 0) * 0.98 + (rand(state) - 0.5) * 0.4;
 
-  // Wetterlagen
+  // Wetterlagen: die nächste Lage steht schon fest (Vorhersage/TAF) und wird rechtzeitig angekündigt
   const wx = state.weather;
   if (state.time > wx.until) {
-    const h = hourOf(state.time);
-    const opts = [
-      ['clear', 50],
-      ['clouds', 26],
-      ['rain', 12],
-      ['fog', h < 9 || h > 21 ? 9 : 1],
-      ['storm', h > 13 && h < 20 ? 7 : 1.5],
-      ['snow', isWinter(state) ? 30 : 0],
-    ];
-    const kind = winterWeather(state, pickWeighted(state, opts, (o) => o[1])[0]);
-    const dur = kind === 'storm' ? randRange(state, 0.5, 1.2) : kind === 'fog' ? randRange(state, 1, 3) : kind === 'snow' ? randRange(state, 1.5, 4) : randRange(state, 2, 6);
+    const nx = forecast(state);
+    const kind = winterWeather(state, nx.kind);
+    const dur = nx.dur;
     // Pistensichtweite (RVR) im Nebel; unter 550 m reicht ILS CAT I nicht mehr
-    wx.rvr = kind === 'fog' ? Math.round(randRange(state, 200, 1300) / 25) * 25 : null;
+    wx.rvr = kind === 'fog' ? nx.rvr ?? Math.round(randRange(state, 200, 1300) / 25) * 25 : null;
     if (kind !== wx.kind) {
       if (kind === 'fog') {
         const dense = wx.rvr < 550;
@@ -64,6 +56,17 @@ export function updateEvents(state, dt) {
     if (kind === 'fog') state.stats.today.hadFog = true;
     wx.until = state.time + dur * 3600;
     wx.cells = kind === 'storm' ? makeCells(state) : [];
+    wx.next = null;
+    forecast(state);
+  }
+  // Vorwarnung 30 Minuten vor Gewitter, Nebel oder Schnee
+  const nx = forecast(state);
+  const nk = winterWeather(state, nx.kind);
+  if (nk !== wx.kind && ['storm', 'fog', 'snow'].includes(nk) && wx.until - state.time < 1800 && wx.warnedAt !== nx.at) {
+    wx.warnedAt = nx.at;
+    const txt = { storm: 'Gewitter – das Vorfeld wird gesperrt, Abfertigung pausiert', fog: 'Nebel – Low Visibility Procedures, größere Abstände', snow: 'Schneefall – Enteisung und Räumdienst' }[nk];
+    notify(state, `${WEATHER[nk].icon} Vorhersage: ab ${fmtClock(nx.at)} ${txt}`, 'warn');
+    log(state, 'sys', `Wetterdienst: ab ${fmtClock(nx.at)} ${WEATHER[nk].name} erwartet.`);
   }
   // Gewitterzellen ziehen
   for (const c of wx.cells || []) {
@@ -84,6 +87,35 @@ export function updateEvents(state, dt) {
     state.eventTimer = randRange(state, 2.5, 6) * 3600;
     randomEvent(state);
   }
+}
+
+// Wetter für einen Zeitpunkt würfeln (Art, Dauer in Stunden, Sichtweite)
+function rollWeather(state, at) {
+  const h = hourOf(at);
+  const opts = [
+    ['clear', 50],
+    ['clouds', 26],
+    ['rain', 12],
+    ['fog', h < 9 || h > 21 ? 9 : 1],
+    ['storm', h > 13 && h < 20 ? 7 : 1.5],
+    ['snow', isWinter(state) ? 30 : 0],
+  ];
+  const kind = pickWeighted(state, opts, (o) => o[1])[0];
+  const dur = kind === 'storm' ? randRange(state, 0.5, 1.2) : kind === 'fog' ? randRange(state, 1, 3) : kind === 'snow' ? randRange(state, 1.5, 4) : randRange(state, 2, 6);
+  const rvr = kind === 'fog' ? Math.round(randRange(state, 200, 1300) / 25) * 25 : null;
+  return { kind, dur, rvr, at };
+}
+// Vorhersage: nächste Wetterlage ab Ende der aktuellen (bleibt bis dahin fest)
+export function forecast(state) {
+  const wx = state.weather;
+  if (!wx.next || wx.next.at !== wx.until) wx.next = rollWeather(state, wx.until);
+  return wx.next;
+}
+// Anzeigeform der Vorhersage (mit Umwandlung Regen/Schnee nach Temperatur)
+export function forecastInfo(state) {
+  const nx = forecast(state);
+  const kind = winterWeather(state, nx.kind);
+  return { kind, at: nx.at, until: nx.at + nx.dur * 3600, name: WEATHER[kind].name, icon: WEATHER[kind].icon, rvr: kind === 'fog' ? nx.rvr : null, change: kind !== state.weather.kind };
 }
 
 function makeCells(state) {

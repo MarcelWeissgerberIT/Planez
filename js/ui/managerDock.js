@@ -6,6 +6,7 @@ import { fuelState, FUEL } from '../sim/fuel.js';
 import { rwyCond, brakingAction, BRAKE_DE, hasRwy2 } from '../sim/runway.js';
 import { goalsState, activeGoals, goalText, goalFraction, RANKS } from '../sim/goals.js';
 import { PH } from '../sim/aircraft.js';
+import { forecastInfo } from '../sim/events.js';
 import { fmtHours, realMinutes } from './projects.js';
 
 export class ManagerDock {
@@ -58,6 +59,8 @@ export class ManagerDock {
     if (cond < 55 && !projects(s).some((p) => p.kind === 'rwy')) todo.push(['runways', '🛬', `Pistenzustand ${cond} % – Wartung beauftragen`, 'warn']);
     if (!hasRwy2(s) && s.cash > 9500000 && !projects(s).some((p) => p.target === 'rwy2')) todo.push(['runways', '🛫', 'Genug Geld für die Parallelbahn', 'info']);
     if ((t.complaints || 0) > 25 && !s.settings.curfew) todo.push(['fees', '📢', `${t.complaints} Lärmbeschwerden heute`, 'warn']);
+    const fc = forecastInfo(s);
+    if (fc.change && ['storm', 'fog', 'snow'].includes(fc.kind) && fc.at - s.time < 5400) todo.push(['over', fc.icon, `Vorhersage: ab ${fmtClock(fc.at)} ${fc.name}${fc.kind === 'fog' && !s.upgrades.ils3 && (fc.rvr || 999) < 550 ? ' unter CAT-I-Minimum' : ''}`, 'warn']);
     if (!todo.length) todo.push(['over', '✅', 'Alles im grünen Bereich', 'good']);
     setHTML(this.root.querySelector('#dk-todo'), todo.map(([k, i, txt, cls]) => `<button class="dock-todo ${cls}" data-open="${k}"><span>${i}</span><span>${esc(txt)}</span><i>›</i></button>`).join(''));
     // Baustellen

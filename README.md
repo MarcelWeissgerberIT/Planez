@@ -13,6 +13,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 **Spielen:** https://marcelweissgerberit.github.io/Planez/
 
 ## Features
+- 🌦️ Wettervorhersage: Die nächste Wetterlage steht fest und wird angezeigt – im Kopfbereich (→ ⛈️ 15:20), als TAF-Zeile im Radar, unter „Jetzt wichtig“ beim Manager und als Tipp für Tower und Vorfeld; Gewitter, Nebel und Schnee werden 30 Minuten vorher angekündigt
 - Isometrische, animierte Flughafenansicht mit Tag/Nacht-Zyklus, Befeuerung (Pisten-, Rollweg-, Anflug-Lauflicht), Wetter (Regen, Nebel, Gewitter), Wind & Windsack
 - Luftraum mit Radar (Sweep, Datenblöcke, Warteschleifen-Fixes, Endanflug, Konfliktwarnung/STCA)
 - ⭐ **Herausforderungen**: neun Szenarien mit festem Start und Drehbuch – Morgenwelle, Nebelsuppe (LVP), Gewitterfront mit Winddrehung und Notfall, Notfall-Schicht (Tower) · Ferienstart, Streiktag, Winterchaos (Vorfeld) · Sanierungsfall, Wachstumskurs (Manager). Einsatzbesprechung mit Zielen und Tipps, Zielleiste mit Restzeit im Spiel, Abschlusswertung mit 1–3 Sternen je Ziel, Bestwerte und Freischaltung der nächsten Stufe; überschreibt den Spielstand nicht (`node tools/scntest.mjs` spielt alle automatisch durch)

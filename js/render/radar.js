@@ -10,6 +10,8 @@ import { wakeNm } from '../sim/wake.js';
 import { atis } from '../sim/aircraft.js';
 import { qnh } from '../sim/atis.js';
 import { temperature } from '../sim/winter.js';
+import { forecastInfo } from '../sim/events.js';
+import { fmtClock } from '../util.js';
 
 // Farben der Pistenfolge (RGB)
 const SC = { land: [34, 211, 238], landClr: [165, 243, 252], dep: [245, 158, 11], depClr: [232, 121, 249] };
@@ -471,6 +473,18 @@ export class Radar {
     ctx.fillRect(6, 6, aw + 12, 18);
     ctx.fillStyle = 'rgba(134,239,172,0.95)';
     ctx.fillText(at, 12, 19);
+    // TAF-Zeile: nächste Wetterlage (ICAO-Kürzel)
+    const fc = forecastInfo(state);
+    if (fc.change && fc.at - state.time < 3 * 3600) {
+      const code = { clear: 'CAVOK', clouds: 'BKN030', rain: 'RA', fog: `FG ${fc.rvr || ''}M`.replace(' M', ''), storm: 'TSRA', snow: 'SN' }[fc.kind] || fc.kind;
+      const tf = `TAF · ab ${fmtClock(fc.at)} ${code}`;
+      const tw = ctx.measureText(tf).width;
+      const warn = fc.kind === 'storm' || fc.kind === 'fog' || fc.kind === 'snow';
+      ctx.fillStyle = 'rgba(3,20,14,0.8)';
+      ctx.fillRect(6, 27, tw + 12, 18);
+      ctx.fillStyle = warn ? 'rgba(251,191,36,0.95)' : 'rgba(134,239,172,0.75)';
+      ctx.fillText(tf, 12, 40);
+    }
 
     // Kompassrose
     ctx.strokeStyle = 'rgba(80,255,160,0.35)';

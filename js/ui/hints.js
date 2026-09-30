@@ -6,9 +6,12 @@ import { fleetSummary } from '../sim/ground.js';
 import { esc, fmtClock } from '../util.js';
 import { runwayClosed, rwyCond } from '../sim/runway.js';
 import { fuelState, FUEL } from '../sim/fuel.js';
+import { forecastInfo } from '../sim/events.js';
 
 function towerHint(s) {
   const conf = s.acs.find((a) => a.conflict);
+  const fc = forecastInfo(s);
+  if (!conf && fc.change && (fc.kind === 'fog' || fc.kind === 'storm') && fc.at - s.time < 900 && fc.at > s.time) return fc.kind === 'fog' ? `🌫️ Nebel ab ${fmtClock(fc.at)} (RVR ${fc.rvr} m) – dann gelten größere Abstände${(fc.rvr || 999) < 550 && !s.upgrades.ils3 ? ', unter CAT-I-Minimum müssen Anflüge sogar ausweichen. Jetzt noch möglichst viele landen lassen' : ''}.` : `⛈️ Gewitter ab ${fmtClock(fc.at)} – mit Böen und Windsprüngen rechnen, Anflüge nicht zu dicht staffeln.`;
   if (conf) return `⚠ Staffelung unterschritten bei <b>${esc(conf.cs)}</b>! Den Hinteren auf 160 kt bremsen oder in die Warteschleife (H) schicken.`;
   const fe = s.acs.find((a) => a.fuelEmergency && a.mode === 'air' && [PH.INBOUND, PH.HOLD].includes(a.phase));
   if (fe) return `🚨 <b>${esc(fe.cs)}</b> hat MAYDAY FUEL – sofort „Direkt FAF“ (D) und vor allen anderen landen lassen!`;
@@ -47,6 +50,9 @@ function towerHint(s) {
 }
 
 function groundHint(s) {
+  const fc = forecastInfo(s);
+  if (fc.change && fc.kind === 'storm' && fc.at - s.time < 1800 && fc.at > s.time) return `⛈️ Gewitter ab ${fmtClock(fc.at)} – dann ist das Vorfeld gesperrt. Jetzt die fast fertigen Abfertigungen abschließen und Pushbacks rausbringen.`;
+  if (fc.change && fc.kind === 'snow' && fc.at - s.time < 1800 && fc.at > s.time) return `🌨️ Schnee ab ${fmtClock(fc.at)} – dann muss jeder Abflug enteist werden. Enteisungsfahrzeuge bereithalten.`;
   const fu = fuelState(s);
   if (fu.stock < FUEL.cap * 0.1) return `⛽ Tanklager fast leer (${Math.round(fu.stock)} t) – Tankwagen können kaum nachfüllen. Die Betankungen der frühesten Abflüge zuerst bedienen.`;
   const late = s.acs.find((a) => a.phase === PH.STAND && a.ta && s.rots[a.rot] && s.rots[a.rot].tobt > s.rots[a.rot].std + 240);
