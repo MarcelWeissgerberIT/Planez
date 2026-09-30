@@ -16,6 +16,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 - Isometrische, animierte Flughafenansicht mit Tag/Nacht-Zyklus, Befeuerung (Pisten-, Rollweg-, Anflug-Lauflicht), Wetter (Regen, Nebel, Gewitter), Wind & Windsack
 - Luftraum mit Radar (Sweep, Datenblöcke, Warteschleifen-Fixes, Endanflug, Konfliktwarnung/STCA)
 - **Entscheidungen**: Ereigniskarten je Rolle mit Optionen und echten Folgen (Vorfeld: Gepäckband, fehlender Passagier, Catering, Kerosin ausgelaufen, Blitzwarnung · Tower: medizinischer Notfall, Vogelschwarm · Manager: Rabattforderung, Fluglärm-Protest, Gewerkschaft, Kerosin-Festpreis, Festival-Charter, Terminal-Mieter); aufsteigende Rückmeldungen auf der Karte (✓ pünktlich, Erlöse, Verspätung)
+- Klangkulisse (synthetisch, WebAudio): Triebwerke je nach Nähe zur Kamera, Donnern beim Startlauf, Wind nach Windstärke, Regen, Donner bei Blitzen, tagsüber Vögel, nachts Grillen (abschaltbar in den Einstellungen)
 - 🎬 Kino-Modus (`K`): automatische Kamerafahrten zu Landungen, Starts, Durchstarts, Abfertigung, Baustellen, Landseite und Nachtbetrieb, Letterbox und Bildunterschrift – ideal für den Beobachter
 - Manager: Nachrichten-Ticker (Rekorde, Wetter, Kerosinpreis, Airlines, Baustellen), Passagierstimmen mit Sternen (zeigen, wo es hakt: Parkplatz, Sicherheitskontrolle, Shops …), Trendkurven über die letzten 14 Tage
 - Vorfeld: Tafel nach Zeitpuffer sortiert mit Zeitleiste bis TOBT und voraussichtlichem Ende, „Alles bedienen“ (`D`)

@@ -20,6 +20,7 @@ import { initPTT } from './ui/ptt.js';
 import { DecisionCard } from './ui/decision.js';
 import { NewsTicker } from './ui/ticker.js';
 import { Cinema } from './ui/cinema.js';
+import { soundscape } from './soundscape.js';
 import { command } from './sim/atc.js';
 import { dispatch, assignStand, standFits, standFree } from './sim/ground.js';
 import * as EC from './sim/economy.js';
@@ -126,7 +127,7 @@ function wireMenu() {
     const density = Number($('#inp-density').value) || 1;
     const st = newGame({ role, name, density });
     const pr = loadPrefs();
-    Object.assign(st.settings, { sound: pr.sound, tts: pr.tts, glossary: pr.glossary, hints: pr.hints });
+    Object.assign(st.settings, { sound: pr.sound, ambience: pr.ambience, tts: pr.tts, glossary: pr.glossary, hints: pr.hints });
     startGame(st);
     if (!localStorage.getItem('planez_help_seen')) {
       try {
@@ -164,6 +165,7 @@ function syncVoice() {
 game.syncVoice = syncVoice;
 
 function startGame(state) {
+  soundscape.unlock();
   game.state = state;
   game.ui.sel = null;
   game.ui.selected = null;
@@ -283,6 +285,8 @@ function loop(ts) {
   else game.cam.update(dt);
   keyPan(dt);
   game.map.render(s, dt, game.ui);
+  soundscape.on = !!s.settings.sound && s.settings.ambience !== false && !document.hidden;
+  soundscape.update(s, game.cam, game.map, dt, !s.speed || modalOpen());
   if (game.ui.radarOn) game.radar.render(s, dt, game.ui);
   game.uiTimer -= dt;
   if (game.uiTimer <= 0) {
@@ -730,6 +734,7 @@ function wireGame() {
 
   // Tastatur
   window.addEventListener('keydown', onKey);
+  window.addEventListener('pointerdown', () => soundscape.unlock(), { once: true });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && game.state && game.running) saveGame(game.state);
   });
@@ -945,16 +950,16 @@ function showRoleModal() {
 
 function showGameMenu() {
   const s = game.state;
-  const prefsSync = () => savePrefs({ sound: !!s.settings.sound, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false });
+  const prefsSync = () => savePrefs({ sound: !!s.settings.sound, ambience: s.settings.ambience !== false, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false });
   showPauseMenu(game, {
-    settings: () => ({ sound: !!s.settings.sound, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false, labels: game.ui.labels }),
+    settings: () => ({ sound: !!s.settings.sound, ambience: s.settings.ambience !== false, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false, labels: game.ui.labels }),
     toggle: (k) => {
       if (k === 'labels') {
         game.ui.labels = !game.ui.labels;
         $('#t-labels').classList.toggle('on', game.ui.labels);
         return;
       }
-      s.settings[k] = k === 'hints' || k === 'glossary' ? s.settings[k] === false : !s.settings[k];
+      s.settings[k] = k === 'hints' || k === 'glossary' || k === 'ambience' ? s.settings[k] === false : !s.settings[k];
       setSound(s.settings.sound);
       syncVoice();
       setGlossaryEnabled(s.settings.glossary !== false);
