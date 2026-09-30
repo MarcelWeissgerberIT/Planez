@@ -19,6 +19,7 @@ import { voice } from './voice.js';
 import { initPTT } from './ui/ptt.js';
 import { DecisionCard } from './ui/decision.js';
 import { NewsTicker } from './ui/ticker.js';
+import { Cinema } from './ui/cinema.js';
 import { command } from './sim/atc.js';
 import { dispatch, assignStand, standFits, standFree } from './sim/ground.js';
 import * as EC from './sim/economy.js';
@@ -278,7 +279,8 @@ function loop(ts) {
   if (!game.running || !game.state) return;
   const s = game.state;
   if (!modalOpen() || s.speed === 0) run(s, dt);
-  game.cam.update(dt);
+  if (game.cinema && game.cinema.on) game.cinema.update(dt);
+  else game.cam.update(dt);
   keyPan(dt);
   game.map.render(s, dt, game.ui);
   if (game.ui.radarOn) game.radar.render(s, dt, game.ui);
@@ -599,6 +601,10 @@ function wireGame() {
   $('#t-labels').classList.add('on');
   $('#t-radar').addEventListener('click', () => toggleRadar(!game.ui.radarOn));
   $('#t-help').addEventListener('click', () => showHelp(false));
+  $('#t-cine').addEventListener('click', () => {
+    if (!game.cinema) game.cinema = new Cinema(game);
+    game.cinema.toggle();
+  });
   $('#t-gloss').addEventListener('click', () => showHelp(false, 'gloss'));
   $('#btn-rank').addEventListener('click', showGoals);
   // Echter Funk: Lautsprecher-Schalter, Sendelampe, hervorgehobene Zeile, Sprechtaste
@@ -748,6 +754,24 @@ function setSpeed(v) {
 }
 
 function onKey(e) {
+  if (game.cinema && game.cinema.on) {
+    if (e.key === 'Escape' || e.key === 'k' || e.key === 'K') {
+      e.preventDefault();
+      return game.cinema.stop();
+    }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      return game.cinema.next(true);
+    }
+    if (e.key === ' ') {
+      e.preventDefault();
+      return;
+    }
+  }
+  if ((e.key === 'k' || e.key === 'K') && game.state && game.running && !modalOpen() && !(e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) {
+    if (!game.cinema) game.cinema = new Cinema(game);
+    return game.cinema.toggle();
+  }
   if (!game.running || !game.state) return;
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
   const s = game.state;
@@ -988,6 +1012,7 @@ function helpGuide(first) {
     <h3>🎯 Ziele &amp; Rang</h3>
     <p>Jede Station hat drei Ziele (🏅 oben rechts). Erreichte Ziele bringen Prämie und XP; der Flughafen steigt vom Regionalflughafen bis zum Weltflughafen auf – höhere Ränge ziehen mehr Airlines an.</p>
     <h3>Steuerung</h3>
+    <p><b>🎬 Kino-Modus</b> (<kbd>K</kbd> oder 🎬): Die Kamera fährt selbst zu Landungen, Starts, Durchstarts, Abfertigungen, Baustellen und zur Landseite – mit Letterbox und Bildunterschrift. ← → nächste Szene, <kbd>K</kbd>/<kbd>Esc</kbd> beendet.</p>
     <p><b>Entscheidungen:</b> Ab und zu kommt eine Ereigniskarte (links) – Gepäckband kaputt, fehlender Passagier, medizinischer Notfall, Vogelschwarm, Airline will Rabatt, Gewerkschaft, Festival-Charter … Jede Option hat echte Folgen. Ohne Antwort gilt nach Ablauf die erste Option. Auf der Karte zeigen aufsteigende Texte, was gerade passiert (✓ pünktlich, +Erlös, Verspätung).</p>
     <p>Karte ziehen = verschieben · Mausrad/Pinch = Zoom · Klick = auswählen · <kbd>Leertaste</kbd> Pause · <kbd>1</kbd>–<kbd>5</kbd> Tempo (1×, 2×, 5×, 10×, 20× – bei <b>10×</b> dauert ein Tag etwa <b>10 Minuten</b>; Manager und Beobachter starten mit 10×) · <kbd>B</kbd> Beschriftungen · Pfeiltasten scrollen.</p>`;
 }

@@ -851,3 +851,23 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .card.news.good { border-color: rgba(74,222,128,.35); }
 .card.news.bad { border-color: rgba(248,113,113,.4); }
 .card.news.warn { border-color: rgba(251,191,36,.4); }
+
+/* Kino-Modus */
+#game.cinema #hud, #game.cinema #panel, #game.cinema #panel-toggle, #game.cinema #log-wrap, #game.cinema #radar-wrap, #game.cinema #rail, #game.cinema #map-ctrls, #game.cinema #info, #game.cinema #ticker, #game.cinema #hint, #game.cinema #decision, #game.cinema #toasts { display: none !important; }
+#cinema { position: absolute; inset: 0; z-index: 40; pointer-events: auto; cursor: pointer; }
+#cinema.hidden { display: none; }
+.cn-bar { position: absolute; left: 0; right: 0; height: 9vh; background: #000; }
+.cn-bar.top { top: 0; animation: cn-top .8s ease-out; }
+.cn-bar.bot { bottom: 0; animation: cn-bot .8s ease-out; }
+@keyframes cn-top { from { transform: translateY(-100%); } }
+@keyframes cn-bot { from { transform: translateY(100%); } }
+.cn-cap { position: absolute; left: 5vw; bottom: calc(9vh + 26px); font-family: var(--mm-font, var(--sans)); color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,.8); opacity: 0; }
+.cn-cap.in { animation: cn-cap 7s ease-out forwards; }
+@keyframes cn-cap { 0% { opacity: 0; transform: translateX(-18px); } 8% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+.cn-k { font: 800 12px var(--mm-title, var(--sans)); letter-spacing: .35em; color: #38d6f5; }
+.cn-t { font: 800 clamp(22px, 3.2vw, 40px) var(--mm-title, var(--sans)); letter-spacing: .04em; margin-top: 4px; }
+.cn-s { font-size: clamp(13px, 1.3vw, 17px); color: #cbd5e1; margin-top: 2px; }
+.cn-brand { position: absolute; right: 4vw; top: calc(9vh + 18px); font: 800 12px var(--mm-title, var(--sans)); letter-spacing: .3em; color: rgba(255,255,255,.75); text-shadow: 0 1px 6px rgba(0,0,0,.7); }
+.cn-brand::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; margin-right: 8px; animation: pulse 1.2s infinite; vertical-align: 1px; }
+.cn-help { position: absolute; right: 4vw; bottom: calc(9vh - 26px); font-size: 11px; color: rgba(255,255,255,.4); }
+.dock-open.cine { margin-top: 6px; background: linear-gradient(135deg, rgba(239,68,68,.16), rgba(12,20,34,.7)); border-color: rgba(239,68,68,.45); }
