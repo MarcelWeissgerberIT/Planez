@@ -47,6 +47,7 @@ import { scenarioById, applyScenario, scenarioListeners } from './sim/scenarios.
 import { ScenarioUi } from './ui/scenarioUi.js';
 import { StandPlan } from './ui/standPlan.js';
 import { scoreState } from './sim/score.js';
+import { keysHtml } from './ui/keys.js';
 import { RankUp } from './ui/rankUp.js';
 
 const game = {
@@ -119,6 +120,7 @@ const LOAD_TIPS = [
   'Wusstest du? Das Martinshorn der deutschen Feuerwehr spielt eine Quarte – „Tatü-tata“.',
   'Tipp: Mit <kbd>V</kbd> (gedrückt halten) funkst du im Tower selbst – auf Englisch, wie echte Lotsen.',
   'Tipp: 📷 bzw. <kbd>Umschalt</kbd>+<kbd>P</kbd> öffnet den Fotomodus mit Filtern und PNG-Export.',
+  'Tipp: <kbd>?</kbd> zeigt im Spiel alle Tastenkürzel deiner Station.',
 ];
 
 async function boot() {
@@ -986,6 +988,9 @@ function onKey(e) {
   if (/^[0-5]$/.test(e.key)) {
     setSpeed(SPEEDS[Number(e.key)]);
     return;
+  }
+  if (e.key === '?') {
+    return openModal(keysHtml(s.role), (box) => box.querySelector('[data-close-modal]').addEventListener('click', closeModal));
   }
   if (e.key === '+' || e.key === '=') return game.cam.zoomAt(1.2, game.cam.w / 2, game.cam.h / 2);
   if (e.key === '-') return game.cam.zoomAt(0.83, game.cam.w / 2, game.cam.h / 2);

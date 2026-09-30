@@ -1135,3 +1135,9 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 @media (max-width: 760px) { .score-chip { font-size: 11px; padding: 2px 6px; } }
 .scn-pts { margin: 10px 0 0; font-size: 15px; color: #fde68a; font-family: var(--mono); }
 .scn-pts b { color: var(--good); font-family: var(--sans); }
+.keys-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 6px; }
+.kh { font-size: 11px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+.kr { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid rgba(148,163,184,.1); font-size: 13px; }
+.kr span { white-space: nowrap; }
+.kr em { font-style: normal; color: #cbd5e1; text-align: right; }
+@media (max-width: 700px) { .keys-cols { grid-template-columns: 1fr; } }

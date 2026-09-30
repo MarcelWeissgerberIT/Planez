@@ -64,7 +64,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 
 ## Steuerung
 - 🎥 **Folgen** auf der Info-Karte eines Flugzeugs oder Fahrzeugs: Die Kamera begleitet es weich über den ganzen Umlauf (Karte ziehen oder erneut klicken beendet)
-- Karte ziehen = verschieben · Mausrad / Pinch = Zoom · Klick = auswählen
+- Karte ziehen = verschieben · Mausrad / Pinch = Zoom · Klick = auswählen · `?` Tastenkürzel-Übersicht
 - `Leertaste` Pause · `1`–`5` Tempo (1×, 2×, 5×, 10×, 20×; bei 10× dauert ein Spieltag ca. 10 Minuten, Manager/Beobachter starten mit 10×) · `B` Beschriftungen · `N`/`Tab` nächste Anfrage · `F` Radar groß · `W`/`S` Flug in der Pistenfolge vor/zurück (auch ◀ ▶ oder Karte ziehen)
 - Markieren: `M` (Farbe weiterschalten, `Shift`+`M` entfernen), ⚑ auf dem Flugstreifen oder Rechtsklick / langes Drücken auf ein Flugzeug in Karte bzw. Radar – mit Farbe und Notiz, sichtbar auf Radar, Karte und Streifen („⚑ Filter“ im Radar)
 - Vorfeld: `D` alles bedienen · `G` Positionsplan
