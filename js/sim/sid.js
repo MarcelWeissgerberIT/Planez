@@ -3,7 +3,7 @@
 import { CITIES } from '../config.js';
 import { wakeDepSec } from './wake.js';
 
-export const SID_SAME_SEC = 120; // gleiche Abflugroute: 2 Minuten zwischen zwei Starts
+export const SID_SAME_SEC = 100; // gleiche Abflugroute: 100 s zwischen zwei Starts (statt 75 s)
 export const SIDS = { NOLTA: 'Nordost', SUDEN: 'Südost', RIMOS: 'Südwest', WELDA: 'Nordwest' };
 export function sidOfBrg(brg) {
   const b = ((brg % 360) + 360) % 360;

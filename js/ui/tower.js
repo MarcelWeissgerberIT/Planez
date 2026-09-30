@@ -393,7 +393,7 @@ export class TowerPanel {
     else if (land && ac.mode === 'air') eta = `${distToLand(ac).toFixed(0)} NM`;
     else if (ac.stand) eta = `P${ac.stand}`;
     const numB = num ? `<span class="c-num" style="background:${col}">${num}</span>` : `<span class="c-num off">${g === 'q' ? '·' : g === 'gnd' || g === 'apron' ? '⌂' : '↗'}</span>`;
-    const sidTag = lane === 'dep' && ac.sid ? ` <span class="sid sid-${ac.sid}" title="Abflugroute ${ac.sid} (${SIDS[ac.sid]}) – gleiche Route braucht 2 min Abstand">↗${ac.sid}</span>` : '';
+    const sidTag = lane === 'dep' && ac.sid ? ` <span class="sid sid-${ac.sid}" title="Abflugroute ${ac.sid} (${SIDS[ac.sid]}) – gleiche Route braucht 100 s Abstand statt 75 s">↗${ac.sid}</span>` : '';
     const top = `${numB}<span class="c-cs">${flagButton(ac)}${esc(ac.cs)}</span><small class="c-t">${ac.type}/${wakeTag(t.wake)}${ac.emergency ? ' · <b class="bad">7700</b>' : ''}${ac.nordo ? ' · <b class="bad" title="Funkausfall – nur Lichtsignale">7600</b>' : ''}</small><span class="c-eta">${eta}</span>`;
     // Lage
     let where = '';
