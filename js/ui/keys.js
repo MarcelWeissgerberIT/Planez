@@ -10,6 +10,7 @@ const COMMON = [
   ['B', 'Beschriftungen an/aus'],
   ['M · Umschalt+M', 'Flugzeug markieren / Markierung weg'],
   ['K', 'Kino-Modus'],
+  ['I', 'Anzeigetafel Abflug/Ankunft'],
   ['Umschalt+P', 'Fotomodus'],
   ['Esc', 'Auswahl aufheben · Pausenmenü'],
   ['?', 'diese Übersicht'],

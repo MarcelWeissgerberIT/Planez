@@ -48,6 +48,7 @@ import { ScenarioUi } from './ui/scenarioUi.js';
 import { StandPlan } from './ui/standPlan.js';
 import { scoreState } from './sim/score.js';
 import { keysHtml } from './ui/keys.js';
+import { Fids } from './ui/fids.js';
 import { RankUp } from './ui/rankUp.js';
 
 const game = {
@@ -405,6 +406,7 @@ function loop(ts) {
     if (game.tutorial) game.tutorial.update();
     if (game.scn) game.scn.update();
     if (game.splan) game.splan.update(s);
+    if (game.fids) game.fids.update();
     watchAlerts(s);
     game.hintT = (game.hintT || 0) + 0.2;
     if (game.hintT >= 1.2) {
@@ -776,6 +778,10 @@ function wireGame() {
   $('#t-labels').classList.add('on');
   $('#t-radar').addEventListener('click', () => toggleRadar(!game.ui.radarOn));
   $('#t-help').addEventListener('click', () => showHelp(false));
+  $('#t-fids').addEventListener('click', () => {
+    if (!game.fids) game.fids = new Fids(game);
+    game.fids.toggle();
+  });
   $('#t-photo').addEventListener('click', () => {
     if (!game.photo) game.photo = new PhotoMode(game);
     game.photo.toggle();
@@ -989,6 +995,10 @@ function onKey(e) {
   if (/^[0-5]$/.test(e.key)) {
     setSpeed(SPEEDS[Number(e.key)]);
     return;
+  }
+  if ((e.key === 'i' || e.key === 'I') && !e.ctrlKey && !e.metaKey) {
+    if (!game.fids) game.fids = new Fids(game);
+    return game.fids.toggle();
   }
   if (e.key === '?') {
     return openModal(keysHtml(s.role), (box) => box.querySelector('[data-close-modal]').addEventListener('click', closeModal));

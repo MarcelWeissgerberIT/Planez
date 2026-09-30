@@ -65,6 +65,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 - Speichern im Browser, Funkprotokoll (englische Phraseologie, optional per Sprachausgabe)
 
 ## Steuerung
+- 🪧 Anzeigetafel (`I` oder 🪧): Abflüge und Ankünfte im Fallblatt-Stil mit Umblätter-Animation und Klackern – Zeit, Flug, Ziel/Herkunft, Position und Status (Zum Gate, Boarding, Gate geschlossen, Neue Zeit, Im Anflug, Gelandet …); Klick auf eine Zeile wählt das Flugzeug
 - 🎥 **Folgen** auf der Info-Karte eines Flugzeugs oder Fahrzeugs: Die Kamera begleitet es weich über den ganzen Umlauf (Karte ziehen oder erneut klicken beendet)
 - Karte ziehen = verschieben · Mausrad / Pinch = Zoom · Klick = auswählen · `?` Tastenkürzel-Übersicht
 - `Leertaste` Pause · `1`–`5` Tempo (1×, 2×, 5×, 10×, 20×; bei 10× dauert ein Spieltag ca. 10 Minuten, Manager/Beobachter starten mit 10×) · `B` Beschriftungen · `N`/`Tab` nächste Anfrage · `F` Radar groß · `W`/`S` Flug in der Pistenfolge vor/zurück (auch ◀ ▶ oder Karte ziehen)

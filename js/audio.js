@@ -92,6 +92,10 @@ export const sfx = {
     tone(880, 0.06, 'triangle', 0.035);
     tone(1320, 0.1, 'triangle', 0.03, 0.05);
   },
+  // Fallblatt-Anzeige: schnelles Klackern
+  flap(n = 3) {
+    for (let i = 0; i < n * 5; i++) tone(2400 + Math.random() * 1600, 0.012, 'square', 0.008, i * 0.028 + Math.random() * 0.01);
+  },
   // kleine Fanfare (Dur-Arpeggio mit Schlussakkord)
   fanfare() {
     [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.22, 'triangle', 0.06, i * 0.12));
