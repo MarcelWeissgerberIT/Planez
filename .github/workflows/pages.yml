@@ -1,4 +1,6 @@
-# Veröffentlicht den Stand von main auf dem Branch gh-pages (Quelle von GitHub Pages)
+# Veröffentlicht den Stand von main auf GitHub Pages.
+# Funktioniert mit beiden Pages-Quellen: "GitHub Actions" (deploy-pages)
+# und "Deploy from branch: gh-pages" (Spiegel-Branch).
 name: Deploy GitHub Pages
 
 on:
@@ -8,17 +10,33 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  publish:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: main -> gh-pages
+      - name: Spiegel main -> gh-pages
         run: git push --force origin HEAD:refs/heads/gh-pages
+      - name: Seite zusammenstellen
+        run: |
+          mkdir -p _site
+          cp -r index.html css js assets .nojekyll README.md _site/
+      - uses: actions/configure-pages@v5
+        continue-on-error: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

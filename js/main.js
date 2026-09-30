@@ -127,6 +127,10 @@ function startGame(state) {
   if (narrow) {
     $('#panel').classList.add('collapsed');
     $('#panel-toggle').classList.add('collapsed');
+    $('#panel-toggle').textContent = '⟨';
+    $('#map-ctrls').classList.add('full');
+    $('#log-wrap').classList.add('min');
+    $('#log-toggle').textContent = '+';
   }
   applyRole();
   game.running = true;
