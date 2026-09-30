@@ -65,6 +65,7 @@ const game = {
     if (!id) {
       this.ui.sel = null;
       this.ui.selected = null;
+      this.ui.follow = null;
       return;
     }
     const ac = s.acs.find((a) => a.id === id);
@@ -347,7 +348,10 @@ function loop(ts) {
     }
   }
   if (game.cinema && game.cinema.on) game.cinema.update(dt);
-  else game.cam.update(dt);
+  else {
+    followCam(s, dt);
+    game.cam.update(dt);
+  }
   keyPan(dt);
   game.map.render(s, dt, game.ui);
   soundscape.on = !!s.settings.sound && s.settings.ambience !== false && !document.hidden;
@@ -384,6 +388,23 @@ function loop(ts) {
     game.saveTimer = 0;
     saveGame(s);
   }
+}
+
+// Kamera folgt einem Flugzeug oder Fahrzeug (weich, ohne Ruckeln)
+function followCam(s, dt) {
+  const f = game.ui.follow;
+  if (!f) return;
+  const o = f.type === 'veh' ? s.vehicles.find((v) => v.id === f.id) : s.acs.find((a) => a.id === f.id);
+  if (!o) {
+    game.ui.follow = null;
+    return;
+  }
+  if (f.type === 'ac' && o.mode !== 'map') return;
+  const cam = game.cam;
+  const k = 1 - Math.pow(0.02, dt);
+  cam.x += (o.x - cam.x) * k;
+  cam.y += (o.y - cam.y) * k;
+  cam.tx = null;
 }
 
 // ---------------- HUD ----------------
@@ -588,7 +609,10 @@ function wireGame() {
         down.moved = true;
         canvas.classList.add('dragging');
       }
-      if (down.moved) game.cam.panBy(dx, dy);
+      if (down.moved) {
+        game.cam.panBy(dx, dy);
+        game.ui.follow = null;
+      }
       down.lx = e.offsetX;
       down.ly = e.offsetY;
       return;
@@ -730,6 +754,14 @@ function wireGame() {
   info.addEventListener('click', (e) => {
     const s = game.state;
     if (e.target.closest('[data-close]')) return game.select(null);
+    const fo = e.target.closest('[data-follow]');
+    if (fo) {
+      const [type, id] = fo.dataset.follow.split(':');
+      game.ui.follow = game.ui.follow && game.ui.follow.id === id ? null : { type, id };
+      if (game.ui.follow) toast('🎥 Kamera folgt – Karte ziehen oder erneut klicken beendet', 'info', 2200);
+      info._html = null;
+      return;
+    }
     const c = e.target.closest('[data-cmd]');
     if (c) {
       const ac = s.acs.find((a) => a.id === c.dataset.ac);
@@ -1120,6 +1152,7 @@ function helpGuide(first) {
     <h3>⭐ Herausforderungen</h3>
     <p>Im Hauptmenü unter <b>Herausforderungen</b>: kurze Einsätze mit festem Start – Morgenwelle, Nebelsuppe, Gewitterfront, Notfall-Schicht (Tower), Ferienstart, Streiktag, Winterchaos (Vorfeld), Sanierungsfall und Wachstumskurs (Manager). Oben zeigt eine Leiste Restzeit und Ziele; jedes Ziel bringt 1–3 Sterne, die Gesamtwertung ist der Durchschnitt (ein verfehltes Ziel = nicht geschafft). Ein Stern schaltet die nächste Herausforderung der Station frei. Herausforderungen überschreiben deinen Spielstand nicht.</p>
     <h3>Steuerung</h3>
+    <p><b>🎥 Folgen:</b> Auf der Info-Karte eines Flugzeugs oder Fahrzeugs lässt „Folgen“ die Kamera mitfahren – vom Endanflug über die Abfertigung bis zum Start. Karte ziehen beendet das Folgen.</p>
     <p><b>🎬 Kino-Modus</b> (<kbd>K</kbd> oder 🎬): Die Kamera fährt selbst zu Landungen, Starts, Durchstarts, Abfertigungen, Baustellen und zur Landseite – mit Letterbox und Bildunterschrift. ← → nächste Szene, <kbd>K</kbd>/<kbd>Esc</kbd> beendet.</p>
     <p><b>Entscheidungen:</b> Ab und zu kommt eine Ereigniskarte (links) – Gepäckband kaputt, fehlender Passagier, medizinischer Notfall, Vogelschwarm, Airline will Rabatt, Gewerkschaft, Festival-Charter … Jede Option hat echte Folgen. Ohne Antwort gilt nach Ablauf die erste Option. Auf der Karte zeigen aufsteigende Texte, was gerade passiert (✓ pünktlich, +Erlös, Verspätung).</p>
     <p>Karte ziehen = verschieben · Mausrad/Pinch = Zoom · Klick = auswählen · <kbd>Leertaste</kbd> Pause · <kbd>1</kbd>–<kbd>5</kbd> Tempo (1×, 2×, 5×, 10×, 20× – bei <b>10×</b> dauert ein Tag etwa <b>10 Minuten</b>; Manager und Beobachter starten mit 10×) · <kbd>B</kbd> Beschriftungen · Pfeiltasten scrollen.</p>`;

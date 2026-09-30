@@ -70,7 +70,9 @@ export function renderInfo(el, state, ui) {
       const d = dep ? Math.round(((rot.offBlock || state.time) - rot.std) / 60) : rot.arrDelay;
       delay = d > 0 ? `+${d} min` : 'pünktlich';
     }
-    h += `<div class="i-head"><div><div class="i-cs"><i class="al-dot" style="background:${al.color}"></i>${esc(ac.cs)}${ac.emergency ? ' 🚨' : ''}</div><div class="i-sub">${al.name} · ${t.name} · Wirbelschleppe ${wakeTag(t.wake)} ${WAKE_DE[t.wake]}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
+    const fol = ui.follow && ui.follow.id === ac.id;
+    h += `<div class="i-head"><div><div class="i-cs"><i class="al-dot" style="background:${al.color}"></i>${esc(ac.cs)}${ac.emergency ? ' 🚨' : ''}</div><div class="i-sub">${al.name} · ${t.name} · Wirbelschleppe ${wakeTag(t.wake)} ${WAKE_DE[t.wake]}</div></div><button class="mini i-follow ${fol ? 'on' : ''}" data-follow="ac:${ac.id}" title="Kamera folgt diesem Flugzeug (auch über den ganzen Umlauf)">🎥 ${fol ? 'folgt' : 'Folgen'}</button><button class="icon-btn i-close" data-close>✕</button></div>`;
+    if (fol && ac.mode === 'air') h += `<div class="i-sub" style="margin:2px 0 6px">🎥 Im Luftraum – die Kamera übernimmt, sobald ${esc(ac.cs)} im Endanflug auf der Karte erscheint.</div>`;
     h += `<div class="i-grid">`;
     h += `<div><span>Status</span><b>${PHASE_DE[ac.phase] || ac.phase}</b></div>`;
     h += `<div><span>Strecke</span><b>${esc(acRoute(state, ac))}</b></div>`;
@@ -118,7 +120,8 @@ export function renderInfo(el, state, ui) {
     const v = state.vehicles.find((x) => x.id === sel.id);
     if (!v) return;
     const job = v.job ? state.acs.find((a) => a.id === v.job.ac) : null;
-    h += `<div class="i-head"><div><div class="i-cs">${esc(v.name)}</div><div class="i-sub">${VEH_TYPES[v.type].name}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
+    const fol = ui.follow && ui.follow.id === v.id;
+    h += `<div class="i-head"><div><div class="i-cs">${esc(v.name)}</div><div class="i-sub">${VEH_TYPES[v.type].name}</div></div><button class="mini i-follow ${fol ? 'on' : ''}" data-follow="veh:${v.id}">🎥 ${fol ? 'folgt' : 'Folgen'}</button><button class="icon-btn i-close" data-close>✕</button></div>`;
     h += `<div class="i-grid"><div><span>Status</span><b>${v.brokenUntil > state.time ? 'defekt – in Reparatur' : VST[v.st] || v.st}</b></div><div><span>Einsatz</span><b>${job ? esc(job.cs) + (job.stand ? ' · P' + job.stand : '') : '—'}</b></div>${v.type === 'fuel' ? `<div><span>Ladung</span><b>${Math.round(v.load || 0)} / ${FUEL.truckCap} t</b></div>` : ''}</div>`;
   } else if (sel.type === 'building') {
     const b = BUILDINGS.find((x) => x.id === sel.id);

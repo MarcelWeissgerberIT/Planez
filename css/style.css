@@ -1017,3 +1017,6 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .rm-tip div.o { color: #fbbf24; }
 .rm-tip div.n { color: var(--muted); }
 .rm-wrap { column-span: all; }
+.i-follow { margin-left: auto; white-space: nowrap; }
+.i-follow + .i-close { margin-left: 6px; }
+.i-follow.on { background: color-mix(in srgb, var(--accent) 30%, transparent); border-color: var(--accent); color: #fff; }
