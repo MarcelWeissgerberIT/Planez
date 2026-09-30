@@ -473,6 +473,14 @@ export class Radar {
     ctx.fillRect(6, 6, aw + 12, 18);
     ctx.fillStyle = 'rgba(134,239,172,0.95)';
     ctx.fillText(at, 12, 19);
+    if (state.windshear) {
+      const ws = `WS ALERT ${state.rwy}`;
+      const blink = Math.floor(performance.now() / 500) % 2;
+      ctx.fillStyle = blink ? 'rgba(127,29,29,0.9)' : 'rgba(60,10,10,0.85)';
+      ctx.fillRect(aw + 24, 6, ctx.measureText(ws).width + 12, 18);
+      ctx.fillStyle = '#fecaca';
+      ctx.fillText(ws, aw + 30, 19);
+    }
     // TAF-Zeile: nächste Wetterlage (ICAO-Kürzel)
     const fc = forecastInfo(state);
     if (fc.change && fc.at - state.time < 3 * 3600) {

@@ -1,7 +1,8 @@
 // Wetter, Wind und Zufallsereignisse
 import { rand, randRange, randInt, pick, pickWeighted, hourOf, clamp, degNorm, fmtClock } from '../util.js';
 import { log, notify, radio } from './messages.js';
-import { spawnSpecial, PH, divert } from './aircraft.js';
+import { spawnSpecial, PH, divert, goAround } from './aircraft.js';
+import * as AS from './airspace.js';
 import { VEH_TYPES, AIRLINES } from '../config.js';
 import { command } from './atc.js';
 import { fodEvent } from './runway.js';
@@ -72,6 +73,30 @@ export function updateEvents(state, dt) {
   for (const c of wx.cells || []) {
     c.x += Math.sin((state.wind.dir + 180) * Math.PI / 180) * 0.004 * dt;
     c.y -= Math.cos((state.wind.dir + 180) * Math.PI / 180) * 0.004 * dt;
+  }
+  // Zelle nahe der Landeschwelle: Windscherung im kurzen Endanflug, manche Anflüge starten durch
+  state.wsTimer = (state.wsTimer || 0) - dt;
+  if (state.wsTimer <= 0) {
+    state.wsTimer = 5;
+    const thr = AS.THR[state.rwy];
+    const was = state.windshear;
+    state.windshear = !!(thr && (wx.cells || []).some((c) => Math.hypot(c.x - thr.x, c.y - thr.y) < c.r + 3.5));
+    if (state.windshear && !was) {
+      radio(state, 'TWR', `All stations, windshear reported on final runway ${state.rwy}.`, 'atc');
+      notify(state, `🌪️ Windscherung im Endanflug ${state.rwy} – Anflüge können durchstarten. Pistenwechsel erwägen.`, 'warn');
+    }
+    if (state.windshear) {
+      for (const ac of state.acs) {
+        if (ac.mode !== 'air' || ac.phase !== PH.APPROACH || ac.wsChecked || ac.emergency) continue;
+        const d = AS.distToThr(ac.pos, ac.rwy);
+        if (d < 0 || d > 4 || Math.abs(ac.pos.y) > 1.5) continue; // nur im kurzen Endanflug
+        ac.wsChecked = true;
+        if (rand(state) < 0.3) {
+          radio(state, ac.cs, `${ac.cs}, windshear, going around.`);
+          goAround(state, ac, 'Windscherung');
+        }
+      }
+    }
   }
   // dichter Nebel ohne CAT III: Anflüge warten eine Weile, dann weichen sie aus
   if (belowMinima(state)) {

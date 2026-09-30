@@ -10,6 +10,10 @@ import { forecastInfo } from '../sim/events.js';
 
 function towerHint(s) {
   const conf = s.acs.find((a) => a.conflict);
+  if (!conf && s.windshear) {
+    const other = s.rwy === '27' ? '09' : '27';
+    return `🌪️ Windscherung im Endanflug ${s.rwy} (Gewitterzelle nahe der Schwelle, WS ALERT im Radar) – Anflüge starten teils durch. Betriebsrichtung ${other} prüfen oder Anflüge in der Warteschleife halten, bis die Zelle weiterzieht.`;
+  }
   const fc = forecastInfo(s);
   if (!conf && fc.change && (fc.kind === 'fog' || fc.kind === 'storm') && fc.at - s.time < 900 && fc.at > s.time) return fc.kind === 'fog' ? `🌫️ Nebel ab ${fmtClock(fc.at)} (RVR ${fc.rvr} m) – dann gelten größere Abstände${(fc.rvr || 999) < 550 && !s.upgrades.ils3 ? ', unter CAT-I-Minimum müssen Anflüge sogar ausweichen. Jetzt noch möglichst viele landen lassen' : ''}.` : `⛈️ Gewitter ab ${fmtClock(fc.at)} – mit Böen und Windsprüngen rechnen, Anflüge nicht zu dicht staffeln.`;
   if (conf) return `⚠ Staffelung unterschritten bei <b>${esc(conf.cs)}</b>! Den Hinteren auf 160 kt bremsen oder in die Warteschleife (H) schicken.`;
