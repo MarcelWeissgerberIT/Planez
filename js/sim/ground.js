@@ -132,6 +132,7 @@ export function efficiency(state) {
   const needed = 10 + 2.2 * state.vehicles.length;
   let e = clamp(state.staff / needed, 0.45, 1.15);
   if (state.strikeUntil > state.time) e *= 0.6;
+  if (state.moraleUntil > state.time) e *= 1.1;
   const h = hourOf(state.time);
   if ((h < 6 || h > 20.5) && state.upgrades.apronLights) e *= 1.15;
   return e;
@@ -148,7 +149,7 @@ function depsDone(ta, task) {
 
 export function updateGround(state, dt) {
   const eff = efficiency(state);
-  const storm = state.weather.kind === 'storm';
+  const storm = state.weather.kind === 'storm' || state.rampClosedUntil > state.time;
   state.groundEff = eff;
   // Brücken animieren
   for (const st of state.stands) {
@@ -195,7 +196,7 @@ export function updateGround(state, dt) {
         if (!v) {
           task.st = 'ready';
           task.veh = null;
-        } else if (!storm) {
+        } else if (!storm && !(task.pausedUntil > state.time)) {
           const rate = (task.uplift / Math.max(30, task.dur)) * eff;
           const q = Math.min(rate * dt, v.load || 0, task.uplift - task.delivered);
           v.load = (v.load || 0) - q;
@@ -213,7 +214,8 @@ export function updateGround(state, dt) {
           if (task.prog >= 0.999) task.prog = 1;
         }
       } else if (task.st === 'active' && k !== 'push') {
-        if (!storm) task.prog += (dt * eff) / Math.max(30, task.dur);
+        // Ereignisse: pausiert (Reparatur, Reinigung) oder verlangsamt (Handarbeit)
+        if (!storm && !(task.pausedUntil > state.time)) task.prog += (dt * eff) / (Math.max(30, task.dur) * (task.slow || 1));
       }
       if (task.st === 'active' && k !== 'push') {
         if (task.prog >= 1) {

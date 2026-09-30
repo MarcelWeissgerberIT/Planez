@@ -779,3 +779,40 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 #ptt.ok .ptt-dot { background: #34d399; box-shadow: 0 0 10px #34d399; animation: none; }
 #ptt.bad { border-color: rgba(248,113,113,.8); }
 #ptt.bad .ptt-dot { background: #f87171; animation: none; }
+
+/* Vorfeld: Zeitpuffer je Abfertigung, Alles bedienen */
+.gp-bar { display: flex; align-items: center; gap: 10px; margin: 0 2px 6px; }
+.gp-bar small { color: var(--dim); font-size: 11px; line-height: 1.25; }
+.gp-bar .btn { white-space: nowrap; }
+.gp-bar kbd { font-family: var(--mono); font-size: 10px; background: rgba(0,0,0,.35); border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+.sr-time { display: flex; align-items: center; gap: 8px; margin: 4px 0 2px; }
+.sr-bar { position: relative; flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: visible; }
+.sr-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: linear-gradient(90deg, rgba(56,189,248,.35), rgba(56,189,248,.8)); }
+.sr-bar b { position: absolute; top: -5px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid #4ade80; transform: translateX(-5px); }
+.sr-bar b.warn { border-top-color: #fbbf24; }
+.sr-bar b.bad { border-top-color: #f87171; }
+.sr-slack { font: 700 11px var(--mono); white-space: nowrap; }
+.sr-slack.good { color: #4ade80; }
+.sr-slack.warn { color: #fbbf24; }
+.sr-slack.bad { color: #f87171; }
+
+/* Entscheidungskarte */
+#decision { position: absolute; left: 8px; top: calc(var(--hud-h) + 248px); width: min(380px, calc(100vw - 16px)); z-index: 11; background: linear-gradient(160deg, rgba(30,24,8,.95), rgba(10,16,28,.95)); border: 1px solid rgba(251,191,36,.6); border-radius: 14px; padding: 12px 12px 10px; box-shadow: 0 16px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(251,191,36,.15); animation: dc-in .35s ease-out; }
+#decision.hidden { display: none; }
+#game.tw-layout #decision { top: calc(var(--hud-h) + 8px); }
+#game.role-manager #decision, #game.role-observer #decision { top: calc(var(--hud-h) + 248px); }
+@keyframes dc-in { from { transform: translateY(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
+.dc-head { display: flex; gap: 10px; align-items: center; }
+.dc-i { font-size: 26px; line-height: 1; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
+.dc-k { font: 700 10px var(--mm-font, var(--sans)); letter-spacing: .2em; text-transform: uppercase; color: #fbbf24; }
+.dc-t { font-weight: 800; font-size: 15px; color: #fff; }
+.dc-x { margin: 8px 0 10px; font-size: 12.5px; line-height: 1.45; color: #cbd5e1; }
+.dc-opts { display: flex; flex-direction: column; gap: 6px; }
+.dc-o { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; text-align: left; padding: 8px 10px; border-radius: 9px; background: rgba(255,255,255,.06); border: 1px solid rgba(148,163,184,.3); color: #f1f5f9; cursor: pointer; transition: background .15s, border-color .15s; }
+.dc-o:hover { background: rgba(251,191,36,.16); border-color: rgba(251,191,36,.7); }
+.dc-o b { font-size: 13px; }
+.dc-o small { font-size: 11px; color: #94a3b8; text-align: right; }
+.dc-o.def { border-color: rgba(251,191,36,.45); }
+.dc-time { position: relative; margin-top: 9px; height: 16px; border-radius: 8px; background: rgba(255,255,255,.06); overflow: hidden; }
+.dc-time i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, rgba(251,191,36,.35), rgba(251,191,36,.6)); transition: width .3s linear; }
+.dc-time span { position: relative; display: block; font: 600 10px/16px var(--mono); color: #fde68a; text-align: center; }

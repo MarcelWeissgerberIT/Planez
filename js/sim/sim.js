@@ -8,6 +8,7 @@ import { updateEconomy, closeDay } from './economy.js';
 import { generateDay, dailyContracts, maybeOffer } from './schedule.js';
 import { updateEvents } from './events.js';
 import { updateSequence } from './sequence.js';
+import { updateDecisions } from './decisions.js';
 import { updateConstruction } from './construction.js';
 import { updateAcdm } from './acdm.js';
 import { updateFuel } from './fuel.js';
@@ -38,6 +39,7 @@ export function step(state, dt) {
   autoAtc(state, dt);
   updateAircraft(state, dt);
   updateSequence(state);
+  updateDecisions(state, dt);
   updateGround(state, dt);
   updateConflicts(state, dt);
   updateAcdm(state, dt);

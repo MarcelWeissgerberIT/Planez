@@ -129,19 +129,23 @@ function randomEvent(state) {
   } else if (kind === 'birdstrike') {
     const deps = state.acs.filter((a) => a.phase === PH.DEPART && a.alt < 6000);
     if (!deps.length) return;
-    const ac = pick(state, deps);
-    radio(state, ac.cs, `PAN PAN, ${ac.cs}, bird strike, request return to land.`);
-    notify(state, `🐦 Vogelschlag bei ${ac.cs} – Rückkehr zum Flughafen`, 'warn');
-    ac.phase = PH.INBOUND;
-    ac.arr = true;
-    ac.emergency = true;
-    ac.squawk = '7700';
-    ac.returning = true;
-    ac.fuelMin = 90; // gerade getankt
-    ac.route = [];
-    ac.tAlt = 5000;
-    const rot = state.rots[ac.rot];
-    if (rot) rot.returned = true;
-    if (state.auto.atc) command(state, ac, 'direct');
+    birdstrikeOn(state, pick(state, deps));
   }
+}
+
+// Vogelschlag nach dem Start: Rückkehr zum Flughafen als Notfall
+export function birdstrikeOn(state, ac) {
+  radio(state, ac.cs, `PAN PAN, ${ac.cs}, bird strike, request return to land.`);
+  notify(state, `🐦 Vogelschlag bei ${ac.cs} – Rückkehr zum Flughafen`, 'warn');
+  ac.phase = PH.INBOUND;
+  ac.arr = true;
+  ac.emergency = true;
+  ac.squawk = '7700';
+  ac.returning = true;
+  ac.fuelMin = 90; // gerade getankt
+  ac.route = [];
+  ac.tAlt = 5000;
+  const rot = state.rots[ac.rot];
+  if (rot) rot.returned = true;
+  if (state.auto.atc) command(state, ac, 'direct');
 }

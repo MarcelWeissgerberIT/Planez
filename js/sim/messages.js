@@ -1,5 +1,5 @@
 // Funk-/Ereignisprotokoll und Benachrichtigungen (im Spielstand, flüchtige Toasts separat)
-export const listeners = { radio: [], toast: [] };
+export const listeners = { radio: [], toast: [], fx: [] };
 
 // kind: 'atc' (Lotse), 'pilot', 'gnd' (Vorfeld), 'mgr' (Management), 'sys'
 export function log(state, kind, text, from = '') {
@@ -16,4 +16,9 @@ export function notify(state, text, level = 'info') {
 
 export function radio(state, from, text, kind = 'pilot') {
   log(state, kind, text, from);
+}
+
+// schwebende Rückmeldung auf der Karte (z. B. „✓ pünktlich“, „+2.400 €“); kind: good | bad | warn | cash | info
+export function fx(state, x, y, text, kind = 'info') {
+  for (const fn of listeners.fx) fn({ x, y, text, kind });
 }

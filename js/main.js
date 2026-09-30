@@ -17,6 +17,7 @@ import { initMarkMenu, openMarkMenu, closeMarkMenu, markMenuOpen, cycleMark, cle
 import { sfx, setSound, setTTS, unlock } from './audio.js';
 import { voice } from './voice.js';
 import { initPTT } from './ui/ptt.js';
+import { DecisionCard } from './ui/decision.js';
 import { command } from './sim/atc.js';
 import { dispatch, assignStand, standFits, standFree } from './sim/ground.js';
 import * as EC from './sim/economy.js';
@@ -288,6 +289,8 @@ function loop(ts) {
     if (!game.panelHold && !(document.activeElement && document.activeElement.tagName === 'SELECT')) game.panel.update(s);
     if (!(document.activeElement && document.activeElement.tagName === 'SELECT' && document.activeElement.closest('#info'))) renderInfo($('#info'), s, game.ui);
     if (game.mgmt && game.mgmt.isOpen()) game.mgmt.update(s);
+    if (!game.decision) game.decision = new DecisionCard(game);
+    game.decision.update(s);
     watchAlerts(s);
     game.hintT = (game.hintT || 0) + 0.2;
     if (game.hintT >= 1.2) {
@@ -382,6 +385,9 @@ function addLog(m, silent = false) {
 }
 listeners.radio.push((m) => {
   if (game.running) addLog(m);
+});
+listeners.fx.push((f) => {
+  if (game.running && game.map) game.map.addFx(f);
 });
 listeners.toast.push((t) => {
   if (!game.running) return;
@@ -777,7 +783,7 @@ function onKey(e) {
     game.refreshUi();
     return;
   }
-  if (s.role === 'tower' && game.panel.key && !e.ctrlKey && !e.metaKey && game.panel.key(e, s)) return;
+  if ((s.role === 'tower' || s.role === 'ground') && game.panel.key && !e.ctrlKey && !e.metaKey && game.panel.key(e, s)) return;
   const k = e.key.toLowerCase();
   if (k === 'b') {
     game.ui.labels = !game.ui.labels;
@@ -962,6 +968,7 @@ function helpGuide(first) {
     </ul>
     <h3>🦺 Vorfeld &amp; Abfertigung</h3>
     <ul>
+      <li><b>Alles bedienen</b> <kbd>D</kbd>: schickt für alle gelben Aufgaben freie Fahrzeuge los – die dringendste Abfertigung zuerst. Die Tafel ist nach <b>Puffer</b> sortiert: Balken = verstrichene Zeit bis zur TOBT, ▼ = voraussichtlich fertig (grün Puffer, gelb knapp, rot zu spät).</li>
       <li>Ankünfte brauchen eine <b>Parkposition</b> (automatisch oder per Auswahl – oder Flugzeug anklicken, dann Position auf der Karte).</li>
       <li>Im Turnaround werden <b>gelbe Aufgaben</b> fällig: anklicken = nächstes freies Fahrzeug losschicken. Reihenfolge: Aussteigen → Reinigung/Catering → Einsteigen, Entladen → Beladen, Betankung, zum Schluss der Pushback-Schlepper.</li>
       <li><b>TOBT</b> zeigt, wann ein Flug voraussichtlich fertig ist. Liegt sie nach der STD, wird er verspätet – und ein Slot (CTOT) kann verfallen.</li>
@@ -978,6 +985,7 @@ function helpGuide(first) {
     <h3>🎯 Ziele &amp; Rang</h3>
     <p>Jede Station hat drei Ziele (🏅 oben rechts). Erreichte Ziele bringen Prämie und XP; der Flughafen steigt vom Regionalflughafen bis zum Weltflughafen auf – höhere Ränge ziehen mehr Airlines an.</p>
     <h3>Steuerung</h3>
+    <p><b>Entscheidungen:</b> Ab und zu kommt eine Ereigniskarte (links) – Gepäckband kaputt, fehlender Passagier, medizinischer Notfall, Vogelschwarm, Airline will Rabatt, Gewerkschaft, Festival-Charter … Jede Option hat echte Folgen. Ohne Antwort gilt nach Ablauf die erste Option. Auf der Karte zeigen aufsteigende Texte, was gerade passiert (✓ pünktlich, +Erlös, Verspätung).</p>
     <p>Karte ziehen = verschieben · Mausrad/Pinch = Zoom · Klick = auswählen · <kbd>Leertaste</kbd> Pause · <kbd>1</kbd>–<kbd>5</kbd> Tempo (1×, 2×, 5×, 10×, 20× – bei <b>10×</b> dauert ein Tag etwa <b>10 Minuten</b>; Manager und Beobachter starten mit 10×) · <kbd>B</kbd> Beschriftungen · Pfeiltasten scrollen.</p>`;
 }
 

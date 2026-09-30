@@ -1,7 +1,7 @@
 // Wirtschaft: Erlöse, Kosten, Ausbau, Management-KI
 import { AC_TYPES, AIRLINES, COSTS, VEH_TYPES, UPGRADES, STAND_COSTS, MARKETING, FEE_LIMITS, CITIES } from '../config.js';
 import { clamp, fmtMoney, rand, dayOf } from '../util.js';
-import { log, notify } from './messages.js';
+import { log, notify, fx } from './messages.js';
 import { acceptOffer, feeIndex, standDemand } from './schedule.js';
 import { makeVehicle, freeBay, vehicleAvailable, efficiency } from './ground.js';
 import { PH } from './aircraft.js';
@@ -38,7 +38,9 @@ function contractOf(state, rot) {
 export function onLanding(state, ac) {
   const t = AC_TYPES[ac.type];
   const rot = state.rots[ac.rot];
-  earn(state, 'landing', state.fees.landing * t.mtow * (rot?.feeMult || 1));
+  const fee = state.fees.landing * t.mtow * (rot?.feeMult || 1);
+  earn(state, 'landing', fee);
+  fx(state, ac.x, ac.y, `🛬 Landung · +${fmtK(fee)}`, 'good');
   state.stats.today.mov++;
   onNightMovement(state, ac, earn, spend);
   bump(state, 'landings');
@@ -61,6 +63,7 @@ export function onOffBlock(state, ac, rot) {
   // ATFM-Slotverspätung (Verkehrsflusssteuerung) zählt nicht als Flughafenverspätung
   const delay = (rot.offBlock - rot.std - (rot.atfm || 0)) / 60;
   rot.depDelay = Math.round(delay);
+  fx(state, ac.x, ac.y, delay <= 5 ? '✓ pünktlich' : delay <= 15 ? `+${Math.round(delay)}′` : `+${Math.round(delay)}′ verspätet`, delay <= 5 ? 'good' : delay <= 15 ? 'warn' : 'bad');
   if (delay <= 5) bump(state, 'depPunctual');
   if (rot.onBlock && rot.offBlock - rot.onBlock <= (t.turn + 5) * 60) bump(state, 'quickTurns');
   if ((rot.tobt || rot.std) <= rot.std) bump(state, 'tobtKept');
@@ -84,6 +87,11 @@ export function onOffBlock(state, ac, rot) {
 export function onTakeoff(state, ac) {
   const t = AC_TYPES[ac.type];
   const rot = state.rots[ac.rot];
+  let sum = 0;
+  const earnF = (cat, v) => {
+    sum += v;
+    earn(state, cat, v);
+  };
   state.stats.today.mov++;
   onNightMovement(state, ac, earn, spend);
   bump(state, 'safeStreak');
@@ -95,15 +103,16 @@ export function onTakeoff(state, ac) {
   const mult = rot.feeMult || 1;
   const u = state.upgrades;
   state.stats.today.pax += rot.paxOut;
-  earn(state, 'pax', rot.paxOut * state.fees.pax * mult);
+  earnF('pax', rot.paxOut * state.fees.pax * mult);
   const handling = ({ S: 900, M: 1400, L: 3200 }[t.size] + (t.cargo ? 1200 : 0)) * ((rot.depDelay ?? 0) > 15 ? 0.85 : 1);
-  earn(state, 'handling', handling);
+  earnF('handling', handling);
   const satF = clamp(0.75 + state.reputation / 250 + u.security * 0.04, 0.6, 1.2);
-  earn(state, 'retail', (rot.paxIn + rot.paxOut) * 6.5 * (1 + 0.3 * u.retail) * satF);
-  earn(state, 'carpark', rot.paxOut * 2.1 * (1 + 0.4 * u.parking));
-  if (t.cargo) earn(state, 'cargo', (rot.cargoIn + rot.cargoOut) * 55);
-  else earn(state, 'cargo', (rot.cargoIn + rot.cargoOut) * 40);
-  if (rot.special === 'vip') earn(state, 'other', 18000);
+  earnF('retail', (rot.paxIn + rot.paxOut) * 6.5 * (1 + 0.3 * u.retail) * satF);
+  earnF('carpark', rot.paxOut * 2.1 * (1 + 0.4 * u.parking));
+  if (t.cargo) earnF('cargo', (rot.cargoIn + rot.cargoOut) * 55);
+  else earnF('cargo', (rot.cargoIn + rot.cargoOut) * 40);
+  if (rot.special === 'vip') earnF('other', 18000);
+  fx(state, ac.x, ac.y, `🛫 +${fmtK(sum)}`, 'cash');
 }
 
 const PEN = {
@@ -393,4 +402,9 @@ export function autoManager(state) {
       }
     }
   }
+}
+
+// kurze Geldangabe für Karten-Rückmeldungen
+export function fmtK(v) {
+  return v >= 1e6 ? (v / 1e6).toFixed(1).replace('.', ',') + ' Mio €' : v >= 1000 ? Math.round(v / 100) / 10 + ' Tsd €' : Math.round(v) + ' €';
 }

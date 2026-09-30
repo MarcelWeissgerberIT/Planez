@@ -15,6 +15,8 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 ## Features
 - Isometrische, animierte Flughafenansicht mit Tag/Nacht-Zyklus, Befeuerung (Pisten-, Rollweg-, Anflug-Lauflicht), Wetter (Regen, Nebel, Gewitter), Wind & Windsack
 - Luftraum mit Radar (Sweep, Datenblöcke, Warteschleifen-Fixes, Endanflug, Konfliktwarnung/STCA)
+- **Entscheidungen**: Ereigniskarten je Rolle mit Optionen und echten Folgen (Vorfeld: Gepäckband, fehlender Passagier, Catering, Kerosin ausgelaufen, Blitzwarnung · Tower: medizinischer Notfall, Vogelschwarm · Manager: Rabattforderung, Fluglärm-Protest, Gewerkschaft, Kerosin-Festpreis, Festival-Charter, Terminal-Mieter); aufsteigende Rückmeldungen auf der Karte (✓ pünktlich, Erlöse, Verspätung)
+- Vorfeld: Tafel nach Zeitpuffer sortiert mit Zeitleiste bis TOBT und voraussichtlichem Ende, „Alles bedienen“ (`D`)
 - Belebter Flughafen: Besucher fahren ins Parkhaus und auf den Parkplatz, Vorfahrt und Taxis am Terminal, Busse, Fußgänger mit Koffern, Bodenpersonal an den Flugzeugen, Follow-me-Wagen, Arbeiter und Kipper auf den Baustellen; das Parkhaus wächst beim Ausbau sichtbar um ein Deck (mit Kran); nachts Flutlicht auf Baustellen, Hindernisfeuer und Tower-Rundumlicht; Verkehr folgt der Tageszeit. Baustellen zeigen die Restzeit auch in echten Minuten.
 - Bilder in der Management-Zentrale: jeder Ausbau, jede Parkposition, jedes Fahrzeug, Personal, Tanklager und Pistenwartung mit Illustration (Higgsfield), damit man sieht, was man kauft
 - Plastische Grafik: Flugzeuge mit rundem, schattiertem Rumpf, Fensterreihe, Airline-Zierstreifen, Triebwerken und Fahrwerk; Fahrzeuge und Autos als Körper mit Schatten; maßstabsgerechtes Parkhaus (Etagen je Ausbaustufe) und Parkplatz, Fluggastbrücken mit Glastunnel

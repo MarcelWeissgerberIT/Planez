@@ -194,6 +194,8 @@ export class MapRenderer {
     this.cars = makeCars();
     this.ambient = new Ambient();
     this.topZ = {};
+    this.fxList = [];
+    this.siteCenters = new Map();
     this.picks = [];
   }
 
@@ -272,6 +274,10 @@ export class MapRenderer {
       if (g) sites.push({ p, g });
     }
     this.sites = sites;
+    // fertige Baustelle: „Fertig“ über der Stelle
+    const nowIds = new Map(sites.map((q) => [q.p.id, { x: (q.g.x0 + q.g.x1) / 2, y: (q.g.y0 + q.g.y1) / 2, name: q.p.name, prog: q.p.prog }]));
+    for (const [id, c] of this.siteCenters) if (!nowIds.has(id) && c.prog > 0.9) this.addFx({ x: c.x, y: c.y, text: `🏗️ Fertig: ${c.name}`, kind: 'good' });
+    this.siteCenters = nowIds;
     this.siteLights = [];
     for (const s of sites) drawSiteGround(this, state, s.p, s.g);
     this.drawRunwayWorkGround(state);
@@ -410,6 +416,7 @@ export class MapRenderer {
 
     // Overlays: Positionen, Auswahl, Labels
     this.drawOverlays(state, ui);
+    this.drawFx(dtReal);
   }
 
   // Pistenarbeiten / FOD-Kontrolle: Sperrkreuze, frische Deckschicht, Fahrzeuge auf der Piste
@@ -660,6 +667,39 @@ export class MapRenderer {
       lights.push({ x: p.x + Math.cos(p.h) * 0.3, y: p.y + Math.sin(p.h) * 0.3, z: 0.03, c: '#fff4d0', s: 14, a: 0.7 });
       lights.push({ x: p.x - Math.cos(p.h) * 0.18, y: p.y - Math.sin(p.h) * 0.18, z: 0.03, c: '#ff3020', s: 8, a: 0.7 });
     }
+  }
+
+  // schwebende Rückmeldungen (Weltposition, steigen auf und blenden aus)
+  addFx(f) {
+    this.fxList.push({ ...f, age: 0 });
+    if (this.fxList.length > 40) this.fxList.shift();
+  }
+  drawFx(dt) {
+    const ctx = this.ctx, cam = this.cam;
+    if (!this.fxList.length) return;
+    cam.setScreen(ctx);
+    const COL = { good: '#4ade80', bad: '#f87171', warn: '#fbbf24', cash: '#fde047', info: '#e2e8f0' };
+    const fs = Math.round(clamp(13 * Math.sqrt(cam.zoom / 0.8), 11, 20));
+    ctx.font = `800 ${fs}px Inter, system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    for (const f of this.fxList) {
+      f.age += dt;
+      const dur = 2.6;
+      const u = f.age / dur;
+      if (u >= 1) continue;
+      const p = cam.toScreen(f.x, f.y, 0.6);
+      const y = p.y - 18 * cam.zoom - u * 34;
+      const a = u < 0.12 ? u / 0.12 : u > 0.7 ? (1 - u) / 0.3 : 1;
+      ctx.globalAlpha = a;
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(4,10,20,0.85)';
+      ctx.strokeText(f.text, p.x, y);
+      ctx.fillStyle = COL[f.kind] || COL.info;
+      ctx.fillText(f.text, p.x, y);
+    }
+    ctx.globalAlpha = 1;
+    this.fxList = this.fxList.filter((f) => f.age < 2.6);
   }
 
   // Fahrzeuge der Belebung: Auto, Taxi, Bus, Follow-me, Kipper
