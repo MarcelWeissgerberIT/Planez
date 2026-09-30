@@ -7,6 +7,7 @@ import { rwyCond, brakingAction, BRAKE_DE, hasRwy2 } from '../sim/runway.js';
 import { goalsState, activeGoals, goalText, goalFraction, RANKS } from '../sim/goals.js';
 import { PH } from '../sim/aircraft.js';
 import { forecastInfo } from '../sim/events.js';
+import { secState, secLanes } from '../sim/security.js';
 import { fmtHours, realMinutes } from './projects.js';
 
 export class ManagerDock {
@@ -47,7 +48,7 @@ export class ManagerDock {
     const tile = (k, v, cls = '', open = '') => `<div class="k${open ? ' link' : ''}" ${open ? `data-open="${open}"` : ''}><span>${k}</span><b class="${cls}">${v}</b></div>`;
     setHTML(
       this.root.querySelector('#dk-kpi'),
-      `<div class="kpis dock-kpis">${tile('Ergebnis heute', fmtMoney(rev - cost), rev - cost >= 0 ? 'pos' : 'neg', 'fin')}${tile('Ansehen', `${Math.round(s.reputation)}/100`, '', 'over')}${tile('Pünktlich', deps ? Math.round((t.onTime / deps) * 100) + ' %' : '—', '', 'over')}${tile('Bewegungen', t.mov, '', 'over')}${tile('Tanklager', `${Math.round(fu.stock)} t`, fu.stock < FUEL.cap * 0.15 ? 'neg' : '', 'fuel')}${tile('Piste', `${cond} % · ${BRAKE_DE[brakingAction(s)]}`, cond < 45 ? 'neg' : '', 'runways')}</div>`
+      `<div class="kpis dock-kpis">${tile('Ergebnis heute', fmtMoney(rev - cost), rev - cost >= 0 ? 'pos' : 'neg', 'fin')}${tile('Ansehen', `${Math.round(s.reputation)}/100`, '', 'over')}${tile('Pünktlich', deps ? Math.round((t.onTime / deps) * 100) + ' %' : '—', '', 'over')}${tile('Bewegungen', t.mov, '', 'over')}${tile('Tanklager', `${Math.round(fu.stock)} t`, fu.stock < FUEL.cap * 0.15 ? 'neg' : '', 'fuel')}${tile('Piste', `${cond} % · ${BRAKE_DE[brakingAction(s)]}`, cond < 45 ? 'neg' : '', 'runways')}${tile('Sicherheitskontrolle', `${Math.round(secState(s).wait)} min Wartezeit`, secState(s).wait > 15 ? 'neg' : '', 'terminal')}</div>`
     );
     // Aufgaben
     const todo = [];
@@ -59,6 +60,8 @@ export class ManagerDock {
     if (cond < 55 && !projects(s).some((p) => p.kind === 'rwy')) todo.push(['runways', '🛬', `Pistenzustand ${cond} % – Wartung beauftragen`, 'warn']);
     if (!hasRwy2(s) && s.cash > 9500000 && !projects(s).some((p) => p.target === 'rwy2')) todo.push(['runways', '🛫', 'Genug Geld für die Parallelbahn', 'info']);
     if ((t.complaints || 0) > 25 && !s.settings.curfew) todo.push(['fees', '📢', `${t.complaints} Lärmbeschwerden heute`, 'warn']);
+    const sw = secState(s).wait;
+    if (sw > 15) todo.push(['terminal', '🚶', `Schlange an der Sicherheitskontrolle ≈ ${Math.round(sw)} min – ${s.upgrades.security < 3 ? 'weitere Spuren bauen' : 'Kapazität am Limit'}`, sw > 25 ? 'bad' : 'warn']);
     const fc = forecastInfo(s);
     if (fc.change && ['storm', 'fog', 'snow'].includes(fc.kind) && fc.at - s.time < 5400) todo.push(['over', fc.icon, `Vorhersage: ab ${fmtClock(fc.at)} ${fc.name}${fc.kind === 'fog' && !s.upgrades.ils3 && (fc.rvr || 999) < 550 ? ' unter CAT-I-Minimum' : ''}`, 'warn']);
     if (!todo.length) todo.push(['over', '✅', 'Alles im grünen Bereich', 'good']);

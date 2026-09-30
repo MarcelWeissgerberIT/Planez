@@ -173,6 +173,20 @@ export class Ambient {
         items.push({ d: q.x + q.y, f: () => drawPerson(r, q.x, q.y, p.col, q.alpha, p.bag, vt + p.ph, q.moving) });
       }
     }
+    // Schlange vor der Sicherheitskontrolle (Terminal-Eingang, Landseite)
+    const q = state.sec ? state.sec.q : 0;
+    if (zoom >= 0.5 && q > 8) {
+      const n = Math.min(60, Math.round(q / 10));
+      const QC = ['#1e3a8a', '#7c2d12', '#334155', '#be123c', '#065f46', '#78350f', '#1f2937', '#6d28d9'];
+      for (let k = 0; k < n; k++) {
+        // Schlangenlinie in Reihen vor dem Eingang
+        const row = Math.floor(k / 20), col = k % 20;
+        const x = 35.9 - (row % 2 ? 19 - col : col) * 0.16;
+        const y = 1.08 - row * 0.1;
+        if (!vis(x, y)) continue;
+        items.push({ d: x + y, f: () => drawPerson(r, x, y, QC[k % QC.length], 1, k % 3 === 0, vt + k * 0.37, false) });
+      }
+    }
     // Bodenpersonal an Flugzeugen in der Abfertigung
     if (zoom >= 0.6) {
       for (const ac of state.acs) {

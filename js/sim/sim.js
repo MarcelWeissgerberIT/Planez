@@ -16,6 +16,7 @@ import { updateAtis } from './atis.js';
 import { updateConstruction } from './construction.js';
 import { updateAcdm } from './acdm.js';
 import { updateScenario } from './scenarios.js';
+import { updateSecurity } from './security.js';
 import { updateFuel } from './fuel.js';
 import { dailyLoans } from './finance.js';
 import { spend } from './economy.js';
@@ -49,6 +50,7 @@ export function step(state, dt) {
   updateWinter(state, dt);
   updateAchievements(state, dt);
   updateAtis(state);
+  updateSecurity(state, dt);
   updateGround(state, dt);
   updateConflicts(state, dt);
   updateAcdm(state, dt);

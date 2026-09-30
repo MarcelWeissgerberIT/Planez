@@ -9,6 +9,7 @@ import { newsState, paxRating } from '../sim/news.js';
 import { achievementsHtml } from './achUi.js';
 import { PH } from '../sim/aircraft.js';
 import { sfx } from '../audio.js';
+import { secState, secCapacity, secLanes } from '../sim/security.js';
 import { projects, standProject, projectFor, cancelProject, standBuildHours, upgradeHours, STAND_HOURS, remainingHours } from '../sim/construction.js';
 import { projectCard, projectInline, fmtHours } from './projects.js';
 import { qm } from './glossary.js';
@@ -385,7 +386,15 @@ export class ManagerPanel {
   }
 
   terminalHtml(s) {
-    return this.upgradesHtml(s, ['Terminal', 'Landseite']) + this.marketingHtml(s);
+    const S = secState(s), cap = secCapacity(s);
+    const load = S.demand / cap;
+    const col = S.wait > 15 ? 'var(--bad)' : load > 0.9 ? 'var(--warn)' : 'var(--good)';
+    const sec = `<div class="p-sec"><span>🚶 Sicherheitskontrolle</span><span class="cnt">${secLanes(s)} Spuren</span></div>
+      <div class="card"><div class="row"><span class="t">Wartezeit jetzt: <b style="color:${col}">${Math.round(S.wait)} min</b></span><span style="font-size:12px;color:var(--muted)">heute max. ${Math.round(S.peak || 0)} min</span></div>
+      <div class="s">Andrang ${Math.round(S.demand)} Reisende/h · Kapazität ${cap}/h (${secLanes(s)} Spuren à 120)</div>
+      <div class="bar"><i style="width:${Math.min(100, load * 100)}%;background:${col}"></i></div>
+      <div class="s">Ab etwa 12 Minuten Wartezeit dauert das Boarding länger (Nachzügler), ab 20 Minuten sinkt das Ansehen. Jede Ausbaustufe „Sicherheitsspuren“ bringt zwei Spuren mehr.</div></div>`;
+    return sec + this.upgradesHtml(s, ['Terminal', 'Landseite']) + this.marketingHtml(s);
   }
 
   goalsHtml(s) {

@@ -1218,6 +1218,7 @@ function helpGuide(first) {
     </ul>
     <h3>💼 Manager</h3>
     <ul>
+      <li><b>🚶 Sicherheitskontrolle:</b> Zu Stoßzeiten stauen sich die Reisenden (Wartezeit im Leitstand, Schlange vor dem Terminal). Ab ~12 Minuten dauert das Boarding länger, ab 20 Minuten leidet das Ansehen. Mehr Sicherheitsspuren schaffen Abhilfe – wachsender Verkehr braucht mehr Spuren.</li>
       <li><b>🤝 Verhandeln:</b> Bei neuen Angeboten kannst du +10 % oder +20 % Entgelte verlangen. Die Erfolgschance steht auf dem Knopf – sie steigt mit Ansehen, Rang und dem Interesse der Airline. Klappt es nicht, bleibt das Angebot oft zum Originalpreis stehen, manchmal springt die Airline aber ab.</li>
       <li>Verträge annehmen, Gebühren festlegen, Parkpositionen und Terminal ausbauen, Fahrzeuge kaufen, Personal einstellen.</li>
       <li><b>Kerosin:</b> einkaufen, wenn der Marktpreis günstig ist, Marge festlegen, Lagerbestand im Blick behalten (Tab <i>Kerosin</i>). Die Automatik hält den Bestand, kauft aber nicht immer günstig.</li>

@@ -224,7 +224,7 @@ export function updateGround(state, dt) {
         }
       } else if (task.st === 'active' && k !== 'push') {
         // Ereignisse: pausiert (Reparatur, Reinigung) oder verlangsamt (Handarbeit)
-        if (!storm && !(task.pausedUntil > state.time)) task.prog += (dt * eff) / (Math.max(30, task.dur) * (task.slow || 1));
+        if (!storm && !(task.pausedUntil > state.time)) task.prog += (dt * eff) / (Math.max(30, task.dur) * (task.slow || 1) * (k === 'board' ? state.secSlow || 1 : 1));
       }
       if (task.st === 'active' && k !== 'push') {
         if (task.prog >= 1) {
