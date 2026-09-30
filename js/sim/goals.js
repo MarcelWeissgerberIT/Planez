@@ -1,6 +1,6 @@
 // Ziele je Station, Erfahrungspunkte (XP) und Flughafen-Rang
 import { fmtMoney, clamp, randInt } from '../util.js';
-import { log, notify } from './messages.js';
+import { log, notify, listeners } from './messages.js';
 import { nextId } from './schedule.js';
 
 export const RANKS = [
@@ -95,6 +95,7 @@ export function addXp(state, xp) {
   G.rank = rankOf(G.xp);
   if (G.rank > before) {
     state.reputation = clamp(state.reputation + 3, 0, 100);
+    for (const fn of listeners.rank) fn(state, G.rank);
     notify(state, `🏅 Aufstieg: ${state.name} ist jetzt „${RANKS[G.rank].name}“!`, 'good');
     log(state, 'mgr', `Neuer Flughafen-Rang: ${RANKS[G.rank].name} (${G.xp} XP). Mehr Airlines interessieren sich für den Standort.`);
   }

@@ -1087,3 +1087,21 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .sp-lab em.free { color: var(--good); }
 .btn.nego small { margin-left: 4px; font-size: 10.5px; opacity: .8; font-family: var(--mono); }
 .prem { color: var(--good); font-family: var(--mono); font-size: 11px; }
+
+/* ---------- Rang-Aufstieg ---------- */
+#rankup { position: absolute; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(40,30,5,.55), rgba(3,6,12,.9)); overflow: hidden; }
+#rankup.hidden { display: none; }
+.ru-conf i { position: absolute; top: -20px; width: 8px; height: 14px; border-radius: 2px; opacity: .9; animation: ru-fall linear infinite; }
+@keyframes ru-fall { from { transform: translateY(-20px) rotate(0); } to { transform: translateY(110vh) rotate(var(--r)); } }
+.ru-box { position: relative; width: min(520px, 92vw); padding: 26px 28px 24px; text-align: center; border-radius: 18px; background: linear-gradient(180deg, rgba(40,32,8,.97), rgba(10,14,24,.97)); border: 1px solid rgba(252,211,77,.6); box-shadow: 0 0 80px rgba(252,211,77,.25), 0 30px 80px rgba(0,0,0,.6); animation: scn-in .6s cubic-bezier(.2,1.4,.4,1); font-family: var(--sans); }
+.ru-k { font-family: var(--mm-font); font-size: 12px; font-weight: 700; letter-spacing: .3em; text-transform: uppercase; color: var(--mm-amber); }
+.ru-medal { font-size: 84px; line-height: 1.1; margin: 8px 0 2px; animation: ru-pop 1s cubic-bezier(.2,1.8,.4,1) both .15s; filter: drop-shadow(0 0 24px rgba(252,211,77,.6)); }
+@keyframes ru-pop { from { transform: scale(0) rotate(-40deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.ru-box h2 { margin: 0; font-family: var(--mm-title); font-size: clamp(24px, 4vw, 34px); color: #fde68a; letter-spacing: .04em; text-shadow: 0 0 20px rgba(252,211,77,.5); }
+.ru-steps { display: flex; justify-content: center; gap: 8px; margin: 14px 0 10px; }
+.ru-steps span { width: 34px; height: 6px; border-radius: 3px; background: rgba(148,163,184,.3); }
+.ru-steps span.done { background: rgba(252,211,77,.6); }
+.ru-steps span.cur { background: #fcd34d; box-shadow: 0 0 10px rgba(252,211,77,.8); }
+.ru-box ul { list-style: none; padding: 0; margin: 10px 0; text-align: left; display: inline-block; font-size: 14px; color: #e2e8f0; line-height: 1.7; }
+.ru-box ul li::first-letter { color: #fcd34d; }
+.ru-next { font-size: 12.5px; color: var(--muted); margin: 6px 0 16px; }

@@ -1,5 +1,5 @@
 // Funk-/Ereignisprotokoll und Benachrichtigungen (im Spielstand, flüchtige Toasts separat)
-export const listeners = { radio: [], toast: [], fx: [], ach: [] };
+export const listeners = { radio: [], toast: [], fx: [], ach: [], rank: [] };
 
 // kind: 'atc' (Lotse), 'pilot', 'gnd' (Vorfeld), 'mgr' (Management), 'sys'
 export function log(state, kind, text, from = '') {

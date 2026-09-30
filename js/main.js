@@ -46,6 +46,7 @@ import { projects, cancelProject } from './sim/construction.js';
 import { scenarioById, applyScenario, scenarioListeners } from './sim/scenarios.js';
 import { ScenarioUi } from './ui/scenarioUi.js';
 import { StandPlan } from './ui/standPlan.js';
+import { RankUp } from './ui/rankUp.js';
 
 const game = {
   state: null,
@@ -499,6 +500,11 @@ listeners.radio.push((m) => {
 });
 listeners.ach.push((a) => {
   if (game.running) showAchievement(a);
+});
+listeners.rank.push((s, rank) => {
+  if (!game.running || game.state !== s || s.role === 'observer' || s.scenario) return;
+  if (!game.rankUp) game.rankUp = new RankUp(game);
+  game.rankUp.show(s, rank);
 });
 listeners.fx.push((f) => {
   if (game.running && game.map) game.map.addFx(f);
