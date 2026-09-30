@@ -6,7 +6,7 @@ import * as LY from '../layout.js';
 import { PH, tel, windStr, goAround, startTaxiIn, startPushback, startTaxiOut, startLineUp, runwayBlocker, runwayOccupants, setReq, fmtAlt, crossingSafe } from './aircraft.js';
 import { radio, log, notify } from './messages.js';
 import { penalize } from './economy.js';
-import { updateSequence, seqNumber } from './sequence.js';
+import { updateSequence, seqNumber, updateArrQueue, isSeqArrival, isSeqDeparture, sepSec, seqStrip } from './sequence.js';
 import { wakeNm, wakeDepSec } from './wake.js';
 import { slotOpen } from './acdm.js';
 import { runwayClosed, brakingAction, BRAKE_EN, updateRunway, stripForArrival, rwyName, segregated } from './runway.js';
@@ -36,6 +36,7 @@ export const CMDS = {
       ac.phase = PH.APPROACH;
       ac.holdFix = null;
       ac.clr.app = true;
+      ac.clrAppT = s.time;
       ac.req = null;
       ac.altRestr = undefined;
       ac.stackAlt = ac.stackFix = null;
@@ -53,6 +54,7 @@ export const CMDS = {
       ac.phase = PH.APPROACH;
       ac.holdFix = null;
       ac.clr.app = true;
+      ac.clrAppT = s.time;
       ac.req = null;
       ac.altRestr = undefined;
       const rn = rwyName(s, ac.strip);
@@ -189,6 +191,8 @@ function spdValid(ac) {
 }
 function setSpeed(s, ac, v) {
   ac.spdOverride = v;
+  ac.spdManual = true; // Auto-Staffelung lässt dieses Flugzeug in Ruhe
+  ac.autoSpd = false;
   const w = v < ac.spd ? 'reduce' : 'increase';
   say(s, ac, `${tel(ac)}, ${w} speed ${v} knots.`, `Speed ${v}, ${tel(ac)}.`);
 }
@@ -270,13 +274,154 @@ export function autoAtc(state, dt) {
   if (!groundOnly) {
     autoArrivals(state);
     autoDepartures(state);
-  }
+  } else if (spacingOn(state)) towerSpacing(state);
   autoGround(state);
+}
+
+// Nächste Anflugfreigabe: Kandidaten in Reihenfolge (Notfälle und Treibstoffmangel zuerst),
+// aus der Warteschleife immer der Unterste; Abstand zu bereits freigegebenen Anflügen derselben Bahn
+function clearNextApproach(state, cands, distCleared, departuresWaiting, order = null) {
+  const rwy = state.rwy;
+  const nextStrip = stripForArrival(state);
+  const lowestInStack = (c) => c.phase !== PH.HOLD || !cands.some((o) => o !== c && o.phase === PH.HOLD && o.holdFix && c.holdFix && o.holdFix.name === c.holdFix.name && o.alt < c.alt - 100);
+  const scored = cands.filter(lowestInStack).map((c) => {
+    // Flugzeuge oberhalb eines Stapels nicht durch den Stapel sinken lassen
+    const below = state.acs.some((o) => o !== c && o.mode === 'air' && o.alt < c.alt - 300 && ((o.phase === PH.HOLD && Math.hypot(o.pos.x - c.pos.x, o.pos.y - c.pos.y) < 9) || (Math.hypot(o.pos.x - c.pos.x, o.pos.y - c.pos.y) < 6 && o.alt > 4500)));
+    return { c, d: AS.routeDistance(c.pos, AS.approachRoute(c.pos, rwy)) + (below ? 50 : 0), blocked: below, o: order ? order.indexOf(c.id) : 0 };
+  });
+  const prio = (x) => (x.c.emergency ? 2 : 0) + (x.c.minFuel ? 1 : 0);
+  scored.sort((x, y) => prio(y) - prio(x) || (order ? x.o - y.o : 0) || x.d - y.d);
+  const next = scored[0];
+  if (!next) return null;
+  const c = next.c;
+  if (next.blocked && !c.emergency) return null; // warten, bis der Stapel darunter frei ist
+  if (c.emergency) {
+    command(state, c, 'direct');
+    return c;
+  }
+  for (const { a, d } of distCleared) {
+    if ((a.strip || 'N') !== nextStrip) continue; // andere Bahn: unabhängig
+    const lead = d < next.d ? a : c, foll = lead === a ? c : a;
+    const fast = AC_TYPES[foll.type].vapp > AC_TYPES[lead.type].vapp + 12 ? 1.5 : 0;
+    // Wirbelschleppen: Mehrabstand hinter schweren Flugzeugen
+    let sep = 7 + fast + (wakeNm(lead.wake, foll.wake) - 3) * 1.3 + (state.weather.kind === 'fog' ? 2.5 : 0);
+    if (departuresWaiting > 0) sep += 2.5;
+    if (Math.abs(next.d - d) < sep) return null;
+    if (next.d < d) return null; // nicht vordrängeln
+  }
+  command(state, c, 'approach');
+  return c;
+}
+
+// ---------- Auto-Staffelung für den Tower-Spieler ----------
+// Die Reihenfolge der Flugstreifen (Drag & Drop) bestimmt: Anflugfreigaben aus der Warteliste,
+// Geschwindigkeiten im Anflug, Direktanflug für Vorgezogene und notfalls die Warteschleife.
+export const spacingOn = (state) => !state.auto.atc && state.settings.autoSpacing !== false;
+const V_NOM = 200; // mittlere Anfluggeschwindigkeit bis zur Schwelle (kt)
+
+// geplante Zeiten je Bahn nach der Reihenfolge, mit Nenngeschwindigkeit gerechnet (schwingt nicht).
+// Starts füllen Lücken: Sie verzögern eine Landung nur, wenn der Lotse einen von beiden bewusst
+// verschoben hat (seqPin) oder der Start schon auf der Piste steht.
+const ON_RWY = new Set([PH.LINEUP, PH.LINED, PH.TAKEOFF]);
+export function spacingPlan(state) {
+  const byId = new Map(state.acs.map((a) => [a.id, a]));
+  const plan = {};
+  const lastArr = {}, lastDep = {}, lastAny = {};
+  for (const id of state.seq || []) {
+    const ac = byId.get(id);
+    if (!ac) continue;
+    const arr = isSeqArrival(ac);
+    const st = seqStrip(ac);
+    let eta;
+    if (arr && ac.mode === 'air') eta = (distToLand(ac) / V_NOM) * 3600 + 60;
+    else eta = Math.max(0, (state.seqSlots && state.seqSlots[id]) ?? 0);
+    if (!arr) {
+      const r = state.rots[ac.rot];
+      if (r && r.ctot && !r.atd) eta = Math.max(eta, r.ctot - 300 - state.time);
+    }
+    let slot = eta;
+    if (arr) {
+      const la = lastArr[st], ld = lastDep[st];
+      if (la) slot = Math.max(slot, la.t + sepSec(la.ac, ac, true, true));
+      if (ld && (ld.ac.seqPin || ac.seqPin || ON_RWY.has(ld.ac.phase))) slot = Math.max(slot, ld.t + sepSec(ld.ac, ac, false, true));
+      lastArr[st] = { ac, t: slot };
+    } else {
+      const la = lastAny[st];
+      if (la) slot = Math.max(slot, la.t + sepSec(la.ac, ac, isSeqArrival(la.ac), false));
+      lastDep[st] = { ac, t: slot };
+    }
+    lastAny[st] = { ac, t: slot };
+    plan[id] = { eta, slot, delay: slot - eta, strip: st };
+  }
+  return plan;
+}
+
+function towerSpacing(state) {
+  updateSequence(state);
+  updateArrQueue(state);
+  const plan = spacingPlan(state);
+  state.spacing = plan;
+  const byId = new Map(state.acs.map((a) => [a.id, a]));
+  // 1) Geschwindigkeit nach geplanter Pistenzeit, notfalls Warteschleife
+  for (const id of state.seq) {
+    const a = byId.get(id);
+    const p = plan[id];
+    if (!a || !p || !isSeqArrival(a) || a.mode !== 'air' || a.phase !== PH.APPROACH || onFinal(a) || a.emergency || a.spdManual) continue;
+    const d = distToLand(a);
+    const absorb160 = d * (1 / 160 - 1 / V_NOM) * 3600;
+    const absorb180 = d * (1 / 180 - 1 / V_NOM) * 3600;
+    // Vorgänger in der Folge liegt eigentlich hinter uns? -> Vorgänger direkt, wir notfalls in die Schleife
+    if (p.delay > absorb160 + 75 && d > 10 && a.route.length > 2 && !a.minFuel && state.time - (a.clrAppT || 0) > 45) {
+      command(state, a, 'hold');
+      a.spdOverride = null;
+      a.autoSpd = false;
+      a.spacingDirect = false;
+      a.spacingHold = true;
+      a.spacingHoldUntil = state.time + 180;
+      state.arrQ = [a.id, ...(state.arrQ || []).filter((x) => x !== a.id)];
+      state.arrQManual = true;
+      log(state, 'sys', `Staffelung: ${a.cs} kann die gewünschte Reihenfolge nur über die Warteschleife einhalten.`);
+      continue;
+    }
+    const want = p.delay > absorb180 + 10 ? 160 : p.delay > 20 ? 180 : null;
+    const cur = a.autoSpd ? a.spdOverride : null;
+    if (want !== cur) {
+      if (want) {
+        a.spdOverride = want;
+        a.autoSpd = true;
+        say(state, a, `${tel(a)}, reduce speed ${want} knots for spacing.`, `Speed ${want}, ${tel(a)}.`);
+      } else if (a.autoSpd) {
+        a.spdOverride = null;
+        a.autoSpd = false;
+        say(state, a, `${tel(a)}, no speed restrictions.`, `No speed restrictions, ${tel(a)}.`);
+      }
+    }
+  }
+  // 2) Vorgezogene Anflüge: Direktanflug, wenn der Nachfolger laut Folge eigentlich näher an der Schwelle ist
+  const seqArr = state.seq.map((id) => byId.get(id)).filter((a) => a && isSeqArrival(a) && a.mode === 'air');
+  for (let i = 0; i < seqArr.length; i++) {
+    const a = seqArr[i];
+    if (a.phase !== PH.APPROACH || onFinal(a) || a.route.length <= 2 || a.spacingDirect) continue;
+    const dA = distToLand(a);
+    const behindButLater = seqArr.slice(i + 1).some((b) => (b.strip || 'N') === (a.strip || 'N') && distToLand(b) < dA - 1);
+    if (behindButLater && CMDS.direct.valid(state, a)) {
+      command(state, a, 'direct');
+      a.spacingDirect = true;
+    }
+  }
+  // 3) Anflugfreigabe für den nächsten aus der Warteliste (in der Reihenfolge der Flugstreifen)
+  if (!state.rwyPending) {
+    const rwy = state.rwy;
+    const distCleared = state.acs.filter((a) => (a.phase === PH.APPROACH || a.phase === PH.FINAL) && a.rwy === rwy).map((a) => ({ a, d: distToLand(a) }));
+    const cands = (state.arrQ || []).map((id) => byId.get(id)).filter((a) => a && [PH.INBOUND, PH.HOLD].includes(a.phase) && !(a.spacingHoldUntil > state.time));
+    // Starts, die laut Folge vor der nächsten Landung dran sind, brauchen eine Lücke
+    const deps = stripForArrival(state) === 'N' ? state.seq.filter((id) => { const a = byId.get(id); return a && isSeqDeparture(a); }).length : 0;
+    clearNextApproach(state, cands, distCleared, deps, state.arrQ);
+  }
 }
 
 function autoArrivals(state) {
   const rwy = state.rwy;
-  const s0 = state;
   const cleared = state.acs.filter((a) => (a.phase === PH.APPROACH || a.phase === PH.FINAL) && a.rwy === rwy);
   const distCleared = cleared.map((a) => ({ a, d: distToLand(a) }));
   const nextStrip = stripForArrival(state);
@@ -294,37 +439,8 @@ function autoArrivals(state) {
   }
 
   if (!state.rwyPending) {
-    // Sequenzierung: nächster Kandidat
     const cands = state.acs.filter((a) => [PH.INBOUND, PH.HOLD].includes(a.phase));
-    // In der Warteschleife verlässt immer der Unterste zuerst den Stapel
-    const lowestInStack = (c) => c.phase !== PH.HOLD || !cands.some((o) => o !== c && o.phase === PH.HOLD && o.holdFix && c.holdFix && o.holdFix.name === c.holdFix.name && o.alt < c.alt - 100);
-    const scored = cands.filter(lowestInStack).map((c) => {
-      // Flugzeuge oberhalb eines Stapels nicht durch den Stapel sinken lassen
-      const below = state.acs.some((o) => o !== c && o.mode === 'air' && o.alt < c.alt - 300 && ((o.phase === PH.HOLD && Math.hypot(o.pos.x - c.pos.x, o.pos.y - c.pos.y) < 9) || (Math.hypot(o.pos.x - c.pos.x, o.pos.y - c.pos.y) < 6 && o.alt > 4500)));
-      return { c, d: AS.routeDistance(c.pos, AS.approachRoute(c.pos, rwy)) + (below ? 50 : 0), blocked: below };
-    });
-    scored.sort((x, y) => (y.c.emergency ? 1 : 0) - (x.c.emergency ? 1 : 0) || (y.c.minFuel ? 1 : 0) - (x.c.minFuel ? 1 : 0) || x.d - y.d);
-    const next = scored[0];
-    if (next) {
-      const c = next.c;
-      if (next.blocked && !c.emergency) {
-        // warten, bis der Stapel darunter frei ist
-      } else if (c.emergency) command(state, c, 'direct');
-      else {
-        let ok = true;
-        for (const { a, d } of distCleared) {
-          if ((a.strip || 'N') !== nextStrip) continue; // andere Bahn: unabhängig
-          const lead = d < next.d ? a : c, foll = lead === a ? c : a;
-          const fast = AC_TYPES[foll.type].vapp > AC_TYPES[lead.type].vapp + 12 ? 1.5 : 0;
-          // Wirbelschleppen: Mehrabstand hinter schweren Flugzeugen
-          let sep = 7 + fast + (wakeNm(lead.wake, foll.wake) - 3) * 1.3 + (s0.weather.kind === 'fog' ? 2.5 : 0);
-          if (departuresWaiting > 0) sep += 2.5;
-          if (Math.abs(next.d - d) < sep) ok = false;
-          if (next.d < d) ok = false; // nicht vordrängeln
-        }
-        if (ok) command(state, c, 'approach');
-      }
-    }
+    clearNextApproach(state, cands, distCleared, departuresWaiting);
   }
   // Geschwindigkeit: Aufholen verhindern (einfach)
   for (const strip of ['N', 'S']) {

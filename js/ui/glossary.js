@@ -111,7 +111,7 @@ export const glossaryEntry = (k) => BY_T.get(k);
 
 // ---------- Erklärungen für Panel-Abschnitte ----------
 export const EXPLAIN = {
-  seq: '<b>Pistenfolge</b>: alle Landungen (ab Anflugfreigabe) und Starts (ab Rollbereitschaft) in einer Reihenfolge. Die Zeit rechts ist die geplante Pistenzeit; <i>+n</i> = Wartezeit durch die Folge. Abstände richten sich nach der Wirbelschleppen-Kategorie; Slot-Flüge (CTOT) starten frühestens im Fenster. Umsortieren per ▲▼, Ziehen oder W/S.',
+  seq: '<b>Flugstreifen</b>: unten links die Landungen, rechts die Starts – links steht, wer zuerst dran ist. Oben der Filter <b>An / Beide / Ab</b>. Die ausgewählte Karte wird groß und zeigt alle Befehle. <b>Ziehen</b> ändert die Reihenfolge (auch ◀ ▶ oder W/S): mit <b>Auto-Staffelung</b> gibt der Tower dann die Anflugfreigaben in dieser Reihenfolge, bremst Anflüge auf 180/160 kt, gibt Vorgezogenen „Direkt FAF“ und schickt notfalls einen in die Warteschleife. Starts, die du vor eine Landung ziehst, bekommen eine Lücke. Wer schon im Endanflug oder auf der Piste ist, bleibt vorn. Eine Karte aus der Warteliste in die Pistenfolge ziehen = Anflug frei; zurückziehen = Warteschleife.',
   arr: '<b>Anflug</b>: Flüge im Luftraum ohne Anflugfreigabe. <i>A</i> = Anflug frei über IP und FAF, <i>D</i> = direkt zum FAF (kürzer), <i>H</i> = Warteschleife. ⛽ zeigt die Treibstoffreserve in Minuten – unter 12 min meldet der Pilot MINIMUM FUEL.',
   gnd: '<b>Rollverkehr</b>: Flugzeuge auf Rollwegen und Anfragen für Pushback/Rollen. Bei Slot-Flügen erst zur TSAT schieben („Warten bis TSAT“), sonst warten sie mit laufenden Triebwerken am Rollhalt.',
   dep: '<b>Abflug</b>: gerade gestartete Flüge im Nahbereich.',

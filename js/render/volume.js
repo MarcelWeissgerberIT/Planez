@@ -55,8 +55,9 @@ function windowSlice(src, x0, bw, H, col) {
     g.fillRect(0, y, e, c.height * 0.008);
     g.fillRect(c.width - e, y, e, c.height * 0.008);
   }
-  // Cockpitscheiben
-  g.fillRect(0, c.height * 0.03, c.width, c.height * 0.018);
+  // Cockpitscheiben seitlich
+  g.fillRect(0, c.height * 0.034, e * 1.4, c.height * 0.016);
+  g.fillRect(c.width - e * 1.4, c.height * 0.034, e * 1.4, c.height * 0.016);
   return c;
 }
 
@@ -208,6 +209,9 @@ export function drawAircraftBody(ctx, cam, ac, img, name, L, Wd, rot, onGround, 
   const iWin = nF >= 4 ? Math.round(nF * 0.7) : -1;
   const iLiv = nF >= 5 ? Math.round(nF * 0.42) : -1;
   const livImg = livery && iLiv >= 0 ? liverySlice(v, img, livery) : null;
+  // Nase (vorn) und Heckkonus (hinten) je Scheibe stauchen statt abschneiden:
+  // runde Nasenkuppel mit Spitze knapp unter der Mitte, Heck unten hochgezogen – ohne Stufen
+  const LN = 0.095, LT = 0.24;
   const drawFus = (from, to) => {
     for (let i = from; i <= to; i++) {
       const t = i / nF;
@@ -215,10 +219,15 @@ export function drawAircraftBody(ctx, cam, ac, img, name, L, Wd, rot, onGround, 
       const k = Math.sqrt(Math.max(0, 1 - h * h * 0.94));
       if (k < 0.15) continue;
       const im = i === nF ? part.top : i === iWin ? part.windows : i === iLiv && livImg ? livImg : part.tones[clamp(Math.round(t * (tn - 1)), 0, tn - 1)];
-      const cut = h < 0 ? 0.2 * -h : 0; // Heck ist unten hochgezogen
-      const nose = h > 0.5 ? 0.024 * (h - 0.5) : 0; // Nase rundet oben ab
+      const hn = (h + 0.18) / 1.1;
+      const fn = LN * (1 - Math.sqrt(Math.max(0, 1 - hn * hn)));
+      const ft = LT * (0.8 * Math.pow(clamp((0.3 - h) / 1.3, 0, 1), 1.2) + (h > 0.7 ? 0.2 * (h - 0.7) / 0.3 : 0));
+      const W = fw * k, x = bx - W / 2, y0 = -L / 2;
+      const H = im.height;
       atZ(ctx, F, zBot + (zTop - zBot) * t);
-      ctx.drawImage(im, 0, im.height * nose, im.width, im.height * (1 - cut - nose), bx - (fw * k) / 2, -L / 2 + L * nose, fw * k, L * (1 - cut - nose));
+      ctx.drawImage(im, 0, 0, im.width, H * LN, x, y0 + L * fn, W, L * (LN - fn));
+      ctx.drawImage(im, 0, H * LN, im.width, H * (1 - LN - LT), x, y0 + L * LN, W, L * (1 - LN - LT));
+      ctx.drawImage(im, 0, H * (1 - LT), im.width, H * LT, x, y0 + L * (1 - LT), W, L * (LT - ft));
     }
   };
 
@@ -281,20 +290,23 @@ export function drawVehicleBody(ctx, cam, name, x, y, hdg, L, Wd, height, lift =
   stack(ctx, F, cam.zoom, v, 0, 0, Wd, L, lift, lift + height, false, 10);
 }
 
-// Auto aus zwei Quadern (Karosserie + Kabine) mit Licht-/Schattenseiten
-export function drawCarBody(ctx, cam, x, y, h, color, prism, mixFn, simple = false) {
+// Auto aus zwei Quadern (Karosserie + Kabine) mit Licht-/Schattenseiten; sc = Maßstab, zb = Bodenhöhe
+export function drawCarBody(ctx, cam, x, y, h, color, prism, mixFn, simple = false, sc = 1, zb = 0) {
   const fx = Math.cos(h), fy = Math.sin(h);
   const rx = -fy, ry = fx;
   const box = (f0, f1, s, z0, z1, top, sa, sb) => {
+    f0 *= sc;
+    f1 *= sc;
+    s *= sc;
     const pts = [
       { x: x + fx * f0 + rx * s, y: y + fy * f0 + ry * s },
       { x: x + fx * f1 + rx * s, y: y + fy * f1 + ry * s },
       { x: x + fx * f1 - rx * s, y: y + fy * f1 - ry * s },
       { x: x + fx * f0 - rx * s, y: y + fy * f0 - ry * s },
     ];
-    prism(ctx, cam, pts, z0, z1, top, sa, sb);
+    prism(ctx, cam, pts, zb + z0 * sc, zb + z1 * sc, top, sa, sb);
   };
   const c = mixFn(color);
-  box(-0.17, 0.17, 0.075, 0.018, 0.07, c.top, c.a, c.b);
-  if (!simple) box(-0.09, 0.07, 0.066, 0.07, 0.112, c.glassTop, c.glassA, c.glassB);
+  box(-0.15, 0.15, 0.065, 0.015, 0.058, c.top, c.a, c.b);
+  if (!simple) box(-0.07, 0.07, 0.057, 0.058, 0.095, c.glassTop, c.glassA, c.glassB);
 }

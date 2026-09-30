@@ -4,10 +4,10 @@ import { PH, PHASE_DE, runwayOccupants, fmtAlt } from '../sim/aircraft.js';
 import * as AS from '../sim/airspace.js';
 import { AC_TYPES, CITIES, AIRPORT } from '../config.js';
 import { fmtClock, esc } from '../util.js';
-import { syncList, setHTML, toast } from './dom.js';
+import { syncList, setHTML, toast, $ } from './dom.js';
 import { sfx } from '../audio.js';
 import { flagButton, flagHtml, openMarkMenu } from './marks.js';
-import { updateSequence, isSeqArrival, seqEta, seqSlot, seqMove, seqMoveTo, seqSortByEta, seqIndex } from '../sim/sequence.js';
+import { updateSequence, isSeqArrival, seqSlot, seqMove, seqMoveTo, seqSortByEta, seqIndex, updateArrQueue, arrQMoveTo } from '../sim/sequence.js';
 import { qm, glTag } from './glossary.js';
 import { slotInfo } from '../sim/acdm.js';
 import { rwyCond, brakingAction, BRAKE_DE, runwayClosed, isWet, hasRwy2, rwyName, segregated } from '../sim/runway.js';
@@ -73,9 +73,6 @@ export const REQ_DE = {
   takeoff: 'startbereit',
   cross: 'bittet um Kreuzen der Startbahn',
 };
-const ARR_PH = [PH.INBOUND, PH.HOLD, PH.APPROACH, PH.GOAROUND, PH.FINAL, PH.MISSED];
-const GND_PH = [PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN, PH.PUSH, PH.STARTUP, PH.TAXI_OUT];
-const DEP_PH = [PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAKEOFF];
 
 export function distToLand(ac) {
   if (ac.mode === 'map') return ac.phase === PH.FINAL ? 0.2 : 0;
@@ -104,45 +101,96 @@ export function acRoute(state, ac) {
   return ac.arr && ac.phase !== PH.STAND && !['PUSHBACK', 'STARTUP', 'TAXI_OUT', 'HOLDING', 'LINEUP', 'LINED_UP', 'TAKEOFF', 'DEPARTURE'].includes(ac.phase) ? `${city} → ${AIRPORT.code}` : `${AIRPORT.code} → ${city}`;
 }
 
+// Hauptbefehl je Anfrage (für die kleinen Karten)
+const PRIMARY = { approach: ['approach'], land: ['land'], taxi_in: ['taxiIn'], push: ['push', 'startWait'], taxi_out: ['taxiOut'], takeoff: ['takeoff', 'lineup'], cross: ['cross'] };
+const Q_PH = new Set([PH.INBOUND, PH.HOLD, PH.GOAROUND, PH.MISSED]);
+const ARR_GND = new Set([PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN]);
+const DEP_APRON = new Set([PH.PUSH]);
+const mmss = (sec) => {
+  const t = Math.max(0, Math.round(sec));
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+};
+
+// Tower-Arbeitsplatz: rechts Radar + Pistenstatus + Funk in einem Fenster, unten die Flugstreifen-Leiste
 export class TowerPanel {
   constructor(root, game) {
     this.root = root;
     this.game = game;
+    root.classList.add('tw-side');
     root.innerHTML = `
       <div class="p-head">
         <div class="p-title">🎧 Tower <small>${AIRPORT.tower} ${AIRPORT.freq}</small></div>
+        <button class="mini" id="tw-rwy-t" title="Pistenstatus ein-/ausklappen">Pisten ▾</button>
       </div>
-      <div class="p-body">
-        <div class="rwy-box" id="tw-rwy"></div>
-        <div class="toggle-row"><span>Rollverkehr automatisch (nur Luftraum &amp; Piste selbst)</span><button class="switch" id="tw-gauto"></button></div>
-        <div class="p-sec seq-head" id="tw-seq-head"></div>
-        <div class="seq-legend"><span><i style="background:${SEQ_COL.land}"></i>Landung</span><span><i style="background:${SEQ_COL.landClr}"></i>Landung frei</span><span><i style="background:${SEQ_COL.dep}"></i>Start</span><span><i style="background:${SEQ_COL.depClr}"></i>Startfreigabe</span></div>
-        <div id="tw-seq"></div>
-        <div class="p-sec"><span>Anflug · noch ohne Freigabe${qm('arr')}</span><span class="cnt" id="tw-c-arr">0</span></div>
-        <div id="tw-arr"></div>
-        <div class="p-sec"><span>Rollverkehr${qm('gnd')}</span><span class="cnt" id="tw-c-gnd">0</span></div>
-        <div id="tw-gnd"></div>
-        <div class="p-sec"><span>Abflug · in der Luft${qm('dep')}</span><span class="cnt" id="tw-c-dep">0</span></div>
-        <div id="tw-dep"></div>
-        <div class="p-sec"><span>An Parkpositionen</span><span class="cnt" id="tw-c-stand">0</span></div>
-        <div class="empty" id="tw-stand-hint">Abfertigung läuft automatisch. Sobald ein Flug fertig ist, meldet er sich für den Pushback.</div>
-      </div>`;
-    this.el = {
-      rwy: root.querySelector('#tw-rwy'),
-      arr: root.querySelector('#tw-arr'),
-      gnd: root.querySelector('#tw-gnd'),
-      dep: root.querySelector('#tw-dep'),
-      seq: root.querySelector('#tw-seq'),
-      seqHead: root.querySelector('#tw-seq-head'),
-      gauto: root.querySelector('#tw-gauto'),
-    };
-    root.addEventListener('click', (e) => this.onClick(e));
-    this.wireDrag();
-    this.el.gauto.addEventListener('click', () => {
-      const s = this.game.state;
-      s.settings.towerGroundAuto = !s.settings.towerGroundAuto;
-      toast(s.settings.towerGroundAuto ? 'Rollverkehr läuft automatisch' : 'Rollverkehr wieder manuell', 'info');
+      <div class="tw-radar-slot" id="tw-radar-slot"></div>
+      <div class="rwy-box tw-rwy" id="tw-rwy"></div>
+      <div class="tw-log-slot" id="tw-log-slot"></div>`;
+    // Radar und Funk in das Fenster holen (beim Rollenwechsel zurück)
+    this.moved = [];
+    this.dock($('#radar-wrap'), root.querySelector('#tw-radar-slot'));
+    this.dock($('#log-wrap'), root.querySelector('#tw-log-slot'));
+    $('#log-wrap').classList.remove('min');
+    $('#log-toggle').textContent = '–';
+    root.querySelector('#tw-rwy-t').addEventListener('click', () => {
+      const r = root.querySelector('#tw-rwy');
+      r.classList.toggle('closed');
+      root.querySelector('#tw-rwy-t').textContent = r.classList.contains('closed') ? 'Pisten ▸' : 'Pisten ▾';
     });
+    root.addEventListener('click', (e) => this.onClick(e));
+
+    // Flugstreifen-Leiste unten
+    const rail = document.createElement('section');
+    rail.id = 'rail';
+    rail.innerHTML = `
+      <div class="rail-head">
+        <div class="rail-title">✈️ Flugstreifen${qm('seq')}</div>
+        <div class="seg" id="rl-filter" title="Filter: nur Landungen, beide oder nur Starts"><button data-f="arr">🛬 An</button><button data-f="both">Beide</button><button data-f="dep">🛫 Ab</button></div>
+        <button class="rl-tg" id="rl-spacing" title="Reihenfolge per Drag &amp; Drop – Anflugfreigaben, Geschwindigkeit und Lücken für Starts passen sich automatisch an"><span class="switch"></span>Auto-Staffelung</button>
+        <button class="rl-tg" id="rl-gauto" title="Rollverkehr (Pushback, Rollen, Kreuzen) automatisch – du kümmerst dich nur um Luftraum und Piste"><span class="switch"></span>Rollverkehr auto</button>
+        <span id="rl-sort"></span>
+        <span class="rl-legend"><span><i style="background:${SEQ_COL.land}"></i>Landung</span><span><i style="background:${SEQ_COL.landClr}"></i>frei</span><span><i style="background:${SEQ_COL.dep}"></i>Start</span><span><i style="background:${SEQ_COL.depClr}"></i>frei</span></span>
+        <button class="mini" id="rl-min" title="Leiste verkleinern">▾</button>
+      </div>
+      <div class="rail-lanes" id="rl-lanes">
+        <div class="lane" data-lane="arr"><div class="lane-h"><span>🛬 Landungen</span><span class="cnt" id="rl-c-arr">0</span><small>links = zuerst · ziehen zum Umsortieren</small></div><div class="lane-cards" id="rl-arr"></div></div>
+        <div class="lane" data-lane="dep"><div class="lane-h"><span>🛫 Starts</span><span class="cnt" id="rl-c-dep">0</span><small>links = zuerst</small></div><div class="lane-cards" id="rl-dep"></div></div>
+      </div>`;
+    $('#game').appendChild(rail);
+    this.rail = rail;
+    this.el = { rwy: root.querySelector('#tw-rwy'), arr: rail.querySelector('#rl-arr'), dep: rail.querySelector('#rl-dep'), lanes: rail.querySelector('#rl-lanes') };
+    rail.addEventListener('click', (e) => this.onClick(e));
+    rail.addEventListener('pointerdown', () => (this.game.panelHold = true));
+    rail.addEventListener('wheel', (e) => {
+      // Mausrad scrollt die Kartenreihe waagerecht
+      const lane = e.target.closest('.lane-cards');
+      if (lane && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        lane.scrollLeft += e.deltaY;
+        e.preventDefault();
+      }
+    }, { passive: false });
+    this.wireDrag(this.el.arr, 'arr');
+    this.wireDrag(this.el.dep, 'dep');
+    document.getElementById('game').classList.add('tw-layout');
+    this.game.resize && this.game.resize();
+  }
+
+  dock(el, slot) {
+    if (!el || !slot) return;
+    this.moved.push([el, el.parentNode, el.nextSibling]);
+    slot.appendChild(el);
+  }
+
+  // Rollenwechsel: Radar/Funk zurück, Leiste entfernen
+  destroy() {
+    for (const [el, parent, next] of this.moved.reverse()) parent.insertBefore(el, next);
+    this.moved = [];
+    this.rail.remove();
+    this.root.classList.remove('tw-side');
+    document.getElementById('game').classList.remove('tw-layout');
+  }
+
+  get filter() {
+    return this.game.state.settings.railFilter || 'both';
   }
 
   onClick(e) {
@@ -158,10 +206,7 @@ export class TowerPanel {
       return;
     }
     const rw = e.target.closest('[data-rwy]');
-    if (rw) {
-      requestRunwayChange(s, rw.dataset.rwy);
-      return;
-    }
+    if (rw) return requestRunwayChange(s, rw.dataset.rwy);
     const rm = e.target.closest('[data-rwymode]');
     if (rm) {
       s.rwyMode = rm.dataset.rwymode;
@@ -177,174 +222,259 @@ export class TowerPanel {
     const mv = e.target.closest('[data-seqmv]');
     if (mv) {
       if (seqMove(s, mv.dataset.ac, Number(mv.dataset.seqmv))) sfx.click();
+      else if (s.seqErr) toast(s.seqErr, 'warn', 2600);
       this.update(s);
       return;
     }
     if (e.target.closest('[data-seqsort]')) {
       seqSortByEta(s);
       sfx.click();
-      toast('Pistenfolge wird wieder automatisch geplant', 'info', 2200);
+      toast('Reihenfolge wird wieder automatisch geplant', 'info', 2200);
       this.update(s);
       return;
     }
-    const strip = e.target.closest('.strip');
-    if (strip) this.game.select(strip.dataset.key, true);
+    const f = e.target.closest('#rl-filter [data-f]');
+    if (f) {
+      s.settings.railFilter = f.dataset.f;
+      this.update(s);
+      return;
+    }
+    if (e.target.closest('#rl-spacing')) {
+      s.settings.autoSpacing = s.settings.autoSpacing === false;
+      toast(s.settings.autoSpacing ? 'Auto-Staffelung an: Reihenfolge per Drag & Drop, Tempo und Anflugfreigaben laufen automatisch' : 'Auto-Staffelung aus: Anflugfreigaben und Geschwindigkeiten gibst du selbst', 'info', 3200);
+      this.update(s);
+      return;
+    }
+    if (e.target.closest('#rl-gauto')) {
+      s.settings.towerGroundAuto = !s.settings.towerGroundAuto;
+      toast(s.settings.towerGroundAuto ? 'Rollverkehr läuft automatisch' : 'Rollverkehr wieder manuell', 'info');
+      this.update(s);
+      return;
+    }
+    if (e.target.closest('#rl-min')) {
+      this.rail.classList.toggle('min');
+      document.getElementById('game').classList.toggle('rail-min', this.rail.classList.contains('min'));
+      e.target.closest('#rl-min').textContent = this.rail.classList.contains('min') ? '▴' : '▾';
+      return;
+    }
+    const card = e.target.closest('.fcard');
+    if (card) this.game.select(card.dataset.key, true);
   }
 
-  wireDrag() {
-    const box = this.el.seq;
-    let dragId = null;
+  // Drag & Drop: Reihenfolge der Landungen bzw. Starts
+  wireDrag(box, lane) {
+    let drag = null;
     const clear = () => box.querySelectorAll('.drop-before,.drop-after').forEach((x) => x.classList.remove('drop-before', 'drop-after'));
     box.addEventListener('dragstart', (e) => {
-      const st = e.target.closest('.strip');
-      if (!st) return;
-      dragId = st.dataset.key;
-      st.classList.add('dragging');
+      const c = e.target.closest('.fcard');
+      if (!c || !c.draggable) return;
+      drag = { id: c.dataset.key, g: c.dataset.g };
+      c.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', dragId);
+      e.dataTransfer.setData('text/plain', drag.id);
       this.game.panelHold = true;
     });
     box.addEventListener('dragover', (e) => {
-      const st = e.target.closest('.strip');
-      if (!dragId || !st) return;
+      if (!drag) return;
+      const c = e.target.closest('.fcard');
+      if (!c || !['seq', 'q'].includes(c.dataset.g)) return;
       e.preventDefault();
       clear();
-      const r = st.getBoundingClientRect();
-      st.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after');
+      const r = c.getBoundingClientRect();
+      c.classList.add(e.clientX < r.left + r.width / 2 ? 'drop-before' : 'drop-after');
     });
     box.addEventListener('drop', (e) => {
-      const st = e.target.closest('.strip');
-      if (!dragId || !st) return;
+      if (!drag) return;
+      const c = e.target.closest('.fcard');
+      if (!c) return;
       e.preventDefault();
-      const s = this.game.state;
-      const after = st.classList.contains('drop-after');
-      let before = st.dataset.key;
-      if (after) {
-        const i = s.seq.indexOf(before);
-        before = s.seq[i + 1] === dragId ? s.seq[i + 2] : s.seq[i + 1];
-      }
-      if (before !== dragId && seqMoveTo(s, dragId, before || null)) sfx.click();
+      this.drop(lane, drag, c.dataset.key, c.dataset.g, c.classList.contains('drop-after'));
       clear();
     });
     box.addEventListener('dragend', () => {
       box.querySelectorAll('.dragging').forEach((x) => x.classList.remove('dragging'));
       clear();
-      dragId = null;
+      drag = null;
       this.game.panelHold = false;
       this.update(this.game.state);
     });
   }
 
-  seqStrip(state, ac, idx, gapNm) {
+  drop(lane, drag, target, tg, after) {
+    const s = this.game.state;
+    if (drag.id === target) return;
+    const ac = s.acs.find((a) => a.id === drag.id);
+    if (!ac) return;
+    const seqBefore = () => {
+      if (!after) return target;
+      const i = s.seq.indexOf(target);
+      const rest = s.seq.slice(i + 1).filter((x) => x !== drag.id);
+      return rest[0] || null;
+    };
+    const qBefore = () => {
+      if (!after) return target;
+      const i = s.arrQ.indexOf(target);
+      const rest = s.arrQ.slice(i + 1).filter((x) => x !== drag.id);
+      return rest[0] || null;
+    };
+    let ok = false;
+    let msg = '';
+    if (drag.g === 'seq' && tg === 'seq') {
+      ok = seqMoveTo(s, drag.id, seqBefore());
+      if (!ok && s.seqErr) return toast(s.seqErr, 'warn', 2600);
+    }
+    else if (lane === 'arr' && drag.g === 'q' && tg === 'q') {
+      ok = arrQMoveTo(s, drag.id, qBefore());
+      msg = `${ac.cs} bekommt die Anflugfreigabe in dieser Reihenfolge`;
+    } else if (lane === 'arr' && drag.g === 'q' && tg === 'seq') {
+      // aus der Warteliste direkt in die Folge: Anflug freigeben und einsortieren
+      const r = command(s, ac, 'approach');
+      if (!r.ok) return toast(r.msg, 'warn');
+      updateSequence(s);
+      ok = seqMoveTo(s, drag.id, seqBefore()) || true;
+      msg = `${ac.cs}: Anflug frei und in die Folge eingereiht`;
+    } else if (lane === 'arr' && drag.g === 'seq' && tg === 'q') {
+      if (!CMDS.hold.valid(s, ac)) return toast(`${ac.cs} ist schon im Endanflug – nicht mehr in die Warteschleife`, 'warn');
+      command(s, ac, 'hold');
+      updateArrQueue(s);
+      arrQMoveTo(s, drag.id, qBefore());
+      ok = true;
+      msg = `${ac.cs} zurück in die Warteschleife`;
+    }
+    if (!ok) return;
+    sfx.click();
+    const auto = s.settings.autoSpacing !== false;
+    toast(msg || (auto ? 'Reihenfolge geändert – Auto-Staffelung passt Tempo und Lücken an' : 'Reihenfolge geändert'), 'info', 2400);
+  }
+
+  // Eine Flugkarte (klein) bzw. die aktive Karte (groß mit allen Befehlen)
+  card(state, ac, g, num, lane) {
     const t = AC_TYPES[ac.type];
     const sel = this.game.ui.selected === ac.id;
-    const land = isSeqArrival(ac);
-    const col = seqColor(ac);
-    const raw = seqEta(state, ac);
-    const slot = seqSlot(state, ac.id) ?? raw;
-    const eta = Math.max(0, Math.round(slot / 60));
-    const shift = Math.round((slot - raw) / 60); // Wartezeit durch die Folge
+    const inSeq = g === 'seq';
+    const land = lane === 'arr';
+    const col = inSeq ? seqColor(ac) : land ? '#64748b' : '#64748b';
+    const plan = state.spacing && state.spacing[ac.id];
+    const slot = seqSlot(state, ac.id);
+    // Kopfzeile
+    let eta = '';
+    if (inSeq && slot != null) eta = slot <= 30 ? 'jetzt' : `~${Math.round(slot / 60)} min`;
+    else if (land && ac.mode === 'air') eta = `${distToLand(ac).toFixed(0)} NM`;
+    else if (ac.stand) eta = `P${ac.stand}`;
+    const numB = num ? `<span class="c-num" style="background:${col}">${num}</span>` : `<span class="c-num off">${g === 'q' ? '·' : g === 'gnd' || g === 'apron' ? '⌂' : '↗'}</span>`;
+    const top = `${numB}<span class="c-cs">${flagButton(ac)}${esc(ac.cs)}</span><small class="c-t">${ac.type}/${wakeTag(t.wake)}${ac.emergency ? ' · <b class="bad">7700</b>' : ''}</small><span class="c-eta">${eta}</span>`;
+    // Lage
     let where = '';
-    if (land) {
-      if (ac.mode === 'air') where = `${distToLand(ac).toFixed(1)} NM · ${String(Math.round(ac.alt / 100)).padStart(3, '0')} · ${Math.round(ac.spd)} kt`;
-      else where = ac.phase === PH.ROLLOUT ? 'auf der Piste' : 'kurzer Endanflug';
-    } else where = { STARTUP: 'Triebwerksstart', TAXI_OUT: 'rollt zum Rollhalt', HOLDING: `Rollhalt ${ac.rwy}`, LINEUP: 'rollt auf die Piste', LINED_UP: 'aufgestellt', TAKEOFF: 'Startlauf' }[ac.phase] || PHASE_DE[ac.phase];
-    let gap = '';
-    if (gapNm != null) {
-      const req = ac.wakeReq > 3 ? ac.wakeReq : 3;
-      const c = gapNm < 3 || ac.wakeWarn ? 'var(--bad)' : gapNm < req + 0.5 ? 'var(--warn)' : 'var(--muted)';
-      gap = ` · <span style="color:${c}">Abstand ${gapNm.toFixed(1)} NM${req > 3 ? ` / Soll ${req}${ac.wakeWarn ? ' 🌀' : ''}` : ''}</span>`;
-    }
-    let st = land ? (ac.clr.land ? '🛬 Landung frei' : '🛬 Landung') : ac.clr.takeoff ? '🛫 Startfreigabe erteilt' : ac.clr.lineup ? '🛫 Line up & wait' : '🛫 Start';
+    if (ac.mode === 'air') where = `${String(Math.round(ac.alt / 100)).padStart(3, '0')}${ac.tAlt > ac.alt + 150 ? '↑' : ac.tAlt < ac.alt - 150 ? '↓' : ''} · ${Math.round(ac.spd)} kt`;
+    else where = PHASE_DE[ac.phase] || ac.phase;
+    if (ac.phase === PH.HOLD && ac.holdFix) where = `Schleife ${ac.holdFix.name} · ${fmtAlt(ac.tAlt)}`;
+    const mid = `${esc(acRoute(state, ac))} · ${esc(where)}`;
+    // Status + Staffelung
+    let st = '';
+    if (inSeq) st = land ? (ac.clr.land ? '🛬 Landung frei' : '🛬 Landung') : ac.clr.takeoff ? '🛫 Start frei' : ac.clr.lineup ? '🛫 Line up' : '🛫 Start';
+    else st = PHASE_DE[ac.phase] || '';
     if (ac.holdPos) st += ' · HALT';
-    if (ac.blockedBy && ac.mode === 'map' && ac.v === 0) {
-      const b = state.acs.find((o) => o.id === ac.blockedBy);
-      if (b) st += ` · wartet auf ${esc(b.cs)}`;
+    const rq = ac.req ? `<span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
+    let sp = '';
+    if (plan && inSeq) {
+      if (land && ac.mode === 'air' && ac.autoSpd && ac.spdOverride) sp = `<span class="spc">Staffelung ${ac.spdOverride} kt${plan.delay > 20 ? ` · +${mmss(plan.delay)}` : ''}</span>`;
+      else if (!land && plan.slot > 20 && ![PH.LINED, PH.TAKEOFF].includes(ac.phase)) sp = `<span class="spc">Startfenster in ${mmss(plan.slot)}</span>`;
+      else if (!land && [PH.HOLDING, PH.LINED, PH.LINEUP].includes(ac.phase)) sp = '<span class="spc ok">Startfenster offen</span>';
     }
-    const rq = ac.req ? ` · <span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
-    const info = `<div class="s-info"><div class="s-cs">${flagButton(ac)}${esc(ac.cs)}<small>${ac.type}/${wakeTag(t.wake)}${ac.emergency ? ' · 7700' : ''}</small>${flagHtml(ac)}</div><div class="s-alt" title="geplante Pistenzeit laut Folge">${eta <= 0 ? 'jetzt' : '~' + eta + ' min'}${shift >= 1 ? ` <small style="color:var(--warn)">+${shift}</small>` : ''}</div><div class="s-sub">${esc(acRoute(state, ac))} · ${esc(where)}${gap}</div><div class="s-state"><b style="color:${col}">${st}</b>${rq}${fuelChip(ac)}</div>${land ? '' : acdmLine(state, ac)}</div>`;
-    const ctl = `<button class="mini" data-seqmv="-1" data-ac="${ac.id}" title="früher (W)">▲</button><span class="grip" title="Ziehen zum Umsortieren">⠿</span><button class="mini" data-seqmv="1" data-ac="${ac.id}" title="später (S)">▼</button>`;
+    if (ac.spacingHold && ac.phase === PH.HOLD) sp = '<span class="spc">Schleife für die Reihenfolge</span>';
+    const state2 = `<b style="color:${inSeq ? col : '#cbd5e1'}">${esc(st)}</b>${rq}${sp}${fuelChip(ac)}`;
+    // Befehle: aktive Karte alle, sonst nur der passende Hauptbefehl
+    let btns = '';
+    if (sel) {
+      btns = cmdButtons(state, ac, false, true);
+      if (inSeq) btns += `<span class="c-mv"><button class="mini" data-seqmv="-1" data-ac="${ac.id}" title="in der Pistenfolge früher (W)">◀ früher</button><button class="mini" data-seqmv="1" data-ac="${ac.id}" title="in der Pistenfolge später (S)">später ▶</button></span>`;
+    } else if (ac.req) {
+      const valid = validCommands(state, ac);
+      const k = (PRIMARY[ac.req] || []).find((x) => valid.includes(x));
+      if (k) btns = `<button class="cmd big" data-cmd="${k}" data-ac="${ac.id}">${CMDS[k].label}${CMDS[k].key ? ` <kbd>${CMDS[k].key}</kbd>` : ''}</button>`;
+    }
+    let extra = '';
+    if (sel) {
+      const rot = state.rots[ac.rot];
+      const parts = [];
+      if (rot && land && ac.mode === 'air') parts.push(`STA ${fmtClock(rot.sta)}`);
+      if (rot && !land) parts.push(`STD ${fmtClock(rot.std)}`);
+      if (ac.stand) parts.push(`Position ${ac.stand}`);
+      if (land && ac.mode === 'air') parts.push(`${distToLand(ac).toFixed(1)} NM bis zur Schwelle`);
+      if (ac.strip && hasRwy2(state)) parts.push(`Bahn ${rwyName(state, ac.strip)}`);
+      extra = `<div class="c-x">${parts.join(' · ')}</div>${land ? '' : acdmLine(state, ac)}`;
+    }
+    const kind = inSeq ? (land ? (ac.clr.land ? 'k-landclr' : 'k-land') : ac.clr.takeoff ? 'k-depclr' : 'k-dep') : `k-${g}`;
     return {
-      cls: `strip seqs ${land ? (ac.clr.land ? 'k-landclr' : 'k-land') : ac.clr.takeoff ? 'k-depclr' : 'k-dep'}${sel ? ' sel' : ''}${ac.req ? ' req' : ''}${ac.emergency ? ' emg' : ''}${ac.conflict ? ' conf' : ''}`,
-      wrap: () => `<div class="s-bar"></div><div class="s-num"></div><div class="s-main"><div class="s-infobox"></div><div class="s-btns"></div></div><div class="s-ctl"></div>`,
-      parts: { 's-num': `<span style="background:${col}">${idx}</span>`, 's-infobox': info, 's-btns': cmdButtons(state, ac, false, sel), 's-ctl': ctl },
+      cls: `fcard ${kind}${sel ? ' active' : ''}${ac.req ? ' req' : ''}${ac.emergency ? ' emg' : ''}${ac.conflict ? ' conf' : ''}${ac.wakeWarn ? ' conf' : ''}`,
+      wrap: (inner) => `<div class="c-bar"></div><div class="c-body">${inner}</div>`,
+      parts: { 'c-top': top, 'c-mid': mid, 'c-st': state2, 'c-extra': extra, 'c-btns': btns },
     };
   }
 
-  strip(state, ac, kind) {
-    const t = AC_TYPES[ac.type];
-    const rot = state.rots[ac.rot];
-    const sel = this.game.ui.selected === ac.id;
-    let alt = '';
-    if (ac.mode === 'air') alt = `${String(Math.round(ac.alt / 100)).padStart(3, '0')}${ac.tAlt > ac.alt + 150 ? '↑' : ac.tAlt < ac.alt - 150 ? '↓' : ''} ${Math.round(ac.spd)}kt`;
-    else if (ac.stand) alt = `Pos ${ac.stand}`;
-    else if (ac.arr && [PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT].includes(ac.phase)) alt = 'keine Pos.';
-    let sub = acRoute(state, ac);
-    if (rot) {
-      if (ac.arr && ARR_PH.includes(ac.phase)) {
-        const d = distToLand(ac);
-        sub += ` · ${d.toFixed(0)} NM · STA ${fmtClock(rot.sta)}`;
-      } else if (!ac.arr || [PH.PUSH, PH.STARTUP, PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAKEOFF].includes(ac.phase)) {
-        const late = Math.round((state.time - rot.std) / 60);
-        sub += ` · STD ${fmtClock(rot.std)}${late > 0 ? ` (+${late})` : ''}`;
-      }
-    }
-    let st = PHASE_DE[ac.phase] || ac.phase;
-    if (ac.phase === PH.HOLD && ac.holdFix) st += ` ${ac.holdFix.name} ${fmtAlt(ac.tAlt)}`;
-    if (ac.phase === PH.APPROACH) st += ac.clr.land ? ' · Landung frei' : '';
-    if (ac.holdPos) st += ' · HALT';
-    if (ac.blockedBy && ac.mode === 'map' && ac.v === 0) {
-      const b = state.acs.find((o) => o.id === ac.blockedBy);
-      if (b) st += ` · wartet auf ${b.cs}`;
-    }
-    const rq = ac.req ? ` · <span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
-    const depSide = !ac.arr || [PH.STAND, PH.PUSH, PH.STARTUP, PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(ac.phase);
-    const info = `<div class="s-info"><div class="s-cs">${flagButton(ac)}${esc(ac.cs)}<small>${ac.type}/${wakeTag(t.wake)}${ac.emergency ? ' · 7700' : ''}</small>${flagHtml(ac)}</div><div class="s-alt">${alt}</div><div class="s-sub">${esc(sub)}</div><div class="s-state">${esc(st)}${rq}${fuelChip(ac)}</div>${depSide ? acdmLine(state, ac) : ''}</div>`;
-    const cls = `strip ${kind}${sel ? ' sel' : ''}${ac.req ? ' req' : ''}${ac.emergency ? ' emg' : ''}${ac.conflict ? ' conf' : ''}`;
-    return {
-      cls,
-      wrap: (inner) => `<div class="s-bar"></div><div class="s-main">${inner}</div>`,
-      parts: { 's-infobox': info, 's-btns': cmdButtons(state, ac, false, sel) },
-    };
+  // Trenner zwischen Gruppen in einer Reihe
+  sep(key, label, n) {
+    return { key, r: { cls: 'fsep', html: `<span>${label}</span>${n ? `<b>${n}</b>` : ''}` } };
   }
 
   update(state) {
-    // Piste
-    const h = runwayStatusHtml(state);
-    setHTML(this.el.rwy, h);
-    this.el.gauto.classList.toggle('on', !!state.settings.towerGroundAuto);
-
-    // Pistenfolge (Landungen + Starts gemeinsam)
+    setHTML(this.el.rwy, runwayStatusHtml(state));
     updateSequence(state);
+    updateArrQueue(state);
     const byId = new Map(state.acs.map((a) => [a.id, a]));
     const seq = state.seq.map((id) => byId.get(id)).filter(Boolean);
-    const inSeq = new Set(state.seq);
-    setHTML(this.el.seqHead, `<span>Pistenfolge RWY ${state.rwy}${qm('seq')} <small style="text-transform:none;letter-spacing:0">${state.seqManual ? '· manuell sortiert' : '· automatisch geplant'}</small></span><span>${state.seqManual ? '<button class="mini" data-seqsort title="wieder automatisch planen">⇅ automatisch</button> ' : ''}<span class="cnt">${seq.length}</span></span>`);
-    let lastArr = null;
-    const gaps = new Map();
-    for (const a of seq) {
-      if (!isSeqArrival(a)) continue;
-      if (lastArr && a.mode === 'air') gaps.set(a.id, lastArr.mode === 'air' ? Math.hypot(a.pos.x - lastArr.pos.x, a.pos.y - lastArr.pos.y) : distToLand(a));
-      lastArr = a;
+    const num = new Map(seq.map((a, i) => [a.id, i + 1]));
+    // Landungen: Folge · Warteliste · am Boden
+    const arrSeq = seq.filter((a) => isSeqArrival(a));
+    const queue = [...state.acs.filter((a) => a.arr && a.mode === 'air' && [PH.GOAROUND, PH.MISSED].includes(a.phase)), ...state.arrQ.map((id) => byId.get(id)).filter(Boolean)];
+    const arrGnd = state.acs.filter((a) => a.arr && a.mode === 'map' && ARR_GND.has(a.phase) && !num.has(a.id)).sort((a, b) => (b.req ? 1 : 0) - (a.req ? 1 : 0));
+    // Starts: Folge · Vorfeld (Pushback-Anfragen) · in der Luft
+    const depSeq = seq.filter((a) => !isSeqArrival(a));
+    const apron = state.acs.filter((a) => !num.has(a.id) && ((a.phase === PH.STAND && a.req === 'push') || DEP_APRON.has(a.phase))).sort((a, b) => (a.reqT || 0) - (b.reqT || 0));
+    const air = state.acs.filter((a) => !num.has(a.id) && ((a.phase === PH.DEPART && Math.hypot(a.pos.x, a.pos.y) < 10) || (a.phase === PH.TAKEOFF && a.z > 0.5)));
+    const build = (lane, groups) => {
+      const items = [];
+      for (const [g, list, label] of groups) {
+        if (!list.length) continue;
+        items.push(this.sep(`s-${g}`, label, list.length));
+        for (const a of list) items.push({ key: a.id, a, g });
+      }
+      return items;
+    };
+    const arrItems = build('arr', [['seq', arrSeq, 'Pistenfolge'], ['q', queue, state.settings.autoSpacing !== false ? 'Warteliste · Freigabe automatisch' : 'ohne Anflugfreigabe'], ['gnd', arrGnd, 'gelandet']]);
+    const depItems = build('dep', [['seq', depSeq, 'Pistenfolge'], ['apron', apron, 'Vorfeld'], ['air', air, 'in der Luft']]);
+    const render = (lane) => (it) => {
+      if (it.r) return it.r;
+      const r = this.card(state, it.a, it.g, it.g === 'seq' ? num.get(it.a.id) : 0, lane);
+      return r;
+    };
+    syncList(this.el.arr, arrItems, (it) => it.key, render('arr'));
+    syncList(this.el.dep, depItems, (it) => it.key, render('dep'));
+    for (const [box, items] of [[this.el.arr, arrItems], [this.el.dep, depItems]]) {
+      const g = new Map(items.filter((i) => i.a).map((i) => [i.key, i.g]));
+      for (const el of box.children) {
+        const gg = g.get(el.dataset.key);
+        if (!gg) continue;
+        if (el.dataset.g !== gg) el.dataset.g = gg;
+        const dr = gg === 'seq' || gg === 'q';
+        if (el.draggable !== dr) el.draggable = dr;
+      }
     }
-    syncList(this.el.seq, seq, (a) => a.id, (a) => this.seqStrip(state, a, seq.indexOf(a) + 1, gaps.get(a.id)));
-    for (const el of this.el.seq.children) if (el.classList.contains('strip')) el.draggable = true;
-    if (!seq.length && !this.el.seq.querySelector('.empty')) this.el.seq.innerHTML = '<div class="empty">Noch keine Landungen mit Anflugfreigabe oder rollbereite Starts.</div>';
-
-    const arr = state.acs.filter((a) => ARR_PH.includes(a.phase) && !inSeq.has(a.id)).map((a) => ({ a, d: distToLand(a) })).sort((x, y) => x.d - y.d).map((x) => x.a);
-    const gnd = state.acs.filter((a) => !inSeq.has(a.id) && (GND_PH.includes(a.phase) || (a.phase === PH.STAND && a.req === 'push'))).sort((a, b) => (b.req ? 1 : 0) - (a.req ? 1 : 0) || (a.reqT || 0) - (b.reqT || 0));
-    const dep = state.acs.filter((a) => !inSeq.has(a.id) && (DEP_PH.includes(a.phase) || (a.phase === PH.DEPART && Math.hypot(a.pos.x, a.pos.y) < 10)));
-    syncList(this.el.arr, arr, (a) => a.id, (a) => this.strip(state, a, 'arr'));
-    syncList(this.el.gnd, gnd, (a) => a.id, (a) => this.strip(state, a, 'gnd'));
-    syncList(this.el.dep, dep, (a) => a.id, (a) => this.strip(state, a, 'dep'));
-    const cnt = (id, n) => setHTML(this.root.querySelector(id), String(n));
-    cnt('#tw-c-arr', arr.length);
-    cnt('#tw-c-gnd', gnd.length);
-    cnt('#tw-c-dep', dep.length);
-    cnt('#tw-c-stand', state.acs.filter((a) => a.phase === PH.STAND).length);
-    for (const [el, list, txt] of [[this.el.arr, arr, 'Kein Anflugverkehr.'], [this.el.gnd, gnd, 'Kein Rollverkehr.'], [this.el.dep, dep, 'Keine Abflüge in der Luft.']]) {
-      if (!list.length && !el.querySelector('.empty')) el.innerHTML = `<div class="empty">${txt}</div>`;
-    }
+    if (!arrItems.length && !this.el.arr.querySelector('.empty')) this.el.arr.innerHTML = '<div class="empty">Kein Anflugverkehr.</div>';
+    if (!depItems.length && !this.el.dep.querySelector('.empty')) this.el.dep.innerHTML = '<div class="empty">Keine Starts.</div>';
+    const reqs = (l) => l.filter((a) => a.req).length;
+    const ra = reqs([...arrSeq, ...queue, ...arrGnd]), rd = reqs([...depSeq, ...apron]);
+    setHTML(this.rail.querySelector('#rl-c-arr'), `${arrSeq.length + queue.length + arrGnd.length}${ra ? ` · ${ra} Anfrage${ra > 1 ? 'n' : ''}` : ''}`);
+    setHTML(this.rail.querySelector('#rl-c-dep'), `${depSeq.length + apron.length + air.length}${rd ? ` · ${rd} Anfrage${rd > 1 ? 'n' : ''}` : ''}`);
+    this.rail.querySelector('#rl-c-arr').classList.toggle('warn', ra > 0);
+    this.rail.querySelector('#rl-c-dep').classList.toggle('warn', rd > 0);
+    // Kopf: Filter, Schalter, Sortiermodus
+    const f = this.filter;
+    if (this.el.lanes.dataset.f !== f) this.el.lanes.dataset.f = f;
+    for (const b of this.rail.querySelectorAll('#rl-filter [data-f]')) b.classList.toggle('on', b.dataset.f === f);
+    this.rail.querySelector('#rl-spacing .switch').classList.toggle('on', state.settings.autoSpacing !== false);
+    this.rail.querySelector('#rl-gauto .switch').classList.toggle('on', !!state.settings.towerGroundAuto);
+    setHTML(this.rail.querySelector('#rl-sort'), state.seqManual || state.arrQManual ? '<button class="mini" data-seqsort title="Reihenfolge wieder automatisch planen">⇅ manuell sortiert – zurücksetzen</button>' : '<small class="rl-auto">Reihenfolge automatisch</small>');
   }
 
   // Tastenkürzel für das ausgewählte Flugzeug
@@ -355,6 +485,7 @@ export class TowerPanel {
     const k = e.key.toUpperCase();
     if ((k === 'W' || k === 'S') && seqIndex(state, ac.id)) {
       if (seqMove(state, ac.id, k === 'W' ? -1 : 1)) sfx.click();
+      else if (state.seqErr) toast(state.seqErr, 'warn', 2600);
       this.update(state);
       return true;
     }

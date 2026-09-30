@@ -136,31 +136,130 @@ export function seqIndex(state, id) {
   return state.seq.indexOf(id) + 1;
 }
 
+// Nicht mehr verschiebbar: Landung im Endanflug/mit Landefreigabe, Start auf der Piste
+export function seqFixed(ac) {
+  if (!ac) return false;
+  if (isSeqArrival(ac)) return !!(ac.clr.land || ac.phase === PH.FINAL || ac.phase === PH.ROLLOUT || (ac.mode === 'air' && ac.route && ac.route[0] && ac.route[0].thr));
+  return [PH.LINEUP, PH.LINED, PH.TAKEOFF].includes(ac.phase);
+}
+// Neue Reihenfolge zulässig? Feste Flugzeuge müssen je Art (und Bahn) vorn und in ihrer Reihenfolge bleiben
+function orderOk(state, next) {
+  const byId = new Map(state.acs.map((a) => [a.id, a]));
+  const groups = {};
+  for (const id of next) {
+    const a = byId.get(id);
+    if (!a) continue;
+    const k = isSeqArrival(a) ? 'A' + seqStrip(a) : 'D';
+    (groups[k] = groups[k] || []).push(a);
+  }
+  const oldPos = new Map(state.seq.map((id, i) => [id, i]));
+  for (const list of Object.values(groups)) {
+    let open = false;
+    let lastFixed = -1;
+    for (const a of list) {
+      if (!seqFixed(a)) open = true;
+      else {
+        if (open) return a;
+        if (oldPos.get(a.id) < lastFixed) return a;
+        lastFixed = oldPos.get(a.id);
+      }
+    }
+  }
+  return null;
+}
+function tryOrder(state, next) {
+  const bad = orderOk(state, next);
+  if (bad) {
+    state.seqErr = `${bad.cs} ist ${isSeqArrival(bad) ? 'schon im Endanflug' : 'schon auf der Piste'} – davor geht nichts mehr`;
+    return false;
+  }
+  state.seq = next;
+  state.seqErr = null;
+  return true;
+}
+
 export function seqMove(state, id, delta) {
   const i = state.seq.indexOf(id);
   if (i < 0) return false;
   const j = Math.max(0, Math.min(state.seq.length - 1, i + delta));
   if (i === j) return false;
-  state.seq.splice(i, 1);
-  state.seq.splice(j, 0, id);
+  const next = state.seq.slice();
+  next.splice(i, 1);
+  next.splice(j, 0, id);
+  if (!tryOrder(state, next)) return false;
   state.seqManual = true;
+  pin(state, id);
   return true;
 }
 
 export function seqMoveTo(state, id, beforeId) {
   const i = state.seq.indexOf(id);
   if (i < 0 || id === beforeId) return false;
-  state.seq.splice(i, 1);
-  let j = beforeId ? state.seq.indexOf(beforeId) : state.seq.length;
-  if (j < 0) j = state.seq.length;
-  state.seq.splice(j, 0, id);
+  const next = state.seq.slice();
+  next.splice(i, 1);
+  let j = beforeId ? next.indexOf(beforeId) : next.length;
+  if (j < 0) j = next.length;
+  next.splice(j, 0, id);
+  if (!tryOrder(state, next)) return false;
   state.seqManual = true;
+  pin(state, id);
   return true;
+}
+
+// vom Lotsen bewusst verschoben: zählt für die Staffelung auch gegenüber Starts
+function pin(state, id) {
+  const ac = state.acs.find((a) => a.id === id);
+  if (ac) ac.seqPin = true;
 }
 
 export function seqSortByEta(state) {
   state.seqManual = false;
+  for (const a of state.acs) a.seqPin = false;
+  state.arrQManual = false;
   updateSequence(state);
+  updateArrQueue(state);
+}
+
+// ---------- Warteliste der Anflüge ohne Freigabe (Reihenfolge der Anflugfreigaben) ----------
+const QUEUE = new Set([PH.INBOUND, PH.HOLD]);
+const queueDist = (state, a) => AS.routeDistance(a.pos, AS.approachRoute(a.pos, state.rwy));
+export function updateArrQueue(state) {
+  if (!state.arrQ) state.arrQ = [];
+  const byId = new Map(state.acs.map((a) => [a.id, a]));
+  state.arrQ = state.arrQ.filter((id) => {
+    const a = byId.get(id);
+    return a && a.arr && a.mode === 'air' && QUEUE.has(a.phase);
+  });
+  const inQ = new Set(state.arrQ);
+  const fresh = state.acs.filter((a) => a.arr && a.mode === 'air' && QUEUE.has(a.phase) && !inQ.has(a.id));
+  if (!fresh.length && state.arrQManual) return state.arrQ;
+  const dist = new Map();
+  const d = (a) => {
+    if (!dist.has(a.id)) dist.set(a.id, queueDist(state, a) - (a.emergency ? 500 : a.minFuel ? 200 : 0));
+    return dist.get(a.id);
+  };
+  if (!state.arrQManual) {
+    // automatisch: nach Entfernung (Notfälle und Treibstoffmangel vorn)
+    state.arrQ = [...state.arrQ, ...fresh.map((a) => a.id)].sort((x, y) => d(byId.get(x)) - d(byId.get(y)));
+    return state.arrQ;
+  }
+  for (const a of fresh.sort((x, y) => d(x) - d(y))) {
+    let idx = state.arrQ.findIndex((id) => d(byId.get(id)) > d(a));
+    if (idx < 0) idx = state.arrQ.length;
+    state.arrQ.splice(idx, 0, a.id);
+  }
+  return state.arrQ;
+}
+export function arrQMoveTo(state, id, beforeId) {
+  updateArrQueue(state);
+  const i = state.arrQ.indexOf(id);
+  if (i < 0 || id === beforeId) return false;
+  state.arrQ.splice(i, 1);
+  let j = beforeId ? state.arrQ.indexOf(beforeId) : state.arrQ.length;
+  if (j < 0) j = state.arrQ.length;
+  state.arrQ.splice(j, 0, id);
+  state.arrQManual = true;
+  return true;
 }
 
 // geplante Pistenzeit (Sekunden ab jetzt) laut aktueller Folge

@@ -21,6 +21,102 @@ function pat(ctx, img, tiles) {
   if (p.setTransform) p.setTransform(new DOMMatrix().scale(tiles / img.width));
   return p;
 }
+// Parkhaus vorrendern: Decks mit Stützen, Brüstungen, kleinen 3D-Autos, Treppenhaus mit P-Schild
+function bakeGarage(b, level) {
+  const Z = 2.4;
+  const decks = 3 + level; // Parkebenen über dem Erdgeschoss
+  const DH = 0.3;
+  const x0 = b.fx - b.w, y0 = b.fy - b.d, x1 = b.fx, y1 = b.fy;
+  const top = (decks + 1) * DH + 0.35;
+  const pad = 8;
+  const c = document.createElement('canvas');
+  c.width = Math.ceil((b.w + b.d) * HALF_W * Z) + pad * 2;
+  c.height = Math.ceil((b.w + b.d) * HALF_H * Z + top * ZS * Z) + pad * 2;
+  const g = c.getContext('2d');
+  const ox = pad - (x0 - y1) * HALF_W * Z;
+  const oy = pad - (x0 + y0) * HALF_H * Z + top * ZS * Z;
+  const cam = {
+    zoom: Z,
+    dpr: 1,
+    toScreen: (wx, wy, wz = 0) => ({ x: (wx - wy) * HALF_W * Z + ox, y: (wx + wy) * HALF_H * Z - wz * ZS * Z + oy }),
+    setScreen: (ctx) => ctx.setTransform(1, 0, 0, 1, 0, 0),
+    setIso: (ctx, wz = 0) => ctx.setTransform(HALF_W * Z, HALF_H * Z, -HALF_W * Z, HALF_H * Z, ox, oy - wz * ZS * Z),
+  };
+  let seed = 1234 + level * 17;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const box = (ax, ay, bx, by, z0, z1, cTop, cA, cB) => prism(g, cam, [{ x: ax, y: ay }, { x: bx, y: ay }, { x: bx, y: by }, { x: ax, y: by }], z0, z1, cTop, cA, cB);
+  const slab = [186, 184, 178], slabA = [150, 148, 142], slabB = [118, 116, 110];
+  const rows = [y0 + 0.3, y0 + 0.66, y0 + 1.8, y0 + 2.16, y0 + 3.3, y0 + 3.66, y1 - 0.28];
+  const quad = (pts, col) => {
+    g.fillStyle = col;
+    g.beginPath();
+    pts.forEach(([x, y, z], i) => {
+      const p = cam.toScreen(x, y, z);
+      if (i) g.lineTo(p.x, p.y);
+      else g.moveTo(p.x, p.y);
+    });
+    g.closePath();
+    g.fill();
+  };
+  for (let lv = 0; lv <= decks; lv++) {
+    const z = lv * DH;
+    const roof = lv === decks;
+    // dunkler Innenraum: Rückwände der Ebene (sieht man durch die offene Fassade)
+    if (!roof) {
+      quad([[x0, y0, z], [x1, y0, z], [x1, y0, z + DH], [x0, y0, z + DH]], '#3b3f45');
+      quad([[x0, y0, z], [x0, y1, z], [x0, y1, z + DH], [x0, y0, z + DH]], '#2e3237');
+    }
+    box(x0, y0, x1, y1, Math.max(0, z - 0.035), z + 0.02, roof ? [160, 162, 160] : [78, 80, 86], slabA, slabB);
+    if (roof) {
+      // Fahrbahnmarkierung oben
+      cam.setIso(g, z + 0.021);
+      g.fillStyle = 'rgba(255,255,255,0.55)';
+      for (const ry of rows) for (let x = x0 + 0.25; x < x1 - 0.2; x += 0.2) g.fillRect(x, ry - 0.17, 0.012, 0.34);
+    }
+    // Autos
+    for (const ry of rows) {
+      for (let x = x0 + 0.35; x < x1 - 0.25; x += 0.2) {
+        if (rnd() < (roof ? 0.45 : 0.25)) continue;
+        drawCarBody(g, cam, x, ry, Math.PI / 2 + (rnd() < 0.5 ? 0 : Math.PI), CAR_COLORS[Math.floor(rnd() * CAR_COLORS.length)], prism, carShades, false, 0.95, z + 0.02);
+      }
+    }
+    if (lv < decks) {
+      // Stützen zur nächsten Ebene
+      for (let x = x0 + 0.15; x <= x1 - 0.1; x += 1.3) for (const yy of [y0 + 0.1, y0 + 1.3, y0 + 2.9, y1 - 0.12]) box(x, yy, x + 0.08, yy + 0.08, z + 0.02, z + DH - 0.03, [150, 148, 142], [128, 126, 120], [100, 98, 94]);
+    }
+    // Brüstung ringsum (offene Fassade)
+    const bz0 = z + 0.02, bz1 = z + 0.075;
+    const wall = [214, 212, 206], wA = [188, 186, 180], wB = [150, 148, 142];
+    box(x0, y0, x1, y0 + 0.04, bz0, bz1, wall, wA, wB);
+    box(x0, y0, x0 + 0.04, y1, bz0, bz1, wall, wA, wB);
+    box(x0, y1 - 0.04, x1, y1, bz0, bz1, wall, wA, wB);
+    box(x1 - 0.04, y0, x1, y1, bz0, bz1, wall, wA, wB);
+  }
+  // Rampe an der Westseite und Treppenhaus mit P-Schild
+  const zt = decks * DH;
+  box(x0 + 0.1, y1 - 0.9, x0 + 0.75, y1 - 0.1, 0, zt + 0.3, [120, 124, 130], [94, 104, 118], [74, 84, 98]);
+  cam.setScreen(g);
+  const p0 = cam.toScreen(x0 + 0.75, y1 - 0.7, zt + 0.04), p1 = cam.toScreen(x0 + 0.75, y1 - 0.2, zt + 0.04);
+  const p2 = cam.toScreen(x0 + 0.75, y1 - 0.2, zt + 0.28), p3 = cam.toScreen(x0 + 0.75, y1 - 0.7, zt + 0.28);
+  g.fillStyle = '#1d4ed8';
+  g.beginPath();
+  g.moveTo(p0.x, p0.y);
+  g.lineTo(p1.x, p1.y);
+  g.lineTo(p2.x, p2.y);
+  g.lineTo(p3.x, p3.y);
+  g.closePath();
+  g.fill();
+  g.fillStyle = '#fff';
+  g.font = `bold ${Math.round(0.2 * ZS * Z)}px sans-serif`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('P', (p0.x + p2.x) / 2, (p0.y + p2.y) / 2);
+  // Lichtmasten auf dem Dach
+  for (let x = x0 + 1.2; x < x1 - 0.5; x += 1.6) box(x, (y0 + y1) / 2, x + 0.03, (y0 + y1) / 2 + 0.03, zt + 0.02, zt + 0.32, [220, 220, 220], [160, 160, 160], [120, 120, 120]);
+  const f = cam.toScreen(x1, y1, 0);
+  return { c, Z, fx: f.x, fy: f.y };
+}
+
 // Terminaldach als Bild in Weltkoordinaten (24 px je Kachel)
 function makeRoof(T) {
   const PX = 24;
@@ -100,6 +196,7 @@ export class MapRenderer {
     const ctx = this.ctx;
     const cam = this.cam;
     this.time += dtReal;
+    this.garageLevel = state.upgrades.parking || 0;
     if (!this.cache || this.cacheKey !== this.groundKey(state)) this.buildGround(state);
     const light = lightLevel(state);
     const night = 1 - light;
@@ -320,6 +417,7 @@ export class MapRenderer {
 
   // ---------- Gebäude ----------
   drawBuilding(b) {
+    if (b.id === 'parking') return this.drawGarage(b);
     const img = IMG[b.sprite];
     if (!img) return;
     const ctx = this.ctx, cam = this.cam;
@@ -329,6 +427,20 @@ export class MapRenderer {
     const fc = cam.toScreen(b.fx, b.fy);
     ctx.drawImage(img, fc.x - b.frac * dw, fc.y - dh, dw, dh);
     this.picks.push({ type: 'building', id: b.id, x: fc.x, y: fc.y - dh * 0.45, r: dw * 0.35 });
+  }
+
+  // Parkhaus: prozedural und maßstabsgerecht (Etagen je Ausbaustufe), einmal vorgerendert
+  drawGarage(b) {
+    const ctx = this.ctx, cam = this.cam;
+    const lvl = this.garageLevel || 0;
+    const key = 'g' + lvl;
+    if (!this.garage || this.garage.key !== key) this.garage = { key, ...bakeGarage(b, lvl) };
+    const G = this.garage;
+    cam.setScreen(ctx);
+    const k = cam.zoom / G.Z;
+    const fc = cam.toScreen(b.fx, b.fy);
+    ctx.drawImage(G.c, fc.x - G.fx * k, fc.y - G.fy * k, G.c.width * k, G.c.height * k);
+    this.picks.push({ type: 'building', id: b.id, x: fc.x - G.c.width * k * 0.3, y: fc.y - G.c.height * k * 0.45, r: G.c.width * k * 0.35 });
   }
 
   drawTerminalSlice(xa, xb, last, night) {
@@ -391,25 +503,36 @@ export class MapRenderer {
     const door = ac ? LY.bridgeDoor(st, ac.len) : park;
     const e = st.bridge || 0;
     const end = { x: lerp(park.x, door.x - 0.12, e), y: lerp(park.y, door.y, e) };
-    // Rotunde
-    prism(ctx, cam, rectPts(root.x, root.y + 0.12, 0.42, 0.42, 0), 0, 0.62, [235, 238, 242], [205, 210, 216], [168, 175, 184]);
+    // Rotunde (Glas-Drehturm am Terminal)
+    prism(ctx, cam, rectPts(root.x, root.y + 0.12, 0.36, 0.36, 0), 0, 0.5, [120, 132, 146], [92, 110, 130], [70, 86, 104]);
+    prism(ctx, cam, rectPts(root.x, root.y + 0.12, 0.4, 0.4, 0), 0.5, 0.58, [196, 202, 210], [160, 168, 178], [130, 138, 150]);
     // Tunnel
     const ang = Math.atan2(end.y - root.y, end.x - root.x);
     const len = Math.hypot(end.x - root.x, end.y - root.y);
     const mid = { x: (root.x + end.x) / 2, y: (root.y + end.y) / 2 };
-    // Stütze
+    // Stütze mit Fahrwerk
+    const lx = end.x - Math.cos(ang) * 0.34, ly = end.y - Math.sin(ang) * 0.34;
+    prism(ctx, cam, rectPts(lx, ly, 0.22, 0.12, ang + Math.PI / 2), 0, 0.05, [40, 44, 50], [30, 33, 38], [22, 24, 28]);
+    prism(ctx, cam, rectPts(lx, ly, 0.05, 0.05, ang), 0.05, 0.38, [110, 116, 124], [80, 86, 94], [60, 64, 70]);
+    prism(ctx, cam, rectPts(mid.x, mid.y, len, 0.22, ang), 0.38, 0.58, [204, 208, 214], [168, 176, 186], [132, 140, 152]);
+    // Fensterband an beiden Tunnelseiten
     cam.setScreen(ctx);
-    const leg0 = cam.toScreen(end.x - Math.cos(ang) * 0.3, end.y - Math.sin(ang) * 0.3, 0);
-    const leg1 = cam.toScreen(end.x - Math.cos(ang) * 0.3, end.y - Math.sin(ang) * 0.3, 0.36);
-    ctx.strokeStyle = '#3b4148';
-    ctx.lineWidth = Math.max(1, 2.2 * cam.zoom);
-    ctx.beginPath();
-    ctx.moveTo(leg0.x, leg0.y);
-    ctx.lineTo(leg1.x, leg1.y);
-    ctx.stroke();
-    prism(ctx, cam, rectPts(mid.x, mid.y, len, 0.24, ang), 0.36, 0.58, [228, 231, 236], [196, 202, 210], [160, 168, 178]);
-    // Kabine
-    prism(ctx, cam, rectPts(end.x, end.y, 0.34, 0.34, ang), 0.33, 0.62, [220, 224, 230], [170, 182, 196], [140, 150, 164]);
+    const nx = -Math.sin(ang) * 0.111, ny = Math.cos(ang) * 0.111;
+    for (const sgn of [1, -1]) {
+      if ((nx * sgn + ny * sgn) <= 0) continue; // nur die zum Betrachter gewandte Seite
+      const a = cam.toScreen(root.x + nx * sgn, root.y + ny * sgn, 0.44), b = cam.toScreen(end.x + nx * sgn, end.y + ny * sgn, 0.44);
+      const c = cam.toScreen(end.x + nx * sgn, end.y + ny * sgn, 0.52), d = cam.toScreen(root.x + nx * sgn, root.y + ny * sgn, 0.52);
+      ctx.fillStyle = 'rgba(40,64,92,0.85)';
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.lineTo(c.x, c.y);
+      ctx.lineTo(d.x, d.y);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Kabine am Flugzeug
+    prism(ctx, cam, rectPts(end.x, end.y, 0.3, 0.3, ang), 0.36, 0.6, [214, 218, 224], [120, 138, 160], [96, 112, 132]);
   }
 
   drawTree(t) {
@@ -438,7 +561,7 @@ export class MapRenderer {
     ctx.translate(p.x + 0.06, p.y + 0.03);
     ctx.rotate(p.h);
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    ctx.fillRect(-0.18, -0.085, 0.36, 0.17);
+    ctx.fillRect(-0.16, -0.07, 0.32, 0.14);
     ctx.restore();
     drawCarBody(ctx, cam, p.x, p.y, p.h, car.c, prism, carShades, cam.zoom < 0.7);
     if (night > 0.2) {
@@ -1039,26 +1162,26 @@ function drawGround(g, state, trees) {
   g.fillStyle = '#b9b5ab';
   g.fillRect(RX0, 0.9, RX1 - RX0, 0.18);
   g.fillRect(RX0, -1.1, RX1 - RX0, 0.2);
-  // Parkplatz
-  g.fillStyle = asphalt;
-  g.fillRect(56, 2.0, 12.5 + state.upgrades.parking * 2, 4.6);
-  g.fillStyle = 'rgba(255,255,255,0.7)';
+  // Parkplatz – maßstabsgerecht (1 Kachel ≈ 15 m): Stellplatz 0,2 × 0,36 Kacheln ≈ 3 × 5,5 m
   const pw = 12.5 + state.upgrades.parking * 2;
-  for (let row = 0; row < 3; row++) {
-    const yy = 2.3 + row * 1.5;
-    for (let x = 56.2; x < 56 + pw - 0.2; x += 0.42) g.fillRect(x, yy, 0.03, 0.62);
-  }
-  const cc = ['#e2e8f0', '#1f2937', '#b91c1c', '#1d4ed8', '#9ca3af', '#f59e0b', '#065f46', '#475569'];
-  for (let row = 0; row < 3; row++) {
-    const yy = 2.3 + row * 1.5;
-    for (let x = 56.25; x < 56 + pw - 0.5; x += 0.42) {
-      if (r() < 0.3) continue;
-      g.fillStyle = 'rgba(0,0,0,0.25)';
-      g.fillRect(x + 0.08, yy + 0.08, 0.3, 0.52);
+  g.fillStyle = asphalt;
+  g.fillRect(56, 2.0, pw, 4.6);
+  const rowsY = [2.1, 2.48, 3.56, 3.94, 5.02, 5.4, 6.16];
+  g.fillStyle = 'rgba(255,255,255,0.6)';
+  for (const yy of rowsY) for (let x = 56.15; x < 56 + pw - 0.15; x += 0.2) g.fillRect(x, yy, 0.012, 0.34);
+  const cc = ['#e2e8f0', '#1f2937', '#b91c1c', '#1d4ed8', '#9ca3af', '#f59e0b', '#065f46', '#475569', '#f8fafc', '#7c2d12'];
+  for (const yy of rowsY) {
+    for (let x = 56.15; x < 56 + pw - 0.35; x += 0.2) {
+      if (r() < 0.28) continue;
+      const cx = x + 0.1, cy = yy + 0.17;
+      g.fillStyle = 'rgba(0,0,0,0.3)';
+      g.fillRect(cx - 0.055, cy - 0.13, 0.13, 0.3);
       g.fillStyle = cc[Math.floor(r() * cc.length)];
-      g.fillRect(x + 0.05, yy + 0.04, 0.3, 0.52);
-      g.fillStyle = 'rgba(20,30,40,0.6)';
-      g.fillRect(x + 0.08, yy + 0.14, 0.24, 0.12);
+      g.fillRect(cx - 0.065, cy - 0.145, 0.13, 0.29);
+      g.fillStyle = 'rgba(255,255,255,0.18)';
+      g.fillRect(cx - 0.045, cy - 0.06, 0.09, 0.13);
+      g.fillStyle = 'rgba(20,30,40,0.65)';
+      g.fillRect(cx - 0.05, cy - 0.1, 0.1, 0.04);
     }
   }
   // Zaun Luft-/Landseite

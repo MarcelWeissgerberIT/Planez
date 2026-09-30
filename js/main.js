@@ -61,11 +61,12 @@ const game = {
       if (ac.mode === 'map') this.cam.focus(clamp(ac.x, 0, LY.W), clamp(ac.y, 0, LY.H));
       else if (s.role === 'tower' && !this.ui.radarOn) toggleRadar(true);
     }
-    const strip = document.querySelector(`#panel [data-key="${id}"]`);
-    if (strip && focus !== 'map') strip.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const strip = document.querySelector(`#panel [data-key="${id}"], #rail [data-key="${id}"]`);
+    if (strip && focus !== 'map') strip.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
   },
 };
 game.showGoals = () => showGoals();
+game.resize = () => resize();
 // Baustelle auf der Karte zeigen und auswählen
 game.showSite = (id) => {
   const s = game.state;
@@ -188,6 +189,11 @@ function applyRole() {
   root.classList.remove('dock');
   if (!game.mgmt) game.mgmt = new ManagementPage(game);
   game.mgmt.close();
+  if (game.panel && game.panel.destroy) game.panel.destroy();
+  if (game.ui.radarBig) {
+    game.ui.radarBig = false;
+    $('#radar-wrap').classList.remove('big');
+  }
   if (s.role === 'tower') game.panel = new TowerPanel(root, game);
   else if (s.role === 'ground') game.panel = new GroundPanel(root, game);
   else game.panel = new ManagerDock(root, game, s.role === 'observer');
@@ -529,7 +535,11 @@ function wireGame() {
   });
   $('#radar-big').addEventListener('click', () => {
     game.ui.radarBig = !game.ui.radarBig;
-    $('#radar-wrap').classList.toggle('big', game.ui.radarBig);
+    const w = $('#radar-wrap');
+    w.classList.toggle('big', game.ui.radarBig);
+    // Tower-Fenster: groß als Overlay über der Karte, klein zurück ins Fenster
+    const slot = $('#tw-radar-slot');
+    if (slot) (game.ui.radarBig ? $('#game') : slot).appendChild(w);
     resize();
   });
   $('#radar-rng').addEventListener('click', () => {
@@ -803,7 +813,8 @@ function resize() {
   if (game.radar) {
     const wrap = $('#radar-wrap');
     const w = wrap.clientWidth || 360;
-    const h = game.ui.radarBig ? Math.min(w, window.innerHeight - 140) : w;
+    const docked = !game.ui.radarBig && wrap.closest('#tw-radar-slot');
+    const h = game.ui.radarBig ? Math.min(w, window.innerHeight - 140) : docked ? Math.round(Math.min(w, Math.max(200, window.innerHeight - 480))) : w;
     game.radar.resize(w, h, dpr);
   }
 }
@@ -890,7 +901,8 @@ function helpGuide(first) {
       <li><b>Landefreigabe</b> <kbd>L</kbd> nur bei freier Piste – sonst startet der Flieger durch. Ohne Freigabe bei 1 NM: Durchstarten. Bei Sperrung (FOD-Kontrolle, Bauarbeiten) gibt es keine Freigaben.</li>
       <li><b>Slots (A-CDM):</b> manche Abflüge haben einen <b>CTOT</b> – Start nur im Fenster −5/+10 min. Meldet sich so ein Flug zu früh zum Pushback, sag <b>Warten bis TSAT</b> <kbd>E</kbd>: dann schiebt er erst zur TSAT und wartet nicht mit laufenden Triebwerken am Rollhalt. Verpasste Slots kosten Ansehen und Airline-Zufriedenheit.</li>
       <li>Am Boden: <b>Rollen zur Position</b> <kbd>R</kbd>, <b>Pushback</b> <kbd>P</kbd>, <b>Rollen zum Rollhalt</b> <kbd>R</kbd>, <b>Line up</b> <kbd>U</kbd>, <b>Startfreigabe</b> <kbd>T</kbd>, <b>Halt</b> <kbd>X</kbd>.</li>
-      <li><b>Pistenfolge:</b> Landungen und Starts nummeriert in einer Liste. Reihenfolge per ▲▼, Ziehen oder <kbd>W</kbd>/<kbd>S</kbd>; „⇅ automatisch“ plant wieder selbst. Farben auf Karte und Radar: <span style="color:#22d3ee">■ Landung</span> <span style="color:#a5f3fc">■ Landung frei</span> <span style="color:#f59e0b">■ Start</span> <span style="color:#e879f9">■ Startfreigabe</span>.</li>
+      <li><b>Arbeitsplatz:</b> rechts Radar, Pistenstatus und Funk in einem Fenster (⤢ bzw. <kbd>F</kbd> macht das Radar groß), unten die <b>Flugstreifen</b>: links Landungen, rechts Starts, Filter <b>An / Beide / Ab</b>. Die ausgewählte Karte wird groß und zeigt alle Befehle; kleine Karten zeigen nur den gerade fälligen Befehl.</li>
+      <li><b>Reihenfolge &amp; Auto-Staffelung:</b> Karten <b>ziehen</b> (oder ◀ ▶, <kbd>W</kbd>/<kbd>S</kbd>) – die Staffelung passt sich an: Anflugfreigaben kommen in deiner Reihenfolge, Anflüge werden auf 180/160 kt gebremst, Vorgezogene bekommen „Direkt FAF“, notfalls geht einer in die Warteschleife; vor eine Landung gezogene Starts bekommen eine Lücke („Startfenster in …“). Aus der Warteliste in die Pistenfolge ziehen = Anflug frei. Du gibst weiter Lande- und Startfreigaben. „⇅ zurücksetzen“ plant wieder automatisch. Farben auf Karte und Radar: <span style="color:#22d3ee">■ Landung</span> <span style="color:#a5f3fc">■ Landung frei</span> <span style="color:#f59e0b">■ Start</span> <span style="color:#e879f9">■ Startfreigabe</span>.</li>
       <li><b>Wetter & Piste:</b> Bremswirkung (gut/mittel/schlecht) hängt vom Gummiabrieb und von Nässe ab. Bei Nebel gelten LVP (mehr Abstand); unter 550 m RVR geht es nur mit ILS CAT III. Bei mehr als 5 kt Rückenwind die Betriebsrichtung wechseln.</li>
       <li><b>Markieren:</b> ⚑ auf dem Streifen, Rechtsklick/langes Drücken auf ein Flugzeug oder <kbd>M</kbd>. <kbd>N</kbd>/<kbd>Tab</kbd> springt zur nächsten Anfrage, <kbd>F</kbd> vergrößert das Radar, ⓘ im Radar erklärt die Anzeige.</li>
     </ul>
