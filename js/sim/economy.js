@@ -4,6 +4,7 @@ import { clamp, fmtMoney, rand, dayOf } from '../util.js';
 import { log, notify, fx } from './messages.js';
 import { newsDayEnd } from './news.js';
 import { acceptOffer, feeIndex, standDemand } from './schedule.js';
+import { scoreLanding, scoreTakeoff, scoreOffBlock, scoreIncident, scoreDayEnd, scoreState } from './score.js';
 import { makeVehicle, freeBay, vehicleAvailable, efficiency } from './ground.js';
 import { PH } from './aircraft.js';
 import { startProject, standProject, projectFor, standBuildHours, upgradeHours, STAND_HOURS, UPGRADE_NAMES, RWY_WORKS, projects } from './construction.js';
@@ -44,6 +45,7 @@ function hourBump(state, key) {
 
 // ---------- Ereignisse aus dem Betrieb ----------
 export function onLanding(state, ac) {
+  scoreLanding(state, ac);
   const t = AC_TYPES[ac.type];
   const rot = state.rots[ac.rot];
   const fee = state.fees.landing * t.mtow * (rot?.feeMult || 1);
@@ -77,7 +79,9 @@ export function onOffBlock(state, ac, rot) {
   if (delay > 15 && (!td.peakDelay || delay > td.peakDelay.min)) td.peakDelay = { cs: rot.depNo || ac.cs, min: Math.round(delay) };
   fx(state, ac.x, ac.y, delay <= 5 ? '✓ pünktlich' : delay <= 15 ? `+${Math.round(delay)}′` : `+${Math.round(delay)}′ verspätet`, delay <= 5 ? 'good' : delay <= 15 ? 'warn' : 'bad');
   if (delay <= 5) bump(state, 'depPunctual');
-  if (rot.onBlock && rot.offBlock - rot.onBlock <= (t.turn + 5) * 60) bump(state, 'quickTurns');
+  const quick = rot.onBlock && rot.offBlock - rot.onBlock <= (t.turn + 5) * 60;
+  if (quick) bump(state, 'quickTurns');
+  scoreOffBlock(state, ac, delay, quick);
   if ((rot.tobt || rot.std) <= rot.std) bump(state, 'tobtKept');
   const attributable = delay - Math.max(0, rot.arrDelay);
   const c = contractOf(state, rot);
@@ -109,6 +113,7 @@ export function onTakeoff(state, ac) {
   onNightMovement(state, ac, earn, spend);
   bump(state, 'safeStreak');
   if (!rot) return;
+  scoreTakeoff(state, ac);
   bump(state, 'pax', rot.paxOut);
   if ((rot.taxiWait || 0) < 120) bump(state, 'lowWaitDeps');
   rot.status = 'departed';
@@ -143,7 +148,10 @@ export function penalize(state, kind, ac) {
   if (!p) return;
   rep(state, p.rep);
   spend(state, p.cat, p.cost);
-  if (kind !== 'goaround' && !p.minor) state.stats.today.incidents++;
+  if (kind !== 'goaround' && !p.minor) {
+    state.stats.today.incidents++;
+    scoreIncident(state, ac);
+  }
   if (state.life && kind !== 'wake') state.life.safeStreak = 0;
 }
 
@@ -233,6 +241,8 @@ export function closeDay(state) {
     nightMov: s.nightMov || 0,
     complaints: s.complaints || 0,
     rwyCond: Math.round(rwyCond(state)),
+    score: scoreDayEnd(state),
+    scoreBest: scoreState(state).bestDay,
     arrH: s.arrH || null,
     depH: s.depH || null,
     peakDelay: s.peakDelay || null,

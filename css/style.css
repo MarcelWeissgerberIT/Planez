@@ -1122,3 +1122,14 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .cn-sub.in { animation: cn-sub 6s ease-out forwards; }
 @keyframes cn-sub { 0% { opacity: 0; } 6% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
 .cn-help { bottom: calc(4.5vh - 8px); }
+
+/* ---------- Schichtpunkte ---------- */
+.score-chip { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 10px; background: rgba(66,50,10,.55); border: 1px solid rgba(252,211,77,.4); font-family: var(--mono); font-size: 13px; white-space: nowrap; }
+.score-chip.hidden { display: none; }
+.sc-p { color: #fde68a; font-weight: 700; }
+.sc-c { color: #cbd5e1; font-size: 11px; padding: 1px 5px; border-radius: 6px; background: rgba(15,23,42,.6); }
+.sc-c.warm { color: #fbbf24; }
+.sc-c.hot { color: #fff; background: linear-gradient(90deg, #f97316, #ef4444); animation: pulse 1.2s infinite; }
+.rep-score { margin: 10px 0 0; color: #fde68a; }
+.rep-score span { color: var(--good); font-weight: 700; }
+@media (max-width: 760px) { .score-chip { font-size: 11px; padding: 2px 6px; } }

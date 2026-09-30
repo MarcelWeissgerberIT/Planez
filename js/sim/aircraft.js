@@ -10,6 +10,7 @@ import { onLanding, onTakeoff, penalize } from './economy.js';
 import { slotOpen, acdmOnTakeoff } from './acdm.js';
 import { wakeDepSec } from './wake.js';
 import { runwayClosed, decelFactor, onRunwayLanding, brakingAction, stripGeom, rwyName, closeRunway } from './runway.js';
+import { scoreGoAround } from './score.js';
 
 export const PH = {
   INBOUND: 'ARR_INBOUND', HOLD: 'ARR_HOLD', APPROACH: 'ARR_APPROACH', GOAROUND: 'GO_AROUND',
@@ -386,6 +387,7 @@ export function goAround(state, ac, reason) {
   log(state, 'sys', `${ac.cs} startet durch – ${reason}.`);
   notify(state, `↗️ ${ac.cs} startet durch (${reason})`, 'warn');
   penalize(state, 'goaround', ac);
+  scoreGoAround(state, ac, reason);
   if (state.life) state.life.landStreak = 0;
   ac.clr = {};
   ac.req = null;

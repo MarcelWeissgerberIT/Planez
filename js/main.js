@@ -46,6 +46,7 @@ import { projects, cancelProject } from './sim/construction.js';
 import { scenarioById, applyScenario, scenarioListeners } from './sim/scenarios.js';
 import { ScenarioUi } from './ui/scenarioUi.js';
 import { StandPlan } from './ui/standPlan.js';
+import { scoreState } from './sim/score.js';
 import { RankUp } from './ui/rankUp.js';
 
 const game = {
@@ -457,6 +458,14 @@ function updateHUD(force) {
   const t = s.stats.today;
   const deps = t.onTime + t.delayed;
   setHTML($('#hud-ontime'), deps ? `${Math.round((t.onTime / deps) * 100)} %` : '—');
+  const sc = $('#hud-score');
+  const showSc = (s.role === 'tower' || s.role === 'ground') && !s.auto[s.role === 'tower' ? 'atc' : 'ground'];
+  sc.classList.toggle('hidden', !showSc);
+  if (showSc) {
+    const S = scoreState(s);
+    const hot = S.combo >= 2 ? 'hot' : S.combo > 1 ? 'warm' : '';
+    setHTML(sc, `<span class="sc-p">⭐ ${S.today.toLocaleString('de-DE')}</span><span class="sc-c ${hot}">×${S.combo.toFixed(1)}</span>`);
+  }
   const G = goalsState(s);
   const next = RANKS[G.rank + 1];
   const pct = next ? Math.round(((G.xp - RANKS[G.rank].xp) / (next.xp - RANKS[G.rank].xp)) * 100) : 100;
@@ -612,6 +621,7 @@ function showReport(rec) {
       ${reportExtras(rec)}
     </div>
     ${dayChart(rec)}
+    ${rec.score && (game.state.role === 'tower' || game.state.role === 'ground') ? `<p class="rep-score">⭐ Schichtpunkte heute: <b>${rec.score.toLocaleString('de-DE')}</b>${rec.score >= rec.scoreBest ? ' · <span>neuer Tagesbestwert!</span>' : ` · Bestwert ${rec.scoreBest.toLocaleString('de-DE')}`}</p>` : ''}
     ${rec.xp ? `<p style="margin:10px 0 0;color:var(--muted)">🏅 +${rec.xp} XP für den Tag · ${RANKS[goalsState(game.state).rank].name} (${goalsState(game.state).xp} XP)</p>` : ''}
     <div class="modal-acts"><button class="btn btn-primary" data-close-modal>Weiter</button></div>`,
     (box) => box.querySelector('[data-close-modal]').addEventListener('click', () => {
@@ -1217,6 +1227,8 @@ function helpGuide(first) {
     </ul>
     <h3>🎯 Ziele &amp; Rang</h3>
     <p>Jede Station hat drei Ziele (🏅 oben rechts). Erreichte Ziele bringen Prämie und XP; der Flughafen steigt vom Regionalflughafen bis zum Weltflughafen auf – höhere Ränge ziehen mehr Airlines an.</p>
+    <h3>⭐ Schichtpunkte</h3>
+    <p>Im Tower und im Vorfeld gibt es Punkte für gute Arbeit – saubere Landungen, Starts in der Lücke vor der nächsten Landung, kurze Wartezeiten am Rollhalt, Pushbacks auf die Minute und schnelle Turnarounds. Jeder Erfolg erhöht den Kombo-Multiplikator (bis ×3, oben neben dem Rang); ein Durchstarten, ein Vorfall oder eine große Verspätung setzt ihn zurück. Windscherung zählt nicht gegen dich.</p>
     <h3>⭐ Herausforderungen</h3>
     <p>Im Hauptmenü unter <b>Herausforderungen</b>: kurze Einsätze mit festem Start – Morgenwelle, Nebelsuppe, Gewitterfront, Notfall-Schicht (Tower), Ferienstart, Streiktag, Winterchaos (Vorfeld), Sanierungsfall und Wachstumskurs (Manager). Oben zeigt eine Leiste Restzeit und Ziele; jedes Ziel bringt 1–3 Sterne, die Gesamtwertung ist der Durchschnitt (ein verfehltes Ziel = nicht geschafft). Ein Stern schaltet die nächste Herausforderung der Station frei. Herausforderungen überschreiben deinen Spielstand nicht.</p>
     <h3>Steuerung</h3>

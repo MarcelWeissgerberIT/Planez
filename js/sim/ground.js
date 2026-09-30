@@ -1,5 +1,6 @@
 // Bodenabfertigung: Parkpositionen, Turnaround, Fahrzeuge
 import { AC_TYPES, TASKS, TASK_ORDER, VEH_TYPES, SIZE_RANK, AIRLINES } from '../config.js';
+import { scoreDeice } from './score.js';
 import * as LY from '../layout.js';
 import { clamp, dist, angNorm, hourOf, rand } from '../util.js';
 import { radio, log, notify } from './messages.js';
@@ -237,6 +238,7 @@ export function updateGround(state, dt) {
           if (k === 'deice') {
             state.life = state.life || {};
             state.life.deiced = (state.life.deiced || 0) + 1;
+            scoreDeice(state, ac);
             earn(state, 'deice', { S: 1800, M: 3200, L: 7500 }[AC_TYPES[ac.type].size] || 3200);
             log(state, 'gnd', `${ac.cs}: enteist – Holdover-Zeit läuft, zügig starten.`);
           }
