@@ -336,6 +336,7 @@ function renderPause() {
         ${prefs}
         ${item('role', 'Station wechseln', `aktuell: ${esc(ROLES[s.role].name)}`)}
         ${item('goals', 'Ziele & Rang')}
+        ${item('tutorial', 'Einführung starten', 'Schritt für Schritt durch deine Station')}
         ${item('help', 'So funktioniert es')}
         ${item('gloss', 'Glossar')}
         ${item('quit', 'Zurück ins Hauptmenü', '', 'gold')}

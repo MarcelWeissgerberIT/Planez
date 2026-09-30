@@ -871,3 +871,16 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .cn-brand::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; margin-right: 8px; animation: pulse 1.2s infinite; vertical-align: 1px; }
 .cn-help { position: absolute; right: 4vw; bottom: calc(9vh - 26px); font-size: 11px; color: rgba(255,255,255,.4); }
 .dock-open.cine { margin-top: 6px; background: linear-gradient(135deg, rgba(239,68,68,.16), rgba(12,20,34,.7)); border-color: rgba(239,68,68,.45); }
+
+/* Einführung */
+#tut { position: absolute; inset: 0; z-index: 45; pointer-events: none; }
+#tut.hidden { display: none; }
+.tut-spot { position: fixed; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(2,6,14,.55), 0 0 0 2px #38d6f5, 0 0 24px rgba(56,214,245,.6); transition: all .35s ease; pointer-events: none; }
+.tut-bub { position: fixed; width: 380px; max-width: calc(100vw - 24px); pointer-events: auto; background: linear-gradient(160deg, #0f1c30, #0a1322); border: 1px solid rgba(56,214,245,.6); border-radius: 14px; padding: 14px 16px 12px; color: #e2e8f0; box-shadow: 0 18px 50px rgba(0,0,0,.6); transition: left .35s ease, top .35s ease; }
+.tut-k { font: 700 10px var(--mm-font, var(--sans)); letter-spacing: .2em; text-transform: uppercase; color: #38d6f5; }
+.tut-t { font-weight: 800; font-size: 17px; margin: 4px 0 6px; color: #fff; }
+.tut-x { font-size: 13.5px; line-height: 1.5; color: #cbd5e1; }
+.tut-x kbd { font-family: var(--mono); font-size: 11px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); border-radius: 4px; padding: 0 5px; }
+.tut-do { margin-top: 8px; color: #fde68a; font-weight: 600; }
+.tut-a { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.tut-a .btn, .tut-a [data-tut=next] { margin-left: auto; }

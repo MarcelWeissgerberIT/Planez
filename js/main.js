@@ -20,6 +20,7 @@ import { initPTT } from './ui/ptt.js';
 import { DecisionCard } from './ui/decision.js';
 import { NewsTicker } from './ui/ticker.js';
 import { Cinema } from './ui/cinema.js';
+import { Tutorial } from './ui/tutorial.js';
 import { soundscape } from './soundscape.js';
 import { season, temperature } from './sim/winter.js';
 import { makeVehicle, freeBay } from './sim/ground.js';
@@ -131,12 +132,9 @@ function wireMenu() {
     const pr = loadPrefs();
     Object.assign(st.settings, { sound: pr.sound, ambience: pr.ambience, tts: pr.tts, glossary: pr.glossary, hints: pr.hints });
     startGame(st);
-    if (!localStorage.getItem('planez_help_seen')) {
-      try {
-        localStorage.setItem('planez_help_seen', '1');
-      } catch (e) {}
-      setTimeout(() => showHelp(true), 400);
-    }
+    try {
+      localStorage.setItem('planez_help_seen', '1');
+    } catch (e) {}
   };
   document.querySelectorAll('.role-card').forEach((b) => b.addEventListener('click', () => start(b.dataset.role)));
   document.querySelectorAll('[data-role-start]').forEach((b) => b.addEventListener('click', () => start(b.dataset.roleStart)));
@@ -206,6 +204,8 @@ function startGame(state) {
   }
   applyRole();
   syncVoice();
+  if (!game.tutorial) game.tutorial = new Tutorial(game);
+  game.tutorial.maybeStart();
   lastSpeed = state.speed || lastSpeed;
   game.running = true;
   game.lastTs = performance.now();
@@ -245,6 +245,8 @@ function applyRole() {
   $('#btn-role').textContent = `${ROLES[s.role].icon} ${ROLES[s.role].short} ▾`;
   toggleRadar(s.role === 'tower');
   if (game.syncVoice) game.syncVoice();
+  if (game.tutorial && game.tutorial.on) game.tutorial.stop();
+  if (game.tutorial) game.tutorial.maybeStart();
   game.ui.labelFn = labelFn(s.role);
   game.ui.seqCol = (ac) => (s.seq && s.seq.includes(ac.id) ? seqColor(ac) : null);
   $('#hud-name').textContent = s.name;
@@ -305,6 +307,7 @@ function loop(ts) {
     game.decision.update(s);
     if (!game.ticker) game.ticker = new NewsTicker(game);
     game.ticker.update(s);
+    if (game.tutorial) game.tutorial.update();
     watchAlerts(s);
     game.hintT = (game.hintT || 0) + 0.2;
     if (game.hintT >= 1.2) {
@@ -978,6 +981,10 @@ function showGameMenu() {
     role: () => showRoleModal(),
     goals: () => showGoals(),
     help: () => showHelp(false),
+    tutorial: () => {
+      if (!game.tutorial) game.tutorial = new Tutorial(game);
+      game.tutorial.start();
+    },
     gloss: () => showHelp(false, 'gloss'),
     quit: () => {
       saveGame(s);
