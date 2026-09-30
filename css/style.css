@@ -1133,3 +1133,5 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .rep-score { margin: 10px 0 0; color: #fde68a; }
 .rep-score span { color: var(--good); font-weight: 700; }
 @media (max-width: 760px) { .score-chip { font-size: 11px; padding: 2px 6px; } }
+.scn-pts { margin: 10px 0 0; font-size: 15px; color: #fde68a; font-family: var(--mono); }
+.scn-pts b { color: var(--good); font-family: var(--sans); }

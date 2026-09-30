@@ -40,7 +40,7 @@ export function scenarioSide(id) {
     <p class="scn-brief">${esc(def.brief)}</p>
     <div class="ms-sec">Ziele</div>
     <table class="scn-goals">${def.goals.map((g) => `<tr><td>${esc(g.text)}</td>${[0, 1, 2].map((i) => `<td><span class="st">${'★'.repeat(i + 1)}</span> ${goalNeed(g, i)}</td>`).join('')}</tr>`).join('')}</table>
-    <div class="ms-auto">${b ? `🏆 Bestwert: <b class="scn-gold">${starStr(b.stars)}</b>` : open ? '▶ Klicken zum Starten' : '🔒 Gesperrt – hol erst einen Stern in der vorigen Herausforderung dieser Station'}</div></div></div>`;
+    <div class="ms-auto">${b ? `🏆 Bestwert: <b class="scn-gold">${starStr(b.stars)}</b>${b.pts ? ` · ⭐ ${b.pts.toLocaleString('de-DE')} Punkte` : ''}` : open ? '▶ Klicken zum Starten' : '🔒 Gesperrt – hol erst einen Stern in der vorigen Herausforderung dieser Station'}</div></div></div>`;
 }
 
 // ---------- Im Spiel ----------
@@ -132,6 +132,7 @@ export class ScenarioUi {
         const r = res.rows[i];
         return `<tr class="s${r.stars}"><td>${esc(g.text)}</td><td class="v">${goalValue(g, r.v == null ? null : Math.round(r.v))}</td><td class="st">${starStr(r.stars)}</td><td class="nx">${r.stars < 3 ? `nächster Stern ${goalNeed(g, r.stars)}` : '✓ Bestwert'}</td></tr>`;
       }).join('')}</table>
+      ${res.pts && def.role !== 'manager' ? `<p class="scn-pts">⭐ ${res.pts.toLocaleString('de-DE')} Schichtpunkte${res.best && res.best.ptsNew ? ' · <b>neuer Punkte-Rekord!</b>' : res.best && res.best.prev && res.best.prev.pts ? ` · Rekord ${res.best.prev.pts.toLocaleString('de-DE')}` : ''}</p>` : ''}
       <p class="scn-note">${[res.best && res.best.isNew && res.stars ? '🏆 <b>Neuer Bestwert!</b>' : res.best && res.best.prev ? `Bisheriger Bestwert: ${starStr(res.best.prev.stars)}` : '', `Gesamt ⭐ ${totalStars()} / ${SCENARIOS.length * 3}`].filter(Boolean).join(' · ')}</p>
       <div class="scn-acts"><button class="btn" data-so="menu">Hauptmenü</button><button class="btn ${res.stars ? '' : 'btn-primary'}" data-so="retry">↻ Nochmal</button>${canNext && res.stars ? `<button class="btn btn-primary" data-so="next" data-id="${nextDef.id}">Weiter: ${nextDef.icon} ${esc(nextDef.title)} ▶</button>` : ''}</div></div></div>`;
     this.ov.classList.remove('hidden');

@@ -278,9 +278,10 @@ export function finishScenario(state, failed = null) {
   const rows = def.goals.map((g) => ({ g, v: m[g.key], stars: goalStars(g, m[g.key]) }));
   let stars = failed || rows.some((r) => !r.stars) ? 0 : Math.floor(rows.reduce((a, r) => a + r.stars, 0) / rows.length);
   sc.done = true;
-  sc.result = { stars, failed, rows: rows.map((r) => ({ v: r.v, stars: r.stars })), m };
+  const pts = state.score ? state.score.pts : 0;
+  sc.result = { stars, failed, rows: rows.map((r) => ({ v: r.v, stars: r.stars })), m, pts };
   state.speed = 0;
-  const best = recordBest(def.id, stars, rows);
+  const best = recordBest(def.id, stars, rows, pts);
   sc.result.best = best;
   radio(state, 'TWR', stars ? 'All stations, shift complete, good work.' : 'All stations, shift ended.', 'atc');
   for (const fn of scenarioListeners) fn(state, def, sc.result);
@@ -306,18 +307,19 @@ export function loadBest() {
     return {};
   }
 }
-function recordBest(id, stars, rows) {
+function recordBest(id, stars, rows, pts = 0) {
   const all = loadBest();
   const old = all[id];
   const score = stars * 1000 + rows.reduce((a, r) => a + r.stars * 100, 0);
-  const isNew = !old || score > (old.score || 0);
-  if (isNew) {
-    all[id] = { stars, score, at: Date.now() };
+  const isNew = !old || score > (old.score || 0) || (score === (old.score || 0) && pts > (old.pts || 0));
+  const ptsNew = pts > ((old && old.pts) || 0);
+  if (isNew || ptsNew) {
+    all[id] = { stars: isNew ? stars : old.stars, score: isNew ? score : old.score, pts: Math.max(pts, (old && old.pts) || 0), at: Date.now() };
     try {
       localStorage.setItem(BEST_KEY, JSON.stringify(all));
     } catch (e) {}
   }
-  return { ...(isNew ? all[id] : old), isNew, prev: old || null };
+  return { ...all[id], ...(isNew || ptsNew ? {} : old), isNew, ptsNew, prev: old || null };
 }
 export const totalStars = () => Object.values(loadBest()).reduce((a, b) => a + (b.stars || 0), 0);
 // Freischaltung: die erste Herausforderung je Station ist offen, weitere nach mindestens einem Stern
