@@ -35,6 +35,13 @@ function contractOf(state, rot) {
   return rot && rot.contract ? state.contracts.find((c) => c.id === rot.contract) : null;
 }
 
+// Bewegungen je Stunde (für das Tagesdiagramm)
+function hourBump(state, key) {
+  const t = state.stats.today;
+  if (!t[key]) t[key] = new Array(24).fill(0);
+  t[key][Math.floor((state.time % 86400) / 3600)]++;
+}
+
 // ---------- Ereignisse aus dem Betrieb ----------
 export function onLanding(state, ac) {
   const t = AC_TYPES[ac.type];
@@ -43,6 +50,7 @@ export function onLanding(state, ac) {
   earn(state, 'landing', fee);
   fx(state, ac.x, ac.y, `🛬 Landung · +${fmtK(fee)}`, 'good');
   state.stats.today.mov++;
+  hourBump(state, 'arrH');
   onNightMovement(state, ac, earn, spend);
   bump(state, 'landings');
   bump(state, 'landStreak');
@@ -65,6 +73,8 @@ export function onOffBlock(state, ac, rot) {
   // ATFM-Slotverspätung (Verkehrsflusssteuerung) zählt nicht als Flughafenverspätung
   const delay = (rot.offBlock - rot.std - (rot.atfm || 0)) / 60;
   rot.depDelay = Math.round(delay);
+  const td = state.stats.today;
+  if (delay > 15 && (!td.peakDelay || delay > td.peakDelay.min)) td.peakDelay = { cs: rot.depNo || ac.cs, min: Math.round(delay) };
   fx(state, ac.x, ac.y, delay <= 5 ? '✓ pünktlich' : delay <= 15 ? `+${Math.round(delay)}′` : `+${Math.round(delay)}′ verspätet`, delay <= 5 ? 'good' : delay <= 15 ? 'warn' : 'bad');
   if (delay <= 5) bump(state, 'depPunctual');
   if (rot.onBlock && rot.offBlock - rot.onBlock <= (t.turn + 5) * 60) bump(state, 'quickTurns');
@@ -95,6 +105,7 @@ export function onTakeoff(state, ac) {
     earn(state, cat, v);
   };
   state.stats.today.mov++;
+  hourBump(state, 'depH');
   onNightMovement(state, ac, earn, spend);
   bump(state, 'safeStreak');
   if (!rot) return;
@@ -222,6 +233,9 @@ export function closeDay(state) {
     nightMov: s.nightMov || 0,
     complaints: s.complaints || 0,
     rwyCond: Math.round(rwyCond(state)),
+    arrH: s.arrH || null,
+    depH: s.depH || null,
+    peakDelay: s.peakDelay || null,
   };
   state.history.push(rec);
   if (state.history.length > 60) state.history.shift();

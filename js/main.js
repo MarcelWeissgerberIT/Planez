@@ -549,6 +549,30 @@ function reportExtras(rec) {
   return list.join('');
 }
 
+// Tagesdiagramm: Landungen und Starts je Stunde, dazu Höhepunkte des Tages
+function dayChart(rec) {
+  if (!rec.arrH && !rec.depH) return '';
+  const A = rec.arrH || new Array(24).fill(0), D = rec.depH || new Array(24).fill(0);
+  const tot = A.map((a, i) => a + D[i]);
+  const max = Math.max(1, ...tot);
+  const W = 480, H = 90, bw = W / 24;
+  let bars = '';
+  for (let i = 0; i < 24; i++) {
+    const ha = (A[i] / max) * (H - 14), hd = (D[i] / max) * (H - 14);
+    bars += `<rect x="${i * bw + 2}" y="${H - 12 - ha}" width="${bw - 4}" height="${ha}" rx="2" fill="#2dd4bf"><title>${String(i).padStart(2, '0')}:00 · ${A[i]} Landungen, ${D[i]} Starts</title></rect>`;
+    bars += `<rect x="${i * bw + 2}" y="${H - 12 - ha - hd}" width="${bw - 4}" height="${hd}" rx="2" fill="#fbbf24"><title>${String(i).padStart(2, '0')}:00 · ${A[i]} Landungen, ${D[i]} Starts</title></rect>`;
+    if (i % 3 === 0) bars += `<text x="${i * bw + bw / 2}" y="${H - 1}" text-anchor="middle" font-size="9" fill="#94a3b8">${String(i).padStart(2, '0')}</text>`;
+  }
+  const peak = tot.indexOf(Math.max(...tot));
+  const hi = [];
+  if (tot[peak]) hi.push(`🕗 Spitzenstunde ${String(peak).padStart(2, '0')}:00 mit ${tot[peak]} Bewegungen`);
+  if (rec.peakDelay) hi.push(`⏱️ Größte Verspätung: ${esc(rec.peakDelay.cs)} +${rec.peakDelay.min} min`);
+  if (rec.incidents === 0 && rec.mov > 20) hi.push('🛡️ Kein einziger Vorfall');
+  const best = (game.state.history || []).slice(0, -1).reduce((m, r) => Math.max(m, r.mov || 0), 0);
+  if (rec.mov > best && best > 0) hi.push(`🏆 Neuer Rekord: ${rec.mov} Bewegungen an einem Tag`);
+  return `<div class="day-chart"><div class="dc-h">Verkehr über den Tag <span><i style="background:#2dd4bf"></i>Landungen <i style="background:#fbbf24"></i>Starts</span></div><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg>${hi.length ? `<div class="dc-hi">${hi.map((x) => `<span>${x}</span>`).join('')}</div>` : ''}</div>`;
+}
+
 function showReport(rec) {
   const prevSpeed = game.state.speed;
   const stars = rateDay(rec);
@@ -569,6 +593,7 @@ function showReport(rec) {
       <div><span>Ansehen</span><b>${rec.rep}/100</b></div>
       ${reportExtras(rec)}
     </div>
+    ${dayChart(rec)}
     ${rec.xp ? `<p style="margin:10px 0 0;color:var(--muted)">🏅 +${rec.xp} XP für den Tag · ${RANKS[goalsState(game.state).rank].name} (${goalsState(game.state).xp} XP)</p>` : ''}
     <div class="modal-acts"><button class="btn btn-primary" data-close-modal>Weiter</button></div>`,
     (box) => box.querySelector('[data-close-modal]').addEventListener('click', () => {
