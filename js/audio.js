@@ -96,6 +96,15 @@ export const sfx = {
   flap(n = 3) {
     for (let i = 0; i < n * 5; i++) tone(2400 + Math.random() * 1600, 0.012, 'square', 0.008, i * 0.028 + Math.random() * 0.01);
   },
+  // Kameraverschluss: zwei kurze Klicks mit Rauschen
+  shutter() {
+    noise(0.05, 0.16, 2500);
+    tone(1800, 0.03, 'square', 0.03);
+    setTimeout(() => {
+      noise(0.07, 0.12, 1800);
+      tone(1200, 0.035, 'square', 0.025);
+    }, 90);
+  },
   // kleine Fanfare (Dur-Arpeggio mit Schlussakkord)
   fanfare() {
     [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.22, 'triangle', 0.06, i * 0.12));

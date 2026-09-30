@@ -33,6 +33,9 @@ export const ACHIEVEMENTS = [
   { id: 'rank2', icon: '🏅', name: 'Internationaler Flughafen', desc: 'Rang 3 erreicht.', xp: 0, check: (s) => (s.goals && s.goals.rank >= 2) },
   { id: 'decisions10', icon: '🧭', name: 'Entscheider', desc: '10 Ereigniskarten selbst entschieden.', xp: 50, check: (s) => L(s, 'decided') >= 10 },
   { id: 'voice', icon: '🎙️', name: 'On Frequency', desc: 'Eine Freigabe per Sprechtaste erteilt.', xp: 40, check: (s) => L(s, 'voiceCmd') >= 1 },
+  { id: 'spot10', icon: '📷', name: 'Spotter', desc: '10 Fotos fürs Spotterbuch geschossen.', xp: 40, check: (s) => L(s, 'spotShots') >= 10 },
+  { id: 'spotTypes', icon: '📒', name: 'Typenkenner', desc: 'Alle 12 Flugzeugtypen im Spotterbuch.', xp: 120, check: (s) => L(s, 'spotTypes') >= 12 },
+  { id: 'spotSpecial', icon: '🌈', name: 'Sonderlack-Jäger', desc: 'Drei verschiedene Sonderlackierungen fotografiert.', xp: 90, check: (s) => L(s, 'spotSpecials') >= 3 },
   { id: 'emergency', icon: '🚑', name: 'Retter', desc: 'Einen Notfall sicher gelandet.', xp: 60, check: (s) => L(s, 'emgLanded') >= 1 },
 ];
 

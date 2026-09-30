@@ -18,7 +18,7 @@ export class ManagerDock {
       <div class="p-head"><div class="p-title">${observer ? '👁️ Beobachter' : '💼 Leitstand'} <small id="mp-sub"></small></div></div>
       <div class="p-body dock-body">
         <button class="dock-open" data-open="over"><span>💼</span><b>Management-Zentrale</b><kbd>O</kbd></button>
-        ${observer ? '<button class="dock-open cine" data-cine><span>🎬</span><b>Kino-Modus</b><kbd>K</kbd></button>' : ''}
+        ${observer ? '<button class="dock-open cine" data-cine><span>🎬</span><b>Kino-Modus</b><kbd>K</kbd></button><button class="dock-open spot" data-spotbook><span>📒</span><b>Spotterbuch</b><kbd>J</kbd></button><div class="dock-spot-tip">Flugzeug anklicken, dann <kbd>F</kbd> oder 📷 Spotten: seltene Typen, Sonderlackierungen und besondere Momente sammeln.</div>' : ''}
         <div id="dk-kpi"></div>
         <div class="p-sec"><span>Jetzt wichtig</span></div>
         <div id="dk-todo"></div>
@@ -30,6 +30,7 @@ export class ManagerDock {
     root.classList.add('dock');
     root.addEventListener('click', (e) => {
       if (e.target.closest('[data-cine]')) return window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k' }));
+      if (e.target.closest('[data-spotbook]')) return window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j' }));
       const o = e.target.closest('[data-open]');
       if (o) return this.game.mgmt && this.game.mgmt.open(o.dataset.open);
       const sh = e.target.closest('[data-site]');

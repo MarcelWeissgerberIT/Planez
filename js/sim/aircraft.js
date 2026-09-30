@@ -1,5 +1,6 @@
 // Flugzeuge: Lebenszyklus, Navigation im Luftraum, Bewegung auf der Karte
 import { AC_TYPES, AIRLINES, CITIES, AIRPORT } from '../config.js';
+import { assignLook } from './spotter.js';
 import { clamp, dist, degDiff, degNorm, DEG, rand, randInt, randRange, angNorm, pathLength } from '../util.js';
 import * as LY from '../layout.js';
 import * as AS from './airspace.js';
@@ -122,6 +123,7 @@ function makeAircraft(state, rot, o) {
     // Treibstoff für Anflug + Reserve in Minuten (Warteschleifen zehren daran)
     fuelMin: (16 + randRange(state, 28, 50) + (t.size === 'L' ? 8 : 0)) * diff(state).fuel,
   };
+  assignLook(ac, rot);
   return ac;
 }
 

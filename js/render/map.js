@@ -1,5 +1,6 @@
 // Isometrische Flughafenansicht
 import { IMG, shadowOf, glowTinted } from '../assets.js';
+import { lookOf } from '../sim/spotter.js';
 import { drawAircraftBody, drawVehicleBody, drawCarBody } from './volume.js';
 import { Ambient } from './ambient.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
@@ -909,8 +910,8 @@ export class MapRenderer {
       ctx.lineDashOffset = 0;
     }
     // Körper mit Volumen (Fahrwerk, Flügel, Triebwerke, runder Rumpf)
-    const al = AIRLINES[ac.airline] || AIRLINES.AUR;
-    const body = drawAircraftBody(ctx, cam, ac, img, type.sprite, L, Wd, rot, onGround, al.color);
+    const lk = lookOf(ac);
+    const body = drawAircraftBody(ctx, cam, ac, img, type.sprite, L, Wd, rot, onGround, lk.band);
     const zb = body.wing;
     // Seitenleitwerk in Airline-Farbe, sitzt auf dem Rumpfrücken
     const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg);
@@ -921,7 +922,7 @@ export class MapRenderer {
     const a = P(-0.49, 0), b = P(-0.47, fh), c = P(-0.39, fh), d = P(-0.25, 0);
     // Seite zum Betrachter etwas dunkler, je nach Blickwinkel
     const side = Math.abs(fx - fy) / 1.42;
-    ctx.fillStyle = al.color;
+    ctx.fillStyle = lk.fin;
     ctx.strokeStyle = 'rgba(0,0,0,0.35)';
     ctx.lineWidth = Math.max(0.6, 0.8 * cam.zoom);
     ctx.beginPath();
@@ -931,17 +932,41 @@ export class MapRenderer {
     ctx.lineTo(d.x, d.y);
     ctx.closePath();
     ctx.fill();
+    if (lk.stripes) {
+      // Regenbogen: waagrechte Streifen über das ganze Leitwerk
+      const n = lk.stripes.length;
+      const lp = (p, q, f) => ({ x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f });
+      for (let k = 0; k < n; k++) {
+        const f0 = k / n, f1 = (k + 1) / n;
+        const p0 = lp(a, b, f0), p1 = lp(a, b, f1), q1 = lp(d, c, f1), q0 = lp(d, c, f0);
+        ctx.fillStyle = lk.stripes[k];
+        ctx.beginPath();
+        ctx.moveTo(p0.x, p0.y);
+        ctx.lineTo(p1.x, p1.y);
+        ctx.lineTo(q1.x, q1.y);
+        ctx.lineTo(q0.x, q0.y);
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.lineTo(c.x, c.y);
+      ctx.lineTo(d.x, d.y);
+      ctx.closePath();
+    }
     ctx.fillStyle = `rgba(8,12,24,${0.08 + 0.22 * (1 - side)})`;
     ctx.fill();
     ctx.stroke();
     const m1 = P(-0.465, fh * 0.55), m2 = P(-0.37, fh * 0.55), m3 = P(-0.355, fh * 0.72), m4 = P(-0.47, fh * 0.72);
-    ctx.fillStyle = al.color2;
-    ctx.beginPath();
-    ctx.moveTo(m1.x, m1.y);
-    ctx.lineTo(m2.x, m2.y);
-    ctx.lineTo(m3.x, m3.y);
-    ctx.lineTo(m4.x, m4.y);
-    ctx.fill();
+    if (!lk.stripes) {
+      ctx.fillStyle = lk.accent;
+      ctx.beginPath();
+      ctx.moveTo(m1.x, m1.y);
+      ctx.lineTo(m2.x, m2.y);
+      ctx.lineTo(m3.x, m3.y);
+      ctx.lineTo(m4.x, m4.y);
+      ctx.fill();
+    }
     // Vorderkante glänzt
     ctx.strokeStyle = 'rgba(255,255,255,0.35)';
     ctx.lineWidth = Math.max(0.6, 1 * cam.zoom);

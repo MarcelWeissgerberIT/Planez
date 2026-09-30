@@ -50,6 +50,7 @@ import { StandPlan } from './ui/standPlan.js';
 import { scoreState } from './sim/score.js';
 import { keysHtml } from './ui/keys.js';
 import { Fids } from './ui/fids.js';
+import { SpotterUi } from './ui/spotter.js';
 import { RankUp } from './ui/rankUp.js';
 
 const game = {
@@ -123,6 +124,8 @@ const LOAD_TIPS = [
   'Tipp: Mit <kbd>V</kbd> (gedrückt halten) funkst du im Tower selbst – auf Englisch, wie echte Lotsen.',
   'Tipp: 📷 bzw. <kbd>Umschalt</kbd>+<kbd>P</kbd> öffnet den Fotomodus mit Filtern und PNG-Export.',
   'Tipp: <kbd>?</kbd> zeigt im Spiel alle Tastenkürzel deiner Station.',
+  'Tipp: Etwa jede 18. Maschine trägt eine Sonderlackierung – fotografiere sie fürs 📒 Spotterbuch.',
+  'Tipp: Eine Landung im Gewitter oder ein Nachtstart bringt im Spotterbuch Extrapunkte für den Moment.',
 ];
 
 async function boot() {
@@ -246,6 +249,12 @@ function syncVoice() {
 }
 game.syncVoice = syncVoice;
 
+// Spotterbuch (einmal anlegen)
+function spotter() {
+  if (!game.spot) game.spot = new SpotterUi(game);
+  return game.spot;
+}
+
 function startGame(state) {
   soundscape.unlock();
   Q.perf = !!loadPrefs().perf;
@@ -273,6 +282,8 @@ function startGame(state) {
   if (state.settings.vehAuto && state.settings.vehAuto.deice === undefined) state.settings.vehAuto.deice = false;
   fuelState(state);
   goalsState(state);
+  spotter().ensureLooks(state);
+  spotter().hinted = new Set();
   setGlossaryEnabled(state.settings.glossary !== false);
   resize();
   const narrow = window.innerWidth < 760;
@@ -426,6 +437,7 @@ function loop(ts) {
     if (game.scn) game.scn.update();
     if (game.splan) game.splan.update(s);
     if (game.fids) game.fids.update();
+    spotter().update(s);
     watchAlerts(s);
     game.hintT = (game.hintT || 0) + 0.2;
     if (game.hintT >= 1.2) {
@@ -797,6 +809,7 @@ function wireGame() {
   $('#t-labels').classList.add('on');
   $('#t-radar').addEventListener('click', () => toggleRadar(!game.ui.radarOn));
   $('#t-help').addEventListener('click', () => showHelp(false));
+  $('#t-spot').addEventListener('click', () => spotter().toggle());
   $('#t-fids').addEventListener('click', () => {
     if (!game.fids) game.fids = new Fids(game);
     game.fids.toggle();
@@ -859,6 +872,12 @@ function wireGame() {
       const [type, id] = fo.dataset.follow.split(':');
       game.ui.follow = game.ui.follow && game.ui.follow.id === id ? null : { type, id };
       if (game.ui.follow) toast('🎥 Kamera folgt – Karte ziehen oder erneut klicken beendet', 'info', 2200);
+      info._html = null;
+      return;
+    }
+    const sp = e.target.closest('[data-spot]');
+    if (sp) {
+      spotter().shoot(s.acs.find((a) => a.id === sp.dataset.spot));
       info._html = null;
       return;
     }
@@ -1019,6 +1038,12 @@ function onKey(e) {
     if (!game.fids) game.fids = new Fids(game);
     return game.fids.toggle();
   }
+  if ((e.key === 'j' || e.key === 'J') && !e.ctrlKey && !e.metaKey) return spotter().toggle();
+  if ((e.key === 'f' || e.key === 'F') && s.role !== 'tower' && !e.ctrlKey && !e.metaKey) {
+    const ac = game.ui.selected && s.acs.find((a) => a.id === game.ui.selected);
+    if (!ac) return toast('📷 Erst ein Flugzeug anklicken, dann F zum Spotten', 'info', 1800);
+    return spotter().shoot(ac);
+  }
   if (e.key === '?') {
     return openModal(keysHtml(s.role), (box) => box.querySelector('[data-close-modal]').addEventListener('click', closeModal));
   }
@@ -1026,6 +1051,8 @@ function onKey(e) {
   if (e.key === '-') return game.cam.zoomAt(0.83, game.cam.w / 2, game.cam.h / 2);
   if (e.key === 'Escape') {
     if (markMenuOpen()) return closeMarkMenu();
+    if (game.spot && game.spot.isOpen()) return game.spot.toggle(false);
+    if (game.fids && game.fids.isOpen()) return game.fids.toggle(false);
     if (game.ui.sel) return game.select(null);
     return showGameMenu();
   }
@@ -1267,6 +1294,8 @@ function helpGuide(first) {
     <p>Im Tower und im Vorfeld gibt es Punkte für gute Arbeit – saubere Landungen, Starts in der Lücke vor der nächsten Landung, kurze Wartezeiten am Rollhalt, Pushbacks auf die Minute und schnelle Turnarounds. Jeder Erfolg erhöht den Kombo-Multiplikator (bis ×3, oben neben dem Rang); ein Durchstarten, ein Vorfall oder eine große Verspätung setzt ihn zurück. Windscherung zählt nicht gegen dich.</p>
     <h3>⭐ Herausforderungen</h3>
     <p>Im Hauptmenü unter <b>Herausforderungen</b>: kurze Einsätze mit festem Start – Morgenwelle, Nebelsuppe, Gewitterfront, Notfall-Schicht (Tower), Ferienstart, Streiktag, Winterchaos (Vorfeld), Sanierungsfall und Wachstumskurs (Manager). Oben zeigt eine Leiste Restzeit und Ziele; jedes Ziel bringt 1–3 Sterne, die Gesamtwertung ist der Durchschnitt (ein verfehltes Ziel = nicht geschafft). Ein Stern schaltet die nächste Herausforderung der Station frei. Herausforderungen überschreiben deinen Spielstand nicht.</p>
+    <h3>📒 Spotterbuch</h3>
+    <p>Klicke ein Flugzeug auf der Karte an und drücke <b>📷 Spotten</b> (außerhalb des Towers auch <kbd>F</kbd>): Das Foto landet im Spotterbuch (<kbd>J</kbd> oder 📒). Punkte gibt es nach Seltenheit des Typs (häufig bis legendär – der A380), für neue Typen und Airlines, für seltene <b>Sonderlackierungen</b> (Regenbogen, Retro, 50 Jahre … – etwa jede 18. Maschine) und für <b>Momente</b> im Bild: Landung, Start, Pushback, Nacht, goldene Stunde, Regen, Gewitter, Schnee, Nebel, Enteisung, Durchstarten, Notfall. Dasselbe Flugzeug zählt erneut, sobald ein neuer Moment dazukommt. Jedes Flugzeug trägt ein eigenes Kennzeichen (z.B. D-AXYZ). Das Spotterbuch gilt für alle Spielstände.</p>
     <h3>Steuerung</h3>
     <p><b>🎥 Folgen:</b> Auf der Info-Karte eines Flugzeugs oder Fahrzeugs lässt „Folgen“ die Kamera mitfahren – vom Endanflug über die Abfertigung bis zum Start. Karte ziehen beendet das Folgen.</p>
     <p><b>🎬 Kino-Modus</b> (<kbd>K</kbd> oder 🎬): Die Kamera fährt selbst zu Landungen, Starts, Durchstarts, Abfertigungen, Baustellen und zur Landseite – mit Letterbox und Bildunterschrift. ← → nächste Szene, <kbd>K</kbd>/<kbd>Esc</kbd> beendet.</p>

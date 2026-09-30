@@ -11,6 +11,7 @@ import { taskChips, standOptions } from './groundPanel.js';
 import { standBuildCost } from '../sim/economy.js';
 import { BUILDINGS } from '../layout.js';
 import { MARKS, MARK_KEYS, flagHtml } from './marks.js';
+import { SPECIALS } from '../sim/spotter.js';
 import { projects, standProject, projectFor, standBuildHours, upgradeHours, STAND_HOURS, remainingHours } from '../sim/construction.js';
 import { progressBar, projectStatus, projectRefund, fmtHours } from './projects.js';
 
@@ -71,7 +72,8 @@ export function renderInfo(el, state, ui) {
       delay = d > 0 ? `+${d} min` : 'pünktlich';
     }
     const fol = ui.follow && ui.follow.id === ac.id;
-    h += `<div class="i-head"><div><div class="i-cs"><i class="al-dot" style="background:${al.color}"></i>${esc(ac.cs)}${ac.emergency ? ' 🚨' : ''}</div><div class="i-sub">${al.name} · ${t.name} · Wirbelschleppe ${wakeTag(t.wake)} ${WAKE_DE[t.wake]}</div></div><button class="mini i-follow ${fol ? 'on' : ''}" data-follow="ac:${ac.id}" title="Kamera folgt diesem Flugzeug (auch über den ganzen Umlauf)">🎥 ${fol ? 'folgt' : 'Folgen'}</button><button class="icon-btn i-close" data-close>✕</button></div>`;
+    h += `<div class="i-head"><div><div class="i-cs"><i class="al-dot" style="background:${al.color}"></i>${esc(ac.cs)}${ac.emergency ? ' 🚨' : ''}</div><div class="i-sub">${al.name} · ${t.name} · Wirbelschleppe ${wakeTag(t.wake)} ${WAKE_DE[t.wake]}</div></div>${ac.mode === 'map' ? `<button class="mini i-spot${ac.spotted && ac.spotted.includes('_') ? ' done' : ''}" data-spot="${ac.id}" title="Foto fürs Spotterbuch${state.role !== 'tower' ? ' (F)' : ''}">📷 Spotten</button>` : ''}<button class="mini i-follow ${fol ? 'on' : ''}" data-follow="ac:${ac.id}" title="Kamera folgt diesem Flugzeug (auch über den ganzen Umlauf)">🎥 ${fol ? 'folgt' : 'Folgen'}</button><button class="icon-btn i-close" data-close>✕</button></div>`;
+    if (ac.reg) h += `<div class="i-reg">Kennzeichen <b>${esc(ac.reg)}</b>${ac.special ? ` · <span class="i-special">${SPECIALS[ac.special].icon} Sonderlackierung „${esc(SPECIALS[ac.special].name)}“</span>` : ''}</div>`;
     if (fol && ac.mode === 'air') h += `<div class="i-sub" style="margin:2px 0 6px">🎥 Im Luftraum – die Kamera übernimmt, sobald ${esc(ac.cs)} im Endanflug auf der Karte erscheint.</div>`;
     h += `<div class="i-grid">`;
     h += `<div><span>Status</span><b>${PHASE_DE[ac.phase] || ac.phase}</b></div>`;
