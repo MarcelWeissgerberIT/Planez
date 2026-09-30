@@ -10,7 +10,7 @@ const SEG = 9.6;
 
 // ---------- Voreinstellungen (auch ohne laufendes Spiel) ----------
 const PREFS_KEY = 'planez_prefs';
-const PREF_DEF = { sound: true, ambience: true, tts: true, glossary: true, hints: true, voiceVol: 0.9 };
+const PREF_DEF = { sound: true, perf: false, ambience: true, tts: true, glossary: true, hints: true, voiceVol: 0.9 };
 export function loadPrefs() {
   try {
     const p = { ...PREF_DEF, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') };
@@ -32,6 +32,7 @@ export function savePrefs(p) {
 }
 export const PREF_ROWS = [
   ['sound', 'Sound-Effekte', 'Funk, Warnungen, Kasse'],
+  ['perf', 'Leistungsmodus', 'weniger Details und Belebung, geringere Auflösung – flüssiger auf langsamen Rechnern'],
   ['ambience', 'Klangkulisse', 'Triebwerke, Wind, Regen, Donner, Vögel und Grillen'],
   ['tts', 'Echter Funk (Sprachausgabe)', 'Lotse und Piloten sprechen – mit Funkrauschen, eigener Stimme je Flugzeug'],
   ['glossary', 'Abkürzungen erklären', 'Tooltips für ILS, TOBT, CTOT, RVR …'],

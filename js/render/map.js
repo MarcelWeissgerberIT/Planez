@@ -713,6 +713,11 @@ export class MapRenderer {
   drawFx(dt) {
     const ctx = this.ctx, cam = this.cam;
     if (!this.fxList.length) return;
+    const gc = document.getElementById('game').classList;
+    if (gc.contains('photo') || gc.contains('cinema')) {
+      this.fxList = [];
+      return;
+    }
     cam.setScreen(ctx);
     const COL = { good: '#4ade80', bad: '#f87171', warn: '#fbbf24', cash: '#fde047', info: '#e2e8f0' };
     const fs = Math.round(clamp(13 * Math.sqrt(cam.zoom / 0.8), 11, 20));

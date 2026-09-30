@@ -6,6 +6,7 @@ import * as LY from '../layout.js';
 import { PH } from '../sim/aircraft.js';
 import { ZS } from '../config.js';
 import { trainPos } from './infra.js';
+import { Q } from './quality.js';
 
 const CAR_COLS = ['#e2e8f0', '#1f2937', '#b91c1c', '#1d4ed8', '#9ca3af', '#065f46', '#f8fafc', '#475569', '#7c2d12', '#a16207'];
 const SHIRTS = ['#1d4ed8', '#b91c1c', '#f8fafc', '#111827', '#15803d', '#a855f7', '#f59e0b', '#0e7490', '#be185d', '#57534e'];
@@ -59,12 +60,12 @@ export class Ambient {
       this.wasDwell = dwell;
     }
     this.spawnT -= dt;
-    if (this.spawnT <= 0 && this.cars.length < 12 + tr * 22) {
+    if (this.spawnT <= 0 && this.cars.length < (12 + tr * 22) * Q.agents) {
       this.spawnT = (1.4 + this.rnd() * 1.6) / tr;
       this.spawnTrip(state);
     }
     this.pedT -= dt;
-    if (this.pedT <= 0 && this.peds.length < 70 * tr + 8) {
+    if (this.pedT <= 0 && this.peds.length < (70 * tr + 8) * Q.agents) {
       this.pedT = 0.5 / tr;
       this.spawnWalker();
     }

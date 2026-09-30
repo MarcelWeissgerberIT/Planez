@@ -20,9 +20,11 @@ import { initPTT } from './ui/ptt.js';
 import { DecisionCard } from './ui/decision.js';
 import { NewsTicker } from './ui/ticker.js';
 import { Cinema } from './ui/cinema.js';
+import { PhotoMode } from './ui/photo.js';
 import { Tutorial } from './ui/tutorial.js';
 import { showAchievement, achievementsHtml } from './ui/achUi.js';
 import { soundscape } from './soundscape.js';
+import { Q } from './render/quality.js';
 import { season, temperature } from './sim/winter.js';
 import { makeVehicle, freeBay } from './sim/ground.js';
 import { command } from './sim/atc.js';
@@ -167,6 +169,8 @@ game.syncVoice = syncVoice;
 
 function startGame(state) {
   soundscape.unlock();
+  Q.perf = !!loadPrefs().perf;
+  game.fpsProbe = { t: 0, n: 0, sum: 0 };
   game.state = state;
   game.ui.sel = null;
   game.ui.selected = null;
@@ -289,6 +293,30 @@ function loop(ts) {
   if (!game.running || !game.state) return;
   const s = game.state;
   if (!modalOpen() || s.speed === 0) run(s, dt);
+  // Leistung prüfen: nach dem Start 8 s messen, bei unter ~22 fps einmalig den Leistungsmodus einschalten
+  const fp = game.fpsProbe;
+  if (fp && !fp.done && !document.hidden) {
+    fp.t += dt;
+    if (fp.t > 2) {
+      fp.n++;
+      fp.sum += dt;
+    }
+    if (fp.t > 10) {
+      fp.done = true;
+      const avg = fp.sum / Math.max(1, fp.n);
+      let asked = false;
+      try {
+        asked = !!localStorage.getItem('planez_perf_auto');
+        localStorage.setItem('planez_perf_auto', '1');
+      } catch (e) {}
+      if (avg > 0.045 && !Q.perf && !asked) {
+        Q.perf = true;
+        savePrefs({ perf: true });
+        resize();
+        toast('⚙️ Leistungsmodus eingeschaltet, damit das Spiel flüssig läuft – abschaltbar unter Menü › Einstellungen', 'info', 6000);
+      }
+    }
+  }
   if (game.cinema && game.cinema.on) game.cinema.update(dt);
   else game.cam.update(dt);
   keyPan(dt);
@@ -619,6 +647,10 @@ function wireGame() {
   $('#t-labels').classList.add('on');
   $('#t-radar').addEventListener('click', () => toggleRadar(!game.ui.radarOn));
   $('#t-help').addEventListener('click', () => showHelp(false));
+  $('#t-photo').addEventListener('click', () => {
+    if (!game.photo) game.photo = new PhotoMode(game);
+    game.photo.toggle();
+  });
   $('#t-cine').addEventListener('click', () => {
     if (!game.cinema) game.cinema = new Cinema(game);
     game.cinema.toggle();
@@ -773,6 +805,15 @@ function setSpeed(v) {
 }
 
 function onKey(e) {
+  if (game.photo && game.photo.on && e.key === 'Escape') {
+    e.preventDefault();
+    return game.photo.stop();
+  }
+  if (e.key === 'P' && e.shiftKey && game.state && game.running && !modalOpen()) {
+    e.preventDefault();
+    if (!game.photo) game.photo = new PhotoMode(game);
+    return game.photo.toggle();
+  }
   if (game.cinema && game.cinema.on) {
     if (e.key === 'Escape' || e.key === 'k' || e.key === 'K') {
       e.preventDefault();
@@ -913,7 +954,7 @@ function clickMap(x, y) {
 
 // ---------------- Layout ----------------
 function resize() {
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const dpr = Math.min(Q.dprCap, window.devicePixelRatio || 1);
   if (game.map) game.map.resize(window.innerWidth, window.innerHeight, dpr);
   if (game.radar) {
     const wrap = $('#radar-wrap');
@@ -966,8 +1007,14 @@ function showGameMenu() {
   const s = game.state;
   const prefsSync = () => savePrefs({ sound: !!s.settings.sound, ambience: s.settings.ambience !== false, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false });
   showPauseMenu(game, {
-    settings: () => ({ sound: !!s.settings.sound, ambience: s.settings.ambience !== false, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false, labels: game.ui.labels }),
+    settings: () => ({ perf: Q.perf, sound: !!s.settings.sound, ambience: s.settings.ambience !== false, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false, labels: game.ui.labels }),
     toggle: (k) => {
+      if (k === 'perf') {
+        Q.perf = !Q.perf;
+        savePrefs({ perf: Q.perf });
+        resize();
+        return;
+      }
       if (k === 'labels') {
         game.ui.labels = !game.ui.labels;
         $('#t-labels').classList.toggle('on', game.ui.labels);

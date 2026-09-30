@@ -16,6 +16,8 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 - Isometrische, animierte Flughafenansicht mit Tag/Nacht-Zyklus, Befeuerung (Pisten-, Rollweg-, Anflug-Lauflicht), Wetter (Regen, Nebel, Gewitter), Wind & Windsack
 - Luftraum mit Radar (Sweep, Datenblöcke, Warteschleifen-Fixes, Endanflug, Konfliktwarnung/STCA)
 - **Entscheidungen**: Ereigniskarten je Rolle mit Optionen und echten Folgen (Vorfeld: Gepäckband, fehlender Passagier, Catering, Kerosin ausgelaufen, Blitzwarnung · Tower: medizinischer Notfall, Vogelschwarm · Manager: Rabattforderung, Fluglärm-Protest, Gewerkschaft, Kerosin-Festpreis, Festival-Charter, Terminal-Mieter); aufsteigende Rückmeldungen auf der Karte (✓ pünktlich, Erlöse, Verspätung)
+- 📷 Fotomodus (📷 oder `Umschalt`+`P`): Oberfläche aus, freie Kamera, Zeit anhalten, Filter (Golden, Kühl, Schwarzweiß, Film, Lebendig), Aufnahme als PNG mit Wasserzeichen
+- ⚙️ Leistungsmodus: weniger Details und Belebung, geringere Auflösung – schaltet sich bei ruckelnder Darstellung einmalig automatisch ein
 - **Erfolge**: 25 Auszeichnungen über alle Modi (erste Landung, Serien, Pünktlichkeit, Nebel, Winterdienst, Bauten, Finanzen, Sprechtaste, Notfälle …) mit Popup und Galerie unter „Ziele & Rang“
 - Neue Bauprojekte: **Solarpark** (Energiekosten −60 %, Stromverkauf, Ansehen) und **Flughafen-Bahnhof** mit Glashalle, Bahnsteig und Zügen, die ein- und ausfahren, Fahrgäste gehen zum Terminal (mehr Airline-Angebote, Ansehen, weniger Autoverkehr)
 - **Interaktive Einführung** je Rolle beim ersten Spielen (Hervorhebung, Sprechblase, Schritte gehen weiter, sobald man die Aktion ausführt); jederzeit neu über das Menü „Einführung starten“

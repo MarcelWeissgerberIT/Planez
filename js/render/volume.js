@@ -3,6 +3,7 @@
 import { IMG } from '../assets.js';
 import { clamp } from '../util.js';
 import { ZS } from '../config.js';
+import { Q } from './quality.js';
 
 // Triebwerke je Flugzeug-Sprite: [Mitte x, Anfang y, Ende y, Breite] (x/Breite relativ zur Bildbreite, y zur Höhe)
 const ENGINES = {
@@ -211,7 +212,7 @@ export function drawAircraftBody(ctx, cam, ac, img, name, L, Wd, rot, onGround, 
 
   // Rumpf als Scheibenstapel (runder Querschnitt); zwei Durchgänge, damit der Flügel dazwischen liegt
   const part = v.band;
-  const nF = detail ? clamp(Math.round(hpx / 1.1), 3, 18) : 2;
+  const nF = detail ? clamp(Math.round(hpx / 1.1), 3, Q.slices) : 2;
   const iWing = clamp(Math.floor(((zWing - zBot) / (zTop - zBot)) * nF), 0, nF);
   const tn = part.tones.length;
   const iWin = nF >= 4 ? Math.round(nF * 0.7) : -1;
@@ -246,7 +247,7 @@ export function drawAircraftBody(ctx, cam, ac, img, name, L, Wd, rot, onGround, 
       const ew = (e.sw / v.W) * Wd, el = (e.sh / v.H) * L;
       const er = ew / 2;
       const zc = v.rear ? zMid + r * 0.15 : v.wing === 'high' ? zWing - er * 0.2 : zWing - er * 0.9;
-      stack(ctx, F, cam.zoom, e, e.cx * Wd, -L / 2 + ((e.sy + e.sh / 2) / v.H) * L, ew, el, zc - er, zc + er, true, 10);
+      stack(ctx, F, cam.zoom, e, e.cx * Wd, -L / 2 + ((e.sy + e.sh / 2) / v.H) * L, ew, el, zc - er, zc + er, true, Q.vehSlices);
     }
   };
 
@@ -310,7 +311,7 @@ export function drawVehicleBody(ctx, cam, name, x, y, hdg, L, Wd, height, lift =
       ctx.fillRect(Wd / 2 - Wd * 0.2 + 0.004, fy - wr / 2, Wd * 0.2, wr);
     }
   }
-  stack(ctx, F, cam.zoom, v, 0, 0, Wd, L, lift, lift + height, false, 10);
+  stack(ctx, F, cam.zoom, v, 0, 0, Wd, L, lift, lift + height, false, Q.vehSlices);
 }
 
 // Auto aus zwei Quadern (Karosserie + Kabine) mit Licht-/Schattenseiten; sc = Maßstab, zb = Bodenhöhe
