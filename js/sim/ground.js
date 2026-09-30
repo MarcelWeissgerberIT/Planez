@@ -1,6 +1,7 @@
 // Bodenabfertigung: Parkpositionen, Turnaround, Fahrzeuge
 import { AC_TYPES, TASKS, TASK_ORDER, VEH_TYPES, SIZE_RANK, AIRLINES } from '../config.js';
 import { nordoOnBlock } from './nordo.js';
+import { sidOf } from './sid.js';
 import { crewDispatch, crewDone, crewEmpty, crewOnBlock, crewPushStart, crewPushDone } from './crew.js';
 import { scoreDeice } from './score.js';
 import * as LY from '../layout.js';
@@ -110,6 +111,8 @@ export function onBlock(state, ac) {
   log(state, 'gnd', `${rot ? rot.arrNo : ac.cs} an Position ${st ? st.id : '?'} angekommen (Abflug als ${ac.cs}).`);
   crewOnBlock(state, ac);
   nordoOnBlock(state, ac);
+  ac.sid = null;
+  sidOf(state, ac); // Abflugroute des Folgeflugs
 }
 
 export function onPushbackStart(state, ac) {

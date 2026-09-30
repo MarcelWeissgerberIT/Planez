@@ -10,6 +10,7 @@ import { onBlock, onPushbackStart, onPushbackDone, assignStandAuto } from './gro
 import { onLanding, onTakeoff, penalize } from './economy.js';
 import { slotOpen, acdmOnTakeoff } from './acdm.js';
 import { wakeDepSec } from './wake.js';
+import { depGap, sidOf } from './sid.js';
 import { runwayClosed, decelFactor, onRunwayLanding, brakingAction, stripGeom, rwyName, closeRunway } from './runway.js';
 import { scoreGoAround } from './score.js';
 import { diff } from './difficulty.js';
@@ -373,6 +374,7 @@ function passWaypoint(state, ac, w) {
     ac.phase = PH.INBOUND;
     ac.route = [{ x: fix.x, y: fix.y, name: fix.name, iaf: true }];
     ac.altRestr = undefined;
+    ac.missedSplit = false;
   }
 }
 
@@ -388,6 +390,22 @@ function toMapFinal(state, ac) {
   ac.v = t.vapp * 0.0031;
   ac.z = (LY.APPROACH_TILES + LY.RWY.td) * 0.075;
   ac.req = null;
+}
+
+// Fehlanflug-Route: geradeaus auf 4000 ft; ist schon jemand im Fehlanflug, seitlich versetzt auf 3000 ft
+function missedRoute(state, ac) {
+  const s = AS.appSide(ac.rwy);
+  const other = state.acs.some((o) => o !== ac && (o.phase === PH.GOAROUND || o.phase === PH.MISSED) && o.rwy === ac.rwy && !o.missedSplit);
+  if (!other) {
+    ac.missedSplit = false;
+    ac.altRestr = undefined;
+    return [{ x: AS.THR[ac.rwy].x - s * 5, y: 0, name: '', missedEnd: true }];
+  }
+  ac.missedSplit = true;
+  ac.altRestr = 3000;
+  const side = ac.pos && ac.pos.y > 0 ? 1 : -1;
+  radio(state, 'TWR', `${tel(ac)}, after departure end turn ${side * s > 0 ? 'right' : 'left'}, climb 3000 feet, traffic ahead on the missed approach.`, 'atc');
+  return [{ x: AS.THR[ac.rwy].x - s * 2.5, y: side * 3.2, name: '' }, { x: AS.THR[ac.rwy].x - s * 6, y: side * 3.2, name: '', missedEnd: true }];
 }
 
 export function goAround(state, ac, reason) {
@@ -406,9 +424,8 @@ export function goAround(state, ac, reason) {
     ac.phase = PH.MISSED;
     return;
   }
-  const s = AS.appSide(ac.rwy);
   ac.phase = PH.GOAROUND;
-  ac.route = [{ x: AS.THR[ac.rwy].x - s * 5, y: 0, name: '', missedEnd: true }];
+  ac.route = missedRoute(state, ac);
   if (rot) rot.goArounds = (rot.goArounds || 0) + 1;
 }
 
@@ -630,13 +647,19 @@ function updateMap(state, ac, dt) {
     case PH.LINED:
       ac.v = 0;
       if (ac.clr.takeoff && !slotOpen(state, ac)) holdForSlot(state, ac);
-      else if (ac.clr.takeoff && state.time - (state.lastTakeoff || -1e9) < wakeDepSec(state.lastTakeoffWake, ac.wake)) {
-        // Wirbelschleppen des vorigen Starts abwarten
+      else if (ac.clr.takeoff && state.time - (state.lastTakeoff || -1e9) < depGap(state, ac).sec) {
+        // Wirbelschleppen bzw. Abstand auf derselben Abflugroute abwarten
         if (!ac.wakeCall) {
           ac.wakeCall = true;
-          const w = Math.ceil((wakeDepSec(state.lastTakeoffWake, ac.wake) - (state.time - state.lastTakeoff)) / 60);
-          radio(state, ac.cs, `${tel(ac)}, we'll wait ${w} minute${w > 1 ? 's' : ''} for wake turbulence.`);
-          state.stats.today.wakeWait = (state.stats.today.wakeWait || 0) + 1;
+          const g = depGap(state, ac);
+          const w = Math.max(1, Math.ceil((g.sec - g.since) / 60));
+          if (g.same && g.why.startsWith('gleiche')) {
+            radio(state, ac.cs, `${tel(ac)}, same departure route as the preceding traffic, we'll wait ${w} minute${w > 1 ? 's' : ''} for spacing.`);
+            state.stats.today.sidWait = (state.stats.today.sidWait || 0) + 1;
+          } else {
+            radio(state, ac.cs, `${tel(ac)}, we'll wait ${w} minute${w > 1 ? 's' : ''} for wake turbulence.`);
+            state.stats.today.wakeWait = (state.stats.today.wakeWait || 0) + 1;
+          }
         }
       } else if (ac.clr.takeoff) {
         // Piste voraus frei?
@@ -657,6 +680,7 @@ function updateMap(state, ac, dt) {
           ac.airborne = true;
           state.lastTakeoff = state.time;
           state.lastTakeoffWake = ac.wake;
+          state.lastTakeoffSid = sidOf(state, ac);
           onTakeoff(state, ac);
           acdmOnTakeoff(state, ac, getRot(state, ac));
         }
@@ -677,8 +701,7 @@ function updateMap(state, ac, dt) {
         ac.crs = AS.finalCrs(ac.rwy);
         ac.spd = 170;
         ac.phase = PH.GOAROUND;
-        const s = AS.appSide(ac.rwy);
-        ac.route = [{ x: AS.THR[ac.rwy].x - s * 5, y: 0, name: '', missedEnd: true }];
+        ac.route = missedRoute(state, ac);
         const rot = getRot(state, ac);
         if (rot) rot.goArounds = (rot.goArounds || 0) + 1;
       }

@@ -12,6 +12,7 @@ import { slotOpen } from './acdm.js';
 import { runwayClosed, brakingAction, BRAKE_EN, updateRunway, stripForArrival, rwyName, segregated } from './runway.js';
 import { fmtClock } from '../util.js';
 import { readbackText } from './readback.js';
+import { depGap } from './sid.js';
 import { lightSignal, callNordo } from './nordo.js';
 
 const numTxt = (s, ac, suffix = '') => {
@@ -270,8 +271,9 @@ export function departureWait(state, ac) {
   // vom Rollhalt braucht ein Start gut 1½ Minuten, bis die Piste wieder frei ist
   const need = ac.phase === PH.LINED || ac.phase === PH.LINEUP ? 2.8 : 6;
   if (next && nd < need) return { sec: Math.round((nd / Math.max(120, next.spd || 140)) * 3600 + 45), why: `Landung ${next.cs} zuerst` };
-  const gap = wakeDepSec(state.lastTakeoffWake, ac.wake) - (state.time - (state.lastTakeoff || -999)) - 20;
-  if (gap > 0) return { sec: Math.round(gap), why: 'Wirbelschleppen-Abstand' };
+  const dg = depGap(state, ac);
+  const gap = dg.sec - dg.since - 20;
+  if (gap > 0) return { sec: Math.round(gap), why: dg.why };
   return { sec: 0, why: '' };
 }
 
@@ -531,7 +533,7 @@ function autoDepartures(state) {
   if (runwayClosed(state)) return;
   if (lined && !lined.clr.takeoff) {
     const others = occupants.filter((o) => o !== lined);
-    if (!others.length && nextArr > 2.6 && sinceTo > wakeDepSec(state.lastTakeoffWake, lined.wake) && slotOpen(state, lined)) command(state, lined, 'takeoff');
+    if (!others.length && nextArr > 2.6 && sinceTo > depGap(state, lined).sec && slotOpen(state, lined)) command(state, lined, 'takeoff');
     return;
   }
   if (lined) return;
@@ -545,7 +547,7 @@ function autoDepartures(state) {
   const queue = state.acs.filter((a) => a.phase === PH.HOLDING && a.rwy === rwy && slotOpen(state, a, 60)).sort((a, b) => key(a) - key(b));
   const head = queue[0];
   if (!head) return;
-  const wakeGap = wakeDepSec(state.lastTakeoffWake, head.wake);
+  const wakeGap = depGap(state, head).sec;
   if (!occupants.length && nextArr > 5.2 && sinceTo > wakeGap - 20) command(state, head, 'takeoff');
   else if (!occupants.length && nextArr > 4.4 && sinceTo > wakeGap - 30) command(state, head, 'lineup');
 }

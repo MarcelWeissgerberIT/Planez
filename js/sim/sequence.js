@@ -3,6 +3,7 @@ import { PH } from './aircraft.js';
 import * as AS from './airspace.js';
 import { pathLength } from '../util.js';
 import { wakeArrSec, wakeDepSec } from './wake.js';
+import { depSepSec } from './sid.js';
 
 const ARR_SEQ = new Set([PH.APPROACH, PH.FINAL, PH.ROLLOUT]);
 const DEP_SEQ = new Set([PH.STARTUP, PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAKEOFF]);
@@ -53,7 +54,7 @@ function rawEta(state, ac) {
 const SEP = { AD: 45, DA: 100 };
 export function sepSec(lead, foll, leadArr, follArr) {
   if (leadArr && follArr) return wakeArrSec(lead.wake, foll.wake);
-  if (!leadArr && !follArr) return wakeDepSec(lead.wake, foll.wake) + 15;
+  if (!leadArr && !follArr) return depSepSec(lead.wake, lead.sid, foll.wake, foll.sid) + 15;
   return leadArr ? SEP.AD : SEP.DA;
 }
 

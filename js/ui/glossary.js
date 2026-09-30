@@ -27,6 +27,7 @@ export const GLOSSARY = [
   E('ATIS', 'Automatic Terminal Information Service', 'Bandansage mit Wetter, Wind und Piste in Betrieb. Jede neue Ausgabe hat einen Buchstaben (Alpha, Bravo, …), den Piloten beim Erstanruf nennen.', 'Flugsicherung'),
   E('TAF', 'Terminal Aerodrome Forecast', 'Flugplatzwettervorhersage. Im Radar zeigt die TAF-Zeile die nächste Wetterlage, z. B. „ab 15:20 TSRA“ (Gewitter mit Regen).', 'Flugsicherung'),
   E('TSRA', 'Thunderstorm with Rain', 'Wetterkürzel: Gewitter mit Regen. Weitere Kürzel: RA Regen, SN Schnee, FG Nebel, CAVOK klar.', 'Flugsicherung'),
+  E('SID', 'Standard Instrument Departure', 'Veröffentlichte Abflugroute. Im Spiel führt jede Route über einen der vier Fixe (NOLTA Nordost, SUDEN Südost, RIMOS Südwest, WELDA Nordwest). Zwei Starts auf derselben Route brauchen 2 Minuten Abstand, auf verschiedenen Routen reicht der normale Abstand.', 'Flugsicherung'),
   E('NORDO', 'No Radio', 'Flugzeug ohne Funkverbindung (Transponder-Code 7600). Es fliegt nach Flugplan weiter und bekommt Lichtsignale vom Tower: grünes Dauerlicht = Landung frei, rotes Dauerlicht = nicht landen/durchstarten, grünes Blinklicht am Boden = Rollen frei.', 'Flugsicherung'),
   E('7600', 'Squawk 7600', 'Transponder-Code für Funkausfall (NORDO).', 'Flugsicherung'),
   E('Readback', 'Rücklesung', 'Der Pilot wiederholt jede Freigabe (Piste, Line up, Start, Landung). Der Lotse muss hinhören: Stimmt der Readback nicht, sofort mit „negative …“ korrigieren (im Spiel Taste Q) – sonst handelt der Pilot nach seinem Missverständnis.', 'Flugsicherung'),
