@@ -1375,3 +1375,12 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
   .mm-title .t2 { font-size: clamp(34px, min(5.4vw, 7.8vh), 82px); }
   .mm-tag { margin: 14px 0 16px; }
 }
+/* Momente des Tages im Tagesbericht */
+.moments { margin-top: 12px; }
+.mo-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 6px; }
+.mo-row figure { margin: 0; background: #f8f5ee; color: #1f2937; padding: 6px 6px 8px; border-radius: 2px; box-shadow: 0 8px 20px rgba(0,0,0,.45); }
+.mo-row figure:nth-child(1) { transform: rotate(-1.5deg); } .mo-row figure:nth-child(3) { transform: rotate(1.3deg); }
+.mo-row img { width: 100%; aspect-ratio: 16/10; object-fit: cover; display: block; }
+.mo-row figcaption { font: 600 11.5px var(--sans); margin-top: 5px; line-height: 1.3; }
+.mo-row figcaption small { display: block; color: #6b7280; font-weight: 500; }
+@media (max-width: 760px) { .mo-row { grid-template-columns: 1fr 1fr; } .mo-row figure:nth-child(3) { display: none; } }

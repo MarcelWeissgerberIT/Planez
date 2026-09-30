@@ -452,6 +452,7 @@ function loop(ts) {
     if (game.fids) game.fids.update();
     spotter().update(s);
     watchAlerts(s);
+    watchMoments(s);
     game.hintT = (game.hintT || 0) + 0.2;
     if (game.hintT >= 1.2) {
       game.hintT = 0;
@@ -522,6 +523,35 @@ function updateHUD(force) {
 }
 
 // Anfragen / Konflikte akustisch melden
+// Momente des Tages: besondere Szenen automatisch fotografieren (für den Tagesbericht)
+const MOMENT_PRIO = { a380: 5, emergency: 5, nordo: 4, special: 3, storm: 2, golden: 1, night: 1 };
+function watchMoments(s) {
+  if (!game.map || s.scenario || (game.photo && game.photo.on) || (game.cinema && game.cinema.on)) return;
+  const M = game.moments || (game.moments = []);
+  if (M.length >= 8) return;
+  const h = hourOf(s.time);
+  for (const ac of s.acs) {
+    if (ac.mode !== 'map') continue;
+    const landing = ac.phase === PH.ROLLOUT && ac.v > 0.12;
+    const takeoff = ac.phase === PH.TAKEOFF && ac.z > 0.05 && ac.z < 0.9;
+    if (!landing && !takeoff) continue;
+    let kind = null, text = '';
+    const what = landing ? 'Landung' : 'Start';
+    if (ac.type === 'A388') [kind, text] = ['a380', `🐋 ${what} des Superjumbos ${ac.cs}`];
+    else if (ac.emergency && landing) [kind, text] = ['emergency', `🚨 Notlandung ${ac.cs} – sicher unten`];
+    else if (ac.nordo && landing) [kind, text] = ['nordo', `💡 ${ac.cs} landet per Lichtsignal`];
+    else if (ac.special) [kind, text] = ['special', `🎨 ${what} in Sonderlackierung – ${ac.cs}`];
+    else if (['storm', 'snow', 'fog'].includes(s.weather.kind) && !M.some((m) => m.kind === 'storm')) [kind, text] = ['storm', `${s.weather.kind === 'storm' ? '⛈️' : s.weather.kind === 'snow' ? '🌨️' : '🌫️'} ${what} ${ac.cs} bei ${s.weather.kind === 'storm' ? 'Gewitter' : s.weather.kind === 'snow' ? 'Schneetreiben' : 'Nebel'}`];
+    else if ((Math.abs(h - 7.1) < 0.8 || Math.abs(h - 18.5) < 0.8) && s.weather.kind === 'clear' && !M.some((m) => m.kind === 'golden')) [kind, text] = ['golden', `🌅 ${what} ${ac.cs} in der goldenen Stunde`];
+    else if ((h < 5.5 || h > 21.5) && !M.some((m) => m.kind === 'night')) [kind, text] = ['night', `🌙 Nacht-${what.toLowerCase()} ${ac.cs}`];
+    if (!kind || (ac.moments && ac.moments.includes(kind))) continue;
+    (ac.moments = ac.moments || []).push(kind);
+    const img = spotter().capture(ac);
+    if (img) M.push({ kind, text, img, t: s.time, prio: MOMENT_PRIO[kind] || 1 });
+    return; // höchstens ein Foto je Takt
+  }
+}
+
 function watchAlerts(s) {
   const now = performance.now();
   if (s.role === 'tower') {
@@ -655,6 +685,14 @@ function dayChart(rec) {
   return `<div class="day-chart"><div class="dc-h">Verkehr über den Tag <span><i style="background:#2dd4bf"></i>Landungen <i style="background:#fbbf24"></i>Starts</span></div><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg>${hi.length ? `<div class="dc-hi">${hi.map((x) => `<span>${x}</span>`).join('')}</div>` : ''}</div>`;
 }
 
+// die drei besten Momente des Tages als Fotostreifen, danach neu sammeln
+function momentsHtml() {
+  const M = (game.moments || []).slice().sort((a, b) => b.prio - a.prio || a.t - b.t).slice(0, 3);
+  game.moments = [];
+  if (!M.length) return '';
+  return `<div class="moments"><div class="dc-h">📸 Momente des Tages</div><div class="mo-row">${M.map((m) => `<figure><img src="${m.img}" alt=""><figcaption>${esc(m.text)}<small>${fmtClock(m.t)}</small></figcaption></figure>`).join('')}</div></div>`;
+}
+
 function showReport(rec) {
   const prevSpeed = game.state.speed;
   const stars = rateDay(rec);
@@ -676,6 +714,7 @@ function showReport(rec) {
       ${reportExtras(rec)}
     </div>
     ${dayChart(rec)}
+    ${momentsHtml()}
     ${rec.score && (game.state.role === 'tower' || game.state.role === 'ground') ? `<p class="rep-score">⭐ Schichtpunkte heute: <b>${rec.score.toLocaleString('de-DE')}</b>${rec.score >= rec.scoreBest ? ' · <span>neuer Tagesbestwert!</span>' : ` · Bestwert ${rec.scoreBest.toLocaleString('de-DE')}`}</p>` : ''}
     ${rec.xp ? `<p style="margin:10px 0 0;color:var(--muted)">🏅 +${rec.xp} XP für den Tag · ${RANKS[goalsState(game.state).rank].name} (${goalsState(game.state).xp} XP)</p>` : ''}
     <div class="modal-acts"><button class="btn btn-primary" data-close-modal>Weiter</button></div>`,
@@ -1362,6 +1401,8 @@ function helpGuide(first) {
     <h3>⭐ Herausforderungen</h3>
     <p><b>📅 Tagesherausforderung:</b> ganz oben in der Liste – jeden Kalendertag eine neue Mischung aus einem Tower- oder Vorfeld-Szenario und zwei Zusatzregeln (z.B. Funkausfall, Hochbetrieb, Superjumbo, Winddrehung, Tankwagen-Panne). Für alle gleich gewürfelt; mindestens ein Stern an aufeinanderfolgenden Tagen ergibt eine 🔥 Serie.</p>
     <p>Im Hauptmenü unter <b>Herausforderungen</b>: kurze Einsätze mit festem Start – Morgenwelle, Nebelsuppe, Gewitterfront, Notfall-Schicht (Tower), Ferienstart, Streiktag, Winterchaos (Vorfeld), Sanierungsfall und Wachstumskurs (Manager). Oben zeigt eine Leiste Restzeit und Ziele; jedes Ziel bringt 1–3 Sterne, die Gesamtwertung ist der Durchschnitt (ein verfehltes Ziel = nicht geschafft). Ein Stern schaltet die nächste Herausforderung der Station frei. Herausforderungen überschreiben deinen Spielstand nicht.</p>
+    <h3>📸 Momente des Tages</h3>
+    <p>Besondere Szenen – ein A380, eine Notlandung, eine Landung per Lichtsignal, eine Sonderlackierung, ein Start im Gewitter oder in der goldenen Stunde – fotografiert das Spiel automatisch. Die drei besten zeigt der Tagesbericht als Fotostreifen.</p>
     <h3>📋 Schichtbriefing</h3>
     <p>Zu Beginn jedes Tages (Tower, Vorfeld, Manager) fasst ein Briefing die Schicht zusammen: Wetter und Vorhersage, geplanter Verkehr je Stunde mit Spitzenstunde, besondere Flüge (A380, VIP), die Lage deiner Station (Betriebsrichtung und Heavys, Positionen und Tanklager, Kasse, auslaufende Verträge und Marktanteil) und die Ziele der Schicht. <kbd>Enter</kbd> beginnt die Schicht; abschaltbar im Briefing oder unter Einstellungen.</p>
     <h3>📒 Spotterbuch</h3>
