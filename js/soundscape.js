@@ -86,6 +86,18 @@ function init() {
   lfo.connect(lg).connect(L.crickets.g.gain);
   lfo.start();
   L.cricketLfo = lg;
+  // Martinshorn der Flughafenfeuerwehr (Quarte, „Tatü-tata“)
+  const so = A.createOscillator();
+  so.type = 'square';
+  so.frequency.value = 466;
+  const sg = A.createGain();
+  sg.gain.value = 0;
+  const sp = A.createStereoPanner ? A.createStereoPanner() : null;
+  so.connect(filt(A, 'lowpass', 1700)).connect(sg);
+  if (sp) sg.connect(sp).connect(bus);
+  else sg.connect(bus);
+  so.start();
+  L.siren = { o: so, g: sg, pan: sp };
   return true;
 }
 
@@ -181,6 +193,23 @@ export const soundscape = {
     set(L.whine.g.gain, 0.0035 * Math.min(1, jet));
     set(L.roar.g.gain, 0.22 * roar, 0.5);
     if (L.jet.pan && wsum) set(L.jet.pan.pan, clamp(panSum / wsum, -0.8, 0.8));
+    // Martinshorn, solange Löschfahrzeuge ausrücken
+    let siren = 0, sPan = 0;
+    if (state.fire) for (const t of state.fire.trucks) {
+      if (t.st !== 'out' || !t.path) continue;
+      const d = Math.hypot(t.x - cam.x, t.y - cam.y);
+      const near = clamp(1 - d / (26 / Math.max(0.4, cam.zoom)), 0.15, 1);
+      if (near > siren) {
+        siren = near;
+        sPan = clamp((t.x - t.y - (cam.x - cam.y)) * 0.06, -0.8, 0.8);
+      }
+    }
+    set(L.siren.g.gain, 0.02 * siren, 0.15);
+    if (siren) {
+      const hi = Math.floor(A.currentTime / 0.65) % 2;
+      L.siren.o.frequency.setTargetAtTime(hi ? 622 : 466, A.currentTime, 0.01);
+      if (L.siren.pan) set(L.siren.pan.pan, sPan, 0.3);
+    }
     // Wetter
     const w = state.weather.kind;
     const windSpd = state.wind ? state.wind.spd : 8;
