@@ -490,6 +490,7 @@ function updateMap(state, ac, dt) {
             if ((fa && (fa.sprayed || 0) > 100) || state.time - ac.fireStop > 480 || !fa) {
               ac.fireDone = true;
               ac.v = ac.ve;
+              if (fa && (fa.sprayed || 0) > 100) state.life.fireOut = (state.life.fireOut || 0) + 1;
               if (state.rwyClosedWhy === 'Feuerwehreinsatz') state.rwyClosedUntil = Math.min(state.rwyClosedUntil, state.time + 60);
               radio(state, ac.cs, `${tel(ac)}, fire services report fire extinguished, vacating the runway.`);
             }

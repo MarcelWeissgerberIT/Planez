@@ -3,7 +3,7 @@ import { AC_TYPES, AIRLINES, CITIES, VEH_TYPES, UPGRADES, FEE_LIMITS, DEFAULT_FE
 import { fmtMoney, fmtInt, esc, clamp, fmtClock } from '../util.js';
 import { setHTML, toast } from './dom.js';
 import * as EC from '../sim/economy.js';
-import { acceptOffer, declineOffer, cancelContract, feeIndex, standDemand } from '../sim/schedule.js';
+import { acceptOffer, declineOffer, cancelContract, feeIndex, standDemand, negotiateOffer, negotiateChance, interestLabel } from '../sim/schedule.js';
 import { fleetSummary, efficiency } from '../sim/ground.js';
 import { newsState, paxRating } from '../sim/news.js';
 import { achievementsHtml } from './achUi.js';
@@ -89,6 +89,12 @@ export class ManagerPanel {
       case 'decline':
         declineOffer(s, v);
         break;
+      case 'nego': {
+        const r = negotiateOffer(s, v, Number(a.dataset.pct));
+        ok = !!(r && r.won);
+        if (r && !r.won) sfx.alert && sfx.alert();
+        break;
+      }
       case 'cancel':
         if (!a.dataset.force) {
           a.dataset.force = '1';
@@ -287,14 +293,15 @@ export class ManagerPanel {
       h += `<div class="card offer"><div class="row"><span class="t"><i class="al-dot" style="background:${al.color}"></i>${al.name}</span><span style="color:var(--muted);font-size:12px">läuft ab ${fmtClock(o.expires)}</span></div>
         <div class="s">${o.perDay}× täglich ${CITIES[o.city].name} · ${t.name} · ${o.days} Tage</div>
         <div class="s">Erwarteter Umsatz ≈ <b style="color:var(--txt)">${fmtMoney(o.estRev)}</b> pro Tag ${fits ? '<span style="color:var(--good)">✓ Kapazität vorhanden</span>' : '<span style="color:var(--warn)">⚠ Positionen knapp</span>'}</div>
-        <div class="acts"><button class="btn btn-good" data-act="accept" data-v="${o.id}">Annehmen</button><button class="btn" data-act="decline" data-v="${o.id}">Ablehnen</button></div></div>`;
+        <div class="s">Interesse der Airline: <b style="color:var(--txt)">${interestLabel(o)}</b>${o.negotiated ? ' · Aufschlag abgelehnt – nur noch zum Originalpreis' : ''}</div>
+        <div class="acts"><button class="btn btn-good" data-act="accept" data-v="${o.id}">Annehmen</button>${o.negotiated ? '' : [0.1, 0.2].map((p) => `<button class="btn nego" data-act="nego" data-v="${o.id}" data-pct="${p}" title="Höhere Entgelte verlangen – bei Ablehnung kann die Airline abspringen">🤝 +${p * 100} % <small>${Math.round(negotiateChance(s, o, p) * 100)} %</small></button>`).join('')}<button class="btn" data-act="decline" data-v="${o.id}">Ablehnen</button></div></div>`;
     }
     h += `<div class="p-sec"><span>Laufende Verträge</span><span class="cnt">${s.contracts.length}</span></div>`;
     const sorted = [...s.contracts].sort((a, b) => a.days - b.days);
     for (const c of sorted) {
       const al = AIRLINES[c.airline];
       const col = c.sat < 45 ? 'var(--bad)' : c.sat < 65 ? 'var(--warn)' : 'var(--good)';
-      h += `<div class="card"><div class="row"><span class="t"><i class="al-dot" style="background:${al.color}"></i>${al.name} → ${CITIES[c.city].name}</span><span style="font-size:12px;color:${c.days <= 3 ? 'var(--warn)' : 'var(--muted)'}">${c.days} Tage</span></div>
+      h += `<div class="card"><div class="row"><span class="t"><i class="al-dot" style="background:${al.color}"></i>${al.name} → ${CITIES[c.city].name}${c.feeMult > 1 ? ` <small class="prem">+${Math.round((c.feeMult - 1) * 100)} %</small>` : ''}</span><span style="font-size:12px;color:${c.days <= 3 ? 'var(--warn)' : 'var(--muted)'}">${c.days} Tage</span></div>
         <div class="s">${c.perDay}× täglich · ${AC_TYPES[c.type].name} · Zufriedenheit ${Math.round(c.sat)} %</div>
         <div class="bar"><i style="width:${c.sat}%;background:${col}"></i></div>
         <div class="acts"><button class="mini" data-act="cancel" data-v="${c.id}">Kündigen</button></div></div>`;

@@ -17,6 +17,8 @@ export const ACHIEVEMENTS = [
   { id: 'quick25', icon: '⚡', name: 'Boxenstopp', desc: '25 Turnarounds in der Mindestbodenzeit.', xp: 70, check: (s) => L(s, 'quickTurns') >= 25 },
   { id: 'dayPunct95', icon: '🏆', name: 'Pünktlichkeitsweltmeister', desc: 'Ein ganzer Tag mit mindestens 95 % Pünktlichkeit (ab 30 Abflügen).', xp: 100, check: (s) => (s.history || []).some((r) => r.onTime >= 95 && (r.depN || 0) >= 30) },
   { id: 'fogNoDiv', icon: '🌫️', name: 'Durch den Nebel', desc: 'Einen Tag mit Nebel ohne Ausweichlandung überstanden.', xp: 60, check: (s) => !!s.life && L(s, 'fogDayOk') >= 1 },
+  { id: 'nego3', icon: '🤝', name: 'Verhandlungsprofi', desc: 'Drei Verträge mit Aufschlag ausgehandelt.', xp: 70, check: (s) => L(s, 'negoWins') >= 3 },
+  { id: 'fireCrew', icon: '🚒', name: 'Löschzug', desc: 'Ein brennendes Triebwerk nach der Landung gelöscht.', xp: 60, check: (s) => L(s, 'fireOut') >= 1 },
   { id: 'winter', icon: '❄️', name: 'Winterdienst', desc: '25 Flugzeuge enteist.', xp: 70, check: (s) => L(s, 'deiced') >= 25 },
   { id: 'plow', icon: '🚜', name: 'Räumkommando', desc: '10 Mal die Piste vom Schnee geräumt.', xp: 50, check: (s) => L(s, 'plows') >= 10 },
   { id: 'firstBuild', icon: '🏗️', name: 'Bauherr', desc: 'Das erste Bauprojekt fertiggestellt.', xp: 40, check: (s) => L(s, 'built') >= 1 },

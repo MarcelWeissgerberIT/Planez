@@ -114,6 +114,7 @@ export function generateDay(state, day, onlyContract = null) {
         cargoIn: t.cargo ? Math.round(t.cargo * randRange(state, 0.6, 0.95)) : Math.round(t.pax * 0.01),
         cargoOut: t.cargo ? Math.round(t.cargo * randRange(state, 0.55, 0.95)) : Math.round(t.pax * 0.012),
         status: 'planned',
+        feeMult: c.feeMult || 1,
         spawnAt: sta + arrDelay * 60 - 21 * 60,
         ac: null,
       };
@@ -172,17 +173,19 @@ export function maybeOffer(state, dt) {
     perDay,
     days,
     estRev,
+    interest: randRange(state, 0.25, 0.95), // wie dringend die Airline den Platz will (für Verhandlungen)
     expires: state.time + randRange(state, 8, 16) * 3600,
   });
   notify(state, `📨 Neues Angebot: ${al.name} → ${CITIES[city].name} (${perDay}× täglich)`, 'info');
   log(state, 'mgr', `Angebot: ${al.name} möchte ${perDay}× täglich ${CITIES[city].name} mit ${t.name} fliegen (${days} Tage).`);
 }
 
-export function acceptOffer(state, offerId) {
+export function acceptOffer(state, offerId, feeMult = 1) {
   const o = state.offers.find((x) => x.id === offerId);
   if (!o) return false;
   const c = makeContract(state, o.airline, o.type, o.city, o.perDay, o.days);
-  c.sat = 78;
+  c.sat = feeMult > 1 ? 70 : 78;
+  if (feeMult !== 1) c.feeMult = feeMult;
   state.contracts.push(c);
   state.life = state.life || {};
   state.life.contractsAll = (state.life.contractsAll || 0) + 1;
@@ -196,6 +199,38 @@ export function acceptOffer(state, offerId) {
   notify(state, `✅ Vertrag mit ${AIRLINES[o.airline].name} unterzeichnet`, 'good');
   return true;
 }
+// Verhandeln: höhere Entgelte verlangen – Erfolg hängt von Ansehen, Rang und dem Interesse der Airline ab
+export const interestLabel = (o) => ((o.interest ?? 0.6) > 0.7 ? 'hoch' : (o.interest ?? 0.6) > 0.45 ? 'mittel' : 'gering');
+export function negotiateChance(state, o, pct) {
+  const rank = (state.goals && state.goals.rank) || 0;
+  return clamp(0.3 + (state.reputation - 60) / 70 + rank * 0.05 + ((o.interest ?? 0.6) - 0.5) * 0.9 - pct * 2.2 + 0.25, 0.05, 0.92);
+}
+export function negotiateOffer(state, offerId, pct) {
+  const o = state.offers.find((x) => x.id === offerId);
+  if (!o || o.negotiated) return { ok: false };
+  const al = AIRLINES[o.airline];
+  const p = negotiateChance(state, o, pct);
+  state.life = state.life || {};
+  if (rand(state) < p) {
+    acceptOffer(state, offerId, 1 + pct);
+    state.life.negoWins = (state.life.negoWins || 0) + 1;
+    log(state, 'mgr', `Verhandlung erfolgreich: ${al.name} zahlt ${Math.round(pct * 100)} % mehr Entgelte.`);
+    notify(state, `🤝 ${al.name} akzeptiert +${Math.round(pct * 100)} % – Vertrag unterzeichnet`, 'good');
+    return { ok: true, won: true };
+  }
+  if (rand(state) < 0.45) {
+    state.offers = state.offers.filter((x) => x !== o);
+    state.reputation = clamp(state.reputation - 0.5, 0, 100);
+    log(state, 'mgr', `${al.name} bricht die Verhandlung ab und fliegt woanders hin.`);
+    notify(state, `😤 ${al.name} bricht die Verhandlung ab – Angebot zurückgezogen`, 'bad');
+    return { ok: true, won: false, lost: true };
+  }
+  o.negotiated = true;
+  log(state, 'mgr', `${al.name} lehnt den Aufschlag ab – das Angebot gilt weiter zum ursprünglichen Preis.`);
+  notify(state, `${al.name} lehnt ab – Angebot steht noch zum Originalpreis`, 'warn');
+  return { ok: true, won: false };
+}
+
 export function declineOffer(state, offerId) {
   state.offers = state.offers.filter((x) => x.id !== offerId);
 }

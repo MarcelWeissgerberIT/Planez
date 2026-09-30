@@ -1085,3 +1085,5 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .sp-row { min-height: 34px; }
 .sp-lab em { color: var(--muted); }
 .sp-lab em.free { color: var(--good); }
+.btn.nego small { margin-left: 4px; font-size: 10.5px; opacity: .8; font-family: var(--mono); }
+.prem { color: var(--good); font-family: var(--mono); font-size: 11px; }
