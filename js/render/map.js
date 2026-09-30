@@ -244,6 +244,12 @@ export class MapRenderer {
     if (!this.cache || this.cacheKey !== this.groundKey(state)) this.buildGround(state);
     const light = lightLevel(state);
     const night = 1 - light;
+    // Sonnenstand: flache Sonne morgens/abends = lange Schatten, nachts keine
+    const hr = hourOf(state.time);
+    const elev = clamp(Math.sin((Math.PI * (hr - 5.6)) / 14.6), 0, 1);
+    this.shadowK = clamp(1 / (0.38 + 0.62 * elev), 1, 2.6);
+    this.shadowA = clamp(light * (state.weather.kind === 'clear' ? 1 : state.weather.kind === 'clouds' ? 0.7 : 0.45), 0.15, 1);
+    this.shadowSway = (hr - 12.5) * -0.05;
     const lights = [];
     this.picks = [];
 
@@ -374,6 +380,29 @@ export class MapRenderer {
       ctx.globalCompositeOperation = 'source-over';
     }
     const wx = state.weather.kind;
+    // goldene Stunde: warmes Streiflicht von der Sonnenseite (morgens rechts, abends links)
+    const golden = clamp(1 - Math.abs(h - (h < 12 ? 7.1 : 18.5)) / 1.7, 0, 1) * (1 - night * 0.8) * (wx === 'clear' ? 1 : wx === 'clouds' ? 0.55 : 0.2);
+    if (golden > 0.02) {
+      const am = h < 12;
+      // warme Grundtönung (weniger Blau), dazu Streiflicht und Sonnenschein von der Seite
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = rgb(mix([255, 255, 255], [255, 206, 150], golden * 0.55));
+      ctx.fillRect(0, 0, cam.w, cam.h);
+      const g = ctx.createLinearGradient(am ? cam.w : 0, 0, am ? cam.w * 0.15 : cam.w * 0.85, cam.h);
+      g.addColorStop(0, `rgba(255,160,70,${0.55 * golden})`);
+      g.addColorStop(0.55, `rgba(255,190,120,${0.22 * golden})`);
+      g.addColorStop(1, 'rgba(255,210,160,0)');
+      ctx.globalCompositeOperation = 'soft-light';
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, cam.w, cam.h);
+      ctx.globalCompositeOperation = 'screen';
+      const g2 = ctx.createRadialGradient(am ? cam.w * 1.05 : -cam.w * 0.05, -cam.h * 0.1, 0, am ? cam.w * 1.05 : -cam.w * 0.05, -cam.h * 0.1, cam.w * 0.8);
+      g2.addColorStop(0, `rgba(255,190,110,${0.4 * golden})`);
+      g2.addColorStop(1, 'rgba(255,190,110,0)');
+      ctx.fillStyle = g2;
+      ctx.fillRect(0, 0, cam.w, cam.h);
+      ctx.globalCompositeOperation = 'source-over';
+    }
     if (wx === 'rain' || wx === 'storm' || wx === 'clouds') {
       ctx.fillStyle = wx === 'storm' ? 'rgba(30,40,60,0.28)' : wx === 'rain' ? 'rgba(60,70,90,0.18)' : 'rgba(80,90,110,0.06)';
       ctx.fillRect(0, 0, cam.w, cam.h);
@@ -835,10 +864,10 @@ export class MapRenderer {
     const sh = shadowOf(type.sprite);
     if (sh) {
       cam.setIso(ctx, 0);
-      ctx.globalAlpha = clamp(0.38 - ac.z * 0.06, 0.07, 0.38);
+      ctx.globalAlpha = clamp(0.38 - ac.z * 0.06, 0.07, 0.38) * (this.shadowA ?? 1);
       ctx.save();
-      const sOff = L * 0.06 + ac.z * 0.9;
-      ctx.translate(ac.x + sOff, ac.y + sOff * 0.35);
+      const sOff = (L * 0.06 + ac.z * 0.9) * (this.shadowK || 1);
+      ctx.translate(ac.x + sOff, ac.y + sOff * (0.35 + (this.shadowSway || 0)));
       ctx.rotate(rot);
       ctx.drawImage(sh, -Wd / 2, -L / 2, Wd, L);
       ctx.restore();
@@ -968,8 +997,9 @@ export class MapRenderer {
     const sh = shadowOf(sprite);
     cam.setIso(ctx, 0);
     ctx.save();
-    ctx.globalAlpha = 0.34;
-    ctx.translate(x + 0.03 + H * 0.55, y + 0.02 + H * 0.25);
+    ctx.globalAlpha = 0.34 * (this.shadowA ?? 1);
+    const k = this.shadowK || 1;
+    ctx.translate(x + 0.03 + H * 0.55 * k, y + 0.02 + H * (0.25 + (this.shadowSway || 0)) * k);
     ctx.rotate(hdg + Math.PI / 2);
     if (sh) ctx.drawImage(sh, -Wd / 2 - 0.01, -L / 2 - 0.01, Wd + 0.02, L + 0.02);
     else {
