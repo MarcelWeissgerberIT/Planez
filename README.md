@@ -15,6 +15,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 ## Features
 - Isometrische, animierte Flughafenansicht mit Tag/Nacht-Zyklus, Befeuerung (Pisten-, Rollweg-, Anflug-Lauflicht), Wetter (Regen, Nebel, Gewitter), Wind & Windsack
 - Luftraum mit Radar (Sweep, Datenblöcke, Warteschleifen-Fixes, Endanflug, Konfliktwarnung/STCA)
+- Bilder in der Management-Zentrale: jeder Ausbau, jede Parkposition, jedes Fahrzeug, Personal, Tanklager und Pistenwartung mit Illustration (Higgsfield), damit man sieht, was man kauft
 - Plastische Grafik: Flugzeuge mit rundem, schattiertem Rumpf, Fensterreihe, Airline-Zierstreifen, Triebwerken und Fahrwerk; Fahrzeuge und Autos als Körper mit Schatten; maßstabsgerechtes Parkhaus (Etagen je Ausbaustufe) und Parkplatz, Fluggastbrücken mit Glastunnel
 - Markierungen: Flüge per Streifen, Karte oder Radar farbig markieren und mit Notiz versehen – im Radar als Ring und Fähnchen sichtbar, mit Filter
 - Pistenfolge: Landungen und Starts in einer nummerierten Liste mit geplanten Pistenzeiten; Farben auf Radar/Karte: türkis = Landung, hellblau = Landung frei, bernstein = Start, magenta = Startfreigabe

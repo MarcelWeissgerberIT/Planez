@@ -748,3 +748,15 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
   .fcard.active { flex-basis: 300px; }
 }
 #game.tw-layout #radar-seq { display: none; }
+
+/* Bilder in den Karten der Management-Zentrale */
+.card.has-pic { overflow: hidden; }
+.card-pic { position: relative; margin: -9px -10px 9px; height: 132px; background: #0b1220 center / cover no-repeat; border-bottom: 1px solid rgba(148,163,184,.18); }
+.card-pic::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4,8,16,0) 55%, rgba(4,8,16,.6)); pointer-events: none; }
+.pic-tag { position: absolute; left: 10px; bottom: 8px; z-index: 1; font: 700 11px var(--mono); color: #e2e8f0; background: rgba(4,10,20,.72); border: 1px solid rgba(148,163,184,.3); border-radius: 6px; padding: 2px 7px; }
+.card.pic-only { padding: 0; }
+.card.pic-only .card-pic { margin: 0; height: 150px; border: 0; }
+.card.site .card-pic { filter: saturate(.75) brightness(.9); }
+.mg-body .card.bigcard.has-pic { display: grid; grid-template-columns: minmax(220px, 34%) 1fr; column-gap: 16px; align-items: start; }
+.mg-body .card.bigcard.has-pic .card-pic { grid-row: 1 / span 4; margin: -9px 0 -9px -10px; height: auto; min-height: 160px; align-self: stretch; border: 0; border-right: 1px solid rgba(148,163,184,.18); }
+@media (max-width: 760px) { .card-pic { height: 110px; } .mg-body .card.bigcard.has-pic { display: block; } .mg-body .card.bigcard.has-pic .card-pic { margin: -9px -10px 9px; min-height: 0; height: 120px; } }

@@ -29,6 +29,11 @@ const KIND_DE = { contact: 'mit Fluggastbrücke', remote: 'Vorfeldposition (Bus)
 const C1 = '#3987e5'; // Umsatz (Kategorie 1)
 const C2 = '#d95926'; // Kosten (Kategorie 2)
 
+
+// Bilder zu Ausbauten, Fahrzeugen & Co. (Management-Zentrale), damit man sieht, was man kauft
+const PICS = new Set(['retail', 'security', 'lounge', 'parking', 'hotel', 'rwy2', 'ils3', 'rapidExit', 'apronLights', 'marketing', 'stand_contact', 'stand_remote', 'stand_heavy', 'veh_tug', 'veh_baggage', 'veh_fuel', 'veh_catering', 'veh_cleaning', 'veh_bus', 'staff', 'fuel_farm', 'rwy_maint']);
+const pic = (k, tag = '') => (PICS.has(k) ? `<div class="card-pic" style="background-image:url(assets/menu/${k}.webp)">${tag ? `<span class="pic-tag">${tag}</span>` : ''}</div>` : '');
+
 export class ManagerPanel {
   constructor(root, game, opts = {}) {
     this.root = root;
@@ -307,7 +312,7 @@ export class ManagerPanel {
   runwaysHtml(s) {
     const ps = projects(s);
     const rwyBusy = ps.some((p) => p.kind === 'rwy');
-    let h = `<div class="p-sec"><span>🛬 Pisten${qm('rwy')}</span></div>`;
+    let h = `<div class="p-sec"><span>🛬 Pisten${qm('rwy')}</span></div><div class="card has-pic pic-only">${pic('rwy_maint', 'Pistenwartung: Gummiabrieb entfernen oder neu asphaltieren')}</div>`;
     for (const strip of runwayStrips(s)) {
       const cond = Math.round(rwyCond(s, strip.id));
       const ba = brakingAction(s, strip.id);
@@ -328,7 +333,8 @@ export class ManagerPanel {
       if (!st.built) {
         const cost = EC.standBuildCost(st);
         const right = pj ? projectInline(pj) : `<button class="btn btn-good" data-act="stand" data-v="${st.id}" ${s.cash < cost ? 'disabled' : ''}>Bauen ${fmtMoney(cost)}</button>`;
-        h += `<div class="card${pj ? ' site' : ''}"><div class="row"><span class="t">P${st.id} · ${KIND_DE[st.kind]} · Klasse ${st.size}</span>${right}</div>${pj ? '' : `<div class="s">Bauzeit ${standBuildHours(st)} h · noch nicht gebaut</div>`}</div>`;
+        const sp = st.kind === 'remote' ? 'stand_remote' : st.size === 'L' ? 'stand_heavy' : 'stand_contact';
+        h += `<div class="card has-pic${pj ? ' site' : ''}">${pic(sp)}<div class="row"><span class="t">P${st.id} · ${KIND_DE[st.kind]} · Klasse ${st.size}</span>${right}</div>${pj ? '' : `<div class="s">Bauzeit ${standBuildHours(st)} h · noch nicht gebaut</div>`}</div>`;
       } else {
         const up = pj ? projectInline(pj) : st.size !== 'L' && st.kind !== 'cargo' ? `<button class="mini" data-act="standL" data-v="${st.id}" ${s.cash < STAND_COSTS.upgradeL ? 'disabled' : ''}>→ Klasse L (${fmtMoney(STAND_COSTS.upgradeL)} · ${STAND_HOURS.upgradeL} h, Position gesperrt)</button>` : '';
         const rot = occ ? s.rots[occ.rot] : null;
@@ -353,7 +359,7 @@ export class ManagerPanel {
         const dots = Array.from({ length: u.max }, (_, i) => `<i class="${i < lvl ? 'on' : pj && i === lvl ? 'bld' : ''}"></i>`).join('');
         const locked = u.requires && !s.upgrades[u.requires];
         const right = pj ? projectInline(pj) : maxed ? '<span style="color:var(--good);font-size:12px">✓ voll ausgebaut</span>' : locked ? `<span style="font-size:12px;color:var(--muted)">erst ${esc(UPGRADES[u.requires].name)}</span>` : `<button class="btn btn-good" data-act="up" data-v="${k}" ${s.cash < cost ? 'disabled' : ''}>${fmtMoney(cost)}</button>`;
-        h += `<div class="card${pj ? ' site' : ''}${u.big ? ' bigcard' : ''}"><div class="row"><span class="t">${u.icon ? u.icon + ' ' : ''}${u.name}<span class="lvl">${dots}</span></span>${right}</div><div class="s">${u.desc}${!pj && !maxed ? ` · Bauzeit ${upgradeHours(k, lvl + 1)} h` : ''}</div>${u.more ? `<div class="s">${u.more}</div>` : ''}</div>`;
+        h += `<div class="card has-pic${pj ? ' site' : ''}${u.big ? ' bigcard' : ''}">${pic(k, maxed ? '✓ fertig' : lvl ? `Stufe ${lvl}/${u.max}` : '')}<div class="row"><span class="t">${u.icon ? u.icon + ' ' : ''}${u.name}<span class="lvl">${dots}</span></span>${right}</div><div class="s">${u.desc}${!pj && !maxed ? ` · Bauzeit ${upgradeHours(k, lvl + 1)} h` : ''}</div>${u.more ? `<div class="s">${u.more}</div>` : ''}</div>`;
       }
     }
     return h;
@@ -361,7 +367,7 @@ export class ManagerPanel {
 
   marketingHtml(s) {
     const mk = s.marketingUntil > s.time;
-    return `<div class="p-sec"><span>Marketing</span></div><div class="card"><div class="row"><span class="t">📣 Kampagne „Fly ${esc(s.name.split(' ')[0])}“</span><button class="btn" data-act="mkt" ${s.cash < MARKETING.cost || mk ? 'disabled' : ''}>${mk ? 'läuft' : fmtMoney(MARKETING.cost)}</button></div><div class="s">Mehr Angebote und Ansehen für ${MARKETING.days} Tage.</div></div>`;
+    return `<div class="p-sec"><span>Marketing</span></div><div class="card has-pic">${pic('marketing', mk ? 'läuft' : '')}<div class="row"><span class="t">📣 Kampagne „Fly ${esc(s.name.split(' ')[0])}“</span><button class="btn" data-act="mkt" ${s.cash < MARKETING.cost || mk ? 'disabled' : ''}>${mk ? 'läuft' : fmtMoney(MARKETING.cost)}</button></div><div class="s">Mehr Angebote und Ansehen für ${MARKETING.days} Tage.</div></div>`;
   }
 
   terminalHtml(s) {
@@ -390,12 +396,12 @@ export class ManagerPanel {
     for (const [k, vt] of Object.entries(VEH_TYPES)) {
       const f = fs[k];
       const w = Math.round((wait[k] || 0) / 60);
-      h += `<div class="card"><div class="row"><span class="t">${vt.name}</span><span style="font-family:var(--mono)">${f.total}× <small style="color:var(--muted)">(${f.busy} im Einsatz${f.broken ? `, ${f.broken} defekt` : ''})</small></span></div>
+      h += `<div class="card has-pic">${pic('veh_' + k, `${f.total}× im Fuhrpark`)}<div class="row"><span class="t">${vt.name}</span><span style="font-family:var(--mono)">${f.total}× <small style="color:var(--muted)">(${f.busy} im Einsatz${f.broken ? `, ${f.broken} defekt` : ''})</small></span></div>
         <div class="s">Wartezeit auf Fahrzeug zuletzt: ${w} min ${w > 30 ? '<span style="color:var(--warn)">– Engpass!</span>' : ''} · Unterhalt ${fmtMoney(vt.upkeep)}/Tag</div>
         <div class="acts"><button class="btn btn-good" data-act="buy" data-v="${k}" ${s.cash < vt.price ? 'disabled' : ''}>+ Kaufen ${fmtMoney(vt.price)}</button><button class="btn" data-act="sell" data-v="${k}">− Verkaufen</button></div></div>`;
     }
     h += `<div class="p-sec"><span>Bodenpersonal</span></div>
-      <div class="card"><div class="row"><span class="t">${s.staff} Mitarbeitende</span><span>Effizienz <b style="font-family:var(--mono);color:${eff < 0.9 ? 'var(--warn)' : 'var(--good)'}">${Math.round(eff * 100)} %</b></span></div>
+      <div class="card has-pic">${pic('staff')}<div class="row"><span class="t">${s.staff} Mitarbeitende</span><span>Effizienz <b style="font-family:var(--mono);color:${eff < 0.9 ? 'var(--warn)' : 'var(--good)'}">${Math.round(eff * 100)} %</b></span></div>
       <div class="s">Bedarf ≈ ${Math.round(10 + 2.2 * s.vehicles.length)} · Kosten ${fmtMoney(260)} je Person/Tag</div>
       <div class="acts"><button class="btn btn-good" data-act="hire" data-v="5">+5 einstellen</button><button class="btn" data-act="hire" data-v="-5">−5 abbauen</button></div></div>`;
     const fc = EC.dailyFixedCosts(s);
@@ -426,7 +432,7 @@ export class ManagerPanel {
       <div class="k" title="Bestand plus Bestellungen geteilt durch den Verbrauch der letzten 24 h"><span>Reichweite</span><b>${reach ? reach.toFixed(1).replace('.', ',') + ' Tage' : '—'}</b></div>
       <div class="k"><span>Heute vertankt</span><b>${Math.round(s.stats.today.fuelSold || 0)} t</b></div>
     </div>`;
-    h += `<div class="p-sec"><span>Tanklager${qm('fuel')}</span><span class="cnt">${Math.round(lvl * 100)} %</span></div><div class="bar" style="height:10px"><i style="width:${lvl * 100}%;background:${lvl < 0.15 ? 'var(--bad)' : lvl < 0.3 ? 'var(--warn)' : 'var(--good)'}"></i></div>`;
+    h += `<div class="p-sec"><span>Tanklager${qm('fuel')}</span><span class="cnt">${Math.round(lvl * 100)} %</span></div><div class="card has-pic pic-only">${pic('fuel_farm', `${Math.round(f.stock)} t auf Lager`)}</div><div class="bar" style="height:10px"><i style="width:${lvl * 100}%;background:${lvl < 0.15 ? 'var(--bad)' : lvl < 0.3 ? 'var(--warn)' : 'var(--good)'}"></i></div>`;
     h += `<div class="s" style="font-size:12px;color:var(--muted);margin:4px 2px">${Math.round(f.stock)} von ${FUEL.cap} t · in Tankwagen ${Math.round(inventory(s) - f.stock)} t · Lagerwert ${fmtMoney(f.value)}</div>`;
     if (hist.length > 1) {
       h += `<div class="p-sec"><span>Marktpreis letzte ${hist.length} h (€/t)</span></div>`;
