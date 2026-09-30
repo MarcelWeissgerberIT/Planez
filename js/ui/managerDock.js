@@ -6,7 +6,7 @@ import { fuelState, FUEL } from '../sim/fuel.js';
 import { rwyCond, brakingAction, BRAKE_DE, hasRwy2 } from '../sim/runway.js';
 import { goalsState, activeGoals, goalText, goalFraction, RANKS } from '../sim/goals.js';
 import { PH } from '../sim/aircraft.js';
-import { fmtHours } from './projects.js';
+import { fmtHours, realMinutes } from './projects.js';
 
 export class ManagerDock {
   constructor(root, game, observer = false) {
@@ -64,7 +64,7 @@ export class ManagerDock {
     setHTML(
       this.root.querySelector('#dk-sites'),
       ps.length
-        ? ps.map((p) => `<div class="dock-site" data-site="${p.id}" title="Baustelle zeigen"><div class="row"><span>🏗️ ${esc(p.name)}</span><small>${p.status === 'waiting' ? 'wartet' : Math.floor(p.prog * 100) + ' % · ' + fmtHours(remainingHours(p))}</small></div><div class="bar"><i style="width:${p.prog * 100}%;background:#fbbf24"></i></div></div>`).join('')
+        ? ps.map((p) => `<div class="dock-site" data-site="${p.id}" title="Baustelle zeigen"><div class="row"><span>🏗️ ${esc(p.name)}</span><small>${p.status === 'waiting' ? 'wartet' : Math.floor(p.prog * 100) + ' % · ' + fmtHours(remainingHours(p)) + ' · ' + realMinutes(s, remainingHours(p))}</small></div><div class="bar"><i style="width:${p.prog * 100}%;background:#fbbf24"></i></div></div>`).join('')
         : '<div class="empty">Keine Baustelle – Ausbau in der Zentrale starten.</div>'
     );
     const G = goalsState(s);

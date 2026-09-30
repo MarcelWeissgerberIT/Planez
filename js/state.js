@@ -1,5 +1,5 @@
 // Spielstand anlegen, Rollen, Speichern/Laden
-import { AIRPORT, DEFAULT_FEES, VEH_TYPES } from './config.js';
+import { AIRPORT, DEFAULT_FEES, VEH_TYPES, DEFAULT_SPEED } from './config.js';
 import { STAND_DEFS } from './layout.js';
 import { initialContracts, generateDay } from './sim/schedule.js';
 import { makeVehicle, freeBay } from './sim/ground.js';
@@ -29,7 +29,7 @@ export function newGame(opts = {}) {
     name: (opts.name || AIRPORT.name).slice(0, 40),
     role,
     time: 6 * 3600,
-    speed: 1,
+    speed: DEFAULT_SPEED[role] || 1,
     rwy: '27',
     rwyPending: null,
     wind: { dir: 255, spd: 9, tDir: 255, tSpd: 9, nextChange: 7 * 3600 },

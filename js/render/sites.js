@@ -38,7 +38,8 @@ export function siteGeom(state, p) {
     }
     case 'parking': {
       const x0 = 56 + 12.5 + (p.level - 1) * 2;
-      return { x0, y0: 1.9, x1: x0 + 2.2, y1: 6.7, fence: true, ground: 'lot', machines: [m('excavator', x0 + 1.1, 3.4, { dig: true }), m('mixer', x0 + 1.4, 6.1, { shake: true })], label: 'Parken' };
+      // Parkplatz-Erweiterung plus neues Parkdeck oben auf dem Parkhaus (Kran und Betonmischer am Parkhaus)
+      return { x0, y0: 1.9, x1: x0 + 2.2, y1: 6.7, fence: true, ground: 'lot', machines: [m('excavator', x0 + 1.1, 3.4, { dig: true }), m('mixer', x0 + 1.4, 6.1, { shake: true }), m('crane', 55.1, 6.2), m('mixer', 54.9, 8.4, { shake: true })], label: 'Parkhaus' };
     }
     case 'retail':
     case 'security':

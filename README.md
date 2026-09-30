@@ -15,6 +15,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 ## Features
 - Isometrische, animierte Flughafenansicht mit Tag/Nacht-Zyklus, Befeuerung (Pisten-, Rollweg-, Anflug-Lauflicht), Wetter (Regen, Nebel, Gewitter), Wind & Windsack
 - Luftraum mit Radar (Sweep, Datenblöcke, Warteschleifen-Fixes, Endanflug, Konfliktwarnung/STCA)
+- Belebter Flughafen: Besucher fahren ins Parkhaus und auf den Parkplatz, Vorfahrt und Taxis am Terminal, Busse, Fußgänger mit Koffern, Bodenpersonal an den Flugzeugen, Follow-me-Wagen, Arbeiter und Kipper auf den Baustellen; das Parkhaus wächst beim Ausbau sichtbar um ein Deck (mit Kran); nachts Flutlicht auf Baustellen, Hindernisfeuer und Tower-Rundumlicht; Verkehr folgt der Tageszeit. Baustellen zeigen die Restzeit auch in echten Minuten.
 - Bilder in der Management-Zentrale: jeder Ausbau, jede Parkposition, jedes Fahrzeug, Personal, Tanklager und Pistenwartung mit Illustration (Higgsfield), damit man sieht, was man kauft
 - Plastische Grafik: Flugzeuge mit rundem, schattiertem Rumpf, Fensterreihe, Airline-Zierstreifen, Triebwerken und Fahrwerk; Fahrzeuge und Autos als Körper mit Schatten; maßstabsgerechtes Parkhaus (Etagen je Ausbaustufe) und Parkplatz, Fluggastbrücken mit Glastunnel
 - Markierungen: Flüge per Streifen, Karte oder Radar farbig markieren und mit Notiz versehen – im Radar als Ring und Fähnchen sichtbar, mit Filter
@@ -36,7 +37,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 
 ## Steuerung
 - Karte ziehen = verschieben · Mausrad / Pinch = Zoom · Klick = auswählen
-- `Leertaste` Pause · `1`–`5` Tempo · `B` Beschriftungen · `N`/`Tab` nächste Anfrage · `F` Radar groß · `W`/`S` Flug in der Pistenfolge vor/zurück (auch ◀ ▶ oder Karte ziehen)
+- `Leertaste` Pause · `1`–`5` Tempo (1×, 2×, 5×, 10×, 20×; bei 10× dauert ein Spieltag ca. 10 Minuten, Manager/Beobachter starten mit 10×) · `B` Beschriftungen · `N`/`Tab` nächste Anfrage · `F` Radar groß · `W`/`S` Flug in der Pistenfolge vor/zurück (auch ◀ ▶ oder Karte ziehen)
 - Markieren: `M` (Farbe weiterschalten, `Shift`+`M` entfernen), ⚑ auf dem Flugstreifen oder Rechtsklick / langes Drücken auf ein Flugzeug in Karte bzw. Radar – mit Farbe und Notiz, sichtbar auf Radar, Karte und Streifen („⚑ Filter“ im Radar)
 - Tower: `A` Anflug frei · `D` Direkt FAF · `H` Warteschleife · `L` Landefreigabe · `G` Durchstarten · `R` Rollfreigabe · `P` Pushback · `E` Warten bis TSAT · `U` Line up · `T` Startfreigabe · `X` Halt · `C` Weiterrollen
 

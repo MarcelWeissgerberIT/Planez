@@ -1,6 +1,7 @@
 // Isometrische Flughafenansicht
 import { IMG, shadowOf, glowTinted } from '../assets.js';
 import { drawAircraftBody, drawVehicleBody, drawCarBody } from './volume.js';
+import { Ambient } from './ambient.js';
 import { HALF_W, HALF_H } from './camera.js';
 import * as LY from '../layout.js';
 import { AC_TYPES, AIRLINES, VEH_TYPES, ZS } from '../config.js';
@@ -157,6 +158,8 @@ export class MapRenderer {
     this.flash = 0;
     this.time = 0;
     this.cars = makeCars();
+    this.ambient = new Ambient();
+    this.topZ = {};
     this.picks = [];
   }
 
@@ -197,6 +200,7 @@ export class MapRenderer {
     const cam = this.cam;
     this.time += dtReal;
     this.garageLevel = state.upgrades.parking || 0;
+    this.state = state;
     if (!this.cache || this.cacheKey !== this.groundKey(state)) this.buildGround(state);
     const light = lightLevel(state);
     const night = 1 - light;
@@ -263,9 +267,12 @@ export class MapRenderer {
       items.push({ d: t.x + t.y, f: () => this.drawTree(t) });
     }
     for (const car of this.cars) {
-      const p = carPos(car, this.time);
+      const p = carPos(car, this.ambient.vt);
       items.push({ d: p.x + p.y, f: () => this.drawCar(p, car, night, lights) });
     }
+    // Belebung: Besucherverkehr, Fußgänger, Bodenpersonal, Baustellen, Nachtlichter
+    this.ambient.update(state, dtReal);
+    this.ambient.items(this, state, items, lights, night, sites, (x, y) => inView(view, x, y, 1.5));
     const flying = [];
     for (const ac of state.acs) {
       if (ac.mode !== 'map') continue;
@@ -426,6 +433,15 @@ export class MapRenderer {
     const dh = (dw * img.height) / img.width;
     const fc = cam.toScreen(b.fx, b.fy);
     ctx.drawImage(img, fc.x - b.frac * dw, fc.y - dh, dw, dh);
+    if (b.id === 'tower' || b.id === 'hangar') {
+      // Höhe der Gebäudespitze für Hindernisfeuer
+      const cx = b.fx - b.w / 2, cy = b.fy - b.d / 2;
+      const cb = cam.toScreen(cx, cy);
+      const z = (cb.y - (fc.y - dh * (b.id === 'tower' ? 0.985 : 0.9))) / (ZS * cam.zoom);
+      this.topZ[b.id] = z;
+      this.topZ[b.id + 'X'] = cx;
+      this.topZ[b.id + 'Y'] = cy;
+    }
     this.picks.push({ type: 'building', id: b.id, x: fc.x, y: fc.y - dh * 0.45, r: dw * 0.35 });
   }
 
@@ -436,10 +452,28 @@ export class MapRenderer {
     const key = 'g' + lvl;
     if (!this.garage || this.garage.key !== key) this.garage = { key, ...bakeGarage(b, lvl) };
     const G = this.garage;
+    this.topZ.garage = (3 + lvl) * 0.3 + 0.08;
+    this.topZ.garageCorners = [[b.fx - b.w, b.fy - b.d], [b.fx, b.fy - b.d], [b.fx, b.fy], [b.fx - b.w, b.fy]];
     cam.setScreen(ctx);
     const k = cam.zoom / G.Z;
     const fc = cam.toScreen(b.fx, b.fy);
     ctx.drawImage(G.c, fc.x - G.fx * k, fc.y - G.fy * k, G.c.width * k, G.c.height * k);
+    // Ausbau im Gange: neues Parkdeck wächst auf dem Dach (Stützen, Schalung, Beton nach Fortschritt)
+    const pj = (this.state && (this.state.projects || []).find((q) => q.kind === 'upgrade' && q.target === 'parking' && q.status !== 'waiting')) || null;
+    if (pj) {
+      const x0 = b.fx - b.w, y0 = b.fy - b.d, x1 = b.fx, y1 = b.fy;
+      const z0 = (3 + lvl) * 0.3 + 0.02, z1 = z0 + 0.3;
+      const pr = clamp(pj.prog, 0, 1);
+      const colH = z0 + 0.27 * clamp(pr * 2.5, 0.1, 1);
+      for (let x = x0 + 0.15; x <= x1 - 0.1; x += 1.3) for (const yy of [y0 + 0.1, y0 + 1.3, y0 + 2.9, y1 - 0.12]) prism(ctx, cam, rectPts(x + 0.04, yy + 0.04, 0.08, 0.08, 0), z0, colH, [150, 146, 138], [120, 116, 110], [96, 92, 88]);
+      if (pr > 0.35) {
+        const u = clamp((pr - 0.35) / 0.65, 0, 1);
+        const xe = x0 + (x1 - x0) * u;
+        // Schalung (Holz) vor dem Beton, Beton dahinter
+        prism(ctx, cam, [{ x: x0, y: y0 }, { x: Math.min(x1, xe + 0.8), y: y0 }, { x: Math.min(x1, xe + 0.8), y: y1 }, { x: x0, y: y1 }], z1 - 0.05, z1 - 0.035, [176, 124, 68], [140, 98, 54], [110, 76, 42]);
+        prism(ctx, cam, [{ x: x0, y: y0 }, { x: xe, y: y0 }, { x: xe, y: y1 }, { x: x0, y: y1 }], z1 - 0.035, z1 + 0.02, [178, 176, 170], [146, 144, 138], [116, 114, 108]);
+      }
+    }
     this.picks.push({ type: 'building', id: b.id, x: fc.x - G.c.width * k * 0.3, y: fc.y - G.c.height * k * 0.45, r: G.c.width * k * 0.35 });
   }
 
@@ -567,6 +601,53 @@ export class MapRenderer {
     if (night > 0.2) {
       lights.push({ x: p.x + Math.cos(p.h) * 0.3, y: p.y + Math.sin(p.h) * 0.3, z: 0.03, c: '#fff4d0', s: 14, a: 0.7 });
       lights.push({ x: p.x - Math.cos(p.h) * 0.18, y: p.y - Math.sin(p.h) * 0.18, z: 0.03, c: '#ff3020', s: 8, a: 0.7 });
+    }
+  }
+
+  // Fahrzeuge der Belebung: Auto, Taxi, Bus, Follow-me, Kipper
+  drawAmbientCar(c, p, night, lights) {
+    const ctx = this.ctx, cam = this.cam;
+    const a = p.alpha ?? 1;
+    const fx = Math.cos(p.h), fy = Math.sin(p.h), rx = -fy, ry = fx;
+    const rect = (f0, f1, s, z0, z1, top, sa, sb) => prism(ctx, cam, [
+      { x: p.x + fx * f0 + rx * s, y: p.y + fy * f0 + ry * s },
+      { x: p.x + fx * f1 + rx * s, y: p.y + fy * f1 + ry * s },
+      { x: p.x + fx * f1 - rx * s, y: p.y + fy * f1 - ry * s },
+      { x: p.x + fx * f0 - rx * s, y: p.y + fy * f0 - ry * s },
+    ], z0, z1, top, sa, sb);
+    // Schatten
+    cam.setIso(ctx, 0);
+    ctx.save();
+    ctx.globalAlpha = 0.28 * a;
+    ctx.translate(p.x + 0.06, p.y + 0.03);
+    ctx.rotate(p.h);
+    ctx.fillStyle = '#000';
+    const len = c.kind === 'bus' ? 0.42 : c.kind === 'dump' ? 0.3 : 0.16;
+    ctx.fillRect(-len, -0.08, len * 2, 0.16);
+    ctx.restore();
+    ctx.globalAlpha = a;
+    if (c.kind === 'bus') {
+      const cs = carShades(c.col);
+      rect(-0.4, 0.4, 0.085, 0.02, 0.2, cs.top, cs.a, cs.b);
+      // Fensterband
+      rect(-0.36, 0.38, 0.087, 0.11, 0.17, [40, 60, 84], [34, 52, 74], [26, 40, 58]);
+    } else if (c.kind === 'dump') {
+      rect(0.12, 0.3, 0.075, 0.02, 0.15, [245, 158, 11], [200, 120, 8], [160, 96, 6]);
+      rect(-0.3, 0.1, 0.085, 0.03, 0.13, [120, 110, 100], [96, 88, 80], [70, 64, 58]);
+      rect(-0.26, 0.06, 0.07, 0.13, 0.15, [150, 120, 80], [120, 96, 64], [96, 76, 50]);
+    } else {
+      drawCarBody(ctx, cam, p.x, p.y, p.h, c.col, prism, carShades, cam.zoom < 0.7);
+      if (c.kind === 'taxi') rect(-0.02, 0.03, 0.02, 0.095, 0.11, [255, 255, 255], [220, 220, 220], [190, 190, 190]);
+      if (c.kind === 'followme') {
+        rect(-0.1, 0.1, 0.066, 0.059, 0.062, [20, 20, 20], [20, 20, 20], [20, 20, 20]);
+        if ((this.ambient.vt * 2) % 1 < 0.5) lights.push({ x: p.x, y: p.y, z: 0.12, c: '#ffae00', s: 14, a: 0.9, day: true });
+      }
+    }
+    ctx.globalAlpha = 1;
+    if (night > 0.2 && a > 0.5) {
+      const L = c.kind === 'bus' ? 0.45 : 0.3;
+      lights.push({ x: p.x + fx * L, y: p.y + fy * L, z: 0.03, c: '#fff4d0', s: 14, a: 0.7 });
+      lights.push({ x: p.x - fx * L * 0.6, y: p.y - fy * L * 0.6, z: 0.03, c: '#ff3020', s: 8, a: 0.7 });
     }
   }
 

@@ -6,7 +6,7 @@ import { Radar, seqChips } from './render/radar.js';
 import { newGame, loadGame, saveGame, hasSave, setRole, ROLES } from './state.js';
 import { run, hooks } from './sim/sim.js';
 import { listeners } from './sim/messages.js';
-import { SPEEDS, AC_TYPES } from './config.js';
+import { SPEEDS, AC_TYPES, dayMinutes } from './config.js';
 import { TowerPanel, REQ_DE } from './ui/tower.js';
 import { GroundPanel } from './ui/groundPanel.js';
 import { ManagerPanel } from './ui/managerPanel.js';
@@ -175,6 +175,7 @@ function startGame(state) {
     $('#log-toggle').textContent = '+';
   }
   applyRole();
+  lastSpeed = state.speed || lastSpeed;
   game.running = true;
   game.lastTs = performance.now();
 }
@@ -289,7 +290,7 @@ function updateHUD(force) {
   const s = game.state;
   setHTML($('#hud-day'), `Tag ${dayOf(s.time)}`);
   setHTML($('#hud-time'), fmtClock(s.time));
-  const sp = SPEEDS.map((v, i) => `<button data-speed="${v}" class="${s.speed === v ? 'on' : ''}" title="${v ? v + '-fach' : 'Pause'} (Taste ${i})">${v === 0 ? '❚❚' : v + '×'}</button>`).join('');
+  const sp = SPEEDS.map((v, i) => `<button data-speed="${v}" class="${s.speed === v ? 'on' : ''}" title="${v ? `${v}-fach – ein Tag dauert ca. ${Math.round(dayMinutes(v))} Minuten` : 'Pause'} (Taste ${i})">${v === 0 ? '❚❚' : v + '×'}</button>`).join('');
   setHTML($('#speeds'), sp);
   const w = WEATHER[s.weather.kind];
   setHTML($('#hud-wx'), `${w.icon} ${w.name} · ${Math.round(s.wind.dir / 10) * 10}°/${Math.round(s.wind.spd)} kt`);
@@ -924,7 +925,7 @@ function helpGuide(first) {
     <h3>🎯 Ziele &amp; Rang</h3>
     <p>Jede Station hat drei Ziele (🏅 oben rechts). Erreichte Ziele bringen Prämie und XP; der Flughafen steigt vom Regionalflughafen bis zum Weltflughafen auf – höhere Ränge ziehen mehr Airlines an.</p>
     <h3>Steuerung</h3>
-    <p>Karte ziehen = verschieben · Mausrad/Pinch = Zoom · Klick = auswählen · <kbd>Leertaste</kbd> Pause · <kbd>1</kbd>–<kbd>5</kbd> Tempo · <kbd>B</kbd> Beschriftungen · Pfeiltasten scrollen.</p>`;
+    <p>Karte ziehen = verschieben · Mausrad/Pinch = Zoom · Klick = auswählen · <kbd>Leertaste</kbd> Pause · <kbd>1</kbd>–<kbd>5</kbd> Tempo (1×, 2×, 5×, 10×, 20× – bei <b>10×</b> dauert ein Tag etwa <b>10 Minuten</b>; Manager und Beobachter starten mit 10×) · <kbd>B</kbd> Beschriftungen · Pfeiltasten scrollen.</p>`;
 }
 
 function showHelp(first, tab = 'guide') {

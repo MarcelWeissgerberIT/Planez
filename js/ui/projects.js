@@ -1,6 +1,7 @@
 // Darstellung von Bauprojekten (Manager-Panel & Info-Karte)
 import { fmtMoney, fmtClock, esc } from '../util.js';
 import { remainingHours } from '../sim/construction.js';
+import { TIME_SCALE } from '../config.js';
 
 export function fmtHours(h) {
   if (h >= 1) {
@@ -9,12 +10,19 @@ export function fmtHours(h) {
   }
   return `${Math.max(1, Math.ceil(h * 60))} min`;
 }
+// Restzeit in echten Minuten beim aktuellen Tempo (pausiert: bei 10×)
+export function realMinutes(state, h) {
+  const v = state.speed || 10;
+  const m = (h * 3600) / (TIME_SCALE * v) / 60;
+  return m < 1 ? '< 1 Min.' : `≈ ${Math.round(m)} Min.`;
+}
 export const projectRefund = (p) => Math.round(p.cost * 0.5 * (1 - p.prog));
 
 export function projectStatus(state, p) {
   if (p.status === 'waiting') return 'wartet, bis die Position frei ist';
   if (state.weather.kind === 'storm') return 'Gewitter – Arbeiten ruhen';
-  return `fertig ca. ${fmtClock(state.time + remainingHours(p) * 3600)}`;
+  const h = remainingHours(p);
+  return `fertig ca. ${fmtClock(state.time + h * 3600)} (Tag ${Math.floor((state.time + h * 3600) / 86400) + 1}) · in echt ${realMinutes(state, h)}`;
 }
 
 export function progressBar(p) {

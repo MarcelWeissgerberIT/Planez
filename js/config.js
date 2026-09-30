@@ -1,6 +1,10 @@
 // Spielkonstanten und Stammdaten
 export const TIME_SCALE = 15; // Spielsekunden pro Echtzeitsekunde bei 1x
-export const SPEEDS = [0, 1, 2, 4, 8, 16];
+export const SPEEDS = [0, 1, 2, 5, 10, 20];
+// Echtzeit-Minuten pro Spieltag bei Tempo v (10× ≈ 10 Minuten)
+export const dayMinutes = (v) => (v ? 86400 / (TIME_SCALE * v) / 60 : Infinity);
+// Starttempo je Rolle: Manager/Beobachter im 10-Minuten-Tag, Lotsen in Echtzeit-nah
+export const DEFAULT_SPEED = { tower: 1, ground: 1, manager: 10, observer: 10 };
 export const NM_PER_TILE = 20 / 1852; // 1 Kachel = 20 m
 export const ZS = 32; // Pixel pro Kachel Höhe (bei Zoom 1)
 

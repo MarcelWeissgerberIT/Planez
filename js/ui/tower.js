@@ -471,6 +471,15 @@ export class TowerPanel {
     // Kopf: Filter, Schalter, Sortiermodus
     const f = this.filter;
     if (this.el.lanes.dataset.f !== f) this.el.lanes.dataset.f = f;
+    // Aufteilung nach Inhalt: wer mehr Karten hat, bekommt mehr Platz (mindestens ein Viertel)
+    if (f === 'both') {
+      const sel = this.game.ui.selected;
+      const weight = (items) => items.filter((i) => i.a).length + (items.some((i) => i.a && i.a.id === sel) ? 1 : 0) + 0.6;
+      let wa = weight(arrItems), wd = weight(depItems);
+      const share = Math.min(0.75, Math.max(0.25, wa / (wa + wd)));
+      const cols = `${share.toFixed(3)}fr ${(1 - share).toFixed(3)}fr`;
+      if (this.el.lanes.style.gridTemplateColumns !== cols) this.el.lanes.style.gridTemplateColumns = cols;
+    } else if (this.el.lanes.style.gridTemplateColumns) this.el.lanes.style.gridTemplateColumns = '';
     for (const b of this.rail.querySelectorAll('#rl-filter [data-f]')) b.classList.toggle('on', b.dataset.f === f);
     this.rail.querySelector('#rl-spacing .switch').classList.toggle('on', state.settings.autoSpacing !== false);
     this.rail.querySelector('#rl-gauto .switch').classList.toggle('on', !!state.settings.towerGroundAuto);
