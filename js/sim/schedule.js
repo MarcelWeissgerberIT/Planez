@@ -54,6 +54,14 @@ export function initialContracts(state, density = 1) {
 }
 
 // Umläufe für einen Tag erzeugen
+// Flugnummern je Tag eindeutig halten
+export function uniqueFn(state, airline, fn, day) {
+  const used = new Set(Object.values(state.rots).filter((r) => r.airline === airline && Math.floor(r.sta / 86400) + 1 === day).flatMap((r) => [r.arrNo, r.depNo]));
+  let n = fn;
+  while (used.has(`${airline}${n}`) || used.has(`${airline}${n + 1}`)) n += 2;
+  return n;
+}
+
 export function generateDay(state, day, onlyContract = null) {
   const dayStart = (day - 1) * 86400;
   const rots = [];
@@ -84,11 +92,11 @@ export function generateDay(state, day, onlyContract = null) {
       const std = sta + t.turn * 60 + buffer;
       const lf = clamp(randRange(state, 0.62, 0.97) * (0.85 + state.reputation / 400), 0.4, 1);
       const al = AIRLINES[c.airline];
-      const fn = c.base + ((k * 2 + day * 2) % 40);
+      const fn = uniqueFn(state, c.airline, c.base + ((k * 2 + day * 2) % 40), day);
       // Ankunftsverspätung (vom Abflughafen mitgebracht)
       let arrDelay = Math.round(randRange(state, -8, 10));
       if (rand(state) < 0.12) arrDelay += randInt(state, 15, 55);
-      rots.push({
+      const rot = {
         id: nextId(state, 'r'),
         contract: c.id,
         airline: c.airline,
@@ -106,10 +114,11 @@ export function generateDay(state, day, onlyContract = null) {
         status: 'planned',
         spawnAt: sta + arrDelay * 60 - 21 * 60,
         ac: null,
-      });
+      };
+      rots.push(rot);
+      state.rots[rot.id] = rot;
     }
   }
-  for (const r of rots) state.rots[r.id] = r;
   return rots;
 }
 

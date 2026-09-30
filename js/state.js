@@ -5,7 +5,7 @@ import { initialContracts, generateDay } from './sim/schedule.js';
 import { makeVehicle, freeBay } from './sim/ground.js';
 import { freshToday } from './sim/economy.js';
 import { placeAtStand } from './sim/aircraft.js';
-import { nextId } from './sim/schedule.js';
+import { nextId, uniqueFn } from './sim/schedule.js';
 import { AC_TYPES, SIZE_RANK } from './config.js';
 
 export const SAVE_KEY = 'planez_save_v1';
@@ -90,7 +90,7 @@ function warmStart(state) {
     if (!c) continue;
     used.add(c.airline);
     const t = AC_TYPES[c.type];
-    const fn = c.base + 90 + k * 2;
+    const fn = uniqueFn(state, c.airline, c.base + 90 + k * 2, Math.floor((state.time - 9 * 3600) / 86400) + 1);
     const rot = {
       id: nextId(state, 'r'), contract: c.id, airline: c.airline, type: c.type,
       arrNo: `${c.airline}${fn}`, depNo: `${c.airline}${fn + 1}`, city: c.city,
