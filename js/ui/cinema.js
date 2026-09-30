@@ -4,6 +4,10 @@ import { AC_TYPES, AIRLINES, CITIES, AIRPORT } from '../config.js';
 import { PH } from '../sim/aircraft.js';
 import { clamp, hourOf, esc } from '../util.js';
 import * as LY from '../layout.js';
+import { listeners } from '../sim/messages.js';
+import { fmtClock, dayOf } from '../util.js';
+import { WEATHER } from '../sim/events.js';
+import { temperature } from '../sim/winter.js';
 
 const PHASE_SHOT = {
   [PH.FINAL]: 'land',
@@ -29,11 +33,23 @@ export class Cinema {
     el.innerHTML = `<div class="cn-bar top"></div><div class="cn-bar bot"></div>
       <div class="cn-cap"><div class="cn-k"></div><div class="cn-t"></div><div class="cn-s"></div></div>
       <div class="cn-brand">${esc(AIRPORT.name || 'Planez')} · LIVE</div>
-      <div class="cn-help">K / Esc beenden · ← → nächste Szene</div>`;
+      <div class="cn-help">K / Esc beenden · ← → nächste Szene</div>
+      <div class="cn-clock"></div><div class="cn-data"></div><div class="cn-sub"></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
     this.cap = { k: el.querySelector('.cn-k'), t: el.querySelector('.cn-t'), s: el.querySelector('.cn-s') };
     el.addEventListener('click', () => this.next(true));
+    this.clockEl = el.querySelector('.cn-clock');
+    this.dataEl = el.querySelector('.cn-data');
+    this.subEl = el.querySelector('.cn-sub');
+    // Funkverkehr als Untertitel
+    listeners.radio.push((m) => {
+      if (!this.on || (m.kind !== 'atc' && m.kind !== 'pilot')) return;
+      this.subEl.innerHTML = `<b>${esc(m.from || '')}</b> ${esc(m.text)}`;
+      this.subEl.classList.remove('in');
+      void this.subEl.offsetWidth;
+      this.subEl.classList.add('in');
+    });
   }
 
   toggle() {
@@ -193,5 +209,23 @@ export class Cinema {
     cam.zoom = clamp(cam.zoom + (tz - cam.zoom) * kz, 0.3, 2.6);
     cam.tx = null;
     if (sh.t > sh.dur) this.next();
+    // Einblendungen: Uhr/Wetter und Live-Daten des gezeigten Flugzeugs
+    this.infoT = (this.infoT || 0) - dt;
+    if (this.infoT <= 0) {
+      this.infoT = 0.25;
+      const w = WEATHER[s.weather.kind];
+      const clock = `TAG ${dayOf(s.time)} · ${fmtClock(s.time)} · ${w.icon} ${Math.round(temperature(s))} °C · WIND ${String(Math.round(s.wind.dir / 10) * 10).padStart(3, '0')}/${Math.round(s.wind.spd)}`;
+      if (this.clockEl.textContent !== clock) this.clockEl.textContent = clock;
+      let data = '';
+      if (ac && ac.mode === 'map') {
+        const kt = Math.round((ac.v || 0) * 323); // Kacheln je Spielsekunde -> Knoten (Endanflug 0,42 ≈ 135 kt)
+        const alt = Math.round(((ac.z || 0) * 500) / 10) * 10;
+        data = `<b>${esc(ac.cs)}</b> ${ac.type} · GS ${kt} kt${alt > 0 ? ` · ALT ${alt} ft` : ''} · HDG ${String(Math.round(((ac.hdg * 180) / Math.PI + 90 + 360) % 360)).padStart(3, '0')}°`;
+      }
+      if (this.dataEl._h !== data) {
+        this.dataEl.innerHTML = data;
+        this.dataEl._h = data;
+      }
+    }
   }
 }

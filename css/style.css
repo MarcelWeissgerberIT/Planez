@@ -1114,3 +1114,11 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .dc-hi span { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: rgba(51,65,85,.55); color: #e2e8f0; }
 .load-tip { max-width: min(560px, 86vw); text-align: center; font-size: 13.5px; line-height: 1.5; color: #cbd5e1; opacity: .85; min-height: 40px; }
 .load-tip kbd { font-size: 11px; }
+.cn-clock { position: absolute; left: 4vw; top: calc(4.5vh - 8px); font: 700 12px var(--mono); letter-spacing: .12em; color: rgba(255,255,255,.78); }
+.cn-data { position: absolute; right: 4vw; top: calc(4.5vh - 8px); font: 600 12px var(--mono); letter-spacing: .06em; color: #7dd3fc; }
+.cn-data b { color: #fff; }
+.cn-sub { position: absolute; left: 50%; bottom: calc(4.5vh - 10px); transform: translateX(-50%); max-width: 80vw; text-align: center; font-size: clamp(12px, 1.2vw, 15px); color: #f1f5f9; opacity: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cn-sub b { color: #fbbf24; margin-right: 6px; font-family: var(--mono); }
+.cn-sub.in { animation: cn-sub 6s ease-out forwards; }
+@keyframes cn-sub { 0% { opacity: 0; } 6% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+.cn-help { bottom: calc(4.5vh - 8px); }
