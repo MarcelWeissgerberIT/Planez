@@ -3,8 +3,14 @@ import { roundedPath, clamp } from './util.js';
 import { NM_PER_TILE } from './config.js';
 
 export const W = 80;
-export const H = 44;
+export const H = 50;
 export const RWY = { y: 32.2, x0: 5, x1: 75, hw: 1.2, thr: { '09': 8, '27': 72 }, td: 3 };
+// zweite Parallelbahn (Süd) – erst nach dem Ausbau in Betrieb
+export const RWY_S = { y: 41.6, x0: 5, x1: 75, hw: 1.2, thr: { '09': 8, '27': 72 }, td: 3 };
+export const TWY_B = 36.9; // Parallelrollweg zwischen den Bahnen
+export const HOLD_CROSS = 34.75; // Haltelinie südlich der Nordbahn (vor dem Kreuzen)
+export const EXITS_S = [14, 26, 38, 50, 62];
+export const CROSS = [20, 32, 44, 56]; // Kreuzungen der Nordbahn
 export const TWY_A = 27.6;
 export const HOLD_Y = 29.9;
 export const LANE = 23.8;
@@ -38,11 +44,11 @@ export const BUILDINGS = [
   { id: 'hangar', sprite: 'hangar', fx: 9.5, fy: 21.4, w: 6.8, d: 6.6, frac: 0.51, name: 'Wartungshangar' },
   { id: 'cargo', sprite: 'cargo', fx: 64.5, fy: 14.2, w: 10.3, d: 4.2, frac: 0.71, name: 'Frachtterminal' },
   { id: 'depot', sprite: 'gse_depot', fx: 73.5, fy: 14.4, w: 4.6, d: 3.6, frac: 0.56, name: 'Fahrzeugdepot' },
-  { id: 'fire', sprite: 'fire_station', fx: 40, fy: 39.8, w: 4.4, d: 2.7, frac: 0.62, name: 'Feuerwache' },
+  { id: 'fire', sprite: 'fire_station', fx: 40, fy: 48.6, w: 4.4, d: 2.7, frac: 0.62, name: 'Feuerwache' },
   { id: 'fuel', sprite: 'fuel_farm', fx: 80, fy: 16.6, w: 3.6, d: 3.6, frac: 0.49, name: 'Tanklager' },
   { id: 'parking', sprite: 'parking', fx: 54, fy: 8.8, w: 5.4, d: 4.6, frac: 0.54, name: 'Parkhaus' },
   { id: 'hotel', sprite: 'hotel', fx: 18.5, fy: 8.4, w: 3.1, d: 3.1, frac: 0.49, name: 'Hotel', requires: 'hotel' },
-  { id: 'radar', sprite: 'radar', fx: 6.5, fy: 39.7, w: 1.7, d: 1.5, frac: 0.53, name: 'Radar' },
+  { id: 'radar', sprite: 'radar', fx: 6.5, fy: 48.5, w: 1.7, d: 1.5, frac: 0.53, name: 'Radar' },
 ];
 
 export const DEPOT_BAYS = (() => {
@@ -54,6 +60,7 @@ export const DEPOT_BAYS = (() => {
 // Bäume deterministisch verteilen (nicht auf befestigten Flächen)
 export function isPaved(x, y) {
   if (y > RWY.y - RWY.hw - 0.6 && y < RWY.y + RWY.hw + 0.6 && x > RWY.x0 - 1 && x < RWY.x1 + 1) return true;
+  if (y > 33 && y < 44.2) return true; // Reservefläche für die Parallelbahn
   if (y > 9 && y < 29 && x > 0 && x < 75) return true; // Vorfeld/Rollwege-Zone grob
   if (y < 1.2) return true; // Straße
   return false;
@@ -63,7 +70,7 @@ export function makeTrees() {
   let s = 1234567;
   const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
   const zones = [
-    { x0: 0, x1: 80, y0: 35.4, y1: 44 },
+    { x0: 0, x1: 80, y0: 44.6, y1: 50 },
     { x0: 0, x1: 12, y0: 1.6, y1: 9 },
     { x0: 72.9, x1: 75.3, y0: 1.6, y1: 8 },
     { x0: 0, x1: 4, y0: 23, y1: 29 },
@@ -74,10 +81,9 @@ export function makeTrees() {
     for (let i = 0; i < n; i++) {
       const x = z.x0 + r() * (z.x1 - z.x0);
       const y = z.y0 + r() * (z.y1 - z.y0);
-      if (x > 32 && x < 42 && y > 34 && y < 41) continue; // Feuerwache
-      if (x > 2 && x < 7.5 && y > 36.5 && y < 40.7) continue; // Radar
-      if (y > 34.6 && y < 36.2) continue;
-      if (x > 64 && x < 68 && y > 35 && y < 37.5) continue; // Windsack
+      if (x > 32 && x < 42 && y > 43 && y < 49.6) continue; // Feuerwache
+      if (x > 2 && x < 7.5 && y > 45.3 && y < 49.5) continue; // Radar
+      if (x > 64 && x < 68 && y > 43.6 && y < 46) continue; // Windsack
       trees.push({ x, y, t: r() < 0.55 ? 'tree1' : 'tree2', s: 0.8 + r() * 0.5 });
     }
   }
@@ -103,6 +109,9 @@ function P(x, y) {
 
 // Rollweg vom Abrollpunkt (auf Rollweg A) zur Parkposition
 export function pathTaxiIn(fromX, stand, len, rwy) {
+  return roundedPath(dedupe(taxiInPts(fromX, stand, len, rwy)), 1.15, 0.2);
+}
+function taxiInPts(fromX, stand, len, rwy) {
   const sx = stand.x;
   const cy = STAND_NOSE + len / 2;
   const pts = [P(fromX, TWY_A)];
@@ -117,7 +126,7 @@ export function pathTaxiIn(fromX, stand, len, rwy) {
     pts.push(P(c, TWY_A), P(c, LANE));
   }
   pts.push(P(sx, LANE), P(sx, cy));
-  return roundedPath(dedupe(pts), 1.15, 0.2);
+  return pts;
 }
 
 // Pushback: von Parkposition rückwärts auf die Vorfeldstraße
@@ -163,6 +172,35 @@ export function pathRollout(rwy, exitX, len) {
   pts.push(P(nextX, TWY_A));
   return roundedPath(pts, 1.3, 0.2);
 }
+
+// ---------- Südbahn ----------
+// Landung auf der Südbahn: Ausrollen, nach Norden auf Rollweg B, bis zur Haltelinie vor der Nordbahn
+export function crossingFor(rwy, exitX) {
+  const d = rwyDir(rwy);
+  const ahead = CROSS.filter((c) => (c - exitX) * d >= 1.5).sort((a, b) => (a - exitX) * d - (b - exitX) * d);
+  if (ahead.length) return ahead[0];
+  return CROSS.reduce((a, b) => (Math.abs(b - exitX) < Math.abs(a - exitX) ? b : a));
+}
+export function holdCrossY(len) {
+  return HOLD_CROSS + len / 2 + 0.15;
+}
+export function pathRolloutS(rwy, exitX, len, crossX) {
+  const d = rwyDir(rwy);
+  const tdx = RWY_S.thr[rwy] + d * RWY_S.td;
+  const pts = [P(tdx, RWY_S.y), P(exitX, RWY_S.y), P(exitX, TWY_B), P(crossX, TWY_B), P(crossX, holdCrossY(len))];
+  return roundedPath(dedupe(pts), 1.3, 0.2);
+}
+export function exitsAheadS(rwy) {
+  const d = rwyDir(rwy);
+  const tdx = RWY_S.thr[rwy] + d * RWY_S.td;
+  return EXITS_S.filter((x) => (x - tdx) * d > 4).sort((a, b) => (a - tdx) * d - (b - tdx) * d);
+}
+// Kreuzen der Nordbahn und weiter zur Parkposition
+export function pathCrossIn(crossX, stand, len, rwy) {
+  return roundedPath(dedupe([P(crossX, holdCrossY(len)), ...taxiInPts(crossX, stand, len, rwy)]), 1.15, 0.2);
+}
+// Zone der Nordbahn (für Kreuzungen)
+export const inNorthRunwayZone = (y) => y > HOLD_Y - 0.2 && y < HOLD_CROSS + 0.2;
 
 // Warteposition ohne Parkposition: Ende von Rollweg A in Flussrichtung
 export function waitSpotX(rwy, len, slot = 0) {

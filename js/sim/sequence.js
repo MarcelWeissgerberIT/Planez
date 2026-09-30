@@ -57,20 +57,24 @@ export function sepSec(lead, foll, leadArr, follArr) {
   return leadArr ? SEP.AD : SEP.DA;
 }
 
-// Geplante Zeiten entlang einer Reihenfolge
+// Bahn in der Pistenfolge: Landungen auf ihrer Bahn, Starts immer Nord
+export const seqStrip = (ac) => (isSeqArrival(ac) ? ac.strip || 'N' : 'N');
+
+// Geplante Zeiten entlang einer Reihenfolge (je Bahn getrennt)
 function slotsAlong(state, order, byId) {
   const slots = {};
-  let prev = null;
-  let t = -Infinity;
+  const prev = {};
+  const t = {};
   for (const id of order) {
     const ac = byId.get(id);
     if (!ac) continue;
     const arr = isSeqArrival(ac);
+    const st = seqStrip(ac);
     let slot = seqEta(state, ac);
-    if (prev) slot = Math.max(slot, t + sepSec(prev, ac, isSeqArrival(prev), arr));
+    if (prev[st]) slot = Math.max(slot, t[st] + sepSec(prev[st], ac, isSeqArrival(prev[st]), arr));
     slots[id] = slot;
-    prev = ac;
-    t = slot;
+    prev[st] = ac;
+    t[st] = slot;
   }
   return slots;
 }
@@ -81,20 +85,22 @@ function autoOrder(state, ids, byId) {
   const arrs = ids.filter((id) => isSeqArrival(byId.get(id))).sort((a, b) => raw(a) - raw(b));
   const deps = ids.filter((id) => !isSeqArrival(byId.get(id))).sort((a, b) => raw(a) - raw(b));
   const ev = [];
-  let t = -Infinity;
-  let pa = null;
+  const tS = {};
+  const pa = {};
   for (const id of arrs) {
     const ac = byId.get(id);
-    t = Math.max(raw(id), pa ? t + sepSec(pa, ac, true, true) : -Infinity);
-    ev.push({ id, t, arr: true });
-    pa = ac;
+    const st = seqStrip(ac);
+    const t = Math.max(raw(id), pa[st] ? tS[st] + sepSec(pa[st], ac, true, true) : -Infinity);
+    tS[st] = t;
+    ev.push({ id, t, arr: true, st });
+    pa[st] = ac;
   }
   let last = -Infinity;
   let pd = null;
   for (const id of deps) {
     const ac = byId.get(id);
     let c = Math.max(raw(id), pd ? last + sepSec(pd, ac, false, false) : -Infinity);
-    for (const e of ev) if (e.arr && c < e.t + SEP.AD && c + SEP.DA > e.t) c = e.t + SEP.AD;
+    for (const e of ev) if (e.arr && e.st === 'N' && c < e.t + SEP.AD && c + SEP.DA > e.t) c = e.t + SEP.AD;
     ev.push({ id, t: c, arr: false });
     last = c;
     pd = ac;

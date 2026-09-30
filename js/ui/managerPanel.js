@@ -11,7 +11,7 @@ import { projects, standProject, projectFor, cancelProject, standBuildHours, upg
 import { projectCard, projectInline, fmtHours } from './projects.js';
 import { qm } from './glossary.js';
 import { RWY_WORKS } from '../sim/construction.js';
-import { rwyCond, brakingAction, BRAKE_DE } from '../sim/runway.js';
+import { rwyCond, brakingAction, BRAKE_DE, runwayStrips } from '../sim/runway.js';
 import { fuelState, FUEL, orderFuel, maxOrder, avgCost, sellPrice, pending, burnRate, inventory } from '../sim/fuel.js';
 import { loans, loanLimit, loanRate, takeLoan, repayLoan, annuity, LOAN_DAYS, debt } from '../sim/finance.js';
 import { goalsState, activeGoals, goalFraction, goalText, RANKS } from '../sim/goals.js';
@@ -30,10 +30,18 @@ const C1 = '#3987e5'; // Umsatz (Kategorie 1)
 const C2 = '#d95926'; // Kosten (Kategorie 2)
 
 export class ManagerPanel {
-  constructor(root, game) {
+  constructor(root, game, opts = {}) {
     this.root = root;
     this.game = game;
     this.tab = 'over';
+    this.page = opts.page || null;
+    if (this.page) {
+      // eingebettet in die Management-Zentrale: nur Inhaltsbereich
+      this.body = root;
+      root.addEventListener('click', (e) => this.onClick(e));
+      root.addEventListener('input', (e) => this.onInput(e));
+      return;
+    }
     root.innerHTML = `
       <div class="p-head"><div class="p-title">💼 Management <small id="mp-sub"></small></div></div>
       <div class="tabs" id="mp-tabs">${TABS.map(([k, n]) => `<button data-tab="${k}">${n}</button>`).join('')}</div>
@@ -52,7 +60,10 @@ export class ManagerPanel {
   onClick(e) {
     const s = this.game.state;
     const tb = e.target.closest('[data-tab]');
-    if (tb) return this.setTab(tb.dataset.tab);
+    if (tb) {
+      if (this.page) return this.page.open({ contracts: 'contracts', build: 'sites' }[tb.dataset.tab] || tb.dataset.tab);
+      return this.setTab(tb.dataset.tab);
+    }
     const a = e.target.closest('[data-act]');
     if (!a) return;
     const v = a.dataset.v;
@@ -112,6 +123,7 @@ export class ManagerPanel {
         ok = cancelProject(s, v) > 0;
         break;
       case 'pshow':
+        if (this.page) this.page.close();
         this.game.showSite && this.game.showSite(v);
         return;
       case 'feereset':
@@ -139,12 +151,20 @@ export class ManagerPanel {
         ok = repayLoan(s, v);
         break;
       case 'goals':
+        if (this.page) return this.page.open('goals');
         this.game.showGoals && this.game.showGoals();
         return;
     }
     if (ok) sfx.cash();
     this.body._html = null;
-    this.update(s);
+    if (this.page) this.page.update(s, true);
+    else this.update(s);
+  }
+
+  // Inhalt eines Bereichs (für die Management-Zentrale)
+  section(key, s) {
+    const fn = { over: this.over, contracts: this.contracts, sites: this.sitesHtml, runways: this.runwaysHtml, stands: this.standsHtml, terminal: this.terminalHtml, ops: this.ops, fuel: this.fuel, fees: this.fees, fin: this.fin, goals: this.goalsHtml }[key] || this.over;
+    return fn.call(this, s);
   }
 
   onInput(e) {
@@ -270,49 +290,94 @@ export class ManagerPanel {
     return h;
   }
 
-  // ---------- Ausbau ----------
+  // ---------- Ausbau (aufgeteilt in Bereiche) ----------
   build(s) {
+    return this.sitesHtml(s) + this.runwaysHtml(s) + this.standsHtml(s) + this.upgradesHtml(s, ['Terminal', 'Landseite']) + this.marketingHtml(s);
+  }
+
+  sitesHtml(s) {
     if (this.armP && performance.now() - this.armT > 5000) this.armP = null;
     const ps = projects(s);
-    let h = `<div class="p-sec"><span>🏗️ Baustellen</span><span class="cnt">${ps.length}</span></div>`;
-    if (!ps.length) h += `<div class="empty">Keine laufenden Bauprojekte. Aufträge unten starten – jedes Projekt braucht Bauzeit und ist auf der Karte als Baustelle zu sehen.</div>`;
+    let h = `<div class="p-sec"><span>🏗️ Baustellen${qm('build')}</span><span class="cnt">${ps.length}</span></div>`;
+    if (!ps.length) h += `<div class="empty">Keine laufenden Bauprojekte. Aufträge unter Pisten, Parkpositionen oder Terminal starten – jedes Projekt braucht Bauzeit und ist auf der Karte als Baustelle zu sehen.</div>`;
     for (const p of ps) h += projectCard(s, p, this.armP === p.id);
-    const cond = Math.round(rwyCond(s));
-    const ba = brakingAction(s);
+    return h;
+  }
+
+  runwaysHtml(s) {
+    const ps = projects(s);
     const rwyBusy = ps.some((p) => p.kind === 'rwy');
-    h += `<div class="p-sec"><span>Piste ${s.rwy}${qm('rwy')}</span></div><div class="card"><div class="row"><span class="t">🛬 Zustand ${cond} %</span><span style="font-size:12px">Bremswirkung <b class="ba-${ba}">${BRAKE_DE[ba]}</b></span></div><div class="bar"><i style="width:${cond}%;background:${cond < 35 ? 'var(--bad)' : cond < 60 ? 'var(--warn)' : 'var(--good)'}"></i></div>
-      <div class="s">Jede Landung hinterlässt Gummiabrieb (schwere Flugzeuge mehr). Unter 60 % wird die Bremswirkung bei Nässe schlecht → längere Ausrollstrecken, spätere Abrollwege, Durchstarts.</div>
-      <div class="acts">${Object.entries(RWY_WORKS).map(([k, w]) => `<button class="btn${k === 'clean' ? ' btn-good' : ''}" data-act="rwy" data-v="${k}" ${rwyBusy || s.cash < w.cost ? 'disabled' : ''} title="${esc(w.desc)}">${w.name} · ${fmtMoney(w.cost)} · ${w.hours} h</button>`).join('')}</div>
-      <div class="s">${rwyBusy ? '🏗️ Arbeiten beauftragt – laufen nachts (22:30–5:30) in Verkehrspausen.' : 'Arbeiten laufen nur nachts, wenn kein Verkehr kommt; die Piste ist dann gesperrt.'}</div></div>`;
-    h += `<div class="p-sec"><span>Parkpositionen</span></div>`;
+    let h = `<div class="p-sec"><span>🛬 Pisten${qm('rwy')}</span></div>`;
+    for (const strip of runwayStrips(s)) {
+      const cond = Math.round(rwyCond(s, strip.id));
+      const ba = brakingAction(s, strip.id);
+      h += `<div class="card"><div class="row"><span class="t">${strip.icon} ${esc(strip.label)} · ${esc(strip.role)}</span><span style="font-size:12px">Bremswirkung <b class="ba-${ba}">${BRAKE_DE[ba]}</b></span></div>
+        <div class="row" style="font-size:12px;color:var(--muted);margin-top:3px"><span>Zustand ${cond} %</span><span>${strip.len}</span></div><div class="bar"><i style="width:${cond}%;background:${cond < 35 ? 'var(--bad)' : cond < 60 ? 'var(--warn)' : 'var(--good)'}"></i></div>
+        <div class="acts">${Object.entries(RWY_WORKS).map(([k, w]) => `<button class="btn${k === 'clean' ? ' btn-good' : ''}" data-act="rwy" data-v="${k}:${strip.id}" ${rwyBusy || s.cash < w.cost ? 'disabled' : ''} title="${esc(w.desc)}">${w.name} · ${fmtMoney(w.cost)} · ${w.hours} h</button>`).join('')}</div></div>`;
+    }
+    h += `<div class="s" style="font-size:12px;color:var(--muted);margin:2px 4px 8px">Jede Landung hinterlässt Gummiabrieb (schwere Flugzeuge mehr). Unter 60 % wird die Bremswirkung bei Nässe schlecht. Arbeiten laufen nachts (22:30–5:30) in Verkehrspausen und sperren die jeweilige Piste.${rwyBusy ? ' 🏗️ Arbeiten beauftragt.' : ''}</div>`;
+    h += this.upgradesHtml(s, ['Pisten'], false) + this.upgradesHtml(s, ['Betrieb'], true, 'Rollwege, Befeuerung & Navigation');
+    return h;
+  }
+
+  standsHtml(s) {
+    let h = `<div class="p-sec"><span>🅿️ Parkpositionen</span><span class="cnt">${s.stands.filter((x) => x.built).length} / ${s.stands.length}</span></div>`;
     for (const st of s.stands) {
       const occ = st.occ ? s.acs.find((a) => a.id === st.occ) : null;
       const pj = standProject(s, st.id);
       if (!st.built) {
         const cost = EC.standBuildCost(st);
         const right = pj ? projectInline(pj) : `<button class="btn btn-good" data-act="stand" data-v="${st.id}" ${s.cash < cost ? 'disabled' : ''}>Bauen ${fmtMoney(cost)}</button>`;
-        h += `<div class="card${pj ? ' site' : ''}"><div class="row"><span class="t">P${st.id} · ${KIND_DE[st.kind]} · Klasse ${st.size}</span>${right}</div>${pj ? '' : `<div class="s">Bauzeit ${standBuildHours(st)} h</div>`}</div>`;
+        h += `<div class="card${pj ? ' site' : ''}"><div class="row"><span class="t">P${st.id} · ${KIND_DE[st.kind]} · Klasse ${st.size}</span>${right}</div>${pj ? '' : `<div class="s">Bauzeit ${standBuildHours(st)} h · noch nicht gebaut</div>`}</div>`;
       } else {
         const up = pj ? projectInline(pj) : st.size !== 'L' && st.kind !== 'cargo' ? `<button class="mini" data-act="standL" data-v="${st.id}" ${s.cash < STAND_COSTS.upgradeL ? 'disabled' : ''}>→ Klasse L (${fmtMoney(STAND_COSTS.upgradeL)} · ${STAND_HOURS.upgradeL} h, Position gesperrt)</button>` : '';
-        h += `<div class="card${pj ? ' site' : ''}"><div class="row"><span class="t">P${st.id} · ${KIND_DE[st.kind]} · ${st.size}</span><span style="font-size:12px;color:var(--muted)">${st.closed ? 'gesperrt (Bau)' : occ ? esc(occ.cs) : st.resv ? 'reserviert' : 'frei'}</span></div>${up ? `<div class="acts">${up}</div>` : ''}</div>`;
+        const rot = occ ? s.rots[occ.rot] : null;
+        const detail = occ ? `${esc(occ.cs)} · ${occ.type}${rot ? ` · STD ${fmtClock(rot.std)}` : ''}` : st.resv ? 'reserviert' : 'frei';
+        h += `<div class="card${pj ? ' site' : ''}"><div class="row"><span class="t">P${st.id} · ${KIND_DE[st.kind]} · ${st.size}</span><span style="font-size:12px;color:var(--muted)">${st.closed ? 'gesperrt (Bau)' : detail}</span></div>${up ? `<div class="acts">${up}</div>` : ''}</div>`;
       }
     }
-    const cats = {};
-    for (const [k, u] of Object.entries(UPGRADES)) (cats[u.cat] = cats[u.cat] || []).push([k, u]);
-    for (const [cat, list] of Object.entries(cats)) {
-      h += `<div class="p-sec"><span>${cat}</span></div>`;
+    return h;
+  }
+
+  upgradesHtml(s, catList, withHead = true, title = null) {
+    let h = '';
+    for (const cat of catList) {
+      const list = Object.entries(UPGRADES).filter(([, u]) => u.cat === cat);
+      if (!list.length) continue;
+      if (withHead) h += `<div class="p-sec"><span>${title || cat}</span></div>`;
       for (const [k, u] of list) {
         const lvl = s.upgrades[k] || 0;
         const maxed = lvl >= u.max;
         const cost = maxed ? 0 : u.cost[lvl];
         const pj = projectFor(s, 'upgrade', k);
         const dots = Array.from({ length: u.max }, (_, i) => `<i class="${i < lvl ? 'on' : pj && i === lvl ? 'bld' : ''}"></i>`).join('');
-        const right = pj ? projectInline(pj) : maxed ? '<span style="color:var(--good);font-size:12px">✓ voll ausgebaut</span>' : `<button class="btn btn-good" data-act="up" data-v="${k}" ${s.cash < cost ? 'disabled' : ''}>${fmtMoney(cost)}</button>`;
-        h += `<div class="card${pj ? ' site' : ''}"><div class="row"><span class="t">${u.name}<span class="lvl">${dots}</span></span>${right}</div><div class="s">${u.desc}${!pj && !maxed ? ` · Bauzeit ${upgradeHours(k, lvl + 1)} h` : ''}</div></div>`;
+        const locked = u.requires && !s.upgrades[u.requires];
+        const right = pj ? projectInline(pj) : maxed ? '<span style="color:var(--good);font-size:12px">✓ voll ausgebaut</span>' : locked ? `<span style="font-size:12px;color:var(--muted)">erst ${esc(UPGRADES[u.requires].name)}</span>` : `<button class="btn btn-good" data-act="up" data-v="${k}" ${s.cash < cost ? 'disabled' : ''}>${fmtMoney(cost)}</button>`;
+        h += `<div class="card${pj ? ' site' : ''}${u.big ? ' bigcard' : ''}"><div class="row"><span class="t">${u.icon ? u.icon + ' ' : ''}${u.name}<span class="lvl">${dots}</span></span>${right}</div><div class="s">${u.desc}${!pj && !maxed ? ` · Bauzeit ${upgradeHours(k, lvl + 1)} h` : ''}</div>${u.more ? `<div class="s">${u.more}</div>` : ''}</div>`;
       }
     }
+    return h;
+  }
+
+  marketingHtml(s) {
     const mk = s.marketingUntil > s.time;
-    h += `<div class="p-sec"><span>Marketing</span></div><div class="card"><div class="row"><span class="t">📣 Kampagne „Fly ${esc(s.name.split(' ')[0])}“</span><button class="btn" data-act="mkt" ${s.cash < MARKETING.cost || mk ? 'disabled' : ''}>${mk ? 'läuft' : fmtMoney(MARKETING.cost)}</button></div><div class="s">Mehr Angebote und Ansehen für ${MARKETING.days} Tage.</div></div>`;
+    return `<div class="p-sec"><span>Marketing</span></div><div class="card"><div class="row"><span class="t">📣 Kampagne „Fly ${esc(s.name.split(' ')[0])}“</span><button class="btn" data-act="mkt" ${s.cash < MARKETING.cost || mk ? 'disabled' : ''}>${mk ? 'läuft' : fmtMoney(MARKETING.cost)}</button></div><div class="s">Mehr Angebote und Ansehen für ${MARKETING.days} Tage.</div></div>`;
+  }
+
+  terminalHtml(s) {
+    return this.upgradesHtml(s, ['Terminal', 'Landseite']) + this.marketingHtml(s);
+  }
+
+  goalsHtml(s) {
+    const G = goalsState(s);
+    const next = RANKS[G.rank + 1];
+    const pct = next ? Math.round(((G.xp - RANKS[G.rank].xp) / (next.xp - RANKS[G.rank].xp)) * 100) : 100;
+    let h = `<div class="p-sec"><span>🏅 Flughafen-Rang${qm('goals')}</span></div><div class="card"><div class="row"><span class="t">${RANKS[G.rank].name}</span><span style="font-family:var(--mono);font-size:12px">${G.xp} XP</span></div><div class="bar"><i style="width:${pct}%;background:linear-gradient(90deg,#f59e0b,#fde047)"></i></div><div class="s">${next ? `Nächster Rang „${next.name}“ ab ${next.xp} XP` : 'Höchster Rang erreicht'} · ${G.done} Ziele erreicht</div><div class="rank-steps">${RANKS.map((r, i) => `<span class="${i <= G.rank ? 'on' : ''}">${i + 1}. ${r.name}</span>`).join('')}</div></div>`;
+    h += `<div class="p-sec"><span>🎯 Ziele</span></div>`;
+    for (const g of activeGoals(s)) {
+      const f = goalFraction(s, g);
+      h += `<div class="card goal"><div class="row"><span class="t">${esc(goalText(g))}</span><span class="rem">${Math.round(f * 100)} %</span></div><div class="bar"><i style="width:${f * 100}%;background:var(--manager)"></i></div></div>`;
+    }
     return h;
   }
 

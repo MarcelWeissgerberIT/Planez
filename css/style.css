@@ -580,3 +580,74 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 #loading .load-bar { background: rgba(56,214,245,.12); border-radius: 0; height: 3px; }
 #loading #load-fill { background: var(--mm-cyan); box-shadow: 0 0 12px var(--mm-cyan); }
 #loading .load-txt { font-family: var(--mm-font); letter-spacing: .3em; text-transform: uppercase; color: var(--mm-amber); font-size: 12px; }
+
+/* ---------- Management-Zentrale (Vollbild) ---------- */
+#mgmt { position: absolute; inset: 0; z-index: 54; display: grid; grid-template-columns: minmax(300px, 360px) 1fr; font-family: var(--mm-font); animation: pz-in .2s ease-out; }
+#mgmt.hidden { display: none; }
+.mg-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4,8,15,.96) 0%, rgba(4,8,15,.9) 28%, rgba(6,11,20,.84) 100%); backdrop-filter: blur(6px) saturate(.85); }
+.mg-nav { position: relative; display: flex; flex-direction: column; padding: 26px 0 18px 26px; min-height: 0; overflow-y: auto; border-right: 1px solid rgba(56,214,245,.14); }
+.mg-label { color: var(--mm-amber); font-weight: 700; letter-spacing: .3em; font-size: 12px; text-transform: uppercase; }
+.mg-name { font-family: var(--mm-title); font-weight: 900; font-size: 26px; letter-spacing: .06em; color: #fff; margin-top: 8px; line-height: 1.1; }
+.mg-time { font-family: var(--sans); font-size: 12.5px; color: rgba(203,213,225,.8); margin: 6px 0 16px; }
+.mg-nav .mm-item { padding: 8px 14px 8px 16px; gap: 14px; }
+.mg-nav .mm-item b { font-size: 16px; letter-spacing: .08em; }
+.mg-nav .mm-item small { font-size: 11.5px; }
+.mg-nav .mm-item.attn small { color: #fde68a; }
+.mg-foot { margin-top: auto; padding: 16px 16px 0 0; display: flex; flex-direction: column; gap: 10px; }
+.mg-foot .mm-toggle { padding: 6px 4px; }
+.mg-foot .mm-toggle b { font-size: 12px; }
+.mg-foot .mm-toggle small { font-size: 11px; }
+.mg-main { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.mg-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 26px 30px 10px; }
+.mg-kick { color: var(--mm-cyan); font-size: 11px; font-weight: 700; letter-spacing: .28em; text-transform: uppercase; }
+.mg-head h2 { margin: 4px 0 2px; font-size: 30px; letter-spacing: .1em; text-transform: uppercase; color: #fff; }
+.mg-head p { margin: 0; font-family: var(--sans); color: rgba(203,213,225,.8); font-size: 13.5px; }
+.mg-body { flex: 1; overflow-y: auto; padding: 4px 30px 30px; column-width: 380px; column-gap: 22px; font-family: var(--sans); }
+.mg-body > * { break-inside: avoid; }
+.mg-body > .p-sec { column-span: all; margin-top: 18px; font-size: 12px; color: var(--mm-cyan); font-family: var(--mm-font); font-weight: 700; letter-spacing: .2em; }
+.mg-body > .p-sec:first-child { margin-top: 4px; }
+.mg-body > .kpis { column-span: all; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.mg-body > .kpis .k b { font-size: 18px; }
+.mg-body > .chart, .mg-body > svg.chart { column-span: all; max-width: 900px; }
+.mg-body > .legend, .mg-body > .ledger, .mg-body > table { column-span: none; }
+.mg-body .card { margin: 0 0 12px; background: rgba(12,20,34,.72); border-color: rgba(148,163,184,.2); }
+.mg-body .card.bigcard { column-span: all; border-color: rgba(56,214,245,.35); background: linear-gradient(135deg, rgba(56,214,245,.1), rgba(12,20,34,.75)); }
+.mg-body .card.bigcard .t { font-size: 16px; }
+.mg-body .empty { column-span: all; }
+.mg-body .fee-row { background: rgba(12,20,34,.6); border: 1px solid rgba(148,163,184,.16); border-radius: 10px; padding: 10px 12px; margin: 0 0 12px; }
+.mg-body .toggle-row { break-inside: avoid; }
+/* Kompakter Leitstand */
+#game.role-manager, #game.role-observer { --panel-w: 300px; }
+#panel.dock .dock-body { padding-top: 6px; }
+.dock-open { width: 100%; display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin: 4px 0 10px; border-radius: 10px; border: 1px solid rgba(56,214,245,.5); background: linear-gradient(90deg, rgba(56,214,245,.2), rgba(56,214,245,.05)); color: #fff; font-family: var(--mm-font); font-size: 15px; letter-spacing: .06em; text-transform: uppercase; text-align: left; }
+.dock-open b { flex: 1; }
+.dock-open:hover { background: linear-gradient(90deg, rgba(56,214,245,.32), rgba(56,214,245,.08)); }
+.dock-open kbd { font-family: var(--mono); font-size: 11px; background: rgba(255,255,255,.12); border-radius: 4px; padding: 1px 6px; }
+.dock-kpis { grid-template-columns: repeat(2, 1fr) !important; }
+.dock-kpis .k.link { cursor: pointer; }
+.dock-kpis .k.link:hover { border-color: rgba(56,214,245,.5); }
+.dock-kpis .k b { font-size: 13.5px; }
+.dock-todo { width: 100%; display: grid; grid-template-columns: 22px 1fr 10px; align-items: center; gap: 6px; text-align: left; padding: 8px 9px; margin: 4px 0; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: #e2e8f0; font-size: 12.5px; }
+.dock-todo i { font-style: normal; color: var(--muted); }
+.dock-todo.warn { border-color: rgba(251,191,36,.5); }
+.dock-todo.bad { border-color: rgba(248,113,113,.6); background: rgba(248,113,113,.08); }
+.dock-todo.good { border-color: rgba(52,211,153,.4); }
+.dock-todo:hover { background: rgba(255,255,255,.08); }
+.dock-site { padding: 6px 8px; margin: 4px 0; border-radius: 8px; background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.3); cursor: pointer; font-size: 12px; }
+.dock-site .row { display: flex; justify-content: space-between; gap: 6px; }
+.dock-site small { font-family: var(--mono); color: #fde68a; white-space: nowrap; }
+.dock-rank { font-size: 12.5px; font-weight: 700; color: #fde68a; margin: 4px 0; cursor: pointer; }
+.dock-goal { margin: 5px 0; }
+.dock-goal small { font-size: 11.5px; color: #cbd5e1; }
+@media (max-width: 900px) {
+  #mgmt { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .mg-nav { max-height: 34vh; padding: 14px 10px 8px 14px; border-right: 0; border-bottom: 1px solid rgba(56,214,245,.18); }
+  .mg-nav .mm-list { flex-direction: row; overflow-x: auto; border-left: 0; }
+  .mg-nav .mm-item { flex: 0 0 auto; width: auto; }
+  .mg-nav .mm-item small, .mg-name, .mg-foot .mm-toggle small { display: none; }
+  .mg-head { padding: 12px 14px 4px; }
+  .mg-head h2 { font-size: 20px; }
+  .mg-body { padding: 4px 14px 20px; column-width: auto; columns: 1; }
+}
+.rwy-line { font-size: 12.5px; }
+.rwy-line .rwy-id { font-family: var(--mono); background: rgba(255,255,255,.08); border-radius: 4px; padding: 0 5px; margin-right: 4px; }

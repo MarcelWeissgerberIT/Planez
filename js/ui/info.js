@@ -25,6 +25,8 @@ const SITE_DESC = {
   ils3: 'Neue Landekurs- und Gleitweg-Antennen für CAT III.',
   rapidExit: 'Schnellabrollwege werden asphaltiert – Rollwege mit Pylonen abgesperrt.',
   apronLights: 'Kabelgraben und LED-Masten entlang des Vorfelds.',
+  rwy2: 'Neue Parallelbahn Süd mit Rollweg B und Kreuzungen – die Baufront wandert von West nach Ost.',
+  rwy: 'Pistenarbeiten: nur nachts in Verkehrspausen, die Bahn ist währenddessen gesperrt.',
 };
 
 const BDESC = {
@@ -140,7 +142,7 @@ export function renderInfo(el, state, ui) {
       return;
     }
     const rem = remainingHours(p);
-    const key = p.kind === 'upgrade' ? p.target : p.kind;
+    const key = p.kind === 'upgrade' ? p.target : p.kind === 'rwy' ? 'rwy' : p.kind;
     h += `<div class="i-head"><div><div class="i-cs">🏗️ ${esc(p.name)}</div><div class="i-sub">${SITE_DESC[key] || 'Baustelle'}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
     h += progressBar(p);
     h += `<div class="i-grid"><div><span>Status</span><b>${p.status === 'waiting' ? 'wartet' : state.weather.kind === 'storm' ? 'Pause (Gewitter)' : 'in Arbeit'}</b></div><div><span>Restzeit</span><b>${p.status === 'waiting' ? '—' : fmtHours(rem)}</b></div><div><span>Baubeginn</span><b>${fmtClock(p.start)}</b></div><div><span>Bauzeit</span><b>${p.hours} h</b></div><div><span>Investition</span><b>${fmtMoney(p.cost)}</b></div><div><span>Fertig</span><b>${p.status === 'waiting' ? '—' : fmtClock(state.time + rem * 3600)}</b></div></div>`;

@@ -97,6 +97,7 @@ export const UPGRADES = {
   lounge: { name: 'Premium-Lounge', desc: 'Langstrecken-Airlines zufriedener, mehr Angebote.', max: 1, cost: [1400000], cat: 'Terminal' },
   parking: { name: 'Parkhaus-Ausbau', desc: 'Parkerlöse +40 % je Stufe.', max: 2, cost: [1500000, 2400000], cat: 'Landseite' },
   hotel: { name: 'Flughafen-Hotel', desc: 'Täglicher Zusatzerlös und mehr Ansehen.', max: 1, cost: [4200000], cat: 'Landseite' },
+  rwy2: { name: 'Parallelbahn Süd (09R/27L)', icon: '🛬', big: true, desc: 'Zweite Start- und Landebahn mit Parallelrollweg B: Landungen auf der Südbahn, Starts auf der Nordbahn – deutlich mehr Kapazität, Pistenarbeiten ohne Betriebsstopp.', more: 'Ankünfte kreuzen danach die Startbahn (Kreuzungsfreigabe durch den Tower). Laufende Kosten: +9.000 €/Tag.', max: 1, cost: [9500000], cat: 'Pisten' },
   ils3: { name: 'ILS CAT III', desc: 'Landungen auch bei dichtem Nebel möglich.', max: 1, cost: [3000000], cat: 'Betrieb' },
   rapidExit: { name: 'Schnellabrollwege', desc: 'Kürzere Pistenbelegung nach der Landung.', max: 1, cost: [2500000], cat: 'Betrieb' },
   apronLights: { name: 'LED-Vorfeldbeleuchtung', desc: 'Nachts 15 % schnellere Abfertigung, weniger Stromkosten.', max: 1, cost: [700000], cat: 'Betrieb' },

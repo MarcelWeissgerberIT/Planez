@@ -132,7 +132,7 @@ export function dailyFixedCosts(state) {
   return {
     staff: state.staff * COSTS.staffDaily,
     atc: COSTS.atcDaily,
-    infra: built * COSTS.standDaily + COSTS.runwayDaily + COSTS.terminalDaily * (1 + 0.08 * (u.retail + u.security + u.lounge)),
+    infra: built * COSTS.standDaily + COSTS.runwayDaily * (1 + (u.rwy2 || 0)) + COSTS.terminalDaily * (1 + 0.08 * (u.retail + u.security + u.lounge)),
     vehicles: state.vehicles.reduce((t, v) => t + VEH_TYPES[v.type].upkeep, 0),
     admin: COSTS.adminDaily,
     utilities: COSTS.utilitiesDaily * (u.apronLights ? 0.85 : 1) * (1 + 0.05 * u.parking),
@@ -247,12 +247,15 @@ export function buyUpgrade(state, key) {
   return true;
 }
 // Pistenarbeiten beauftragen (laufen nachts in Verkehrspausen)
-export function orderRunwayWork(state, key) {
+export function orderRunwayWork(state, spec) {
+  const [key, strip = 'N'] = String(spec).split(':');
   const w = RWY_WORKS[key];
   if (!w || projects(state).some((p) => p.kind === 'rwy')) return false;
+  if (strip === 'S' && !state.upgrades.rwy2) return false;
   if (state.cash < w.cost) return notify(state, 'Nicht genug Geld', 'bad'), false;
-  capex(state, w.cost, w.name);
-  startProject(state, 'rwy', key, { name: w.name, cost: w.cost, hours: w.hours });
+  const name = `${w.name}${state.upgrades.rwy2 ? (strip === 'S' ? ' (Südbahn)' : ' (Nordbahn)') : ''}`;
+  capex(state, w.cost, name);
+  startProject(state, 'rwy', key, { name, cost: w.cost, hours: w.hours, strip });
   return true;
 }
 export function buyVehicle(state, type) {
@@ -322,7 +325,7 @@ export function offerFits(state, o) {
 }
 
 // ---------- Management-KI ----------
-const AUTO_UPGRADES = ['security', 'retail', 'apronLights', 'parking', 'rapidExit', 'retail', 'ils3', 'security', 'lounge', 'parking', 'retail', 'hotel', 'security'];
+const AUTO_UPGRADES = ['security', 'retail', 'apronLights', 'parking', 'rapidExit', 'retail', 'ils3', 'security', 'lounge', 'parking', 'retail', 'hotel', 'rwy2', 'security'];
 export function autoManager(state) {
   const reserve = 1500000;
   // Angebote
@@ -371,8 +374,11 @@ export function autoManager(state) {
   // Piste instand halten
   const cond = rwyCond(state);
   if (!projects(state).some((p) => p.kind === 'rwy')) {
-    if (cond < 32 && state.cash > RWY_WORKS.resurface.cost + reserve) orderRunwayWork(state, 'resurface');
-    else if (cond < 58 && state.cash > RWY_WORKS.clean.cost + reserve * 0.3) orderRunwayWork(state, 'clean');
+    const condS = state.upgrades.rwy2 ? rwyCond(state, 'S') : 100;
+    const strip = condS < cond ? 'S' : 'N';
+    const c = Math.min(cond, condS);
+    if (c < 32 && state.cash > RWY_WORKS.resurface.cost + reserve) orderRunwayWork(state, `resurface:${strip}`);
+    else if (c < 58 && state.cash > RWY_WORKS.clean.cost + reserve * 0.3) orderRunwayWork(state, `clean:${strip}`);
   }
   // Liquidität: im Notfall Kredit, bei voller Kasse tilgen
   if (state.cash < 250000 && loanLimit(state) >= 2000000 && state.hourTick % 6 === 0) takeLoan(state, 2000000);

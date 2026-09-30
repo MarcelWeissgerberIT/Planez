@@ -49,6 +49,16 @@ export function siteGeom(state, p) {
       return { x0: -0.6, y0: 30.2, x1: 2.4, y1: 34.2, fence: true, ground: 'gravel', antenna: true, machines: [m('mixer', 0.4, 34.0, { shake: true }), m('excavator', 1.9, 30.9, { dig: true })], label: 'ILS' };
     case 'rapidExit':
       return { x0: 43.2, y0: 28.2, x1: 48.6, y1: 29.8, fence: false, cones: [32, 44], ground: null, machines: [m('excavator', 46.0, 29.2, { dig: true }), m('mixer', 47.9, 29.0, { shake: true })], label: 'Rollwege' };
+    case 'rwy2': {
+      // Parallelbahn: Baufront wandert von West nach Ost, dahinter frischer Asphalt
+      const S = LY.RWY_S;
+      const front = S.x0 + (S.x1 - S.x0) * clamp(p.prog, 0.02, 0.98);
+      return {
+        x0: 3.4, y0: LY.TWY_B - 1.1, x1: 76.6, y1: S.y + S.hw + 1.0, fence: true, ground: 'rwy2', front,
+        machines: [m('excavator', Math.min(74, front + 3), S.y - 0.2, { dig: true }), m('mixer', Math.max(6, front - 1.2), S.y + 0.7, { shake: true }), m('excavator', Math.min(74, front + 5), LY.TWY_B + 0.3, { dig: true }), m('mixer', Math.max(6, front + 0.8), LY.TWY_B - 0.3, { shake: true }), m('crane', 38, S.y + 2.3), m('site_office', 71, S.y + 2.8)],
+        label: 'Parallelbahn',
+      };
+    }
     case 'apronLights':
       // Kabelgraben entlang der Vorfeldkante
       return { x0: 14, y0: 25.45, x1: 66, y1: 26.35, fence: false, cones: null, ground: 'trench', machines: [m('excavator', 14 + 52 * clamp(p.prog, 0.02, 0.98), 26.3, { dig: true })], label: 'Licht' };
@@ -107,6 +117,27 @@ export function drawSiteGround(r, state, p, g) {
       ctx.fillRect(g.stand.x - 0.035, LY.STAND_NOSE + 0.2, 0.07, g.y1 - LY.STAND_NOSE - 0.3);
       ctx.fillRect(g.stand.x - 0.35, LY.STAND_NOSE + 0.12, 0.7, 0.08);
       ctx.globalAlpha = 1;
+    }
+  }
+  if (g.ground === 'rwy2') {
+    const S = LY.RWY_S;
+    ctx.fillStyle = gravel;
+    ctx.fillRect(S.x0 - 1, S.y - S.hw - 0.4, S.x1 - S.x0 + 2, 2 * S.hw + 0.8);
+    ctx.fillRect(6, LY.TWY_B - 0.75, 68, 1.5);
+    const f = g.front;
+    ctx.fillStyle = asphalt;
+    ctx.fillRect(S.x0, S.y - S.hw, f - S.x0, 2 * S.hw);
+    ctx.fillRect(6.4, LY.TWY_B - 0.67, Math.max(0, f - 6.4 - 3), 1.34);
+    // frische Markierungen hinter der Front
+    if (p.prog > 0.3) {
+      ctx.fillStyle = 'rgba(244,244,240,0.9)';
+      for (let x = S.x0 + 8; x < f - 3; x += 2.4) ctx.fillRect(x, S.y - 0.05, 1.4, 0.1);
+    }
+    // Vermessungspflöcke vor der Front
+    ctx.fillStyle = '#f97316';
+    for (let x = f + 2; x < S.x1; x += 3) {
+      ctx.fillRect(x, S.y - S.hw, 0.12, 0.12);
+      ctx.fillRect(x, S.y + S.hw - 0.12, 0.12, 0.12);
     }
   }
   if (g.ground === 'trench') {

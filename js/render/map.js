@@ -7,7 +7,7 @@ import { PH } from '../sim/aircraft.js';
 import { hourOf, roundedPath, clamp, lerp } from '../util.js';
 import { MARKS } from '../ui/marks.js';
 import { siteGeom, drawSiteGround, siteItems, permanentItems, drawSiteLabel } from './sites.js';
-import { runwayClosed } from '../sim/runway.js';
+import { runwayClosed, stripGeom } from '../sim/runway.js';
 const markOf = (ac) => (ac.mark && MARKS[ac.mark.c] ? MARKS[ac.mark.c] : null);
 
 const BH = { hall: 1.3, tower: 5, hangar: 1.8, cargo: 0.9, depot: 0.7, fire: 0.8, fuel: 0.9, parking: 1.1, hotel: 3.2, radar: 2.6 };
@@ -58,7 +58,7 @@ export class MapRenderer {
   }
 
   groundKey(state) {
-    return state.stands.map((s) => (s.built ? s.size : '-')).join('') + '|' + state.upgrades.parking + state.upgrades.hotel + state.upgrades.rapidExit;
+    return state.stands.map((s) => (s.built ? s.size : '-')).join('') + '|' + state.upgrades.parking + state.upgrades.hotel + state.upgrades.rapidExit + (state.upgrades.rwy2 || 0) + '|' + Math.round((state.rwyCond ?? 88) / 10) + Math.round((state.rwyCondS ?? 100) / 10);
   }
 
   // ---------- Boden-Cache ----------
@@ -246,33 +246,34 @@ export class MapRenderer {
 
   // Pistenarbeiten / FOD-Kontrolle: Sperrkreuze, frische Deckschicht, Fahrzeuge auf der Piste
   drawRunwayWorkGround(state) {
-    const closed = runwayClosed(state);
     const ctx = this.ctx, cam = this.cam;
-    const rw = LY.RWY;
     const p = state.rwyWorking ? (state.projects || []).find((q) => q.id === state.rwyWorking) : null;
     cam.setIso(ctx, 0.01);
     if (p) {
+      const rw = stripGeom(p.strip || 'N');
       const x = rw.x0 + 4 + (rw.x1 - rw.x0 - 8) * p.prog;
       ctx.fillStyle = p.target === 'resurface' ? 'rgba(20,20,24,0.55)' : 'rgba(255,255,255,0.10)';
       ctx.fillRect(rw.x0 + 0.3, rw.y - rw.hw + 0.05, x - rw.x0 - 0.3, 2 * rw.hw - 0.1);
     }
-    if (!closed) return;
-    // weiße Sperrkreuze an beiden Enden
-    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
-    ctx.lineWidth = 0.28;
-    ctx.lineCap = 'butt';
-    for (const cx of [rw.x0 + 6, rw.x1 - 6, (rw.x0 + rw.x1) / 2]) {
-      ctx.beginPath();
-      ctx.moveTo(cx - 1.4, rw.y - 0.85);
-      ctx.lineTo(cx + 1.4, rw.y + 0.85);
-      ctx.moveTo(cx - 1.4, rw.y + 0.85);
-      ctx.lineTo(cx + 1.4, rw.y - 0.85);
-      ctx.stroke();
+    for (const strip of state.upgrades.rwy2 ? ['N', 'S'] : ['N']) {
+      if (!runwayClosed(state, strip)) continue;
+      const rw = stripGeom(strip);
+      // weiße Sperrkreuze
+      ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+      ctx.lineWidth = 0.28;
+      ctx.lineCap = 'butt';
+      for (const cx of [rw.x0 + 6, rw.x1 - 6, (rw.x0 + rw.x1) / 2]) {
+        ctx.beginPath();
+        ctx.moveTo(cx - 1.4, rw.y - 0.85);
+        ctx.lineTo(cx + 1.4, rw.y + 0.85);
+        ctx.moveTo(cx - 1.4, rw.y + 0.85);
+        ctx.lineTo(cx + 1.4, rw.y - 0.85);
+        ctx.stroke();
+      }
     }
   }
 
   runwayWorkItems(state, items, lights) {
-    const rw = LY.RWY;
     const t = this.time;
     const mk = (id, type, x, y, hdg) => {
       const fv = { id, type, x, y, hdg, st: 'work', brokenUntil: 0 };
@@ -280,11 +281,13 @@ export class MapRenderer {
     };
     if (state.rwyWorking) {
       const p = (state.projects || []).find((q) => q.id === state.rwyWorking);
+      const rw = stripGeom((p && p.strip) || 'N');
       const x = rw.x0 + 4 + (rw.x1 - rw.x0 - 8) * (p ? p.prog : 0);
       const types = p && p.target === 'resurface' ? ['catering', 'fuel', 'baggage', 'tug'] : ['cleaning', 'fuel', 'cleaning', 'tug'];
       types.forEach((ty, i) => mk(`rw${i}`, ty, x + (i - 1.5) * 1.5 + Math.sin(t * 0.4 + i) * 0.35, rw.y + (i % 2 ? 0.45 : -0.45), Math.PI));
     } else if (state.rwyClosedUntil > state.time && (state.rwyClosedWhy || '').startsWith('FOD')) {
       // Kontrollfahrzeug fährt die Piste ab
+      const rw = stripGeom(state.rwyClosedStrip || 'N');
       const span = rw.x1 - rw.x0 - 2;
       const u = (t * 1.4) % (2 * span);
       const fwd = u < span;
@@ -434,7 +437,7 @@ export class MapRenderer {
   drawWindsock(state) {
     const ctx = this.ctx, cam = this.cam;
     cam.setScreen(ctx);
-    const base = cam.toScreen(66, 35.6, 0), top = cam.toScreen(66, 35.6, 0.5);
+    const base = cam.toScreen(66, 35.4, 0), top = cam.toScreen(66, 35.4, 0.5);
     ctx.strokeStyle = '#d9d9d9';
     ctx.lineWidth = Math.max(1, 1.6 * cam.zoom);
     ctx.beginPath();
@@ -659,6 +662,28 @@ export class MapRenderer {
     }
     const rw = LY.RWY;
     const t = this.time;
+    if (night > 0.05 && state.upgrades.rwy2) {
+      // Südbahn: Randfeuer, Schwellen, Rollweg B, Anflugbefeuerung
+      const S = LY.RWY_S;
+      for (let x = S.x0 + 0.5; x <= S.x1 - 0.5; x += 2) {
+        lights.push({ x, y: S.y - S.hw - 0.05, c: '#fff6dc', s: 9, a: 0.9 });
+        lights.push({ x, y: S.y + S.hw + 0.05, c: '#fff6dc', s: 9, a: 0.9 });
+      }
+      const dS = LY.rwyDir(state.rwy);
+      const thrS = S.thr[state.rwy], endS = S.thr[state.rwy === '27' ? '09' : '27'];
+      for (let yy = -1.1; yy <= 1.1; yy += 0.36) {
+        lights.push({ x: thrS - dS * 0.2, y: S.y + yy, c: '#30ff60', s: 12, a: 1 });
+        lights.push({ x: endS + dS * 0.2, y: S.y + yy, c: '#ff2a20', s: 12, a: 1 });
+      }
+      for (let x = 8; x <= 72; x += 1.4) lights.push({ x, y: LY.TWY_B, c: '#30ff80', s: 6, a: 0.8 });
+      for (const c of LY.CROSS) for (let d = -0.55; d <= 0.56; d += 0.22) lights.push({ x: c + d, y: LY.HOLD_CROSS, c: '#ffb020', s: 7, a: 0.9 });
+      const rabbitS = Math.floor((t * 16 + 7) % 20);
+      for (let i = 1; i <= 16; i++) {
+        const x = thrS - dS * (i * 1.1 + 0.8);
+        lights.push({ x, y: S.y, c: '#fff4e0', s: 10, a: 0.9 });
+        if (16 - i === rabbitS) lights.push({ x, y: S.y, z: 0.05, c: '#ffffff', s: 30, a: 1, day: true });
+      }
+    }
     if (night > 0.05) {
       for (let x = rw.x0 + 0.5; x <= rw.x1 - 0.5; x += 2) {
         const c = '#fff6dc';
@@ -1019,7 +1044,7 @@ function drawGround(g, state, trees) {
   g.fillRect(10.2, T.y1, 58.2, LY.LANE + 1.6 - T.y1); // Hauptvorfeld
   g.fillRect(49.5, 9.6, 25, 11.4); // Fracht/Depot
   g.fillRect(0.6, 21.2, 10.2, 5.8); // Hangar-Vorfeld
-  g.fillRect(34.8, 34.5, 5.8, 2.7); // Feuerwache
+  g.fillRect(34.8, 43.9, 5.8, 2.1); // Feuerwache
   g.fillRect(74.4, 12.6, 6, 4.4); // Tanklager
   // Dehnfugen etwas dunkler an Vorfeldkante
   g.strokeStyle = 'rgba(240,200,40,0.9)';
@@ -1050,76 +1075,26 @@ function drawGround(g, state, trees) {
     strokeP([{ x: c + 3, y: LY.TWY_A }, { x: c, y: LY.TWY_A }, { x: c, y: LY.LANE }, { x: c - 3, y: LY.LANE }]);
   }
   strokeP([{ x: 5.5, y: 26.8 }, { x: 5.5, y: LY.TWY_A }, { x: 9, y: LY.TWY_A }], 1);
-  // Piste
+  // Pisten (Nord immer, Süd nach dem Ausbau)
+  const two = !!state.upgrades.rwy2;
   const rw = LY.RWY;
-  g.fillStyle = 'rgba(150,150,140,0.55)';
-  g.fillRect(rw.x0, rw.y - rw.hw - 0.4, rw.x1 - rw.x0, 2 * rw.hw + 0.8);
-  g.fillStyle = asphalt;
-  g.fillRect(rw.x0, rw.y - rw.hw, rw.x1 - rw.x0, 2 * rw.hw);
-  g.fillStyle = 'rgba(0,0,0,0.12)';
-  g.fillRect(rw.x0, rw.y - 0.35, rw.x1 - rw.x0, 0.7); // Gummiabrieb
-  // Blast pads
-  g.fillStyle = 'rgba(110,110,100,0.9)';
-  g.fillRect(rw.x0 - 2, rw.y - rw.hw, 2, 2 * rw.hw);
-  g.fillRect(rw.x1, rw.y - rw.hw, 2, 2 * rw.hw);
-  g.strokeStyle = '#e8c21a';
-  g.lineWidth = 0.1;
-  for (const [x0, d] of [[rw.x0, -1], [rw.x1, 1]]) {
-    for (let k = 0.4; k < 2; k += 0.55) {
-      g.beginPath();
-      g.moveTo(x0 + d * (k - 0.4), rw.y - rw.hw + 0.1);
-      g.lineTo(x0 + d * k, rw.y);
-      g.lineTo(x0 + d * (k - 0.4), rw.y + rw.hw - 0.1);
-      g.stroke();
+  if (two) {
+    // Parallelrollweg B, Abrollwege der Südbahn, Kreuzungen der Nordbahn
+    const S = LY.RWY_S;
+    strokeP([{ x: 6.4, y: LY.TWY_B }, { x: 73.6, y: LY.TWY_B }]);
+    for (const x of LY.EXITS_S) {
+      strokeP([{ x, y: S.y }, { x, y: LY.TWY_B }]);
+      strokeP([{ x: x - 3, y: S.y }, { x, y: S.y }, { x, y: LY.TWY_B }, { x: x + 3, y: LY.TWY_B }]);
+      strokeP([{ x: x + 3, y: S.y }, { x, y: S.y }, { x, y: LY.TWY_B }, { x: x - 3, y: LY.TWY_B }]);
     }
+    for (const c of LY.CROSS) {
+      strokeP([{ x: c, y: LY.TWY_B }, { x: c, y: rw.y }]);
+      strokeP([{ x: c - 2.5, y: LY.TWY_B }, { x: c, y: LY.TWY_B }, { x: c, y: rw.y }]);
+      strokeP([{ x: c + 2.5, y: LY.TWY_B }, { x: c, y: LY.TWY_B }, { x: c, y: rw.y }]);
+    }
+    paintRunway(g, S, { '09': '09R', '27': '27L' }, asphalt, state.rwyCondS ?? 100);
   }
-  // Pistenmarkierungen (weiß)
-  g.fillStyle = '#f4f4f0';
-  g.fillRect(rw.x0 + 0.2, rw.y - rw.hw + 0.08, rw.x1 - rw.x0 - 0.4, 0.07);
-  g.fillRect(rw.x0 + 0.2, rw.y + rw.hw - 0.15, rw.x1 - rw.x0 - 0.4, 0.07);
-  for (let x = rw.thr['09'] + 5; x < rw.thr['27'] - 5.5; x += 2.4) g.fillRect(x, rw.y - 0.05, 1.4, 0.1);
-  for (const rwy of ['09', '27']) {
-    const tx = rw.thr[rwy];
-    const d = LY.rwyDir(rwy);
-    // Schwellenbalken
-    for (let i = 0; i < 12; i++) {
-      const yy = rw.y - 1.0 + i * 0.172 + (i >= 6 ? 0.25 : 0);
-      if (yy > rw.y + 1.02) continue;
-      g.fillRect(d > 0 ? tx + 0.15 : tx - 1.75, yy - 0.2 + 0.2, 1.6, 0.1);
-    }
-    g.fillRect(tx - 0.04, rw.y - rw.hw + 0.1, 0.08, 2 * rw.hw - 0.2);
-    // Aufsetzzone
-    for (const [k, big] of [[3.2, false], [4.6, true], [6.2, false], [7.8, false]]) {
-      const x = tx + d * k;
-      const len = big ? 1.2 : 0.7;
-      const th = big ? 0.28 : 0.09;
-      for (const side of [-1, 1]) {
-        const y0 = rw.y + side * (big ? 0.45 : 0.4);
-        for (let j = 0; j < (big ? 1 : 2); j++) g.fillRect(d > 0 ? x : x - len, y0 + (side > 0 ? j * 0.16 : -j * 0.16 - th), len, th);
-      }
-    }
-    // Kennung
-    g.save();
-    g.translate(tx + d * 2.5, rw.y);
-    g.rotate(d > 0 ? Math.PI / 2 : -Math.PI / 2);
-    g.scale(0.04, 0.04);
-    g.font = '700 30px Arial, sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText(rwy, 0, 0);
-    g.restore();
-  }
-  // Anflugbefeuerung (Masten)
-  g.fillStyle = 'rgba(80,80,80,0.7)';
-  for (const rwy of ['09', '27']) {
-    const d = LY.rwyDir(rwy);
-    const tx = rw.thr[rwy];
-    for (let i = 1; i <= 16; i++) {
-      const x = tx - d * (i * 1.1 + 0.8);
-      g.fillRect(x - 0.05, rw.y - 0.18, 0.1, 0.36);
-      if (i === 8) g.fillRect(x - 0.05, rw.y - 1.1, 0.1, 2.2);
-    }
-  }
+  paintRunway(g, rw, two ? { '09': '09L', '27': '27R' } : { '09': '09', '27': '27' }, asphalt, state.rwyCond ?? 88);
 
   // ---- Gelbe Markierungen ----
   g.strokeStyle = '#f2c81f';
@@ -1143,6 +1118,29 @@ function drawGround(g, state, trees) {
     for (let k = -0.68; k < 0.68; k += 0.28) {
       g.fillRect(k + x, LY.HOLD_Y + 0.1, 0.15, 0.05);
       g.fillRect(k + x, LY.HOLD_Y + 0.2, 0.15, 0.05);
+    }
+  }
+  if (two) {
+    g.strokeStyle = '#f2c81f';
+    g.lineWidth = 0.07;
+    strokeP([{ x: 6.4, y: LY.TWY_B }, { x: 73.6, y: LY.TWY_B }]);
+    for (const x of LY.EXITS_S) {
+      strokeP([{ x: x - 3, y: LY.RWY_S.y }, { x, y: LY.RWY_S.y }, { x, y: LY.TWY_B }, { x: x + 3, y: LY.TWY_B }], 1.3);
+      strokeP([{ x: x + 3, y: LY.RWY_S.y }, { x, y: LY.RWY_S.y }, { x, y: LY.TWY_B }, { x: x - 3, y: LY.TWY_B }], 1.3);
+    }
+    for (const c of LY.CROSS) {
+      strokeP([{ x: c, y: LY.TWY_B }, { x: c, y: rw.y }]);
+      // Haltelinie vor der Nordbahn (Kreuzung)
+      g.fillStyle = '#f2c81f';
+      g.fillRect(c - 0.68, LY.HOLD_CROSS + 0.02, 1.36, 0.05);
+      g.fillRect(c - 0.68, LY.HOLD_CROSS + 0.12, 1.36, 0.05);
+      for (let k = -0.68; k < 0.68; k += 0.28) {
+        g.fillRect(k + c, LY.HOLD_CROSS - 0.1, 0.15, 0.05);
+        g.fillRect(k + c, LY.HOLD_CROSS - 0.2, 0.15, 0.05);
+      }
+      // rote Kreuzungs-Tafel
+      g.fillStyle = 'rgba(200,30,30,0.95)';
+      g.fillRect(c + 0.8, LY.HOLD_CROSS - 0.15, 0.5, 0.25);
     }
   }
   // Servicestraße
@@ -1185,7 +1183,80 @@ function drawGround(g, state, trees) {
     g.fillText(String(st.id), 0, 1);
     g.restore();
   }
-  // Feuerwehrzufahrt
+  // Feuerwehrzufahrt (bis zur Nordbahn, über die Südbahn hinweg)
   g.fillStyle = asphalt;
-  g.fillRect(36.9, rw.y + rw.hw + 0.3, 0.9, 34.6 - (rw.y + rw.hw + 0.3));
+  if (two) {
+    g.fillRect(36.9, rw.y + rw.hw + 0.3, 0.9, LY.RWY_S.y - LY.RWY_S.hw - 0.5 - (rw.y + rw.hw + 0.3));
+    g.fillRect(36.9, LY.RWY_S.y + LY.RWY_S.hw + 0.4, 0.9, 43.9 - (LY.RWY_S.y + LY.RWY_S.hw + 0.4));
+  } else g.fillRect(36.9, rw.y + rw.hw + 0.3, 0.9, 43.9 - (rw.y + rw.hw + 0.3));
+}
+
+// Eine Piste mit Markierungen, Kennungen und Anflugbefeuerungs-Masten
+function paintRunway(g, rw, names, asphalt, cond = 90) {
+  g.fillStyle = 'rgba(150,150,140,0.55)';
+  g.fillRect(rw.x0, rw.y - rw.hw - 0.4, rw.x1 - rw.x0, 2 * rw.hw + 0.8);
+  g.fillStyle = asphalt;
+  g.fillRect(rw.x0, rw.y - rw.hw, rw.x1 - rw.x0, 2 * rw.hw);
+  g.fillStyle = `rgba(0,0,0,${0.04 + (1 - cond / 100) * 0.3})`;
+  g.fillRect(rw.x0, rw.y - 0.35, rw.x1 - rw.x0, 0.7); // Gummiabrieb
+  for (const tx of [rw.thr['09'] + 3, rw.thr['27'] - 11]) g.fillRect(tx, rw.y - 0.5, 8, 1.0);
+  // Blast pads
+  g.fillStyle = 'rgba(110,110,100,0.9)';
+  g.fillRect(rw.x0 - 2, rw.y - rw.hw, 2, 2 * rw.hw);
+  g.fillRect(rw.x1, rw.y - rw.hw, 2, 2 * rw.hw);
+  g.strokeStyle = '#e8c21a';
+  g.lineWidth = 0.1;
+  for (const [x0, d] of [[rw.x0, -1], [rw.x1, 1]]) {
+    for (let k = 0.4; k < 2; k += 0.55) {
+      g.beginPath();
+      g.moveTo(x0 + d * (k - 0.4), rw.y - rw.hw + 0.1);
+      g.lineTo(x0 + d * k, rw.y);
+      g.lineTo(x0 + d * (k - 0.4), rw.y + rw.hw - 0.1);
+      g.stroke();
+    }
+  }
+  // Pistenmarkierungen (weiß)
+  g.fillStyle = '#f4f4f0';
+  g.fillRect(rw.x0 + 0.2, rw.y - rw.hw + 0.08, rw.x1 - rw.x0 - 0.4, 0.07);
+  g.fillRect(rw.x0 + 0.2, rw.y + rw.hw - 0.15, rw.x1 - rw.x0 - 0.4, 0.07);
+  for (let x = rw.thr['09'] + 5; x < rw.thr['27'] - 5.5; x += 2.4) g.fillRect(x, rw.y - 0.05, 1.4, 0.1);
+  for (const rwy of ['09', '27']) {
+    const tx = rw.thr[rwy];
+    const d = LY.rwyDir(rwy);
+    for (let i = 0; i < 12; i++) {
+      const yy = rw.y - 1.0 + i * 0.172 + (i >= 6 ? 0.25 : 0);
+      if (yy > rw.y + 1.02) continue;
+      g.fillRect(d > 0 ? tx + 0.15 : tx - 1.75, yy - 0.2 + 0.2, 1.6, 0.1);
+    }
+    g.fillRect(tx - 0.04, rw.y - rw.hw + 0.1, 0.08, 2 * rw.hw - 0.2);
+    for (const [k, big] of [[3.2, false], [4.6, true], [6.2, false], [7.8, false]]) {
+      const x = tx + d * k;
+      const len = big ? 1.2 : 0.7;
+      const th = big ? 0.28 : 0.09;
+      for (const side of [-1, 1]) {
+        const y0 = rw.y + side * (big ? 0.45 : 0.4);
+        for (let j = 0; j < (big ? 1 : 2); j++) g.fillRect(d > 0 ? x : x - len, y0 + (side > 0 ? j * 0.16 : -j * 0.16 - th), len, th);
+      }
+    }
+    g.save();
+    g.translate(tx + d * 2.5, rw.y);
+    g.rotate(d > 0 ? Math.PI / 2 : -Math.PI / 2);
+    g.scale(0.04, 0.04);
+    g.font = '700 30px Arial, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(names[rwy], 0, 0);
+    g.restore();
+  }
+  // Anflugbefeuerung (Masten)
+  g.fillStyle = 'rgba(80,80,80,0.7)';
+  for (const rwy of ['09', '27']) {
+    const d = LY.rwyDir(rwy);
+    const tx = rw.thr[rwy];
+    for (let i = 1; i <= 16; i++) {
+      const x = tx - d * (i * 1.1 + 0.8);
+      g.fillRect(x - 0.05, rw.y - 0.18, 0.1, 0.36);
+      if (i === 8) g.fillRect(x - 0.05, rw.y - 1.1, 0.1, 2.2);
+    }
+  }
 }

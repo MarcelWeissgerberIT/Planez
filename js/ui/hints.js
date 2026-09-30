@@ -64,16 +64,16 @@ function groundHint(s) {
 
 function managerHint(s) {
   const fu = fuelState(s);
-  if (fu.stock + fu.orders.reduce((t, o) => t + o.qty, 0) < FUEL.cap * 0.3) return `⛽ Kerosin wird knapp (${Math.round(fu.stock)} t) – im Tab <b>Kerosin</b> nachkaufen.`;
-  if (s.cash < 0) return `Kasse im Minus – im Tab <b>Finanzen</b> einen Kredit aufnehmen oder Ausgaben senken.`;
-  if (rwyCond(s) < 50 && !(s.projects || []).some((p) => p.kind === 'rwy')) return `Pistenzustand nur ${Math.round(rwyCond(s))} % – unter <b>Ausbau</b> Gummiabrieb entfernen lassen (läuft nachts).`;
-  if ((s.stats.today.complaints || 0) > 25 && !s.settings.curfew) return `Viele Lärmbeschwerden – Nachtentgelt erhöhen oder ein Nachtflugverbot prüfen (Tab <b>Gebühren</b>).`;
+  if (fu.stock + fu.orders.reduce((t, o) => t + o.qty, 0) < FUEL.cap * 0.3) return `⛽ Kerosin wird knapp (${Math.round(fu.stock)} t) – Management-Zentrale (O) → <b>Kerosin</b>.`;
+  if (s.cash < 0) return `Kasse im Minus – Management-Zentrale (O) → <b>Finanzen &amp; Kredite</b>.`;
+  if (rwyCond(s) < 50 && !(s.projects || []).some((p) => p.kind === 'rwy')) return `Pistenzustand nur ${Math.round(rwyCond(s))} % – Management-Zentrale (O) → <b>Pisten &amp; Rollwege</b>: Gummiabrieb entfernen (läuft nachts).`;
+  if ((s.stats.today.complaints || 0) > 25 && !s.settings.curfew) return `Viele Lärmbeschwerden – Nachtentgelt erhöhen oder Nachtflugverbot prüfen (Zentrale → <b>Gebühren</b>).`;
   if (fu.price < FUEL.basePrice * 0.92 && fu.stock < FUEL.cap * 0.7) return `🛢️ Kerosin ist gerade günstig (${Math.round(fu.price)} €/t) – guter Moment zum Einkaufen.`;
-  if (s.offers.length) return `Neues Vertragsangebot – im Tab <b>Verträge</b> prüfen, ob die Kapazität reicht.`;
-  if (s.acs.some((a) => (a.phase === PH.VACATED || a.phase === PH.TAXI_WAIT) && !a.stand)) return `Flugzeuge warten auf Parkpositionen – unter <b>Ausbau</b> neue Positionen bauen.`;
+  if (s.offers.length) return `Neues Vertragsangebot – Management-Zentrale (O) → <b>Airlines &amp; Verträge</b>.`;
+  if (s.acs.some((a) => (a.phase === PH.VACATED || a.phase === PH.TAXI_WAIT) && !a.stand)) return `Flugzeuge warten auf Parkpositionen – Zentrale (O) → <b>Parkpositionen</b> ausbauen.`;
   const w = s.stats.vehWait || {};
   const worst = Object.entries(w).sort((a, b) => b[1] - a[1])[0];
-  if (worst && worst[1] > 1800) return `Engpass bei ${VEH_TYPES[worst[0]].name}en – im Tab <b>Betrieb</b> Fahrzeuge nachkaufen.`;
+  if (worst && worst[1] > 1800) return `Engpass bei ${VEH_TYPES[worst[0]].name}en – Zentrale (O) → <b>Fuhrpark</b> nachkaufen.`;
   if (s.cash > 3000000 && !s.upgrades.retail) return `Tipp: <b>Shopping & Gastronomie</b> erhöht den Umsatz je Passagier dauerhaft.`;
   return null;
 }

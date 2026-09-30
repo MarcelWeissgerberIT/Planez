@@ -9,7 +9,7 @@ import { onBlock, onPushbackStart, onPushbackDone, assignStandAuto } from './gro
 import { onLanding, onTakeoff, penalize } from './economy.js';
 import { slotOpen, acdmOnTakeoff } from './acdm.js';
 import { wakeDepSec } from './wake.js';
-import { runwayClosed, decelFactor, onRunwayLanding, brakingAction } from './runway.js';
+import { runwayClosed, decelFactor, onRunwayLanding, brakingAction, stripGeom, rwyName } from './runway.js';
 
 export const PH = {
   INBOUND: 'ARR_INBOUND', HOLD: 'ARR_HOLD', APPROACH: 'ARR_APPROACH', GOAROUND: 'GO_AROUND',
@@ -351,7 +351,7 @@ function passWaypoint(state, ac, w) {
   if (w.iaf && ac.phase === PH.INBOUND) {
     enterHold(state, ac, w);
   } else if (w.faf && ac.phase === PH.APPROACH) {
-    radio(state, ac.cs, `${AS.FIXES ? '' : ''}${tel(ac)}, established ILS runway ${ac.rwy}${ac.clr.land ? '' : ', request landing'}.`);
+    radio(state, ac.cs, `${tel(ac)}, established ILS runway ${rwyName(state, ac.strip || 'N', ac.rwy)}${ac.clr.land ? '' : ', request landing'}.`);
     if (!ac.clr.land) setReq(state, ac, 'land');
   } else if (w.exit && ac.phase === PH.DEPART) {
     ac.phase = PH.GONE;
@@ -367,10 +367,11 @@ function passWaypoint(state, ac, w) {
 
 function toMapFinal(state, ac) {
   const d = LY.rwyDir(ac.rwy);
+  const G = stripGeom(ac.strip);
   ac.mode = 'map';
   ac.phase = PH.FINAL;
-  ac.x = LY.RWY.thr[ac.rwy] - d * LY.APPROACH_TILES;
-  ac.y = LY.RWY.y;
+  ac.x = G.thr[ac.rwy] - d * LY.APPROACH_TILES;
+  ac.y = G.y;
   ac.hdg = d > 0 ? 0 : Math.PI;
   const t = AC_TYPES[ac.type];
   ac.v = t.vapp * 0.0031;
@@ -420,14 +421,15 @@ function updateMap(state, ac, dt) {
   const d = LY.rwyDir(ac.rwy);
   switch (ac.phase) {
     case PH.FINAL: {
-      const tdx = LY.RWY.thr[ac.rwy] + d * LY.RWY.td;
+      const G = stripGeom(ac.strip);
+      const tdx = G.thr[ac.rwy] + d * G.td;
       ac.x += d * ac.v * dt;
       const rem = (tdx - ac.x) * d;
       ac.z = Math.max(0, rem * 0.075);
       if (!ac.decided && rem < 7) {
         ac.decided = true;
         const blk = runwayBlocker(state, ac);
-        const closed = runwayClosed(state);
+        const closed = runwayClosed(state, ac.strip || 'N');
         if (blk) {
           goAround(state, ac, `Piste belegt durch ${blk.cs}`);
           if (ac.clr.landGivenBlocked) penalize(state, 'incursion', ac);
@@ -443,28 +445,33 @@ function updateMap(state, ac, dt) {
         ac.phase = PH.ROLLOUT;
         ac.vacated = false;
         ac.decided = false;
-        const exits = LY.exitsAhead(ac.rwy);
-        const decel = (t.wake === 'H' ? 0.0062 : 0.0082) * (state.upgrades.rapidExit ? 1.12 : 1) * decelFactor(state) * randRange(state, 0.85, 1.12);
+        const south = ac.strip === 'S';
+        const exits = south ? LY.exitsAheadS(ac.rwy) : LY.exitsAhead(ac.rwy);
+        const decel = (t.wake === 'H' ? 0.0062 : 0.0082) * (state.upgrades.rapidExit ? 1.12 : 1) * decelFactor(state, ac.strip || 'N') * randRange(state, 0.85, 1.12);
         const ve = state.upgrades.rapidExit ? 0.16 : 0.12;
         const need = (ac.v * ac.v - ve * ve) / (2 * decel);
         let ex = exits.find((x) => Math.abs(x - tdx) >= need) ?? exits[exits.length - 1];
         ac.exitX = ex;
         ac.decel = decel;
         ac.ve = ve;
-        ac.path = LY.pathRollout(ac.rwy, ex, ac.len);
+        if (south) {
+          ac.crossX = LY.crossingFor(ac.rwy, ex);
+          ac.path = LY.pathRolloutS(ac.rwy, ex, ac.len, ac.crossX);
+        } else ac.path = LY.pathRollout(ac.rwy, ex, ac.len);
         ac.pi = 0;
         ac.x = ac.path[0].x;
         ac.y = ac.path[0].y;
         onLanding(state, ac);
         onRunwayLanding(state, ac);
-        ac.brake = brakingAction(state);
+        ac.brake = brakingAction(state, ac.strip || 'N');
         radio(state, ac.cs, `${tel(ac)}, touchdown.`, 'sys');
       }
       break;
     }
     case PH.ROLLOUT: {
       // Geschwindigkeitsprofil bis zur Abrollstelle
-      const onRwy = Math.abs(ac.y - LY.RWY.y) < 0.2 && (ac.exitX - ac.x) * d > 0.3;
+      const G = stripGeom(ac.strip);
+      const onRwy = Math.abs(ac.y - G.y) < 0.2 && (ac.exitX - ac.x) * d > 0.3;
       let vmax;
       if (onRwy) {
         const dx = Math.abs(ac.exitX - ac.x);
@@ -474,13 +481,22 @@ function updateMap(state, ac, dt) {
         advance(state, ac, dt, ac.v, false, true);
       } else {
         const done = followPath(state, ac, dt, 0.12);
-        if (!ac.vacated && ac.y + ac.len * 0.5 < LY.HOLD_Y + 0.15) {
+        const clearY = ac.strip === 'S' ? LY.RWY_S.y - LY.RWY_S.hw - 0.9 : LY.HOLD_Y + 0.15;
+        if (!ac.vacated && ac.y + ac.len * 0.5 < clearY) {
           ac.vacated = true;
           if (!state.auto.atc) radio(state, ac.cs, `${tel(ac)}, runway vacated${ac.clr.taxi ? '' : ', request taxi'}.`);
         }
         if (done) {
           ac.vacated = true;
-          if (ac.clr.taxi && ac.stand) startTaxiIn(state, ac);
+          if (ac.crossX) {
+            // Südbahn: vor der Nordbahn halten, Kreuzungsfreigabe abwarten
+            ac.phase = PH.VACATED;
+            ac.v = 0;
+            ac.hdg = -Math.PI / 2;
+            if (!ac.stand) ac.waitedStand = true;
+            setReq(state, ac, 'cross');
+            if (!state.auto.atc) radio(state, ac.cs, `${tel(ac)}, holding short runway ${rwyName(state, 'N', ac.rwy)}, request crossing.`);
+          } else if (ac.clr.taxi && ac.stand) startTaxiIn(state, ac);
           else if (!ac.stand) {
             // ohne Parkposition zur Warteposition am Rollweg-Ende rollen
             const slot = state.acs.filter((o) => o !== ac && o.phase === PH.TAXI_WAIT).length;
@@ -512,10 +528,13 @@ function updateMap(state, ac, dt) {
     case PH.VACATED:
       ac.v = 0;
       if (ac.clr.taxi && ac.stand) startTaxiIn(state, ac);
+      else if (ac.crossX) setReq(state, ac, 'cross');
       else if (ac.stand) setReq(state, ac, 'taxi_in');
       break;
     case PH.TAXI_IN: {
+      ac.crossing = !!ac.crossX && LY.inNorthRunwayZone(ac.y);
       if (followPath(state, ac, dt, 0.13)) {
+        ac.crossing = false;
         ac.phase = PH.STAND;
         ac.v = 0;
         ac.req = null;
@@ -555,7 +574,7 @@ function updateMap(state, ac, dt) {
         else if (ac.clr.takeoff) holdForSlot(state, ac);
         else {
           setReq(state, ac, 'takeoff');
-          radio(state, ac.cs, `${tel(ac)}, holding point runway ${ac.rwy}, ready for departure.`);
+          radio(state, ac.cs, `${tel(ac)}, holding point runway ${rwyName(state, 'N', ac.rwy)}, ready for departure.`);
         }
       }
       break;
@@ -586,7 +605,7 @@ function updateMap(state, ac, dt) {
         }
       } else if (ac.clr.takeoff) {
         // Piste voraus frei?
-        const blk = state.acs.find((o) => o !== ac && o.mode === 'map' && (o.phase === PH.ROLLOUT && !o.vacated));
+        const blk = state.acs.find((o) => o !== ac && o.mode === 'map' && ((o.phase === PH.ROLLOUT && !o.vacated && (o.strip || 'N') === 'N') || o.crossing));
         if (!blk) {
           ac.phase = PH.TAKEOFF;
           ac.req = null;
@@ -656,7 +675,7 @@ export function startTaxiIn(state, ac) {
   const st = state.stands.find((s) => s.id === ac.stand);
   if (!st) return;
   ac.phase = PH.TAXI_IN;
-  ac.path = LY.pathTaxiIn(ac.x, st, ac.len, ac.rwy);
+  ac.path = ac.crossX ? LY.pathCrossIn(ac.crossX, st, ac.len, ac.rwy) : LY.pathTaxiIn(ac.x, st, ac.len, ac.rwy);
   // Startpunkt an aktuelle Position anpassen
   ac.path[0] = { x: ac.x, y: ac.y };
   ac.pi = 0;
@@ -690,17 +709,30 @@ export function startLineUp(state, ac) {
 }
 
 // Wer blockiert die Piste für eine Landung?
+// Wer blockiert die Piste für eine Landung? (nur dieselbe Bahn; Starts und Kreuzungen betreffen die Nordbahn)
 export function runwayBlocker(state, ac) {
+  const strip = ac.strip || 'N';
   for (const o of state.acs) {
     if (o === ac || o.mode !== 'map') continue;
-    if (o.phase === PH.ROLLOUT && !o.vacated) return o;
+    if (o.phase === PH.ROLLOUT && !o.vacated && (o.strip || 'N') === strip) return o;
+    if (strip !== 'N') continue;
     if (o.phase === PH.LINEUP || o.phase === PH.LINED) return o;
     if (o.phase === PH.TAKEOFF && o.z < 0.4) return o;
+    if (o.crossing) return o;
   }
   return null;
 }
-export function runwayOccupants(state) {
-  return state.acs.filter((o) => o.mode === 'map' && ((o.phase === PH.ROLLOUT && !o.vacated) || o.phase === PH.LINEUP || o.phase === PH.LINED || (o.phase === PH.TAKEOFF && o.z < 0.6) || (o.phase === PH.FINAL && o.z < 1.0) || (o.phase === PH.MISSED && o.z < 0.6)));
+export function runwayOccupants(state, strip = 'N') {
+  return state.acs.filter((o) => o.mode === 'map' && ((o.phase === PH.ROLLOUT && !o.vacated && (o.strip || 'N') === strip) || (strip === 'N' && (o.phase === PH.LINEUP || o.phase === PH.LINED || (o.phase === PH.TAKEOFF && o.z < 0.6) || o.crossing)) || (o.phase === PH.FINAL && o.z < 1.0 && (o.strip || 'N') === strip) || (o.phase === PH.MISSED && o.z < 0.6 && (o.strip || 'N') === strip)));
+}
+// Kann ein Flugzeug jetzt die Nordbahn kreuzen?
+export function crossingSafe(state) {
+  for (const o of state.acs) {
+    if (o.mode === 'map' && (o.phase === PH.LINEUP || o.phase === PH.LINED || (o.phase === PH.TAKEOFF && o.z < 0.3))) return false;
+    if (o.mode === 'map' && (o.strip || 'N') === 'N' && ((o.phase === PH.ROLLOUT && !o.vacated) || o.phase === PH.FINAL)) return false;
+    if (o.mode === 'air' && (o.strip || 'N') === 'N' && o.phase === PH.APPROACH && o.route.length === 1 && AS.distToThr(o.pos, o.rwy) < 3) return false;
+  }
+  return true;
 }
 
 // --------- Pfadverfolgung & Kollisionsvermeidung ---------

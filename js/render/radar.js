@@ -210,6 +210,14 @@ export class Radar {
     ctx.moveTo(mid - half, cy);
     ctx.lineTo(mid + half, cy);
     ctx.stroke();
+    // Parallelbahn (maßstäblich sehr nah – leicht versetzt dargestellt)
+    if (state.upgrades && state.upgrades.rwy2) {
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(mid - half, cy + 4);
+      ctx.lineTo(mid + half, cy + 4);
+      ctx.stroke();
+    }
     ctx.lineWidth = 1;
 
     // Sweep

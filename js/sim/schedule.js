@@ -152,7 +152,7 @@ export function maybeOffer(state, dt) {
   if (state.offerTimer > 0) return;
   const feeIdx = feeIndex(state);
   const mkt = state.marketingUntil > state.time ? 0.6 : 1;
-  const rankF = 1 - 0.08 * ((state.goals && state.goals.rank) || 0); // höherer Rang: mehr Interesse
+  const rankF = (1 - 0.08 * ((state.goals && state.goals.rank) || 0)) * (state.upgrades.rwy2 ? 0.8 : 1); // höherer Rang / zweite Bahn: mehr Interesse
   state.offerTimer = randRange(state, 3, 7) * 3600 * clamp(feeIdx, 0.6, 2) * mkt * (1.4 - state.reputation / 200) * rankF;
   if (state.offers.length >= 4) return;
   const pool = Object.values(AIRLINES).filter((a) => a.code !== 'VIP');

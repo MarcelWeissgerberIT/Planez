@@ -90,6 +90,9 @@ export function onBlock(state, ac) {
   ac.spdOverride = null;
   ac.altRestr = undefined;
   ac.vacated = false;
+  ac.crossX = null;
+  ac.crossing = false;
+  ac.strip = 'N';
   ac.ta = { tasks: makeTasks(state, ac, st), onBlock: state.time };
   if (rot) {
     rot.status = 'onblock';

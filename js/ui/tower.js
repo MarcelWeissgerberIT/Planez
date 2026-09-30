@@ -10,7 +10,7 @@ import { flagButton, flagHtml, openMarkMenu } from './marks.js';
 import { updateSequence, isSeqArrival, seqEta, seqSlot, seqMove, seqMoveTo, seqSortByEta, seqIndex } from '../sim/sequence.js';
 import { qm, glTag } from './glossary.js';
 import { slotInfo } from '../sim/acdm.js';
-import { rwyCond, brakingAction, BRAKE_DE, runwayClosed, isWet } from '../sim/runway.js';
+import { rwyCond, brakingAction, BRAKE_DE, runwayClosed, isWet, hasRwy2, rwyName, segregated } from '../sim/runway.js';
 import { isNight } from '../sim/finance.js';
 
 const WAKE_KEY = { L: 'Light', M: 'Medium', H: 'Heavy' };
@@ -22,6 +22,27 @@ export function fuelChip(ac) {
   const m = Math.max(0, Math.round(ac.fuelMin));
   const cls = ac.fuelEmergency || m <= 5 ? 'bad' : ac.minFuel || m <= 12 ? 'warn' : '';
   return ` <span class="fuelc ${cls}" title="Treibstoffreserve">⛽ ${m}′${ac.fuelEmergency ? ' MAYDAY FUEL' : ac.minFuel ? ' MINFUEL' : ''}</span>`;
+}
+
+// Statusblock der Pisten (Betriebsrichtung, Belegung, Zustand, Sperrung, Betriebsart)
+export function runwayStatusHtml(state) {
+  const tw = tailwind(state, state.rwy);
+  const pref = preferredRunway(state);
+  const other = state.rwy === '27' ? '09' : '27';
+  let h = `<div>Betriebsrichtung <b style="font-family:var(--mono)">${state.rwy}</b> · Wind ${Math.round(state.wind.dir / 10) * 10}°/${Math.round(state.wind.spd)} kt <small style="color:var(--muted)">(${tw > 0 ? 'Rückenwind' : 'Gegenwind'} ${Math.abs(tw).toFixed(0)} kt)</small></div>`;
+  if (state.rwyPending) h += `<button class="cmd" data-rwy="${state.rwy}">Abbrechen</button><div style="color:var(--warn)">Wechsel auf ${state.rwyPending} ausstehend – ${drainCount(state)} Bewegungen laufen noch</div><div></div>`;
+  else h += `<button class="cmd ${pref !== state.rwy ? 'big' : ''}" data-rwy="${other}" title="${pref !== state.rwy ? 'Rückenwind – Wechsel empfohlen' : 'Betriebsrichtung wechseln'}">→ ${other}</button>`;
+  for (const strip of hasRwy2(state) ? ['N', 'S'] : ['N']) {
+    const occ = runwayOccupants(state, strip);
+    const ba = brakingAction(state, strip);
+    const closed = runwayClosed(state, strip);
+    const cond = Math.round(rwyCond(state, strip));
+    const role = !hasRwy2(state) ? '' : segregated(state) ? (strip === 'N' ? ' · Starts' : ' · Landungen') : strip === 'N' ? ' · Starts & Landungen' : ' · Reserve';
+    h += `<div class="rwy-line"><b class="rwy-id">${rwyName(state, strip)}</b>${role} · ${closed ? `<span class="state busy">⛔ ${esc(closed)}</span>` : occ.length ? `<span class="state busy">belegt · ${occ.map((a) => esc(a.cs)).join(', ')}</span>` : '<span class="state free">frei</span>'}<div class="rwy-cond">Zustand <b>${cond} %</b> · Bremswirkung <b class="ba-${ba}">${BRAKE_DE[ba]}</b>${isWet(state) ? ' (nass)' : ''}</div></div><div></div>`;
+  }
+  if (hasRwy2(state)) h += `<div class="rwy-cond">Betriebsart: <b>${segregated(state) ? 'getrennt (Landungen Süd, Starts Nord)' : 'eine Bahn (alles auf der Nordbahn)'}</b></div><button class="cmd" data-rwymode="${segregated(state) ? 'single' : 'seg'}">${segregated(state) ? '→ eine Bahn' : '→ getrennt'}</button>`;
+  h += `<div class="rwy-cond">${state.weather.kind === 'fog' ? `RVR <b>${state.weather.rvr ?? '—'} m</b> · LVP · ` : ''}${isNight(state) ? `🌙 Nacht${state.settings.curfew ? 'flugverbot' : ''}` : '☀️ Tagbetrieb'}</div>${qm('rwy')}`;
+  return h;
 }
 
 // A-CDM-Zeiten eines Abflugs
@@ -50,6 +71,7 @@ export const REQ_DE = {
   push: 'bittet um Pushback',
   taxi_out: 'bittet um Rollfreigabe',
   takeoff: 'startbereit',
+  cross: 'bittet um Kreuzen der Startbahn',
 };
 const ARR_PH = [PH.INBOUND, PH.HOLD, PH.APPROACH, PH.GOAROUND, PH.FINAL, PH.MISSED];
 const GND_PH = [PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN, PH.PUSH, PH.STARTUP, PH.TAXI_OUT];
@@ -138,6 +160,12 @@ export class TowerPanel {
     const rw = e.target.closest('[data-rwy]');
     if (rw) {
       requestRunwayChange(s, rw.dataset.rwy);
+      return;
+    }
+    const rm = e.target.closest('[data-rwymode]');
+    if (rm) {
+      s.rwyMode = rm.dataset.rwymode;
+      toast(s.rwyMode === 'seg' ? 'Getrennter Betrieb: neue Anflüge auf die Südbahn' : 'Alle Bewegungen auf der Nordbahn', 'info');
       return;
     }
     const fb = e.target.closest('[data-mark]');
@@ -282,19 +310,7 @@ export class TowerPanel {
 
   update(state) {
     // Piste
-    const occ = runwayOccupants(state);
-    const tw = tailwind(state, state.rwy);
-    const pref = preferredRunway(state);
-    const other = state.rwy === '27' ? '09' : '27';
-    let h = `<div>Piste <b style="font-family:var(--mono)">${state.rwy}</b> · Wind ${Math.round(state.wind.dir / 10) * 10}°/${Math.round(state.wind.spd)} kt <small style="color:var(--muted)">(${tw > 0 ? 'Rückenwind' : 'Gegenwind'} ${Math.abs(tw).toFixed(0)} kt)</small></div><div></div>`;
-    h += `<div>Status: ${occ.length ? `<span class="state busy">belegt · ${occ.map((a) => esc(a.cs)).join(', ')}</span>` : '<span class="state free">frei</span>'}</div><div></div>`;
-    if (state.rwyPending) h += `<div style="color:var(--warn)">Wechsel auf ${state.rwyPending} ausstehend – ${drainCount(state)} Bewegungen laufen noch</div><button class="cmd" data-rwy="${state.rwy}">Abbrechen</button>`;
-    else h += `<div>${pref !== state.rwy ? '<span style="color:var(--warn)">⚠ Rückenwind – Wechsel empfohlen</span>' : '<span style="color:var(--muted)">Betriebsrichtung passt</span>'}</div><button class="cmd ${pref !== state.rwy ? 'big' : ''}" data-rwy="${other}">→ ${other}</button>`;
-    const ba = brakingAction(state);
-    const closed = runwayClosed(state);
-    const cond = Math.round(rwyCond(state));
-    h += `<div class="rwy-cond">Zustand <b>${cond} %</b> · Bremswirkung <b class="ba-${ba}">${BRAKE_DE[ba]}</b>${isWet(state) ? ' (nass)' : ''}${state.weather.kind === 'fog' ? ` · RVR <b>${state.weather.rvr ?? '—'} m</b> · LVP` : ''}${isNight(state) ? ` · 🌙 Nacht${state.settings.curfew ? 'flugverbot' : ''}` : ''}</div>${qm('rwy')}`;
-    if (closed) h += `<div class="rwy-closed">⛔ Piste gesperrt: ${esc(closed)}${state.rwyClosedUntil > state.time ? ` bis ${fmtClock(state.rwyClosedUntil)}` : ''}</div><div></div>`;
+    const h = runwayStatusHtml(state);
     setHTML(this.el.rwy, h);
     this.el.gauto.classList.toggle('on', !!state.settings.towerGroundAuto);
 

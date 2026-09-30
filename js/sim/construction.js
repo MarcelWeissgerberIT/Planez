@@ -21,6 +21,7 @@ export const UPGRADE_HOURS = {
   ils3: [20],
   rapidExit: [16],
   apronLights: [6],
+  rwy2: [40],
 };
 
 export function standBuildHours(st) {
@@ -54,6 +55,7 @@ export function startProject(state, kind, target, opts) {
     prog: 0,
     start: state.time,
     status: opts.waiting ? 'waiting' : 'active',
+    strip: opts.strip || null,
   };
   projects(state).push(p);
   if (kind === 'standL') {
@@ -94,7 +96,7 @@ export function updateConstruction(state, dt) {
       continue;
     }
     if (p.kind === 'rwy') {
-      if (storm || rwyWork || !canWorkRunway(state)) continue;
+      if (storm || rwyWork || !canWorkRunway(state, p.strip || 'N')) continue;
       rwyWork = p.id;
     } else if (storm) continue; // Gewitter: Baustelle ruht
     p.prog = Math.min(1, p.prog + dt / (p.hours * 3600));
@@ -117,10 +119,18 @@ function complete(state, p) {
       st.closing = false;
     }
   } else if (p.kind === 'rwy') {
-    state.rwyCond = p.target === 'resurface' ? 100 : Math.max(rwyCond(state), Math.min(90, rwyCond(state) + 35));
+    const k = p.strip === 'S' ? 'rwyCondS' : 'rwyCond';
+    const c = rwyCond(state, p.strip || 'N');
+    state[k] = p.target === 'resurface' ? 100 : Math.max(c, Math.min(90, c + 35));
   } else if (p.kind === 'upgrade') {
     state.upgrades[p.target] = Math.max(state.upgrades[p.target] || 0, p.level);
     if (p.target === 'hotel') state.reputation = Math.min(100, state.reputation + 3);
+    if (p.target === 'rwy2') {
+      state.rwyMode = 'seg';
+      state.rwyCondS = 100;
+      notify(state, '🛬 Parallelbahn in Betrieb: Landungen auf der Südbahn, Starts auf der Nordbahn', 'good');
+      log(state, 'mgr', 'Neue Parallelbahn eröffnet – getrennter Betrieb: Landungen Süd, Starts Nord. Ankünfte kreuzen die Startbahn.');
+    }
   }
   log(state, 'mgr', `Fertiggestellt: ${p.name}.`);
   notify(state, `✅ Fertiggestellt: ${p.name}`, 'good');

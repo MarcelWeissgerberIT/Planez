@@ -28,6 +28,8 @@ import { initGlossary, setGlossaryEnabled, glossify, glossaryHtml } from './ui/g
 import { goalsState, activeGoals, goalProgress, goalText, goalFraction, RANKS, GOAL_DEFS } from './sim/goals.js';
 import { fuelState } from './sim/fuel.js';
 import { initMainMenu, refreshMainMenu, showPauseMenu, loadPrefs, savePrefs } from './ui/menus.js';
+import { ManagementPage } from './ui/mgmtPage.js';
+import { ManagerDock } from './ui/managerDock.js';
 import { projects, cancelProject } from './sim/construction.js';
 
 const game = {
@@ -183,13 +185,12 @@ function applyRole() {
   g.classList.add(`role-${s.role}`);
   const root = $('#panel');
   root.innerHTML = '';
+  root.classList.remove('dock');
+  if (!game.mgmt) game.mgmt = new ManagementPage(game);
+  game.mgmt.close();
   if (s.role === 'tower') game.panel = new TowerPanel(root, game);
   else if (s.role === 'ground') game.panel = new GroundPanel(root, game);
-  else if (s.role === 'manager') game.panel = new ManagerPanel(root, game);
-  else {
-    game.panel = new ManagerPanel(root, game);
-    root.querySelector('.p-title').innerHTML = '👁️ Beobachter <small id="mp-sub"></small>';
-  }
+  else game.panel = new ManagerDock(root, game, s.role === 'observer');
   const head = root.querySelector('.p-head');
   if (head) {
     const h = document.createElement('div');
@@ -257,6 +258,7 @@ function loop(ts) {
     if (game.ui.radarOn) setHTML($('#radar-seq'), seqChips(s));
     if (!game.panelHold && !(document.activeElement && document.activeElement.tagName === 'SELECT')) game.panel.update(s);
     if (!(document.activeElement && document.activeElement.tagName === 'SELECT' && document.activeElement.closest('#info'))) renderInfo($('#info'), s, game.ui);
+    if (game.mgmt && game.mgmt.isOpen()) game.mgmt.update(s);
     watchAlerts(s);
     game.hintT = (game.hintT || 0) + 0.2;
     if (game.hintT >= 1.2) {
@@ -702,6 +704,7 @@ function onKey(e) {
     if (game.ui.sel) return game.select(null);
     return showGameMenu();
   }
+  if ((e.key === 'o' || e.key === 'O') && (s.role === 'manager' || s.role === 'observer')) return game.mgmt && game.mgmt.toggle();
   if (e.key === 'm' || e.key === 'M') {
     const ac = game.ui.selected && s.acs.find((a) => a.id === game.ui.selected);
     if (!ac) return toast('Erst ein Flugzeug auswählen, dann M zum Markieren', 'info', 1800);
@@ -870,6 +873,7 @@ function showGameMenu() {
     gloss: () => showHelp(false, 'gloss'),
     quit: () => {
       saveGame(s);
+      if (game.mgmt) game.mgmt.close();
       game.running = false;
       showMenu();
     },

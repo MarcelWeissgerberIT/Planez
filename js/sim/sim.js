@@ -74,21 +74,26 @@ function dayRollover(state) {
 }
 
 // Flughafenfeuerwehr bei Notfällen
-const STATION = { x: 37.2, y: 35.4 };
+const STATION = { x: 37.2, y: 44.8 };
 function updateFire(state, dt) {
   if (!state.fire) {
     state.fire = { trucks: [0, 1, 2].map((i) => ({ x: STATION.x + i * 0.9, y: STATION.y, hx: STATION.x + i * 0.9, hdg: -Math.PI / 2, st: 'home', path: null, pi: 0 })) };
   }
   const f = state.fire;
+  // ältere Spielstände: Feuerwache wurde verlegt
+  for (const t of f.trucks) if (t.st === 'home' && !t.path && Math.abs(t.y - STATION.y) > 0.5) t.y = STATION.y;
   const alert = state.fireAlert;
   if (alert) {
     const ac = state.acs.find((a) => a.id === alert.ac);
     if (ac && ac.mode === 'map' && (ac.phase === PH.FINAL || ac.phase === PH.ROLLOUT) && !alert.deployed) {
       alert.deployed = true;
       const tx = ac.exitX ?? 40;
+      const south = ac.strip === 'S';
+      const roadY = south ? 44.0 : 34.5;
       f.trucks.forEach((t, i) => {
-        const target = { x: tx + (i - 1) * 1.1, y: LY.RWY.y + LY.RWY.hw + 0.9 };
-        t.path = roundedPath([{ x: t.x, y: t.y }, { x: t.hx, y: 34.5 }, { x: target.x, y: 34.5 }, target], 0.6, 0.2);
+        const target = { x: tx + (i - 1) * 1.1, y: south ? LY.RWY_S.y + LY.RWY_S.hw + 0.9 : LY.RWY.y + LY.RWY.hw + 0.9 };
+        t.path = roundedPath([{ x: t.x, y: t.y }, { x: t.hx, y: roadY }, { x: target.x, y: roadY }, target], 0.6, 0.2);
+        t.roadY = roadY;
         t.pi = 0;
         t.st = 'out';
       });
@@ -97,7 +102,8 @@ function updateFire(state, dt) {
       alert.doneT = alert.doneT ?? state.time;
       if (state.time - alert.doneT > 180) {
         f.trucks.forEach((t) => {
-          t.path = roundedPath([{ x: t.x, y: t.y }, { x: t.x, y: 34.5 }, { x: t.hx, y: 34.5 }, { x: t.hx, y: STATION.y }], 0.6, 0.2);
+          const ry = t.roadY || 34.5;
+          t.path = roundedPath([{ x: t.x, y: t.y }, { x: t.x, y: ry }, { x: t.hx, y: ry }, { x: t.hx, y: STATION.y }], 0.6, 0.2);
           t.pi = 0;
           t.st = 'back';
         });

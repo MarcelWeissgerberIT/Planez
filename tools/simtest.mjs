@@ -7,6 +7,10 @@ import { listeners } from '../js/sim/messages.js';
 const days = Number(process.argv[2] || 2);
 const role = process.argv[3] || 'observer';
 const s = newGame({ role, seed: 42 });
+if (process.env.RWY2) {
+  s.upgrades.rwy2 = 1;
+  s.rwyMode = 'seg';
+}
 const logs = [];
 listeners.radio.push((m) => logs.push(m));
 const T0 = s.time;
