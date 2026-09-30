@@ -71,6 +71,9 @@ export class GroundPanel {
       alert: root.querySelector('#gp-alert'),
       fuel: root.querySelector('#gp-fuel'),
     };
+    // solange die Maus über der Tafel ist, nicht umsortieren (sonst springt die Zeile unter dem Zeiger weg)
+    this.el.ta.addEventListener('pointerenter', () => (this.hoverTa = true));
+    this.el.ta.addEventListener('pointerleave', () => (this.hoverTa = false));
     root.addEventListener('click', (e) => this.onClick(e));
     root.addEventListener('change', (e) => this.onChange(e));
     this.el.sauto.addEventListener('click', () => {
@@ -194,6 +197,11 @@ export class GroundPanel {
     const at = state.acs.filter((a) => (a.phase === PH.STAND || a.phase === PH.PUSH) && a.ta);
     for (const a of at) slack.set(a.id, this.slack(state, a));
     at.sort((a, b) => slack.get(a.id) - slack.get(b.id));
+    if (this.hoverTa && this.taOrder) {
+      const pos = new Map(this.taOrder.map((id, i) => [id, i]));
+      at.sort((a, b) => (pos.get(a.id) ?? 1e3) - (pos.get(b.id) ?? 1e3));
+    }
+    this.taOrder = at.map((a) => a.id);
     syncList(this.el.ta, at, (a) => a.id, (a) => {
       const rot = state.rots[a.rot];
       const st = state.stands.find((s) => s.id === a.stand);
