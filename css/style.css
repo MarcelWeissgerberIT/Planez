@@ -198,7 +198,7 @@ b { font-weight: 700; }
 .rwy .pend { color: var(--warn); }
 .kpi { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
 .kpi span { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
-.kpi b { font-family: var(--mono); font-size: 15px; }
+.kpi b { font-family: var(--mono); font-size: 15px; white-space: nowrap; }
 .kpi b.neg { color: var(--bad); }
 .role-btn { border: 1px solid var(--role); background: color-mix(in srgb, var(--role) 16%, transparent); color: var(--txt); border-radius: 10px; padding: 7px 11px; font-weight: 700; font-size: 13px; white-space: nowrap; }
 

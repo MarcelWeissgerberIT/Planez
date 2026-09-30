@@ -3,7 +3,7 @@
 import { clamp } from '../util.js';
 import { notify, log } from './messages.js';
 
-export const secLanes = (state) => 4 + 2 * (state.upgrades.security || 0);
+export const secLanes = (state) => 6 + 2 * (state.upgrades.security || 0);
 export const secCapacity = (state) => secLanes(state) * 120; // Passagiere je Stunde
 
 export function secState(state) {
