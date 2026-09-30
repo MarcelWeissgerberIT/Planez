@@ -5,6 +5,8 @@ import { CMDS, command } from '../sim/atc.js';
 import { voice, micClick } from '../voice.js';
 import { toast } from './dom.js';
 import { sfx } from '../audio.js';
+import { radio } from '../sim/messages.js';
+import { tel } from '../sim/aircraft.js';
 
 const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
@@ -87,11 +89,14 @@ export function initPTT(game) {
     const r = parseVoice(s, said);
     if (!r.ac) {
       show(`„${said}“ – Rufzeichen nicht erkannt`, 'bad');
-      sfx.alert();
+      // wie im echten Funk: irgendwer hat etwas gehört, aber nicht verstanden
+      const near = s.acs.find((a) => a.mode === 'air' || a.mode === 'map');
+      if (near) radio(s, '', 'Station calling Tower, say again.', 'pilot');
       return hide(2600);
     }
     if (!r.cmd) {
       show(`„${said}“ – ${r.ac.cs}: Freigabe nicht erkannt`, 'bad');
+      radio(s, r.ac.cs, `Say again, ${tel(r.ac)}.`, 'pilot');
       return hide(2600);
     }
     if (!CMDS[r.cmd]) return hide();
@@ -100,7 +105,7 @@ export function initPTT(game) {
     const res = command(s, r.ac, r.cmd);
     if (!res.ok) {
       show(`${r.ac.cs}: ${res.msg}`, 'bad');
-      sfx.alert();
+      radio(s, r.ac.cs, `Unable, ${tel(r.ac)}.`, 'pilot');
     } else {
       show(`✓ ${r.ac.cs} · ${CMDS[r.cmd].label}`, 'ok');
       s.life = s.life || {};
