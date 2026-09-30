@@ -13,7 +13,7 @@ const SEG = 9.6;
 
 // ---------- Voreinstellungen (auch ohne laufendes Spiel) ----------
 const PREFS_KEY = 'planez_prefs';
-const PREF_DEF = { sound: true, perf: false, ambience: true, tts: true, glossary: true, hints: true, voiceVol: 0.9 };
+const PREF_DEF = { sound: true, music: true, perf: false, ambience: true, tts: true, glossary: true, hints: true, voiceVol: 0.9 };
 export function loadPrefs() {
   try {
     const p = { ...PREF_DEF, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') };
@@ -229,7 +229,7 @@ export function initMainMenu(api) {
 
   const renderPrefs = () => {
     const p = loadPrefs();
-    root.querySelector('#mm-prefs').innerHTML = PREF_ROWS.map(([k, n, sub]) => switchRow(k, n, sub, !!p[k])).join('');
+    root.querySelector('#mm-prefs').innerHTML = [...PREF_ROWS.slice(0, 1), ['music', 'Menümusik', 'ruhige Klangflächen im Hauptmenü'], ...PREF_ROWS.slice(1)].map(([k, n, sub]) => switchRow(k, n, sub, !!p[k])).join('');
   };
 
   root.addEventListener('click', (e) => {

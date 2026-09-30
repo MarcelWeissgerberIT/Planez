@@ -15,6 +15,7 @@ import { renderInfo } from './ui/info.js';
 import { currentHint } from './ui/hints.js';
 import { initMarkMenu, openMarkMenu, closeMarkMenu, markMenuOpen, cycleMark, clearMark, setMark, MARKS } from './ui/marks.js';
 import { sfx, setSound, setTTS, unlock } from './audio.js';
+import { menuMusic } from './menuMusic.js';
 import { voice } from './voice.js';
 import { initPTT } from './ui/ptt.js';
 import { DecisionCard } from './ui/decision.js';
@@ -145,6 +146,7 @@ async function boot() {
     prefsChanged: (p) => {
       setGlossaryEnabled(p.glossary);
       setSound(p.sound);
+      syncMenuMusic();
     },
   });
   $('#loading').classList.add('hidden');
@@ -154,9 +156,25 @@ async function boot() {
   requestAnimationFrame(loop);
 }
 
+// Menümusik: erst nach einer Nutzeraktion (Autoplay-Regeln), nur solange das Hauptmenü offen ist
+let menuGesture = false;
+function syncMenuMusic() {
+  const p = loadPrefs();
+  const inMenu = !$('#menu').classList.contains('hidden');
+  if (inMenu && menuGesture && p.sound !== false && p.music !== false) menuMusic.start(0.45);
+  else menuMusic.stop();
+}
+for (const ev of ['pointerdown', 'keydown'])
+  window.addEventListener(ev, () => {
+    if (menuGesture) return;
+    menuGesture = true;
+    syncMenuMusic();
+  }, { capture: true });
+
 function showMenu() {
   $('#menu').classList.remove('hidden');
   $('#game').classList.add('hidden');
+  syncMenuMusic();
   setGlossaryEnabled(loadPrefs().glossary);
   refreshMainMenu(hasSave() ? loadGame() : null);
 }
@@ -238,6 +256,7 @@ function startGame(state) {
   game.seenReq = new Set();
   $('#menu').classList.add('hidden');
   $('#menu-video').pause();
+  menuMusic.stop();
   $('#game').classList.remove('hidden');
   $('#log').innerHTML = '';
   for (const m of state.log.slice(-40)) addLog(m, true);
