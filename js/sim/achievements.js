@@ -33,6 +33,7 @@ export const ACHIEVEMENTS = [
   { id: 'rank2', icon: '🏅', name: 'Internationaler Flughafen', desc: 'Rang 3 erreicht.', xp: 0, check: (s) => (s.goals && s.goals.rank >= 2) },
   { id: 'decisions10', icon: '🧭', name: 'Entscheider', desc: '10 Ereigniskarten selbst entschieden.', xp: 50, check: (s) => L(s, 'decided') >= 10 },
   { id: 'voice', icon: '🎙️', name: 'On Frequency', desc: 'Eine Freigabe per Sprechtaste erteilt.', xp: 40, check: (s) => L(s, 'voiceCmd') >= 1 },
+  { id: 'nordo', icon: '💡', name: 'Lichtzeichen', desc: 'Ein Flugzeug mit Funkausfall per Lichtsignal gelandet und zur Position gerollt.', xp: 70, check: (s) => L(s, 'nordoLanded') >= 1 },
   { id: 'market65', icon: '🥇', name: 'Platzhirsch', desc: '65 % Marktanteil gegen Nordhafen erreicht.', xp: 100, check: (s) => !!s.rival && s.rival.share >= 65 },
   { id: 'readback5', icon: '👂', name: 'Gutes Gehör', desc: 'Fünf falsche Readbacks rechtzeitig korrigiert.', xp: 70, check: (s) => L(s, 'rbFixed') >= 5 },
   { id: 'spot10', icon: '📷', name: 'Spotter', desc: '10 Fotos fürs Spotterbuch geschossen.', xp: 40, check: (s) => L(s, 'spotShots') >= 10 },

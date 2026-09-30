@@ -392,7 +392,7 @@ export class TowerPanel {
     else if (land && ac.mode === 'air') eta = `${distToLand(ac).toFixed(0)} NM`;
     else if (ac.stand) eta = `P${ac.stand}`;
     const numB = num ? `<span class="c-num" style="background:${col}">${num}</span>` : `<span class="c-num off">${g === 'q' ? '·' : g === 'gnd' || g === 'apron' ? '⌂' : '↗'}</span>`;
-    const top = `${numB}<span class="c-cs">${flagButton(ac)}${esc(ac.cs)}</span><small class="c-t">${ac.type}/${wakeTag(t.wake)}${ac.emergency ? ' · <b class="bad">7700</b>' : ''}</small><span class="c-eta">${eta}</span>`;
+    const top = `${numB}<span class="c-cs">${flagButton(ac)}${esc(ac.cs)}</span><small class="c-t">${ac.type}/${wakeTag(t.wake)}${ac.emergency ? ' · <b class="bad">7700</b>' : ''}${ac.nordo ? ' · <b class="bad" title="Funkausfall – nur Lichtsignale">7600</b>' : ''}</small><span class="c-eta">${eta}</span>`;
     // Lage
     let where = '';
     if (ac.mode === 'air') where = `${String(Math.round(ac.alt / 100)).padStart(3, '0')}${ac.tAlt > ac.alt + 150 ? '↑' : ac.tAlt < ac.alt - 150 ? '↓' : ''} · ${Math.round(ac.spd)} kt`;
@@ -404,7 +404,7 @@ export class TowerPanel {
     if (inSeq) st = land ? (ac.clr.land ? '🛬 Landung frei' : '🛬 Landung') : ac.clr.takeoff ? '🛫 Start frei' : ac.clr.lineup ? '🛫 Line up' : '🛫 Start';
     else st = PHASE_DE[ac.phase] || '';
     if (ac.holdPos) st += ' · HALT';
-    const rq = ac.req ? `<span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
+    const rq = ac.nordo ? `<span class="rq nordo">📻✖ Funkausfall – ${ac.clr.land ? 'Landung per Licht frei' : ac.mode === 'air' ? 'grünes Licht zum Landen' : 'Lichtsignal zum Rollen'}</span>` : ac.req ? `<span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
     let sp = '';
     if (plan && inSeq) {
       if (land && ac.mode === 'air' && ac.autoSpd && ac.spdOverride) sp = `<span class="spc">Staffelung ${ac.spdOverride} kt${plan.delay > 20 ? ` · +${mmss(plan.delay)}` : ''}</span>`;
@@ -443,7 +443,7 @@ export class TowerPanel {
     }
     const kind = inSeq ? (land ? (ac.clr.land ? 'k-landclr' : 'k-land') : ac.clr.takeoff ? 'k-depclr' : 'k-dep') : `k-${g}`;
     return {
-      cls: `fcard ${kind}${sel ? ' active' : ''}${ac.req ? ' req' : ''}${ac.emergency ? ' emg' : ''}${ac.conflict ? ' conf' : ''}${ac.wakeWarn ? ' conf' : ''}${ac.rbErr && ac.rbErr.age >= rbHintDelay(state) ? ' rberr' : ''}`,
+      cls: `fcard ${kind}${sel ? ' active' : ''}${ac.req ? ' req' : ''}${ac.emergency || ac.nordo ? ' emg' : ''}${ac.conflict ? ' conf' : ''}${ac.wakeWarn ? ' conf' : ''}${ac.rbErr && ac.rbErr.age >= rbHintDelay(state) ? ' rberr' : ''}`,
       wrap: (inner) => `<div class="c-bar"></div><div class="c-body">${inner}</div>`,
       parts: { 'c-top': top, 'c-mid': mid, 'c-st': state2, 'c-extra': extra, 'c-btns': btns },
     };

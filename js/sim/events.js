@@ -1,6 +1,7 @@
 // Wetter, Wind und Zufallsereignisse
 import { rand, randRange, randInt, pick, pickWeighted, hourOf, clamp, degNorm, fmtClock } from '../util.js';
 import { crewBroken } from './crew.js';
+import { startNordo, nordoCandidate } from './nordo.js';
 import { log, notify, radio } from './messages.js';
 import { spawnSpecial, PH, divert, goAround } from './aircraft.js';
 import * as AS from './airspace.js';
@@ -161,6 +162,7 @@ function randomEvent(state) {
     ['breakdown', diff(state).breakdowns ? 2.5 : 0],
     ['strike', 0.6],
     ['birdstrike', 1],
+    ['nordo', h > 6 && h < 22 && nordoCandidate(state) ? 0.9 : 0],
     ['fod', 0.7],
   ];
   triggerEvent(state, pickWeighted(state, opts, (o) => o[1])[0]);
@@ -194,6 +196,9 @@ export function triggerEvent(state, kind, opt = {}) {
     notify(state, `🚨 Notfall: ${ac.cs} (Squawk 7700) – Vorrang geben!`, 'bad');
     state.fireAlert = { ac: ac.id, t: state.time };
     return ac;
+  } else if (kind === 'nordo') {
+    const ac = opt.ac ? state.acs.find((a) => a.id === opt.ac) : nordoCandidate(state);
+    return startNordo(state, ac) ? ac : null;
   } else if (kind === 'breakdown') {
     const vs = state.vehicles.filter((v) => v.st === 'idle' && !(v.brokenUntil > state.time));
     const pool = opt.type ? vs.filter((x) => x.type === opt.type) : vs;

@@ -17,6 +17,9 @@ function towerHint(s) {
   const fc = forecastInfo(s);
   if (!conf && fc.change && (fc.kind === 'fog' || fc.kind === 'storm') && fc.at - s.time < 900 && fc.at > s.time) return fc.kind === 'fog' ? `🌫️ Nebel ab ${fmtClock(fc.at)} (RVR ${fc.rvr} m) – dann gelten größere Abstände${(fc.rvr || 999) < 550 && !s.upgrades.ils3 ? ', unter CAT-I-Minimum müssen Anflüge sogar ausweichen. Jetzt noch möglichst viele landen lassen' : ''}.` : `⛈️ Gewitter ab ${fmtClock(fc.at)} – mit Böen und Windsprüngen rechnen, Anflüge nicht zu dicht staffeln.`;
   if (conf) return `⚠ Staffelung unterschritten bei <b>${esc(conf.cs)}</b>! Den Hinteren auf 160 kt bremsen oder in die Warteschleife (H) schicken.`;
+  // Funkausfall: Lichtsignale statt Funk
+  const nd = s.acs.find((a) => a.nordo && ((a.mode === 'air' && !a.clr.land) || (a.mode === 'map' && !a.clr.taxi && a.stand && [PH.VACATED, PH.TAXI_WAIT].includes(a.phase))));
+  if (nd) return nd.mode === 'air' ? `📻✖ <b>${esc(nd.cs)}</b> hat Funkausfall (7600) und fliegt den Anflug nach Flugplan – Funk hilft nicht: <b>grünes Licht (L)</b> geben, sobald die Piste frei ist; rot (G) heißt durchstarten.` : `📻✖ <b>${esc(nd.cs)}</b> ist ohne Funk gelandet – <b>grünes Blinklicht (R)</b> schickt ihn zur Position.`;
   const fe = s.acs.find((a) => a.fuelEmergency && a.mode === 'air' && [PH.INBOUND, PH.HOLD].includes(a.phase));
   if (fe) return `🚨 <b>${esc(fe.cs)}</b> hat MAYDAY FUEL – sofort „Direkt FAF“ (D) und vor allen anderen landen lassen!`;
   const mf = s.acs.find((a) => a.minFuel && a.mode === 'air' && [PH.INBOUND, PH.HOLD].includes(a.phase));

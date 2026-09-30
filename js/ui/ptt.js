@@ -8,6 +8,7 @@ import { sfx } from '../audio.js';
 import { radio } from '../sim/messages.js';
 import { tel } from '../sim/aircraft.js';
 import { correctReadback } from '../sim/readback.js';
+import { callNordo } from '../sim/nordo.js';
 
 const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
@@ -118,6 +119,12 @@ export function initPTT(game) {
       return hide(2600);
     }
     if (!CMDS[r.cmd]) return hide();
+    // Funkausfall: keine Antwort – nur Lichtsignale helfen
+    if (r.ac.nordo) {
+      callNordo(s, r.ac);
+      show(`📻✖ ${r.ac.cs} antwortet nicht (7600) – Lichtsignal auf dem Streifen benutzen`, 'bad');
+      return hide(3000);
+    }
     // eigene Ansage nicht noch einmal vorlesen, nur die Rücklesung des Piloten
     voice.muteAtcUntil = performance.now() + 2500;
     const res = command(s, r.ac, r.cmd);

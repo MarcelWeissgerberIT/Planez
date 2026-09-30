@@ -1340,3 +1340,4 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .brief .modal-acts { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .br-off { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; cursor: pointer; }
 @media (max-width: 760px) { .br-cols, .br-cols + .br-cols { grid-template-columns: 1fr; } .brief h2 { font-size: 21px; } .br-stamp { display: none; } }
+.rq.nordo { color: #fdba74 !important; font-weight: 700; }

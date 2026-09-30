@@ -12,6 +12,7 @@ import { slotOpen } from './acdm.js';
 import { runwayClosed, brakingAction, BRAKE_EN, updateRunway, stripForArrival, rwyName, segregated } from './runway.js';
 import { fmtClock } from '../util.js';
 import { readbackText } from './readback.js';
+import { lightSignal, callNordo } from './nordo.js';
 
 const numTxt = (s, ac, suffix = '') => {
   updateSequence(s);
@@ -186,7 +187,25 @@ export const CMDS = {
       say(s, ac, `${tel(ac)}, continue taxi.`, `Continue, ${tel(ac)}.`);
     },
   },
+  // Lichtsignale bei Funkausfall (Squawk 7600)
+  lightGreen: {
+    label: '💡 Grün: Landung frei', key: 'L', big: true, air: true, nordo: true,
+    valid: (s, ac) => ac.nordo && (ac.phase === PH.APPROACH || ac.phase === PH.FINAL) && !ac.clr.land && !runwayClosed(s, ac.strip || 'N'),
+    run: (s, ac) => lightSignal(s, ac, 'green'),
+  },
+  lightRed: {
+    label: '💡 Rot: nicht landen', key: 'G', air: true, danger: true, nordo: true,
+    valid: (s, ac) => ac.nordo && (onFinal(ac) || (ac.phase === PH.FINAL && ac.z > 0.15)),
+    run: (s, ac) => lightSignal(s, ac, 'red'),
+  },
+  lightTaxi: {
+    label: '💡 Grün blinkend: Rollen', key: 'R', big: true, nordo: true,
+    valid: (s, ac) => ac.nordo && (ac.phase === PH.VACATED || ac.phase === PH.TAXI_WAIT || (ac.phase === PH.ROLLOUT && ac.vacated)) && !ac.clr.taxi && !!ac.stand && (!ac.crossX || crossingSafe(s)),
+    run: (s, ac) => lightSignal(s, ac, 'taxi'),
+  },
 };
+// Funkausfall: normale Freigaben gehen ins Leere – Auto-Lotse nimmt das passende Lichtsignal
+const NORDO_ALT = { land: 'lightGreen', goaround: 'lightRed', taxiIn: 'lightTaxi', cross: 'lightTaxi' };
 function spdValid(ac) {
   return [PH.INBOUND, PH.HOLD].includes(ac.phase) || (ac.phase === PH.APPROACH && !onFinal(ac));
 }
@@ -200,6 +219,13 @@ function setSpeed(s, ac, v) {
 
 export function command(state, ac, key) {
   const c = CMDS[key];
+  if (ac && ac.nordo && c && !c.nordo) {
+    const alt = NORDO_ALT[key];
+    if (alt && CMDS[alt].valid(state, ac)) return command(state, ac, alt);
+    if (state._autoCmd) return { ok: false, msg: '' };
+    callNordo(state, ac);
+    return { ok: false, msg: `📻✖ ${ac.cs} antwortet nicht (Funkausfall, 7600) – Lichtsignal benutzen` };
+  }
   if (!c || !c.valid(state, ac)) {
     const rc = runwayClosed(state, key === 'land' ? ac.strip || 'N' : 'N');
     if (key === 'cross' && ac.crossX && !crossingSafe(state)) return { ok: false, msg: `Bahn ${rwyName(state, 'N')} nicht frei – Kreuzen noch nicht möglich` };
@@ -210,12 +236,12 @@ export function command(state, ac, key) {
   return r || { ok: true };
 }
 export function validCommands(state, ac) {
-  return Object.keys(CMDS).filter((k) => CMDS[k].valid(state, ac));
+  return Object.keys(CMDS).filter((k) => (!ac.nordo || CMDS[k].nordo) && CMDS[k].valid(state, ac));
 }
 
 // Hauptbefehl zu einer Anfrage (Karte, Bots): mit Auto-Staffelung wartet ein Start am Rollhalt, bis sein Startfenster offen ist –
 // sonst landet der nächste Anflug auf eine belegte Piste und muss durchstarten
-export const PRIMARY = { approach: ['approach'], land: ['land'], taxi_in: ['taxiIn'], push: ['push', 'startWait'], taxi_out: ['taxiOut'], takeoff: ['takeoff', 'lineup'], cross: ['cross'] };
+export const PRIMARY = { approach: ['approach'], land: ['land', 'lightGreen'], taxi_in: ['taxiIn', 'lightTaxi'], push: ['push', 'startWait'], taxi_out: ['taxiOut'], takeoff: ['takeoff', 'lineup'], cross: ['cross', 'lightTaxi'] };
 export function primaryCommand(state, ac) {
   if (!ac.req) return null;
   if (ac.req === 'takeoff' && ac.phase !== PH.LINED && departureWait(state, ac).sec > 0) return null;
@@ -308,11 +334,13 @@ export function autoAtc(state, dt) {
   applyRunwayChange(state);
   updateRunway(state, 2);
 
+  state._autoCmd = true;
   if (!groundOnly) {
     autoArrivals(state);
     autoDepartures(state);
   } else if (spacingOn(state)) towerSpacing(state);
   autoGround(state);
+  state._autoCmd = false;
 }
 
 // Nächste Anflugfreigabe: Kandidaten in Reihenfolge (Notfälle und Treibstoffmangel zuerst),
@@ -403,7 +431,7 @@ function towerSpacing(state) {
   for (const id of state.seq) {
     const a = byId.get(id);
     const p = plan[id];
-    if (!a || !p || !isSeqArrival(a) || a.mode !== 'air' || a.phase !== PH.APPROACH || onFinal(a) || a.emergency || a.spdManual) continue;
+    if (!a || !p || !isSeqArrival(a) || a.mode !== 'air' || a.phase !== PH.APPROACH || onFinal(a) || a.emergency || a.spdManual || a.nordo) continue;
     const d = distToLand(a);
     const absorb160 = d * (1 / 160 - 1 / V_NOM) * 3600;
     const absorb180 = d * (1 / 180 - 1 / V_NOM) * 3600;
@@ -485,7 +513,7 @@ function autoArrivals(state) {
   for (let i = 1; i < seq.length; i++) {
     const gap = seq[i].d - seq[i - 1].d;
     const f = seq[i].a;
-    if (onFinal(f)) continue;
+    if (onFinal(f) || f.nordo) continue;
     const extra = wakeNm(seq[i - 1].a.wake, f.wake) - 3;
     if (gap < 6.2 + extra && f.spdOverride !== 160) f.spdOverride = 160;
     else if (gap > 8.5 + extra && f.spdOverride) f.spdOverride = null;

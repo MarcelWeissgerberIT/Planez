@@ -377,6 +377,7 @@ export class MapRenderer {
     this.drawFireSpray(state);
     flying.sort((a, b) => a.x + a.y - (b.x + b.y));
     for (const ac of flying) this.drawAircraft(state, ac, lights, night, ui);
+    this.drawLightBeam(state);
     // Reifenrauch, Gischt, Wolken
     this.polish.update(this, state, dtReal * (state.speed ? Math.min(3, 0.6 + state.speed * 0.4) : 0));
     this.polish.drawParticles(this);
@@ -1054,6 +1055,63 @@ export class MapRenderer {
   }
 
   // Löschangriff: Wasser-/Schaumbögen von den Dachwerfern, Schaumteppich unter dem Flugzeug
+  // Lichtsignal vom Tower (Funkausfall): farbiger Strahl aus der Kanzel zum Flugzeug, ein paar Sekunden lang
+  drawLightBeam(state) {
+    const B = state.lightBeam;
+    if (!B) return;
+    if (this.beamN !== B.n) {
+      this.beamN = B.n;
+      this.beamT = this.time;
+    }
+    const age = this.time - this.beamT;
+    if (age > 6) return;
+    const ac = state.acs.find((a) => a.id === B.ac);
+    if (!ac) return;
+    const { ctx, cam } = this;
+    const tw = LY.BUILDINGS.find((b) => b.id === 'tower');
+    const src = cam.toScreen(tw.fx - tw.w * 0.5, tw.fy - tw.d * 0.5, 4.1);
+    // Ziel: auf der Karte das Flugzeug, sonst Richtung Anflug am Kartenrand
+    let dst;
+    if (ac.mode === 'map') dst = cam.toScreen(ac.x, ac.y, (ac.z || 0) + 0.25);
+    else {
+      const east = (ac.rwy || state.rwy) === '27';
+      dst = cam.toScreen(east ? LY.W + 6 : -6, LY.RWY.y, 3);
+    }
+    const on = !B.blink || Math.floor(age * 3) % 2 === 0;
+    if (!on) return;
+    const fade = Math.min(1, age * 4) * Math.min(1, (6 - age) / 1.5);
+    cam.setScreen(ctx);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const w = Math.max(3, 9 * cam.zoom);
+    const g = ctx.createLinearGradient(src.x, src.y, dst.x, dst.y);
+    g.addColorStop(0, B.col);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.strokeStyle = g;
+    ctx.globalAlpha = 0.55 * fade;
+    ctx.lineCap = 'round';
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.moveTo(src.x, src.y);
+    ctx.lineTo(dst.x, dst.y);
+    ctx.stroke();
+    ctx.globalAlpha = 0.9 * fade;
+    ctx.lineWidth = Math.max(1, w * 0.25);
+    ctx.stroke();
+    // Lampe in der Kanzel und Lichtfleck am Flugzeug
+    for (const [p, r] of [[src, 16], [dst, 22]]) {
+      const rg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * Math.max(0.6, cam.zoom));
+      rg.addColorStop(0, B.col);
+      rg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = rg;
+      ctx.globalAlpha = 0.8 * fade;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * Math.max(0.6, cam.zoom), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   drawFireSpray(state) {
     const f = state.fire;
     if (!f || !f.trucks.some((t) => t.spray)) return;

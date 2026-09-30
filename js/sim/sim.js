@@ -19,6 +19,7 @@ import { updateScenario } from './scenarios.js';
 import { updateSecurity } from './security.js';
 import { updateReadback } from './readback.js';
 import { updateRival, rivalDayEnd } from './rival.js';
+import { updateNordo } from './nordo.js';
 import { updateFuel } from './fuel.js';
 import { dailyLoans } from './finance.js';
 import { spend } from './economy.js';
@@ -55,6 +56,7 @@ export function step(state, dt) {
   updateSecurity(state, dt);
   updateReadback(state, dt);
   updateRival(state, dt);
+  updateNordo(state);
   updateGround(state, dt);
   updateConflicts(state, dt);
   updateAcdm(state, dt);
