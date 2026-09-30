@@ -154,7 +154,7 @@ export function saveGame(state) {
   if (state.scenario) return false; // Herausforderungen werden nicht als Spielstand gespeichert
   const n = state.slot || 1;
   try {
-    localStorage.setItem(slotKey(n), JSON.stringify(state));
+    localStorage.setItem(slotKey(n), JSON.stringify(state, saveReplacer));
     const meta = readMeta();
     meta[n] = { name: state.name, role: state.role, time: state.time, cash: state.cash, rep: state.reputation, rank: state.goals ? state.goals.rank : 0, saved: Date.now() };
     meta.last = n;
@@ -165,6 +165,12 @@ export function saveGame(state) {
     return false;
   }
 }
+// Fahrzeugwege kürzen: bereits gefahrene Wegpunkte (und die Wege geparkter Fahrzeuge) nicht mitspeichern
+const trimVeh = (v) => (v && v.path ? { ...v, path: v.st === 'idle' ? [] : v.path.slice(v.pi || 0), pi: 0 } : v);
+function saveReplacer(k, v) {
+  return k === 'vehicles' && Array.isArray(v) ? v.map(trimVeh) : v;
+}
+
 // zuletzt gespeicherter Platz (für „Weiterspielen“)
 export function lastSlot() {
   const meta = readMeta();
