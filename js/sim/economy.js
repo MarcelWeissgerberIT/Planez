@@ -439,6 +439,15 @@ export function autoManager(state) {
   // Liquidität: im Notfall Kredit, bei voller Kasse tilgen
   if (state.cash < 250000 && loanLimit(state) >= 2000000 && state.hourTick % 6 === 0) takeLoan(state, 2000000);
   if (state.cash > 12000000) for (const l of [...loans(state)]) if (state.cash - l.rest > 9000000) repayLoan(state, l.id);
+  // Schlangen an der Sicherheitskontrolle: Spuren ausbauen, sobald das Geld reicht
+  const sec = state.sec;
+  if (sec && (sec.peak || 0) > 15 && (state.upgrades.security || 0) < UPGRADES.security.max && !projectFor(state, 'upgrade', 'security')) {
+    const c = UPGRADES.security.cost[state.upgrades.security || 0];
+    if (state.cash > c + reserve * 0.5) {
+      buyUpgrade(state, 'security');
+      sec.peak = 0;
+    }
+  }
   // Ausbau bei gut gefüllter Kasse
   if (state.cash > 6500000 && state.hourTick % 4 === 0) {
     for (const k of AUTO_UPGRADES) {

@@ -26,12 +26,13 @@ export function updateSecurity(state, dt) {
     S.demand = pax / 1.5;
   }
   const cap = secCapacity(state);
-  S.q = clamp(S.q + ((S.demand - cap) * dt) / 3600, 0, 5000);
+  // bei sehr langen Schlangen öffnet das Personal Notspuren und Reisende kommen früher – mehr als ~45 min wird es nicht
+  S.q = clamp(S.q + ((S.demand - cap) * dt) / 3600, 0, cap * 0.75);
   S.wait = (S.q / cap) * 60;
   S.peak = Math.max(S.peak || 0, S.wait);
   // lange Schlangen bremsen das Boarding (Nachzügler) und kosten Ansehen
-  state.secSlow = S.wait > 12 ? 1 + (S.wait - 12) / 45 : 1;
-  if (S.wait > 20) state.reputation = clamp(state.reputation - (dt / 3600) * 0.6, 0, 100);
+  state.secSlow = S.wait > 12 ? Math.min(1.45, 1 + (S.wait - 12) / 60) : 1;
+  if (S.wait > 25) state.reputation = clamp(state.reputation - (dt / 3600) * 0.25, 0, 100);
   if (S.wait > 20 && !S.warned) {
     S.warned = true;
     notify(state, `🚶 Lange Schlange an der Sicherheitskontrolle (≈${Math.round(S.wait)} min) – Boarding dauert länger`, 'warn');
