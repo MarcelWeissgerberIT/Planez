@@ -1173,4 +1173,4 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 @keyframes fd-blink { 50% { opacity: .55; } }
 .fd-empty { padding: 20px; color: #6b7280; text-align: center; }
 #game.cinema #fids, #game.photo #fids { display: none; }
-@media (max-width: 760px) { .fd-cols, .fd-row { grid-template-columns: 6px 4.3em 5.8em 1fr 2.6em 9.5em; gap: 5px; } .fd-c { font-size: 11px; } .fd-cols { font-size: 9px; } }
+@media (max-width: 760px) { .fd-box { padding: 8px; } .fd-cols { display: none !important; } .fd-cols, .fd-row { grid-template-columns: 5px auto auto 1fr auto auto; gap: 4px; } .fd-c { font-size: 10px; gap: 1px; } .fd-c i { width: 0.72em; } .fd-cols { font-size: 8px; letter-spacing: .08em; } .fd-clock { font-size: 18px; } .fd-tabs button { padding: 6px 8px; font-size: 13px; } .fd-tabs button small { display: none; } }

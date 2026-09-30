@@ -4,7 +4,8 @@ import { PH } from '../sim/aircraft.js';
 import { fmtClock, esc } from '../util.js';
 import { sfx } from '../audio.js';
 
-const W = { time: 5, flight: 7, city: 13, gate: 3, status: 16 };
+const WIDE = { time: 5, flight: 7, city: 13, gate: 3, status: 16 };
+const NARROW = { time: 5, flight: 6, city: 8, gate: 3, status: 11 };
 const pad = (s, n) => String(s || '').toUpperCase().slice(0, n).padEnd(n, ' ');
 
 function depStatus(state, r, ac) {
@@ -107,6 +108,7 @@ export class Fids {
     this.last = now;
     const rows = this.rows();
     let flips = 0;
+    const W = window.innerWidth < 760 ? NARROW : WIDE;
     const cell = (key, name, text, n, extra = '') => {
       const v = pad(text, n);
       const k = key + name;
@@ -118,6 +120,7 @@ export class Fids {
     let h = '';
     for (const r of rows) {
       const col = (AIRLINES[r.al] || {}).color || '#94a3b8';
+      if (W === NARROW) r.st = r.st.replace('GATE GESCHLOSSEN', 'GATE ZU').replace('NEUE ZEIT', 'NEU').replace('ABGEFERTIGT', 'ABGEFERT.').replace('PLANMÄSSIG', 'PLANM.').replace('AN POSITION', 'AN POS.').replace('ERWARTET', 'ERW.');
       h += `<div class="fd-row" data-fdac="${r.ac}"><b class="fd-al" style="background:${col}"></b>${cell(r.key, 'time', r.time, W.time)}${cell(r.key, 'flight', r.flight, W.flight)}${cell(r.key, 'city', r.city, W.city)}${cell(r.key, 'gate', r.gate, W.gate)}${cell(r.key, 'status', r.st, W.status, r.cls)}</div>`;
     }
     if (!rows.length) h = '<div class="fd-empty">Keine Flüge in den nächsten Stunden.</div>';

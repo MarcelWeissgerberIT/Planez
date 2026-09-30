@@ -86,8 +86,9 @@ export class StandPlan {
     }
     // Zeitachse
     let axis = '';
-    const first = Math.ceil(t0 / 1800) * 1800;
-    for (let t = first; t < t0 + SPAN + BEFORE; t += 1800) axis += `<span style="left:${x(t)}%">${fmtClock(t)}</span>`;
+    const step = window.innerWidth < 760 ? 3600 : 1800;
+    const first = Math.ceil(t0 / step) * step;
+    for (let t = first; t < t0 + SPAN + BEFORE; t += step) axis += `<span style="left:${x(t)}%">${fmtClock(t)}</span>`;
     let h = `<div class="sp-row sp-axis"><div class="sp-lab"></div><div class="sp-track">${axis}<i class="sp-now" style="left:${x(state.time)}%"></i></div></div>`;
     for (const st of stands) {
       const list = bars.get(st.id);
@@ -95,7 +96,7 @@ export class StandPlan {
       const lastEnd = list.reduce((m, b) => Math.max(m, b.end), 0);
       const hint = free ? 'frei' : lastEnd > state.time ? `frei ab ${fmtClock(lastEnd)}` : '';
       h += `<div class="sp-row" data-sprow="${st.id}"><div class="sp-lab"><span><b>P${st.id}</b> <small>${KIND[st.kind]} ${st.size}${st.closed ? ' · gesperrt' : ''}</small></span><em class="${free ? 'free' : ''}">${hint}</em></div><div class="sp-track">`;
-      for (let t = first; t < t0 + SPAN + BEFORE; t += 1800) h += `<i class="sp-tick" style="left:${x(t)}%"></i>`;
+      for (let t = first; t < t0 + SPAN + BEFORE; t += step) h += `<i class="sp-tick" style="left:${x(t)}%"></i>`;
       h += `<i class="sp-now" style="left:${x(state.time)}%"></i>`;
       for (const b of list) {
         const l = x(b.start), r = x(b.end);
