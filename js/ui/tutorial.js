@@ -33,6 +33,7 @@ const STEPS = {
     { sel: '#gp-ta', title: 'Fahrzeug losschicken', text: 'Gelb umrandete Felder sind <b>bereit</b>: Klick darauf schickt das nächste freie Fahrzeug (z. B. Tankwagen, Gepäckzug).', done: (s, g, c) => s.vehicles.some((v) => v.job && !c.jobs0.has(v.id)) },
     { sel: '#gp-all', title: 'Alles bedienen', text: '<b>⚡ Alles bedienen</b> oder Taste <kbd>D</kbd> bedient alle bereiten Aufgaben auf einmal – die dringendsten zuerst.', done: (s, g, c) => c.clickedAll, skip: true },
     { sel: '#gp-inb', title: 'Parkpositionen', text: 'Ankommende Flüge brauchen eine Position. Automatisch oder per Auswahl – große Jets (L) passen nur auf große Positionen.', wait: true },
+    { sel: '#gp-plan', title: 'Positionsplan', text: 'Öffne den <b>Positionsplan</b> (<kbd>G</kbd>): ein Zeitstrahl aller Positionen. Ankünfte ohne Position ziehst du einfach auf eine grün leuchtende Zeile.', done: (s, g) => !!(g.splan && g.splan.isOpen()), skip: true },
     { sel: null, title: 'Los geht’s!', text: 'Achte auf den Puffer: grün passt, gelb wird knapp, rot kommt zu spät. Im Winter kommt die <b>Enteisung</b> ❄️ dazu. Viel Erfolg!', wait: true, last: true },
   ],
   manager: [
