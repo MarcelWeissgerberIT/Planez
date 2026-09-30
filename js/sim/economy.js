@@ -5,10 +5,13 @@ import { log, notify } from './messages.js';
 import { acceptOffer, feeIndex, standDemand } from './schedule.js';
 import { makeVehicle, freeBay, vehicleAvailable, efficiency } from './ground.js';
 import { PH } from './aircraft.js';
-import { startProject, standProject, projectFor, standBuildHours, upgradeHours, STAND_HOURS, UPGRADE_NAMES } from './construction.js';
+import { startProject, standProject, projectFor, standBuildHours, upgradeHours, STAND_HOURS, UPGRADE_NAMES, RWY_WORKS, projects } from './construction.js';
+import { onNightMovement, takeLoan, repayLoan, loanLimit, loans } from './finance.js';
+import { rwyCond } from './runway.js';
+import { bump } from './goals.js';
 
-export const REV_CATS = { landing: 'Landegebühren', pax: 'Passagierentgelte', parking: 'Parkpositionen', handling: 'Abfertigung', fuel: 'Treibstoff', retail: 'Shops & Gastro', carpark: 'Parken (Landseite)', cargo: 'Fracht', hotel: 'Hotel', other: 'Sonstiges' };
-export const COST_CATS = { staff: 'Personal Boden', atc: 'Flugsicherung', infra: 'Instandhaltung', vehicles: 'Fahrzeuge', admin: 'Verwaltung', utilities: 'Energie & Betrieb', penalties: 'Vertragsstrafen', incidents: 'Vorfälle', marketing: 'Marketing' };
+export const REV_CATS = { landing: 'Landegebühren', pax: 'Passagierentgelte', parking: 'Parkpositionen', handling: 'Abfertigung', fuel: 'Kerosinverkauf (Marge)', retail: 'Shops & Gastro', carpark: 'Parken (Landseite)', cargo: 'Fracht', hotel: 'Hotel', night: 'Nacht-/Lärmentgelte', other: 'Sonstiges' };
+export const COST_CATS = { staff: 'Personal Boden', atc: 'Flugsicherung', infra: 'Instandhaltung', vehicles: 'Fahrzeuge', admin: 'Verwaltung', utilities: 'Energie & Betrieb', penalties: 'Vertragsstrafen & Bußgelder', incidents: 'Vorfälle', marketing: 'Marketing', interest: 'Kreditzinsen' };
 
 export function earn(state, cat, amount) {
   if (!amount) return;
@@ -37,6 +40,12 @@ export function onLanding(state, ac) {
   const rot = state.rots[ac.rot];
   earn(state, 'landing', state.fees.landing * t.mtow * (rot?.feeMult || 1));
   state.stats.today.mov++;
+  onNightMovement(state, ac, earn, spend);
+  bump(state, 'landings');
+  bump(state, 'landStreak');
+  bump(state, 'safeStreak');
+  if (ac.wakeReq > 3 && !ac.wakeBad) bump(state, 'wakeStreak');
+  if (rot) bump(state, 'pax', rot.paxIn);
   if (rot) {
     rot.status = 'landed';
     rot.landT = state.time;
@@ -49,8 +58,12 @@ export function onOffBlock(state, ac, rot) {
   const hours = Math.max(0, (rot.offBlock - (rot.onBlock || rot.offBlock)) / 3600 - 0.5);
   const sizeF = { S: 0.6, M: 1, L: 1.8 }[t.size];
   earn(state, 'parking', hours * state.fees.parking * sizeF);
-  const delay = (rot.offBlock - rot.std) / 60;
+  // ATFM-Slotverspätung (Verkehrsflusssteuerung) zählt nicht als Flughafenverspätung
+  const delay = (rot.offBlock - rot.std - (rot.atfm || 0)) / 60;
   rot.depDelay = Math.round(delay);
+  if (delay <= 5) bump(state, 'depPunctual');
+  if (rot.onBlock && rot.offBlock - rot.onBlock <= (t.turn + 5) * 60) bump(state, 'quickTurns');
+  if ((rot.tobt || rot.std) <= rot.std) bump(state, 'tobtKept');
   const attributable = delay - Math.max(0, rot.arrDelay);
   const c = contractOf(state, rot);
   if (delay <= 15) {
@@ -72,7 +85,11 @@ export function onTakeoff(state, ac) {
   const t = AC_TYPES[ac.type];
   const rot = state.rots[ac.rot];
   state.stats.today.mov++;
+  onNightMovement(state, ac, earn, spend);
+  bump(state, 'safeStreak');
   if (!rot) return;
+  bump(state, 'pax', rot.paxOut);
+  if ((rot.taxiWait || 0) < 120) bump(state, 'lowWaitDeps');
   rot.status = 'departed';
   rot.atd = state.time;
   const mult = rot.feeMult || 1;
@@ -81,7 +98,6 @@ export function onTakeoff(state, ac) {
   earn(state, 'pax', rot.paxOut * state.fees.pax * mult);
   const handling = ({ S: 900, M: 1400, L: 3200 }[t.size] + (t.cargo ? 1200 : 0)) * ((rot.depDelay ?? 0) > 15 ? 0.85 : 1);
   earn(state, 'handling', handling);
-  earn(state, 'fuel', t.fuel * 0.06);
   const satF = clamp(0.75 + state.reputation / 250 + u.security * 0.04, 0.6, 1.2);
   earn(state, 'retail', (rot.paxIn + rot.paxOut) * 6.5 * (1 + 0.3 * u.retail) * satF);
   earn(state, 'carpark', rot.paxOut * 2.1 * (1 + 0.4 * u.parking));
@@ -96,13 +112,17 @@ const PEN = {
   separation: { rep: -1.5, cost: 40000, cat: 'incidents' },
   airprox: { rep: -5, cost: 250000, cat: 'incidents' },
   incursion: { rep: -3, cost: 80000, cat: 'incidents' },
+  fuelEmergency: { rep: -1.5, cost: 20000, cat: 'incidents' },
+  diversionWx: { rep: -0.6, cost: 8000, cat: 'incidents', minor: true },
+  wake: { rep: -0.6, cost: 12000, cat: 'incidents', minor: true },
 };
 export function penalize(state, kind, ac) {
   const p = PEN[kind];
   if (!p) return;
   rep(state, p.rep);
   spend(state, p.cat, p.cost);
-  if (kind !== 'goaround') state.stats.today.incidents++;
+  if (kind !== 'goaround' && !p.minor) state.stats.today.incidents++;
+  if (state.life && kind !== 'wake') state.life.safeStreak = 0;
 }
 
 // ---------- Laufende Kosten ----------
@@ -134,12 +154,14 @@ function hourly(state) {
   if (state.upgrades.hotel) earn(state, 'hotel', 21000 / 24);
   // Airline-Zufriedenheit driftet mit Gebühren/Ansehen
   const fi = feeIndex(state);
+  const nightF = state.settings.curfew ? 22 : ((state.fees.night ?? 600) / 4000) * 12;
   for (const c of state.contracts) {
     const t = AC_TYPES[c.type];
-    const target = clamp(72 - (fi - 1) * 55 + (t.size === 'L' && state.upgrades.lounge ? 6 : 0) + (state.reputation - 60) * 0.15, 5, 98);
+    // Frachtairlines fliegen nachts: Nachtflugverbot und hohe Nachtentgelte stören sie
+    const target = clamp(72 - (fi - 1) * 55 + (t.size === 'L' && state.upgrades.lounge ? 6 : 0) + (state.reputation - 60) * 0.15 - (c.cargo ? nightF : 0), 5, 98);
     c.sat += (target - c.sat) * 0.02;
   }
-  rep(state, (1 - fi) * 0.08 + state.upgrades.security * 0.01 + state.upgrades.hotel * 0.01);
+  rep(state, (1 - fi) * 0.08 + state.upgrades.security * 0.01 + state.upgrades.hotel * 0.01 + (state.settings.curfew ? 0.015 : 0));
   state.hourTick = (state.hourTick || 0) + 1;
   if (state.auto.manager) autoManager(state);
   // Insolvenz-Warnung
@@ -167,15 +189,28 @@ export function closeDay(state) {
     diversions: s.diversions,
     revBy: { ...L.rev },
     costBy: { ...L.cost },
+    fuelBuy: Math.round(L.fuelBuy || 0),
+    repay: Math.round(L.repay || 0),
+    slotOk: s.slotOk || 0,
+    slotMiss: s.slotMiss || 0,
+    slotMissGnd: s.slotMissGnd || 0,
+    taxiWait: Math.round((s.taxiWait || 0) / 60),
+    depN: s.depN || 0,
+    wakeInf: s.wakeInf || 0,
+    minFuel: s.minFuel || 0,
+    fuelSold: Math.round(s.fuelSold || 0),
+    nightMov: s.nightMov || 0,
+    complaints: s.complaints || 0,
+    rwyCond: Math.round(rwyCond(state)),
   };
   state.history.push(rec);
   if (state.history.length > 60) state.history.shift();
   state.lastReport = rec;
-  state.ledger = { rev: {}, cost: {}, capex: 0 };
+  state.ledger = { rev: {}, cost: {}, capex: 0, fuelBuy: 0, repay: 0 };
   state.stats.today = freshToday();
   return rec;
 }
-export const freshToday = () => ({ mov: 0, pax: 0, onTime: 0, delayed: 0, delayMin: 0, goArounds: 0, incidents: 0, diversions: 0 });
+export const freshToday = () => ({ mov: 0, pax: 0, onTime: 0, delayed: 0, delayMin: 0, goArounds: 0, incidents: 0, diversions: 0, slotOk: 0, slotMiss: 0, slotMissGnd: 0, taxiWait: 0, depN: 0, wakeInf: 0, wakeWait: 0, minFuel: 0, fuelSold: 0, nightMov: 0, complaints: 0 });
 
 // ---------- Aktionen (Manager) ----------
 export function standBuildCost(stand) {
@@ -209,6 +244,15 @@ export function buyUpgrade(state, key) {
   if (state.cash < cost) return notify(state, 'Nicht genug Geld', 'bad'), false;
   capex(state, cost, `${u.name} Stufe ${lvl + 1}`);
   startProject(state, 'upgrade', key, { name: UPGRADE_NAMES(key, lvl + 1), cost, hours: upgradeHours(key, lvl + 1), level: lvl + 1 });
+  return true;
+}
+// Pistenarbeiten beauftragen (laufen nachts in Verkehrspausen)
+export function orderRunwayWork(state, key) {
+  const w = RWY_WORKS[key];
+  if (!w || projects(state).some((p) => p.kind === 'rwy')) return false;
+  if (state.cash < w.cost) return notify(state, 'Nicht genug Geld', 'bad'), false;
+  capex(state, w.cost, w.name);
+  startProject(state, 'rwy', key, { name: w.name, cost: w.cost, hours: w.hours });
   return true;
 }
 export function buyVehicle(state, type) {
@@ -324,6 +368,15 @@ export function autoManager(state) {
       state.cargoShortage = 0;
     }
   }
+  // Piste instand halten
+  const cond = rwyCond(state);
+  if (!projects(state).some((p) => p.kind === 'rwy')) {
+    if (cond < 32 && state.cash > RWY_WORKS.resurface.cost + reserve) orderRunwayWork(state, 'resurface');
+    else if (cond < 58 && state.cash > RWY_WORKS.clean.cost + reserve * 0.3) orderRunwayWork(state, 'clean');
+  }
+  // Liquidität: im Notfall Kredit, bei voller Kasse tilgen
+  if (state.cash < 250000 && loanLimit(state) >= 2000000 && state.hourTick % 6 === 0) takeLoan(state, 2000000);
+  if (state.cash > 12000000) for (const l of [...loans(state)]) if (state.cash - l.rest > 9000000) repayLoan(state, l.id);
   // Ausbau bei gut gefüllter Kasse
   if (state.cash > 6500000 && state.hourTick % 4 === 0) {
     for (const k of AUTO_UPGRADES) {

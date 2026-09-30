@@ -4,6 +4,7 @@ import { log, notify, radio } from './messages.js';
 import { spawnSpecial, PH, divert } from './aircraft.js';
 import { VEH_TYPES, AIRLINES } from '../config.js';
 import { command } from './atc.js';
+import { fodEvent } from './runway.js';
 
 export const WEATHER = {
   clear: { name: 'Klar', icon: '☀️' },
@@ -12,6 +13,9 @@ export const WEATHER = {
   fog: { name: 'Nebel', icon: '🌫️' },
   storm: { name: 'Gewitter', icon: '⛈️' },
 };
+
+export const belowMinima = (state) => state.weather.kind === 'fog' && (state.weather.rvr ?? 400) < 550 && !state.upgrades.ils3;
+export const lvp = (state) => state.weather.kind === 'fog';
 
 export function updateEvents(state, dt) {
   // Wind: langsame Drift Richtung Ziel
@@ -41,8 +45,13 @@ export function updateEvents(state, dt) {
     ];
     const kind = pickWeighted(state, opts, (o) => o[1])[0];
     const dur = kind === 'storm' ? randRange(state, 0.5, 1.2) : kind === 'fog' ? randRange(state, 1, 3) : randRange(state, 2, 6);
+    // Pistensichtweite (RVR) im Nebel; unter 550 m reicht ILS CAT I nicht mehr
+    wx.rvr = kind === 'fog' ? Math.round(randRange(state, 200, 1300) / 25) * 25 : null;
     if (kind !== wx.kind) {
-      if (kind === 'fog') notify(state, `🌫️ Nebel! ${state.upgrades.ils3 ? 'ILS CAT III aktiv – Landungen möglich.' : 'Ohne ILS CAT III müssen Anflüge ausweichen.'}`, 'warn');
+      if (kind === 'fog') {
+        const dense = wx.rvr < 550;
+        notify(state, `🌫️ Nebel, RVR ${wx.rvr} m – ${!dense ? 'LVP aktiv, Landungen mit CAT I möglich (mehr Abstand).' : state.upgrades.ils3 ? 'ILS CAT III aktiv – Landungen möglich.' : 'unter CAT-I-Minimum: ohne ILS CAT III müssen Anflüge ausweichen.'}`, dense && !state.upgrades.ils3 ? 'bad' : 'warn');
+      }
       if (kind === 'storm') notify(state, '⛈️ Gewitter – Vorfeld gesperrt, Abfertigung pausiert', 'warn');
       if (wx.kind === 'storm') notify(state, 'Gewitter vorbei – Vorfeld wieder frei', 'good');
       log(state, 'sys', `Wetter: ${WEATHER[kind].name}.`);
@@ -56,11 +65,11 @@ export function updateEvents(state, dt) {
     c.x += Math.sin((state.wind.dir + 180) * Math.PI / 180) * 0.004 * dt;
     c.y -= Math.cos((state.wind.dir + 180) * Math.PI / 180) * 0.004 * dt;
   }
-  // Nebel ohne CAT III: Anflüge weichen aus
-  if (wx.kind === 'fog' && !state.upgrades.ils3) {
+  // dichter Nebel ohne CAT III: Anflüge warten eine Weile, dann weichen sie aus
+  if (belowMinima(state)) {
     for (const ac of state.acs) {
-      if (ac.mode === 'air' && [PH.HOLD].includes(ac.phase) && !ac.emergency && state.time - ac.holdStart > 8 * 60) divert(state, ac, 'Nebel unter Minima');
-      if (ac.mode === 'air' && ac.phase === PH.APPROACH && ac.route.length === 1 && !ac.emergency) divert(state, ac, 'Nebel unter Minima');
+      if (ac.mode === 'air' && [PH.HOLD].includes(ac.phase) && !ac.emergency && state.time - ac.holdStart > 15 * 60) divert(state, ac, `Nebel unter Minima (RVR ${wx.rvr} m)`, 'diversionWx');
+      if (ac.mode === 'air' && ac.phase === PH.APPROACH && ac.route.length === 1 && !ac.emergency) divert(state, ac, `Nebel unter Minima (RVR ${wx.rvr} m)`, 'diversionWx');
     }
   }
 
@@ -87,6 +96,7 @@ function randomEvent(state) {
     ['breakdown', 2.5],
     ['strike', 0.6],
     ['birdstrike', 1],
+    ['fod', 0.7],
   ];
   const kind = pickWeighted(state, opts, (o) => o[1])[0];
   if (kind === 'vip') {
@@ -113,6 +123,9 @@ function randomEvent(state) {
     state.strikeUntil = state.time + randRange(state, 3, 6) * 3600;
     notify(state, '✊ Warnstreik beim Bodenpersonal – Abfertigung verlangsamt', 'bad');
     log(state, 'gnd', 'Warnstreik: Bodenpersonal nur eingeschränkt verfügbar.');
+  } else if (kind === 'fod') {
+    if (state.rwyWorking || state.rwyClosedUntil > state.time) return;
+    fodEvent(state);
   } else if (kind === 'birdstrike') {
     const deps = state.acs.filter((a) => a.phase === PH.DEPART && a.alt < 6000);
     if (!deps.length) return;
@@ -124,6 +137,7 @@ function randomEvent(state) {
     ac.emergency = true;
     ac.squawk = '7700';
     ac.returning = true;
+    ac.fuelMin = 90; // gerade getankt
     ac.route = [];
     ac.tAlt = 5000;
     const rot = state.rots[ac.rot];

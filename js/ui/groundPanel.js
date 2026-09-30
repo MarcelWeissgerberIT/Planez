@@ -6,6 +6,9 @@ import { fmtClock, esc } from '../util.js';
 import { syncList, setHTML, toast } from './dom.js';
 import { sfx } from '../audio.js';
 import { flagHtml } from './marks.js';
+import { qm } from './glossary.js';
+import { acdmLine } from './tower.js';
+import { fuelState, FUEL, pending } from '../sim/fuel.js';
 
 const KIND_DE = { contact: 'Gebäude', remote: 'Vorfeld', cargo: 'Fracht' };
 
@@ -20,10 +23,11 @@ export function taskChips(state, ac, interactive = true) {
       let lbl = def.short;
       const isAuto = auto || (t.need && state.settings.vehAuto[t.need]) || !t.need;
       if (st === 'active' && k !== 'push') lbl = `${Math.round(t.prog * 100)}%`;
+      if (k === 'fuel' && t.uplift && (st === 'active' || t.delivered > 0.5) && st !== 'done') lbl = `${Math.round(t.delivered)}/${Math.round(t.uplift)} t`;
       if (st === 'active' && k === 'push') lbl = 'bereit';
       if (st === 'assigned') lbl = 'unterwegs';
       if (st === 'ready' && !t.need) lbl = 'Brücke';
-      const title = `${def.name}${t.need ? ' · ' + VEH_TYPES[t.need].name : ' · Fluggastbrücke'}`;
+      const title = `${def.name}${t.need ? ' · ' + VEH_TYPES[t.need].name : ' · Fluggastbrücke'}${k === 'fuel' && t.uplift ? ` · ${Math.round(t.uplift)} t Kerosin` : ''}`;
       const clickable = interactive && st === 'ready' && t.need && !isAuto;
       return `<div class="task ${st}${isAuto ? ' auto' : ''}" title="${title}" ${clickable ? `data-disp="${k}" data-ac="${ac.id}"` : ''}><span class="ti">${def.icon}</span><span class="tl">${lbl}</span>${st === 'active' && k !== 'push' ? `<i class="pb" style="width:${Math.round(t.prog * 100)}%"></i>` : ''}</div>`;
     })
@@ -45,14 +49,16 @@ export class GroundPanel {
       </div>
       <div class="p-body">
         <div id="gp-alert"></div>
-        <div class="p-sec"><span>Ankünfte · Parkpositionen</span><span class="cnt" id="gp-c-inb">0</span></div>
+        <div class="p-sec"><span>Ankünfte · Parkpositionen${qm('inb')}</span><span class="cnt" id="gp-c-inb">0</span></div>
         <div class="toggle-row"><span>Positionen automatisch vergeben</span><button class="switch" id="gp-sauto"></button></div>
         <div id="gp-inb"></div>
-        <div class="p-sec"><span>Abfertigung (Turnaround)</span><span class="cnt" id="gp-c-ta">0</span></div>
+        <div class="p-sec"><span>Abfertigung (Turnaround)${qm('ta')}</span><span class="cnt" id="gp-c-ta">0</span></div>
         <div class="empty" style="padding-top:0">Gelbe Felder anklicken = nächstes freies Fahrzeug losschicken.</div>
         <div id="gp-ta"></div>
-        <div class="p-sec"><span>Fuhrpark · Auto-Disposition</span></div>
+        <div class="p-sec"><span>Fuhrpark · Auto-Disposition${qm('fleet')}</span></div>
         <div class="fleet" id="gp-fleet"></div>
+        <div class="p-sec"><span>Tanklager &amp; Tankwagen${qm('fuel')}</span></div>
+        <div id="gp-fuel"></div>
       </div>`;
     this.el = {
       inb: root.querySelector('#gp-inb'),
@@ -61,6 +67,7 @@ export class GroundPanel {
       sauto: root.querySelector('#gp-sauto'),
       eff: root.querySelector('#gp-eff'),
       alert: root.querySelector('#gp-alert'),
+      fuel: root.querySelector('#gp-fuel'),
     };
     root.addEventListener('click', (e) => this.onClick(e));
     root.addEventListener('change', (e) => this.onChange(e));
@@ -85,6 +92,16 @@ export class GroundPanel {
     if (va) {
       const k = va.dataset.vauto;
       s.settings.vehAuto[k] = !s.settings.vehAuto[k];
+      return;
+    }
+    const vs = e.target.closest('[data-vsel]');
+    if (vs) {
+      const v = s.vehicles.find((x) => x.id === vs.dataset.vsel);
+      if (v) {
+        this.game.ui.sel = { type: 'veh', id: v.id };
+        this.game.ui.selected = null;
+        this.game.cam.focus(v.x, v.y);
+      }
       return;
     }
     const row = e.target.closest('[data-sel]');
@@ -112,6 +129,8 @@ export class GroundPanel {
     let alert = '';
     if (state.weather.kind === 'storm') alert += `<div class="card" style="border-color:var(--bad)">⛈️ Gewitter: Vorfeld gesperrt, Abfertigung pausiert.</div>`;
     if (state.strikeUntil > state.time) alert += `<div class="card" style="border-color:var(--warn)">✊ Warnstreik bis ${fmtClock(state.strikeUntil)} – weniger Personal.</div>`;
+    const fu = fuelState(state);
+    if (fu.stock < FUEL.cap * 0.12) alert += `<div class="card" style="border-color:var(--bad)">⛽ Tanklager fast leer (${Math.round(fu.stock)} t)${fu.orders.length ? ` – Lieferung ${fmtClock(Math.min(...fu.orders.map((o) => o.eta)))}` : ' – der Manager muss Kerosin bestellen'}. Tankwagen können kaum nachfüllen.</div>`;
     setHTML(this.el.alert, alert);
 
     // Ankünfte
@@ -146,7 +165,7 @@ export class GroundPanel {
       return {
         cls: `stand-row${sel ? ' sel' : ''}${left < 0 ? ' late' : ''}`,
         parts: {
-          'sr-head': `<span class="sr-id">P${st ? st.id : '?'}</span><span class="sr-ac" data-sel="${a.id}">${esc(a.cs)}${flagHtml(a)} <small>${a.type} → ${CITIES[rot?.city]?.name || ''} · <span class="sr-kind">${st ? KIND_DE[st.kind] : ''}</span></small></span><span class="sr-std ${cls}">${rot ? fmtClock(rot.std) : ''} ${left >= 0 ? `(${left}′)` : `(+${-left}′)`}</span>`,
+          'sr-head': `<span class="sr-id">P${st ? st.id : '?'}</span><span class="sr-ac" data-sel="${a.id}">${esc(a.cs)}${flagHtml(a)} <small>${a.type} → ${CITIES[rot?.city]?.name || ''} · <span class="sr-kind">${st ? KIND_DE[st.kind] : ''}</span></small></span><span class="sr-std ${cls}">STD ${rot ? fmtClock(rot.std) : ''} ${left >= 0 ? `(${left}′)` : `(+${-left}′)`}</span>${acdmLine(state, a)}`,
           tasks: taskChips(state, a),
         },
       };
@@ -157,6 +176,13 @@ export class GroundPanel {
     // Fuhrpark
     const fs = fleetSummary(state);
     const fleetItems = Object.keys(VEH_TYPES).map((k) => ({ k, ...fs[k] }));
+    // Tanklager & Tankwagen
+    const fu2 = fuelState(state);
+    const lvl = fu2.stock / FUEL.cap;
+    const trucks = state.vehicles.filter((v) => v.type === 'fuel');
+    const TST = { idle: 'bereit', drive: 'fährt zum Flugzeug', work: 'betankt', return: 'zurück', refill: 'fährt zum Tanklager', filling: 'wird befüllt', attached: '' };
+    setHTML(this.el.fuel, `<div class="card"><div class="row"><span class="t">🛢️ Tanklager ${Math.round(fu2.stock)} t</span><span style="font-size:12px;color:var(--muted)">${Math.round(lvl * 100)} % von ${FUEL.cap} t${pending(state) ? ` · +${Math.round(pending(state))} t bestellt` : ''}</span></div><div class="bar"><i style="width:${lvl * 100}%;background:${lvl < 0.15 ? 'var(--bad)' : lvl < 0.3 ? 'var(--warn)' : 'var(--good)'}"></i></div>
+      <div class="trucks">${trucks.map((v) => `<div class="truck" data-vsel="${v.id}" title="${esc(v.name)}"><span>${esc(v.name)}</span><span class="tl"><i style="width:${((v.load || 0) / FUEL.truckCap) * 100}%"></i></span><small>${Math.round(v.load || 0)} t · ${v.brokenUntil > state.time ? 'defekt' : TST[v.st] || v.st}</small></div>`).join('')}</div></div>`);
     syncList(this.el.fleet, fleetItems, (x) => x.k, (x) => {
       const vt = VEH_TYPES[x.k];
       const auto = state.auto.ground || state.settings.vehAuto[x.k];

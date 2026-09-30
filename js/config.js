@@ -88,7 +88,7 @@ export const COSTS = {
 };
 
 export const DEFAULT_FEES = { landing: 7.5, pax: 14, parking: 90 };
-export const FEE_LIMITS = { landing: [2, 20], pax: [4, 35], parking: [20, 250] };
+export const FEE_LIMITS = { landing: [2, 20], pax: [4, 35], parking: [20, 250], night: [0, 4000] };
 
 // Ausbau-Katalog
 export const UPGRADES = {

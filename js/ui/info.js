@@ -3,7 +3,10 @@ import { AC_TYPES, AIRLINES, CITIES, VEH_TYPES, UPGRADES, STAND_COSTS } from '..
 import { PH, PHASE_DE, fmtAlt } from '../sim/aircraft.js';
 import { fmtClock, fmtMoney, esc } from '../util.js';
 import { setHTML } from './dom.js';
-import { cmdButtons, acRoute, REQ_DE, distToLand } from './tower.js';
+import { cmdButtons, acRoute, REQ_DE, distToLand, fuelChip, wakeTag } from './tower.js';
+import { slotInfo, exot } from '../sim/acdm.js';
+import { WAKE_DE } from '../sim/wake.js';
+import { fuelState, FUEL, pending } from '../sim/fuel.js';
 import { taskChips, standOptions } from './groundPanel.js';
 import { standBuildCost } from '../sim/economy.js';
 import { BUILDINGS } from '../layout.js';
@@ -37,7 +40,7 @@ const BDESC = {
   radar: 'Flughafen-Rundsichtradar (ASR).',
 };
 const BUP = { parking: 'parking', hall: 'retail', hotel: 'hotel' };
-const VST = { idle: 'bereit', drive: 'fährt zum Einsatz', work: 'im Einsatz', return: 'fährt zurück ins Depot', attached: 'schiebt zurück' };
+const VST = { idle: 'bereit', drive: 'fährt zum Einsatz', work: 'im Einsatz', return: 'fährt zurück ins Depot', attached: 'schiebt zurück', refill: 'fährt zum Tanklager', filling: 'wird am Tanklager befüllt' };
 
 export function renderInfo(el, state, ui) {
   const sel = ui.sel;
@@ -63,14 +66,20 @@ export function renderInfo(el, state, ui) {
       const d = dep ? Math.round(((rot.offBlock || state.time) - rot.std) / 60) : rot.arrDelay;
       delay = d > 0 ? `+${d} min` : 'pünktlich';
     }
-    h += `<div class="i-head"><div><div class="i-cs"><i class="al-dot" style="background:${al.color}"></i>${esc(ac.cs)}${ac.emergency ? ' 🚨' : ''}</div><div class="i-sub">${al.name} · ${t.name} · Wirbelschleppe ${t.wake}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
+    h += `<div class="i-head"><div><div class="i-cs"><i class="al-dot" style="background:${al.color}"></i>${esc(ac.cs)}${ac.emergency ? ' 🚨' : ''}</div><div class="i-sub">${al.name} · ${t.name} · Wirbelschleppe ${wakeTag(t.wake)} ${WAKE_DE[t.wake]}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
     h += `<div class="i-grid">`;
     h += `<div><span>Status</span><b>${PHASE_DE[ac.phase] || ac.phase}</b></div>`;
     h += `<div><span>Strecke</span><b>${esc(acRoute(state, ac))}</b></div>`;
     if (rot) h += `<div><span>${dep ? 'Abflug (STD)' : 'Ankunft (STA)'}</span><b>${fmtClock(dep ? rot.std : rot.sta)}</b></div><div><span>Verspätung</span><b>${delay}</b></div>`;
     if (ac.mode === 'air') h += `<div><span>Höhe</span><b>${fmtAlt(ac.alt)}</b></div><div><span>Geschw.</span><b>${Math.round(ac.spd)} kt</b></div><div><span>Kurs</span><b>${String(Math.round(ac.crs)).padStart(3, '0')}°</b></div><div><span>Squawk</span><b>${ac.squawk}</b></div>`;
     else h += `<div><span>Position</span><b>${ac.stand ? 'P' + ac.stand : '—'}</b></div><div><span>Passagiere</span><b>${rot ? (dep ? rot.paxOut : rot.paxIn) : '—'}</b></div>`;
-    if (ac.arr && ac.mode === 'air' && [PH.INBOUND, PH.HOLD, PH.APPROACH].includes(ac.phase)) h += `<div><span>Bis Landung</span><b>${distToLand(ac).toFixed(1)} NM</b></div>`;
+    if (ac.arr && ac.mode === 'air' && [PH.INBOUND, PH.HOLD, PH.APPROACH].includes(ac.phase)) h += `<div><span>Bis Landung</span><b>${distToLand(ac).toFixed(1)} NM</b></div><div><span>Treibstoff-Reserve</span><b>${fuelChip(ac) || '—'}</b></div>`;
+    // A-CDM-Zeiten für den Abflug
+    if (rot && rot.tobt && !rot.atd && dep) {
+      const si = slotInfo(state, rot);
+      h += `<div><span>TOBT</span><b>${fmtClock(rot.tobt)}${rot.tobt > rot.std ? ` <small style="color:var(--warn)">+${Math.round((rot.tobt - rot.std) / 60)}</small>` : ''}</b></div><div><span>TSAT</span><b>${rot.tsat ? fmtClock(rot.tsat) : '—'}</b></div><div><span>CTOT</span><b>${rot.ctot ? fmtClock(rot.ctot) : 'kein Slot'}</b></div><div><span>EXOT</span><b>${Math.round(exot(state, ac) / 60)} min</b></div>`;
+      if (si) h += `</div><div class="i-slot"><span class="slot ${si.cls}">${si.txt}</span>${rot.ctotReason ? ` · Grund: ${esc(rot.ctotReason)}` : ''}</div><div class="i-grid">`;
+    }
     h += `</div>`;
     if (ac.req) h += `<div style="margin-top:6px;color:var(--warn);font-size:12px;font-weight:700">● ${REQ_DE[ac.req] || ac.req}</div>`;
     h += `<div class="i-marks"><span>⚑ Markieren</span>${MARK_KEYS.map((k) => `<button data-imark="${k}" data-ac="${ac.id}" class="${ac.mark && ac.mark.c === k ? 'cur' : ''}" style="--m:${MARKS[k].hex}" title="${MARKS[k].name}" aria-label="${MARKS[k].name}"></button>`).join('')}<button class="mini" data-imarkmenu="${ac.id}">Notiz…</button>${ac.mark ? `<button class="mini" data-imark="x" data-ac="${ac.id}">✕</button>` : ''}${flagHtml(ac)}</div>`;
@@ -106,11 +115,15 @@ export function renderInfo(el, state, ui) {
     if (!v) return;
     const job = v.job ? state.acs.find((a) => a.id === v.job.ac) : null;
     h += `<div class="i-head"><div><div class="i-cs">${esc(v.name)}</div><div class="i-sub">${VEH_TYPES[v.type].name}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
-    h += `<div class="i-grid"><div><span>Status</span><b>${v.brokenUntil > state.time ? 'defekt – in Reparatur' : VST[v.st] || v.st}</b></div><div><span>Einsatz</span><b>${job ? esc(job.cs) + (job.stand ? ' · P' + job.stand : '') : '—'}</b></div></div>`;
+    h += `<div class="i-grid"><div><span>Status</span><b>${v.brokenUntil > state.time ? 'defekt – in Reparatur' : VST[v.st] || v.st}</b></div><div><span>Einsatz</span><b>${job ? esc(job.cs) + (job.stand ? ' · P' + job.stand : '') : '—'}</b></div>${v.type === 'fuel' ? `<div><span>Ladung</span><b>${Math.round(v.load || 0)} / ${FUEL.truckCap} t</b></div>` : ''}</div>`;
   } else if (sel.type === 'building') {
     const b = BUILDINGS.find((x) => x.id === sel.id);
     if (!b) return;
     h += `<div class="i-head"><div><div class="i-cs">${b.name}</div><div class="i-sub">${BDESC[b.id] || ''}</div></div><button class="icon-btn i-close" data-close>✕</button></div>`;
+    if (b.id === 'fuel') {
+      const f = fuelState(state);
+      h += `<div class="i-grid"><div><span>Bestand</span><b>${Math.round(f.stock)} / ${FUEL.cap} t</b></div><div><span>Bestellt</span><b>${Math.round(pending(state))} t</b></div><div><span>Marktpreis</span><b>${Math.round(f.price)} €/t</b></div><div><span>Marge</span><b>${Math.round(f.margin * 100)} %</b></div></div>`;
+    }
     const up = BUP[b.id];
     const pj = up && projectFor(state, 'upgrade', up);
     if (pj) h += `<div class="i-site">🏗️ ${esc(pj.name)} ${progressBar(pj)}<small>${projectStatus(state, pj)}</small><button class="mini" data-act="pshow" data-v="${pj.id}">Baustelle</button></div>`;

@@ -9,6 +9,11 @@ import { generateDay, dailyContracts, maybeOffer } from './schedule.js';
 import { updateEvents } from './events.js';
 import { updateSequence } from './sequence.js';
 import { updateConstruction } from './construction.js';
+import { updateAcdm } from './acdm.js';
+import { updateFuel } from './fuel.js';
+import { dailyLoans } from './finance.js';
+import { spend } from './economy.js';
+import { updateGoals, onDayEnd as goalsDayEnd } from './goals.js';
 import { log } from './messages.js';
 import * as LY from '../layout.js';
 
@@ -35,8 +40,11 @@ export function step(state, dt) {
   updateSequence(state);
   updateGround(state, dt);
   updateConflicts(state, dt);
+  updateAcdm(state, dt);
   updateEconomy(state, dt);
+  updateFuel(state, dt);
   updateConstruction(state, dt);
+  updateGoals(state, dt);
   maybeOffer(state, dt);
   updateFire(state, dt);
 }
@@ -51,6 +59,8 @@ function spawnDue(state) {
 
 function dayRollover(state) {
   const rec = closeDay(state);
+  dailyLoans(state, spend);
+  goalsDayEnd(state, rec);
   dailyContracts(state);
   const day = dayOf(state.time);
   generateDay(state, day + 1);

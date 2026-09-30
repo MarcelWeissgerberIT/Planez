@@ -7,6 +7,7 @@ import { PH } from '../sim/aircraft.js';
 import { hourOf, roundedPath, clamp, lerp } from '../util.js';
 import { MARKS } from '../ui/marks.js';
 import { siteGeom, drawSiteGround, siteItems, permanentItems, drawSiteLabel } from './sites.js';
+import { runwayClosed } from '../sim/runway.js';
 const markOf = (ac) => (ac.mark && MARKS[ac.mark.c] ? MARKS[ac.mark.c] : null);
 
 const BH = { hall: 1.3, tower: 5, hangar: 1.8, cargo: 0.9, depot: 0.7, fire: 0.8, fuel: 0.9, parking: 1.1, hotel: 3.2, radar: 2.6 };
@@ -121,6 +122,7 @@ export class MapRenderer {
     this.sites = sites;
     this.siteLights = [];
     for (const s of sites) drawSiteGround(this, state, s.p, s.g);
+    this.drawRunwayWorkGround(state);
 
     // Objekte sammeln
     const items = [];
@@ -163,6 +165,7 @@ export class MapRenderer {
     }
     if (state.fire) for (const t of state.fire.trucks) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
     items.push({ d: 66 + 35.6, f: () => this.drawWindsock(state) });
+    this.runwayWorkItems(state, items, lights);
     items.sort((a, b) => a.d - b.d);
     for (const it of items) it.f();
     flying.sort((a, b) => a.x + a.y - (b.x + b.y));
@@ -239,6 +242,54 @@ export class MapRenderer {
 
     // Overlays: Positionen, Auswahl, Labels
     this.drawOverlays(state, ui);
+  }
+
+  // Pistenarbeiten / FOD-Kontrolle: Sperrkreuze, frische Deckschicht, Fahrzeuge auf der Piste
+  drawRunwayWorkGround(state) {
+    const closed = runwayClosed(state);
+    const ctx = this.ctx, cam = this.cam;
+    const rw = LY.RWY;
+    const p = state.rwyWorking ? (state.projects || []).find((q) => q.id === state.rwyWorking) : null;
+    cam.setIso(ctx, 0.01);
+    if (p) {
+      const x = rw.x0 + 4 + (rw.x1 - rw.x0 - 8) * p.prog;
+      ctx.fillStyle = p.target === 'resurface' ? 'rgba(20,20,24,0.55)' : 'rgba(255,255,255,0.10)';
+      ctx.fillRect(rw.x0 + 0.3, rw.y - rw.hw + 0.05, x - rw.x0 - 0.3, 2 * rw.hw - 0.1);
+    }
+    if (!closed) return;
+    // weiße Sperrkreuze an beiden Enden
+    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+    ctx.lineWidth = 0.28;
+    ctx.lineCap = 'butt';
+    for (const cx of [rw.x0 + 6, rw.x1 - 6, (rw.x0 + rw.x1) / 2]) {
+      ctx.beginPath();
+      ctx.moveTo(cx - 1.4, rw.y - 0.85);
+      ctx.lineTo(cx + 1.4, rw.y + 0.85);
+      ctx.moveTo(cx - 1.4, rw.y + 0.85);
+      ctx.lineTo(cx + 1.4, rw.y - 0.85);
+      ctx.stroke();
+    }
+  }
+
+  runwayWorkItems(state, items, lights) {
+    const rw = LY.RWY;
+    const t = this.time;
+    const mk = (id, type, x, y, hdg) => {
+      const fv = { id, type, x, y, hdg, st: 'work', brokenUntil: 0 };
+      items.push({ d: x + y, f: () => this.drawVehicle(state, fv, lights) });
+    };
+    if (state.rwyWorking) {
+      const p = (state.projects || []).find((q) => q.id === state.rwyWorking);
+      const x = rw.x0 + 4 + (rw.x1 - rw.x0 - 8) * (p ? p.prog : 0);
+      const types = p && p.target === 'resurface' ? ['catering', 'fuel', 'baggage', 'tug'] : ['cleaning', 'fuel', 'cleaning', 'tug'];
+      types.forEach((ty, i) => mk(`rw${i}`, ty, x + (i - 1.5) * 1.5 + Math.sin(t * 0.4 + i) * 0.35, rw.y + (i % 2 ? 0.45 : -0.45), Math.PI));
+    } else if (state.rwyClosedUntil > state.time && (state.rwyClosedWhy || '').startsWith('FOD')) {
+      // Kontrollfahrzeug fährt die Piste ab
+      const span = rw.x1 - rw.x0 - 2;
+      const u = (t * 1.4) % (2 * span);
+      const fwd = u < span;
+      mk('fod', 'tug', rw.x0 + 1 + (fwd ? u : 2 * span - u), rw.y + (fwd ? -0.5 : 0.5), fwd ? 0 : Math.PI);
+    }
   }
 
   viewRect() {

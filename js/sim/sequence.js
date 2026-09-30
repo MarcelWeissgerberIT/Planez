@@ -2,6 +2,7 @@
 import { PH } from './aircraft.js';
 import * as AS from './airspace.js';
 import { pathLength } from '../util.js';
+import { wakeArrSec, wakeDepSec } from './wake.js';
 
 const ARR_SEQ = new Set([PH.APPROACH, PH.FINAL, PH.ROLLOUT]);
 const DEP_SEQ = new Set([PH.STARTUP, PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAKEOFF]);
@@ -16,8 +17,14 @@ export function inSeqPhase(state, ac) {
   return isSeqArrival(ac) || isSeqDeparture(ac);
 }
 
-// geschätzte Sekunden bis zur Pistenbenutzung
+// geschätzte Sekunden bis zur Pistenbenutzung (Starts frühestens im Slot-Fenster)
 export function seqEta(state, ac) {
+  const base = rawEta(state, ac);
+  if (isSeqArrival(ac)) return base;
+  const rot = state.rots && state.rots[ac.rot];
+  return rot && rot.ctot && !rot.atd ? Math.max(base, rot.ctot - 300 - state.time) : base;
+}
+function rawEta(state, ac) {
   if (isSeqArrival(ac)) {
     if (ac.mode === 'map') return ac.phase === PH.ROLLOUT ? -60 : 20;
     const d = AS.routeDistance(ac.pos, ac.route.length ? ac.route : [AS.THR[ac.rwy]]);
@@ -42,8 +49,13 @@ export function seqEta(state, ac) {
   return 999;
 }
 
-// Mindestabstände auf der Piste in Spielsekunden (vorher -> nachher)
-const SEP = { AA: 80, DD: 90, AD: 45, DA: 100 };
+// Mindestabstände auf der Piste in Spielsekunden (vorher -> nachher), Wirbelschleppen berücksichtigt
+const SEP = { AD: 45, DA: 100 };
+export function sepSec(lead, foll, leadArr, follArr) {
+  if (leadArr && follArr) return wakeArrSec(lead.wake, foll.wake);
+  if (!leadArr && !follArr) return wakeDepSec(lead.wake, foll.wake) + 15;
+  return leadArr ? SEP.AD : SEP.DA;
+}
 
 // Geplante Zeiten entlang einer Reihenfolge
 function slotsAlong(state, order, byId) {
@@ -55,9 +67,9 @@ function slotsAlong(state, order, byId) {
     if (!ac) continue;
     const arr = isSeqArrival(ac);
     let slot = seqEta(state, ac);
-    if (prev !== null) slot = Math.max(slot, t + SEP[(prev ? 'A' : 'D') + (arr ? 'A' : 'D')]);
+    if (prev) slot = Math.max(slot, t + sepSec(prev, ac, isSeqArrival(prev), arr));
     slots[id] = slot;
-    prev = arr;
+    prev = ac;
     t = slot;
   }
   return slots;
@@ -70,16 +82,22 @@ function autoOrder(state, ids, byId) {
   const deps = ids.filter((id) => !isSeqArrival(byId.get(id))).sort((a, b) => raw(a) - raw(b));
   const ev = [];
   let t = -Infinity;
+  let pa = null;
   for (const id of arrs) {
-    t = Math.max(raw(id), t + SEP.AA);
+    const ac = byId.get(id);
+    t = Math.max(raw(id), pa ? t + sepSec(pa, ac, true, true) : -Infinity);
     ev.push({ id, t, arr: true });
+    pa = ac;
   }
   let last = -Infinity;
+  let pd = null;
   for (const id of deps) {
-    let c = Math.max(raw(id), last + SEP.DD);
+    const ac = byId.get(id);
+    let c = Math.max(raw(id), pd ? last + sepSec(pd, ac, false, false) : -Infinity);
     for (const e of ev) if (e.arr && c < e.t + SEP.AD && c + SEP.DA > e.t) c = e.t + SEP.AD;
     ev.push({ id, t: c, arr: false });
     last = c;
+    pd = ac;
   }
   ev.sort((a, b) => a.t - b.t);
   return ev.map((e) => e.id);

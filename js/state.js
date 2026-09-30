@@ -7,6 +7,7 @@ import { freshToday } from './sim/economy.js';
 import { placeAtStand } from './sim/aircraft.js';
 import { nextId, uniqueFn } from './sim/schedule.js';
 import { AC_TYPES, SIZE_RANK } from './config.js';
+import { FUEL, fuelState } from './sim/fuel.js';
 
 export const SAVE_KEY = 'planez_save_v1';
 export const ROLES = {
@@ -35,7 +36,7 @@ export function newGame(opts = {}) {
     weather: { kind: 'clear', until: 9 * 3600, cells: [] },
     cash: 5000000,
     reputation: 62,
-    fees: { ...DEFAULT_FEES },
+    fees: { ...DEFAULT_FEES, night: 600 },
     upgrades: { retail: 0, security: 0, lounge: 0, parking: 0, hotel: 0, ils3: 0, rapidExit: 0, apronLights: 0 },
     staff: 44,
     stands: STAND_DEFS.map((s) => ({ ...s, built: s.built || s.id === 6, occ: null, resv: null, bridge: 0 })),
@@ -57,7 +58,12 @@ export function newGame(opts = {}) {
       labels: true,
       tts: false,
       sound: true,
+      curfew: false,
+      glossary: true,
     },
+    rwyCond: 86,
+    loans: [],
+    life: {},
     auto: autoFor(role),
     nextId: 1,
     marketingUntil: 0,
@@ -67,6 +73,8 @@ export function newGame(opts = {}) {
   };
   const fleet = { tug: 3, baggage: 4, fuel: 2, catering: 2, cleaning: 2, bus: 2 };
   for (const [type, n] of Object.entries(fleet)) for (let i = 0; i < n; i++) state.vehicles.push(makeVehicle(state, type, freeBay(state)));
+  for (const v of state.vehicles) if (v.type === 'fuel') v.load = FUEL.truckCap * (0.7 + 0.25 * (v.bay % 2));
+  fuelState(state);
   state.contracts = initialContracts(state, state.settings.density);
   generateDay(state, 1);
   generateDay(state, 2);

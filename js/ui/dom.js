@@ -1,4 +1,5 @@
 // DOM-Helfer: Listen-Synchronisation, Toasts, Modals
+import { glossify } from './glossary.js';
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -21,6 +22,7 @@ export function syncList(container, items, keyFn, renderFn, tag = 'div') {
       if (el._html !== r.html) {
         el.innerHTML = r.html;
         el._html = r.html;
+        glossify(el);
       }
     } else if (r.parts) {
       // Teilbereiche einzeln aktualisieren (Buttons bleiben stabil)
@@ -44,7 +46,10 @@ export function syncList(container, items, keyFn, renderFn, tag = 'div') {
       for (const [p, html] of Object.entries(r.parts)) {
         if (el._parts[p] !== html) {
           const box = el.querySelector('.' + p.split(' ')[0]);
-          if (box) box.innerHTML = html;
+          if (box) {
+            box.innerHTML = html;
+            glossify(box);
+          }
           el._parts[p] = html;
         }
       }
@@ -63,6 +68,7 @@ export function setHTML(el, html) {
   if (el._html !== html) {
     el.innerHTML = html;
     el._html = html;
+    glossify(el);
   }
 }
 
@@ -73,6 +79,7 @@ export function toast(text, level = 'info', ms = 4200) {
   const t = document.createElement('div');
   t.className = `toast ${level}`;
   t.textContent = text;
+  glossify(t);
   toastHost.appendChild(t);
   while (toastHost.children.length > 5) toastHost.firstChild.remove();
   setTimeout(() => {
@@ -85,6 +92,7 @@ export function openModal(html, onMount) {
   const m = document.getElementById('modal');
   const box = document.getElementById('modal-box');
   box.innerHTML = html;
+  glossify(box);
   m.classList.remove('hidden');
   if (onMount) onMount(box);
   return box;

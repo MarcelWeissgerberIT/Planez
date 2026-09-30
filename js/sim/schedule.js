@@ -75,7 +75,9 @@ export function generateDay(state, day, onlyContract = null) {
       if (c.cargo) {
         // Fracht bevorzugt nachts/früh
         const slot = (state.contracts.filter((x) => x.cargo).indexOf(c) + k) % 3;
-        sta = dayStart + [randRange(state, 0.5, 4), randRange(state, 11, 15), randRange(state, 19, 22.5)][slot] * 3600;
+        // Nachtflugverbot (23–5 Uhr): Nachtfracht auf den frühen Morgen verschieben
+        const night = state.settings && state.settings.curfew ? randRange(state, 5.1, 6) : randRange(state, 0.5, 4);
+        sta = dayStart + [night, randRange(state, 11, 15), randRange(state, 19, 22.2)][slot] * 3600;
       } else if (t.size === 'L') {
         sta = dayStart + randRange(state, 6.5 + k * 5, 10 + k * 5) * 3600;
       } else {
@@ -150,7 +152,8 @@ export function maybeOffer(state, dt) {
   if (state.offerTimer > 0) return;
   const feeIdx = feeIndex(state);
   const mkt = state.marketingUntil > state.time ? 0.6 : 1;
-  state.offerTimer = randRange(state, 3, 7) * 3600 * clamp(feeIdx, 0.6, 2) * mkt * (1.4 - state.reputation / 200);
+  const rankF = 1 - 0.08 * ((state.goals && state.goals.rank) || 0); // höherer Rang: mehr Interesse
+  state.offerTimer = randRange(state, 3, 7) * 3600 * clamp(feeIdx, 0.6, 2) * mkt * (1.4 - state.reputation / 200) * rankF;
   if (state.offers.length >= 4) return;
   const pool = Object.values(AIRLINES).filter((a) => a.code !== 'VIP');
   const al = pickWeighted(state, pool, (a) => (a.types.some((t) => AC_TYPES[t].size === 'L') ? (state.upgrades.lounge ? 1.6 : 0.8) : 1));
@@ -181,6 +184,8 @@ export function acceptOffer(state, offerId) {
   const c = makeContract(state, o.airline, o.type, o.city, o.perDay, o.days);
   c.sat = 78;
   state.contracts.push(c);
+  state.life = state.life || {};
+  state.life.contracts = (state.life.contracts || 0) + 1;
   state.offers = state.offers.filter((x) => x !== o);
   // ab morgen im Flugplan
   const tomorrow = Math.floor(state.time / 86400) + 2;

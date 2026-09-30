@@ -98,6 +98,7 @@
         <div class="kpi"><span>Kasse</span><b id="hud-cash"></b></div>
         <div class="kpi"><span>Ansehen</span><b id="hud-rep"></b></div>
         <div class="kpi hide-sm"><span>Pünktlich</span><b id="hud-ontime"></b></div>
+        <button class="rank-btn" id="btn-rank" title="Ziele &amp; Flughafen-Rang"></button>
         <button class="role-btn" id="btn-role"></button>
       </div>
     </header>
@@ -109,6 +110,7 @@
       <div class="radar-head">
         <span>📡 Radar <small id="radar-range"></small></span>
         <span class="radar-btns">
+          <button class="mini" id="radar-leg" title="Legende: was bedeutet die Radaranzeige?">ⓘ Legende</button>
           <button class="mini" id="radar-mf" title="Nur markierte Flüge hervorheben">⚑ Filter</button>
           <button class="mini" id="radar-rng">Reichweite</button>
           <button class="mini" id="radar-big">⤢</button>
@@ -116,6 +118,15 @@
       </div>
       <div id="radar-seq" class="radar-seq"></div>
       <canvas id="radar"></canvas>
+      <div id="radar-legend" class="radar-legend hidden">
+        <button class="mini rl-x" aria-label="Legende schließen">✕</button>
+        <h4>Datenblock</h4>
+        <div class="rl-block"><code>AUR883 ●</code><span>Rufzeichen · ● = offene Anfrage</span><code>050↓ 16</code><span>Höhe in 100 ft (050 = 5000 ft), ↑↓ Steig-/Sinkflug, Geschwindigkeit in 10 kt (16 = 160 kt)</span><code>#2 A320/M APP</code><span>Pistenfolge-Nr. · Typ / Wirbelschleppen-Kategorie · Status (HLD Warteschleife, APP Anflug frei, LND Landefreigabe)</span></div>
+        <h4>Warnungen</h4>
+        <ul><li><b style="color:#f87171">rot blinkend</b> – STCA: Staffelung unterschritten (&lt; 3 NM und &lt; 1000 ft)</li><li><b>MINFUEL</b> – Minimum Fuel, bald landen lassen · <b>7700 FUEL/EMERG</b> – Notfall</li><li><b>WAKE!</b> – zu dicht hinter einem schweren Flugzeug (Wirbelschleppe)</li></ul>
+        <h4>Farben &amp; Symbole</h4>
+        <ul><li><span style="color:#22d3ee">■</span> Landung · <span style="color:#a5f3fc">■</span> Landung frei · <span style="color:#f59e0b">■</span> Start · <span style="color:#e879f9">■</span> Startfreigabe</li><li>Fixe NOLTA/SUDEN (Piste 27) und WELDA/RIMOS (Piste 09) mit Warteschleifen · Linie zur Schwelle = verlängerte Pistenachse mit IP (15 NM) und FAF (10 NM)</li><li>Ringe: Entfernung in NM vom Flughafen · Punkte hinter dem Ziel = Flugspur · ⚑ = Markierung</li></ul>
+      </div>
     </section>
 
     <section id="log-wrap">
@@ -128,6 +139,7 @@
       <button class="icon-btn" id="z-out" title="Herauszoomen">－</button>
       <button class="icon-btn" id="t-labels" title="Beschriftungen">🏷️</button>
       <button class="icon-btn" id="t-radar" title="Radar">📡</button>
+      <button class="icon-btn" id="t-gloss" title="Glossar: Abkürzungen &amp; Begriffe">📖</button>
       <button class="icon-btn" id="t-help" title="Hilfe">❓</button>
     </div>
 

@@ -7,6 +7,10 @@ import { PH, tel, windStr, goAround, startTaxiIn, startPushback, startTaxiOut, s
 import { radio, log, notify } from './messages.js';
 import { penalize } from './economy.js';
 import { updateSequence, seqNumber } from './sequence.js';
+import { wakeNm, wakeDepSec } from './wake.js';
+import { slotOpen } from './acdm.js';
+import { runwayClosed, brakingAction, BRAKE_EN, updateRunway } from './runway.js';
+import { fmtClock } from '../util.js';
 
 const numTxt = (s, ac, suffix = '') => {
   updateSequence(s);
@@ -64,12 +68,13 @@ export const CMDS = {
   },
   land: {
     label: 'Landefreigabe', key: 'L', air: true, big: true,
-    valid: (s, ac) => (ac.phase === PH.APPROACH || ac.phase === PH.FINAL) && !ac.clr.land,
+    valid: (s, ac) => (ac.phase === PH.APPROACH || ac.phase === PH.FINAL) && !ac.clr.land && !runwayClosed(s),
     run: (s, ac) => {
       ac.clr.land = true;
       ac.clr.landGivenBlocked = !!runwayBlocker(s, ac) && !(runwayBlocker(s, ac).phase === PH.TAKEOFF);
       ac.req = null;
-      say(s, ac, `${tel(ac)}, ${numTxt(s, ac)}runway ${ac.rwy}, cleared to land, ${windStr(s)}.`, `Cleared to land ${ac.rwy}, ${tel(ac)}.`);
+      const ba = brakingAction(s);
+      say(s, ac, `${tel(ac)}, ${numTxt(s, ac)}runway ${ac.rwy}, cleared to land, ${windStr(s)}${ba !== 'good' ? `, braking action ${BRAKE_EN[ba]}` : ''}.`, `Cleared to land ${ac.rwy}, ${tel(ac)}.`);
     },
   },
   goaround: {
@@ -104,6 +109,16 @@ export const CMDS = {
       startPushback(s, ac);
     },
   },
+  startWait: {
+    label: 'Warten bis TSAT', key: 'E',
+    valid: (s, ac) => ac.phase === PH.STAND && ac.req === 'push' && s.rots[ac.rot] && s.rots[ac.rot].tsat > s.time + 150,
+    run: (s, ac) => {
+      const rot = s.rots[ac.rot];
+      ac.req = null;
+      ac.pushWaitUntil = rot.tsat - 90;
+      say(s, ac, `${tel(ac)}, expect start-up at ${fmtClock(rot.tsat).replace(':', '')}, remain on stand.`, `Expect start-up ${fmtClock(rot.tsat).replace(':', '')}, ${tel(ac)}.`);
+    },
+  },
   taxiOut: {
     label: 'Rollen zum Rollhalt', key: 'R', big: true,
     valid: (s, ac) => (ac.phase === PH.STARTUP || ac.phase === PH.PUSH) && !ac.clr.taxiOut,
@@ -117,7 +132,7 @@ export const CMDS = {
   },
   lineup: {
     label: 'Line up & wait', key: 'U',
-    valid: (s, ac) => (ac.phase === PH.HOLDING || ac.phase === PH.TAXI_OUT) && !ac.clr.lineup && !ac.clr.takeoff,
+    valid: (s, ac) => (ac.phase === PH.HOLDING || ac.phase === PH.TAXI_OUT) && !ac.clr.lineup && !ac.clr.takeoff && !runwayClosed(s),
     run: (s, ac) => {
       ac.clr.lineup = true;
       ac.req = null;
@@ -126,7 +141,7 @@ export const CMDS = {
   },
   takeoff: {
     label: 'Startfreigabe', key: 'T', big: true,
-    valid: (s, ac) => [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(ac.phase) && !ac.clr.takeoff,
+    valid: (s, ac) => [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(ac.phase) && !ac.clr.takeoff && !runwayClosed(s),
     run: (s, ac) => {
       ac.clr.takeoff = true;
       ac.req = null;
@@ -161,7 +176,10 @@ function setSpeed(s, ac, v) {
 
 export function command(state, ac, key) {
   const c = CMDS[key];
-  if (!c || !c.valid(state, ac)) return { ok: false, msg: 'Befehl gerade nicht möglich' };
+  if (!c || !c.valid(state, ac)) {
+    const rc = runwayClosed(state);
+    return { ok: false, msg: rc && ['land', 'takeoff', 'lineup'].includes(key) ? `Piste gesperrt: ${rc}` : 'Befehl gerade nicht möglich' };
+  }
   const r = c.run(state, ac);
   return r || { ok: true };
 }
@@ -226,6 +244,7 @@ export function autoAtc(state, dt) {
     if (pref !== state.rwy && tailwind(state, state.rwy) > 5 && !state.rwyPending) requestRunwayChange(state, pref);
   }
   applyRunwayChange(state);
+  updateRunway(state, 2);
 
   if (!groundOnly) {
     autoArrivals(state);
@@ -236,6 +255,7 @@ export function autoAtc(state, dt) {
 
 function autoArrivals(state) {
   const rwy = state.rwy;
+  const s0 = state;
   const cleared = state.acs.filter((a) => (a.phase === PH.APPROACH || a.phase === PH.FINAL) && a.rwy === rwy);
   const distCleared = cleared.map((a) => ({ a, d: distToLand(a) }));
   const departuresWaiting = state.acs.filter((a) => [PH.HOLDING, PH.LINED, PH.LINEUP].includes(a.phase) || (a.phase === PH.TAXI_OUT && a.rwy === rwy)).length;
@@ -246,7 +266,7 @@ function autoArrivals(state) {
     if (a.phase === PH.APPROACH && !onFinal(a)) continue;
     if (d > 6) continue;
     const blk = runwayBlocker(state, a);
-    const ok = !blk || blk.phase === PH.TAKEOFF || (blk.phase === PH.ROLLOUT && d > 2.8);
+    const ok = !runwayClosed(state) && (!blk || blk.phase === PH.TAKEOFF || (blk.phase === PH.ROLLOUT && d > 2.8));
     if (ok) command(state, a, 'land');
   }
 
@@ -260,7 +280,7 @@ function autoArrivals(state) {
       const below = state.acs.some((o) => o !== c && o.mode === 'air' && o.alt < c.alt - 300 && ((o.phase === PH.HOLD && Math.hypot(o.pos.x - c.pos.x, o.pos.y - c.pos.y) < 9) || (Math.hypot(o.pos.x - c.pos.x, o.pos.y - c.pos.y) < 6 && o.alt > 4500)));
       return { c, d: AS.routeDistance(c.pos, AS.approachRoute(c.pos, rwy)) + (below ? 50 : 0), blocked: below };
     });
-    scored.sort((x, y) => (y.c.emergency ? 1 : 0) - (x.c.emergency ? 1 : 0) || x.d - y.d);
+    scored.sort((x, y) => (y.c.emergency ? 1 : 0) - (x.c.emergency ? 1 : 0) || (y.c.minFuel ? 1 : 0) - (x.c.minFuel ? 1 : 0) || x.d - y.d);
     const next = scored[0];
     if (next) {
       const c = next.c;
@@ -270,11 +290,10 @@ function autoArrivals(state) {
       else {
         let ok = true;
         for (const { a, d } of distCleared) {
-          const leaderHeavy = (d < next.d ? a.wake : c.wake) === 'H';
-          const followerHeavy = (d < next.d ? c.wake : a.wake) === 'H';
           const lead = d < next.d ? a : c, foll = lead === a ? c : a;
           const fast = AC_TYPES[foll.type].vapp > AC_TYPES[lead.type].vapp + 12 ? 1.5 : 0;
-          let sep = 7 + fast + (leaderHeavy && !followerHeavy ? 2 : 0);
+          // Wirbelschleppen: Mehrabstand hinter schweren Flugzeugen
+          let sep = 7 + fast + (wakeNm(lead.wake, foll.wake) - 3) * 1.3 + (s0.weather.kind === 'fog' ? 2.5 : 0);
           if (departuresWaiting > 0) sep += 2.5;
           if (Math.abs(next.d - d) < sep) ok = false;
           if (next.d < d) ok = false; // nicht vordrängeln
@@ -289,8 +308,9 @@ function autoArrivals(state) {
     const gap = seq[i].d - seq[i - 1].d;
     const f = seq[i].a;
     if (onFinal(f)) continue;
-    if (gap < 6.2 && f.spdOverride !== 160) f.spdOverride = 160;
-    else if (gap > 8.5 && f.spdOverride) f.spdOverride = null;
+    const extra = wakeNm(seq[i - 1].a.wake, f.wake) - 3;
+    if (gap < 6.2 + extra && f.spdOverride !== 160) f.spdOverride = 160;
+    else if (gap > 8.5 + extra && f.spdOverride) f.spdOverride = null;
   }
 }
 
@@ -301,16 +321,22 @@ function autoDepartures(state) {
   const nextArr = arrivals.reduce((m, a) => Math.min(m, distToLand(a)), 99);
   const lined = state.acs.find((a) => a.phase === PH.LINED || a.phase === PH.LINEUP);
   const sinceTo = state.time - (state.lastTakeoff || -999);
-  const wakeGap = state.lastTakeoffWake === 'H' ? 110 : 75;
+  if (runwayClosed(state)) return;
   if (lined && !lined.clr.takeoff) {
     const others = occupants.filter((o) => o !== lined);
-    if (!others.length && nextArr > 2.6 && sinceTo > wakeGap) command(state, lined, 'takeoff');
+    if (!others.length && nextArr > 2.6 && sinceTo > wakeDepSec(state.lastTakeoffWake, lined.wake) && slotOpen(state, lined)) command(state, lined, 'takeoff');
     return;
   }
   if (lined) return;
-  const queue = state.acs.filter((a) => a.phase === PH.HOLDING && a.rwy === rwy).sort((a, b) => a.reqT - b.reqT);
+  // nur Flüge, deren Slot-Fenster offen ist; Slot-Flüge kurz vor Fensterende zuerst
+  const key = (a) => {
+    const r = state.rots[a.rot];
+    return r && r.ctot && r.ctot + 600 - state.time < 480 ? a.reqT - 1e6 : a.reqT;
+  };
+  const queue = state.acs.filter((a) => a.phase === PH.HOLDING && a.rwy === rwy && slotOpen(state, a, 60)).sort((a, b) => key(a) - key(b));
   const head = queue[0];
   if (!head) return;
+  const wakeGap = wakeDepSec(state.lastTakeoffWake, head.wake);
   if (!occupants.length && nextArr > 5.2 && sinceTo > wakeGap - 20) command(state, head, 'takeoff');
   else if (!occupants.length && nextArr > 4.4 && sinceTo > wakeGap - 30) command(state, head, 'lineup');
 }
@@ -320,6 +346,8 @@ function autoGround(state) {
   if (towerManualGround) return;
   for (const ac of state.acs) {
     if ((ac.phase === PH.VACATED || ac.phase === PH.TAXI_WAIT || (ac.phase === PH.ROLLOUT && ac.vacated)) && ac.stand && !ac.clr.taxi) command(state, ac, 'taxiIn');
+    const rotP = state.rots[ac.rot];
+    if (ac.phase === PH.STAND && ac.req === 'push' && rotP && rotP.tsat > state.time + 150) command(state, ac, 'startWait');
     if (ac.phase === PH.STAND && ac.req === 'push' && (!state.rwyPending || state.time - (state.rwyPendingSince || 0) < 600)) {
       const st = state.stands.find((s) => s.id === ac.stand);
       const endX = st ? st.x + (state.rwy === '27' ? -2 : 2) : ac.x;
@@ -377,6 +405,7 @@ export function updateConflicts(state, dt) {
       }
     }
   }
+  checkWake(state);
   // Einschränkungen aufheben
   for (const a of air) {
     if (a.altRestr !== undefined && !a.predConflict) {
@@ -408,5 +437,34 @@ function resolve(state, a, b) {
     upper.altRestr = Math.max(upper.alt, Math.ceil((lower.alt + 1200) / 1000) * 1000);
   } else if (movable(lower) && lower.phase !== PH.HOLD) {
     lower.altRestr = Math.max(3000, Math.floor((upper.alt - 1200) / 1000) * 1000);
+  }
+}
+
+// Wirbelschleppen-Staffelung im Endanflug prüfen (Folgeflugzeug zu dicht hinter schwerem Vorausfliegenden)
+function checkWake(state) {
+  const fin = state.acs
+    .filter((a) => (a.mode === 'air' && onFinal(a)) || (a.mode === 'map' && a.phase === PH.FINAL))
+    .map((a) => ({ a, d: a.mode === 'air' ? AS.distToThr(a.pos, a.rwy) : Math.max(0, (LY.RWY.thr[a.rwy] - a.x) * LY.rwyDir(a.rwy)) * 0.0108 }))
+    .sort((x, y) => x.d - y.d);
+  state.wakePen = state.wakePen || {};
+  for (const { a } of fin) a.wakeWarn = false;
+  for (let i = 1; i < fin.length; i++) {
+    const lead = fin[i - 1], foll = fin[i];
+    const req = wakeNm(lead.a.wake, foll.a.wake);
+    if (req <= 3 || foll.a.mode !== 'air') continue;
+    const gap = foll.d - lead.d;
+    foll.a.wakeReq = req;
+    if (gap < req - 0.3) {
+      foll.a.wakeWarn = true;
+      const key = lead.a.id + foll.a.id;
+      if (!state.wakePen[key]) {
+        state.wakePen[key] = state.time;
+        state.stats.today.wakeInf = (state.stats.today.wakeInf || 0) + 1;
+        foll.a.wakeBad = true;
+        penalize(state, 'wake', foll.a);
+        log(state, 'sys', `Wirbelschleppen-Staffelung unterschritten: ${foll.a.cs} (${foll.a.wake}) nur ${gap.toFixed(1)} NM hinter ${lead.a.cs} (${lead.a.wake}) – Soll ${req} NM.`);
+        notify(state, `🌀 Wirbelschleppe: ${foll.a.cs} zu dicht hinter ${lead.a.cs} (${gap.toFixed(1)} statt ${req} NM)`, 'warn');
+      }
+    }
   }
 }

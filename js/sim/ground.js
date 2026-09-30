@@ -6,6 +6,9 @@ import { radio, log, notify } from './messages.js';
 import { nextId } from './schedule.js';
 import { tel, setReq, PH, getRot } from './aircraft.js';
 import { onOffBlock } from './economy.js';
+import { acdmOnBlock } from './acdm.js';
+import { FUEL, fuelState, upliftFor, sellFuel, truckTakeFuel } from './fuel.js';
+import { earn } from './economy.js';
 
 export const BRIDGE_SPEED = 1 / 40; // pro Spielsekunde
 
@@ -66,6 +69,8 @@ function makeTasks(state, ac, stand) {
   const cargoF = t.cargo ? Math.max(1, (rot?.cargoIn || t.cargo) / 55) : sizeF;
   mk('unload', TASKS.unload.base * cargoF, 'baggage');
   mk('fuel', TASKS.fuel.base * Math.max(0.5, Math.sqrt(t.fuel / 11000)), 'fuel');
+  tasks.fuel.uplift = upliftFor(state, ac); // Tonnen Kerosin
+  tasks.fuel.delivered = 0;
   mk('load', TASKS.load.base * (t.cargo ? Math.max(1, (rot?.cargoOut || t.cargo) / 55) : sizeF), 'baggage', ['unload']);
   mk('push', 0, 'tug', Object.keys(tasks));
   return tasks;
@@ -90,6 +95,8 @@ export function onBlock(state, ac) {
     rot.status = 'onblock';
     rot.onBlock = state.time;
     ac.cs = rot.depNo;
+    acdmOnBlock(state, ac);
+    if (rot.landT && !ac.waitedStand && state.life) state.life.noStandWait = (state.life.noStandWait || 0) + 1;
   }
   log(state, 'gnd', `${rot ? rot.arrNo : ac.cs} an Position ${st ? st.id : '?'} angekommen (Abflug als ${ac.cs}).`);
 }
@@ -179,8 +186,33 @@ export function updateGround(state, dt) {
       if (task.st === 'ready' && task.need) {
         state.stats.vehWait[task.need] = (state.stats.vehWait[task.need] || 0) + dt;
       }
-      if (task.st === 'active' && k !== 'push') {
+      if (task.st === 'active' && k === 'fuel' && task.uplift) {
+        // Betankung: Menge kommt aus dem Tankwagen; ist er leer, muss ein zweiter kommen
+        const v = state.vehicles.find((x) => x.id === task.veh);
+        if (!v) {
+          task.st = 'ready';
+          task.veh = null;
+        } else if (!storm) {
+          const rate = (task.uplift / Math.max(30, task.dur)) * eff;
+          const q = Math.min(rate * dt, v.load || 0, task.uplift - task.delivered);
+          v.load = (v.load || 0) - q;
+          task.delivered += q;
+          sellFuel(state, q, earn);
+          task.prog = Math.min(1, task.delivered / task.uplift);
+          if (task.prog < 0.999 && (v.load || 0) <= 0.01) {
+            task.st = 'ready';
+            task.readyT = state.time;
+            task.veh = null;
+            releaseVehicle(state, v, true);
+            log(state, 'gnd', `${ac.cs}: Tankwagen leer nach ${Math.round(task.delivered)} von ${Math.round(task.uplift)} t – nächster Tankwagen nötig.`);
+            continue;
+          }
+          if (task.prog >= 0.999) task.prog = 1;
+        }
+      } else if (task.st === 'active' && k !== 'push') {
         if (!storm) task.prog += (dt * eff) / Math.max(30, task.dur);
+      }
+      if (task.st === 'active' && k !== 'push') {
         if (task.prog >= 1) {
           task.prog = 1;
           task.st = 'done';
@@ -197,7 +229,8 @@ export function updateGround(state, dt) {
     const bridgeGone = !st || st.kind !== 'contact' || (st.bridge || 0) <= 0.001;
     const workDone = TASK_ORDER.every((o) => o === 'push' || !tasks[o] || tasks[o].st === 'done');
     ac.ta.ready = workDone;
-    if (push.st === 'active' && workDone && bridgeGone && rot && state.time >= rot.std - 5 * 60) {
+    // Pilot meldet sich zur TOBT (bzw. nach „Start-up erwartet“ zur TSAT)
+    if (push.st === 'active' && workDone && bridgeGone && rot && state.time >= (rot.tobt || rot.std) - 5 * 60 && !(ac.pushWaitUntil > state.time)) {
       if (ac.req !== 'push') {
         setReq(state, ac, 'push');
         radio(state, ac.cs, `${tel(ac)}, stand ${ac.stand}, request pushback.`);
@@ -242,6 +275,7 @@ export function makeVehicle(state, type, bayIdx) {
     bay: bayIdx,
     idleT: 0,
     brokenUntil: 0,
+    load: type === 'fuel' ? 0 : undefined, // neuer Tankwagen fährt zuerst zum Tanklager
   };
 }
 
@@ -261,11 +295,15 @@ export function dispatch(state, ac, k, vehId = null) {
   let v;
   if (vehId) v = state.vehicles.find((x) => x.id === vehId && vehicleAvailable(state, x));
   else {
-    const cands = state.vehicles.filter((x) => x.type === task.need && vehicleAvailable(state, x));
+    const need = k === 'fuel' && task.uplift ? Math.min(5, task.uplift - (task.delivered || 0)) : 0;
+    const cands = state.vehicles.filter((x) => x.type === task.need && vehicleAvailable(state, x) && (!need || (x.load || 0) >= need));
     cands.sort((a, b) => dist(a.x, a.y, ac.x, ac.y) - dist(b.x, b.y, ac.x, ac.y));
     v = cands[0];
   }
-  if (!v) return { ok: false, msg: `Kein freies Fahrzeug: ${VEH_TYPES[task.need].name}` };
+  if (!v) {
+    const filling = task.need === 'fuel' && state.vehicles.some((x) => x.type === 'fuel' && (x.st === 'refill' || x.st === 'filling'));
+    return { ok: false, msg: filling ? 'Kein Tankwagen mit Ladung frei – Tankwagen werden am Tanklager befüllt' : `Kein freies Fahrzeug: ${VEH_TYPES[task.need].name}` };
+  }
   const sp = LY.servicePoint(k, ac);
   v.job = { ac: ac.id, k };
   v.st = 'drive';
@@ -281,6 +319,15 @@ function releaseVehicle(state, v, returnNow) {
   v.job = null;
   v.st = 'idle';
   v.idleT = returnNow ? 999 : 0;
+  if (v.type === 'fuel' && (v.load || 0) < FUEL.truckCap * 0.35) sendRefill(state, v);
+}
+
+// Tankwagen zur Füllstelle am Tanklager
+function sendRefill(state, v) {
+  v.st = 'refill';
+  v.path = LY.vehPath({ x: v.x, y: v.y }, FUEL.fill);
+  v.pi = 0;
+  v.target = { ...FUEL.fill, hdg: 0 };
 }
 
 function sendHome(state, v) {
@@ -330,6 +377,22 @@ function updateVehicles(state, dt, storm) {
       } else releaseVehicle(state, v, true);
       continue;
     }
+    if (v.st === 'refill') {
+      if (storm) continue;
+      if (moveAlong(v, dt, vt.speed)) {
+        v.st = 'filling';
+        v.hdg = 0;
+      }
+      continue;
+    }
+    if (v.st === 'filling') {
+      if (truckTakeFuel(state, v, dt)) {
+        v.st = 'idle';
+        v.idleT = 0;
+        sendHome(state, v);
+      }
+      continue;
+    }
     if (v.st === 'drive' || v.st === 'return') {
       if (storm) continue;
       // Ziel noch gültig?
@@ -364,6 +427,10 @@ function updateVehicles(state, dt, storm) {
       continue;
     }
     if (v.st === 'idle') {
+      if (v.type === 'fuel' && (v.load || 0) < FUEL.truckCap * 0.35 && !(v.brokenUntil > state.time)) {
+        sendRefill(state, v);
+        continue;
+      }
       v.idleT += dt;
       const bay = LY.DEPOT_BAYS[v.bay % LY.DEPOT_BAYS.length];
       const atHome = Math.hypot(v.x - bay.x, v.y - bay.y) < 0.1;

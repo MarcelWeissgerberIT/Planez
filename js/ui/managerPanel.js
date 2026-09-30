@@ -9,12 +9,19 @@ import { PH } from '../sim/aircraft.js';
 import { sfx } from '../audio.js';
 import { projects, standProject, projectFor, cancelProject, standBuildHours, upgradeHours, STAND_HOURS, remainingHours } from '../sim/construction.js';
 import { projectCard, projectInline, fmtHours } from './projects.js';
+import { qm } from './glossary.js';
+import { RWY_WORKS } from '../sim/construction.js';
+import { rwyCond, brakingAction, BRAKE_DE } from '../sim/runway.js';
+import { fuelState, FUEL, orderFuel, maxOrder, avgCost, sellPrice, pending, burnRate, inventory } from '../sim/fuel.js';
+import { loans, loanLimit, loanRate, takeLoan, repayLoan, annuity, LOAN_DAYS, debt } from '../sim/finance.js';
+import { goalsState, activeGoals, goalFraction, goalText, RANKS } from '../sim/goals.js';
 
 const TABS = [
   ['over', 'Übersicht'],
   ['contracts', 'Verträge'],
   ['build', 'Ausbau'],
   ['ops', 'Betrieb'],
+  ['fuel', 'Kerosin'],
   ['fees', 'Gebühren'],
   ['fin', 'Finanzen'],
 ];
@@ -108,8 +115,32 @@ export class ManagerPanel {
         this.game.showSite && this.game.showSite(v);
         return;
       case 'feereset':
-        s.fees = { ...DEFAULT_FEES };
+        s.fees = { ...DEFAULT_FEES, night: 600 };
         break;
+      case 'rwy':
+        ok = EC.orderRunwayWork(s, v);
+        break;
+      case 'fbuy':
+        ok = orderFuel(s, v === 'fill' ? maxOrder(s) * 0.95 : Number(v));
+        break;
+      case 'fauto':
+        fuelState(s).auto = !fuelState(s).auto;
+        ok = false;
+        break;
+      case 'curfew':
+        s.settings.curfew = !s.settings.curfew;
+        toast(s.settings.curfew ? '🌙 Nachtflugverbot 23–5 Uhr ab dem nächsten Flugplan' : 'Nachtflüge wieder erlaubt', 'info');
+        ok = false;
+        break;
+      case 'loan':
+        ok = takeLoan(s, Number(v));
+        break;
+      case 'repay':
+        ok = repayLoan(s, v);
+        break;
+      case 'goals':
+        this.game.showGoals && this.game.showGoals();
+        return;
     }
     if (ok) sfx.cash();
     this.body._html = null;
@@ -117,6 +148,13 @@ export class ManagerPanel {
   }
 
   onInput(e) {
+    const fm = e.target.closest('input[data-fuelm]');
+    if (fm) {
+      fuelState(this.game.state).margin = Number(fm.value) / 100;
+      const lab = this.root.querySelector('[data-fuelmval]');
+      if (lab) lab.textContent = `${fm.value} %`;
+      return;
+    }
     const r = e.target.closest('input[data-fee]');
     if (!r) return;
     EC.setFee(this.game.state, r.dataset.fee, Number(r.value));
@@ -128,7 +166,7 @@ export class ManagerPanel {
     for (const b of this.root.querySelectorAll('[data-tab]')) b.classList.toggle('on', b.dataset.tab === this.tab);
     const offers = state.offers.length;
     setHTML(this.root.querySelector('#mp-sub'), offers ? `${offers} neue${offers > 1 ? '' : 's'} Angebot${offers > 1 ? 'e' : ''}` : '');
-    const fn = { over: this.over, contracts: this.contracts, build: this.build, ops: this.ops, fees: this.fees, fin: this.fin }[this.tab];
+    const fn = { over: this.over, contracts: this.contracts, build: this.build, ops: this.ops, fuel: this.fuel, fees: this.fees, fin: this.fin }[this.tab];
     setHTML(this.body, fn.call(this, state));
   }
 
@@ -158,6 +196,25 @@ export class ManagerPanel {
       <div class="k"><span>Passagiere</span><b>${fmtInt(t.pax)}</b></div>
       <div class="k"><span>Pünktlich</span><b>${deps ? Math.round((t.onTime / deps) * 100) : 100} %</b></div>
     </div>`;
+    const dN = t.depN || 0;
+    const slotTot = (t.slotOk || 0) + (t.slotMiss || 0);
+    const fu = fuelState(s);
+    const cond = Math.round(rwyCond(s));
+    const ba = brakingAction(s);
+    h += `<div class="kpis kpis2">
+      <div class="k" title="Starts im Slot-Fenster (CTOT) heute"><span>Slots eingehalten</span><b class="${slotTot && t.slotMiss ? 'neg' : ''}">${slotTot ? Math.round(((t.slotOk || 0) / slotTot) * 100) + ' %' : '—'}</b></div>
+      <div class="k" title="Mittlere Wartezeit mit laufenden Triebwerken am Rollhalt"><span>Ø Wartezeit Rollhalt</span><b>${dN ? (((t.taxiWait || 0) / 60) / dN).toFixed(1).replace('.', ',') + ' min' : '—'}</b></div>
+      <div class="k"><span>Piste</span><b class="${cond < 45 ? 'neg' : ''}">${cond} % · ${BRAKE_DE[ba]}</b></div>
+      <div class="k"><span>Tanklager</span><b class="${fu.stock < FUEL.cap * 0.15 ? 'neg' : ''}">${Math.round(fu.stock)} t</b></div>
+      <div class="k"><span>Kerosin</span><b>${Math.round(fu.price)} €/t</b></div>
+      <div class="k" title="Nachtbewegungen / Lärmbeschwerden heute"><span>Nacht · Beschwerden</span><b>${t.nightMov || 0} · ${t.complaints || 0}</b></div>
+    </div>`;
+    const G = goalsState(s);
+    const gl = activeGoals(s);
+    h += `<div class="card goalcard"><div class="row"><span class="t">🏅 ${RANKS[G.rank].name} · ${G.xp} XP</span><button class="btn" data-act="goals">Ziele</button></div>${gl.map((g) => {
+      const f = goalFraction(s, g);
+      return `<div class="s">🎯 ${esc(goalText(g))}</div><div class="bar"><i style="width:${f * 100}%;background:var(--manager)"></i></div>`;
+    }).join('')}</div>`;
     if (s.offers.length) h += `<div class="card offer"><div class="row"><span class="t">📨 ${s.offers.length} Vertragsangebot${s.offers.length > 1 ? 'e' : ''} warten</span><button class="btn" data-tab="contracts">Ansehen</button></div></div>`;
     const ps = projects(s);
     if (ps.length) {
@@ -189,7 +246,7 @@ export class ManagerPanel {
 
   // ---------- Verträge ----------
   contracts(s) {
-    let h = `<div class="p-sec"><span>Angebote</span><span class="cnt">${s.offers.length}</span></div>`;
+    let h = `<div class="p-sec"><span>Angebote${qm('contracts')}</span><span class="cnt">${s.offers.length}</span></div>`;
     if (!s.offers.length) h += `<div class="empty">Keine offenen Angebote. Gutes Ansehen, faire Gebühren und Marketing bringen neue Airlines.</div>`;
     for (const o of s.offers) {
       const al = AIRLINES[o.airline];
@@ -220,6 +277,13 @@ export class ManagerPanel {
     let h = `<div class="p-sec"><span>🏗️ Baustellen</span><span class="cnt">${ps.length}</span></div>`;
     if (!ps.length) h += `<div class="empty">Keine laufenden Bauprojekte. Aufträge unten starten – jedes Projekt braucht Bauzeit und ist auf der Karte als Baustelle zu sehen.</div>`;
     for (const p of ps) h += projectCard(s, p, this.armP === p.id);
+    const cond = Math.round(rwyCond(s));
+    const ba = brakingAction(s);
+    const rwyBusy = ps.some((p) => p.kind === 'rwy');
+    h += `<div class="p-sec"><span>Piste ${s.rwy}${qm('rwy')}</span></div><div class="card"><div class="row"><span class="t">🛬 Zustand ${cond} %</span><span style="font-size:12px">Bremswirkung <b class="ba-${ba}">${BRAKE_DE[ba]}</b></span></div><div class="bar"><i style="width:${cond}%;background:${cond < 35 ? 'var(--bad)' : cond < 60 ? 'var(--warn)' : 'var(--good)'}"></i></div>
+      <div class="s">Jede Landung hinterlässt Gummiabrieb (schwere Flugzeuge mehr). Unter 60 % wird die Bremswirkung bei Nässe schlecht → längere Ausrollstrecken, spätere Abrollwege, Durchstarts.</div>
+      <div class="acts">${Object.entries(RWY_WORKS).map(([k, w]) => `<button class="btn${k === 'clean' ? ' btn-good' : ''}" data-act="rwy" data-v="${k}" ${rwyBusy || s.cash < w.cost ? 'disabled' : ''} title="${esc(w.desc)}">${w.name} · ${fmtMoney(w.cost)} · ${w.hours} h</button>`).join('')}</div>
+      <div class="s">${rwyBusy ? '🏗️ Arbeiten beauftragt – laufen nachts (22:30–5:30) in Verkehrspausen.' : 'Arbeiten laufen nur nachts, wenn kein Verkehr kommt; die Piste ist dann gesperrt.'}</div></div>`;
     h += `<div class="p-sec"><span>Parkpositionen</span></div>`;
     for (const st of s.stands) {
       const occ = st.occ ? s.acs.find((a) => a.id === st.occ) : null;
@@ -280,6 +344,37 @@ export class ManagerPanel {
     return h;
   }
 
+  // ---------- Kerosin ----------
+  fuel(s) {
+    const f = fuelState(s);
+    const lvl = f.stock / FUEL.cap;
+    const avg = avgCost(s);
+    const sp = sellPrice(s);
+    const burn = burnRate(s);
+    const reach = burn > 1 ? (f.stock + pending(s)) / burn : 0;
+    const hist = f.hist.slice(-72);
+    let h = `<div class="kpis">
+      <div class="k"><span>Marktpreis</span><b>${Math.round(f.price)} €/t</b></div>
+      <div class="k" title="Durchschnittlicher Einstandspreis des Lagerbestands"><span>Ø Einkauf</span><b>${Math.round(avg)} €/t</b></div>
+      <div class="k"><span>Verkauf</span><b>${Math.round(sp)} €/t</b></div>
+      <div class="k"><span>Bestand</span><b class="${lvl < 0.15 ? 'neg' : ''}">${Math.round(f.stock)} t</b></div>
+      <div class="k" title="Bestand plus Bestellungen geteilt durch den Verbrauch der letzten 24 h"><span>Reichweite</span><b>${reach ? reach.toFixed(1).replace('.', ',') + ' Tage' : '—'}</b></div>
+      <div class="k"><span>Heute vertankt</span><b>${Math.round(s.stats.today.fuelSold || 0)} t</b></div>
+    </div>`;
+    h += `<div class="p-sec"><span>Tanklager${qm('fuel')}</span><span class="cnt">${Math.round(lvl * 100)} %</span></div><div class="bar" style="height:10px"><i style="width:${lvl * 100}%;background:${lvl < 0.15 ? 'var(--bad)' : lvl < 0.3 ? 'var(--warn)' : 'var(--good)'}"></i></div>`;
+    h += `<div class="s" style="font-size:12px;color:var(--muted);margin:4px 2px">${Math.round(f.stock)} von ${FUEL.cap} t · in Tankwagen ${Math.round(inventory(s) - f.stock)} t · Lagerwert ${fmtMoney(f.value)}</div>`;
+    if (hist.length > 1) {
+      h += `<div class="p-sec"><span>Marktpreis letzte ${hist.length} h (€/t)</span></div>`;
+      h += priceSvg(hist, avg);
+    }
+    h += `<div class="p-sec"><span>Einkaufen</span></div><div class="card"><div class="row"><span class="t">Spotkauf zu ${Math.round(f.price * 1.02)} €/t</span><span style="font-size:12px;color:var(--muted)">inkl. 2 % Transport · Lieferung in 2–3,5 h</span></div><div class="acts">${[100, 250, 500].map((q) => `<button class="btn btn-good" data-act="fbuy" data-v="${q}" ${q > maxOrder(s) || s.cash < q * f.price * 1.02 ? 'disabled' : ''}>+${q} t · ${fmtMoney(q * f.price * 1.02)}</button>`).join('')}<button class="btn" data-act="fbuy" data-v="fill" ${maxOrder(s) < 10 ? 'disabled' : ''}>Auffüllen (${maxOrder(s)} t)</button></div>
+      <div class="toggle-row" style="margin-top:8px"><span>Automatisch nachbestellen (unter 45 %, bei günstigem Preis mehr)</span><button class="switch ${f.auto ? 'on' : ''}" data-act="fauto"></button></div></div>`;
+    for (const o of f.orders) h += `<div class="card"><div class="row"><span class="t">🚚 ${o.qty} t unterwegs</span><span style="font-family:var(--mono);font-size:12px">ca. ${fmtClock(o.eta)}</span></div><div class="s">${Math.round(o.unit)} €/t · ${fmtMoney(o.qty * o.unit)}</div></div>`;
+    const m = Math.round(f.margin * 100);
+    h += `<div class="p-sec"><span>Verkaufsmarge</span></div><div class="fee-row"><div class="row"><span>Aufschlag auf den Marktpreis</span><b data-fuelmval style="font-family:var(--mono)">${m} %</b></div><input type="range" min="${FUEL.marginRange[0] * 100}" max="${FUEL.marginRange[1] * 100}" step="1" value="${m}" data-fuelm /><div class="hint">Über 10 % tanken Airlines woanders vor (Tankering) – weniger Absatz. Gewinn je Tonne = Verkaufspreis − Ø Einkauf.</div></div>`;
+    return h;
+  }
+
   // ---------- Gebühren ----------
   fees(s) {
     const fi = feeIndex(s);
@@ -294,6 +389,10 @@ export class ManagerPanel {
       const [a, b] = FEE_LIMITS[k];
       h += `<div class="fee-row"><div class="row"><span>${name}</span><b data-feeval="${k}" style="font-family:var(--mono)">${feeLabel(k, s.fees[k])}</b></div><input type="range" min="${a}" max="${b}" step="0.5" value="${s.fees[k]}" data-fee="${k}" /><div class="hint">${hint} · Standard ${feeLabel(k, DEFAULT_FEES[k])}</div></div>`;
     }
+    h += `<div class="p-sec"><span>Nachtflüge (23–5 Uhr)${qm('fees')}</span></div>`;
+    const [na, nb] = FEE_LIMITS.night;
+    h += `<div class="toggle-row"><span>🌙 Nachtflugverbot – keine planmäßigen Nachtflüge, Ausnahmen kosten Bußgeld</span><button class="switch ${s.settings.curfew ? 'on' : ''}" data-act="curfew"></button></div>`;
+    h += `<div class="fee-row"><div class="row"><span>Nacht-/Lärmentgelt je Bewegung</span><b data-feeval="night" style="font-family:var(--mono)">${feeLabel('night', s.fees.night ?? 600)}</b></div><input type="range" min="${na}" max="${nb}" step="50" value="${s.fees.night ?? 600}" data-fee="night" ${s.settings.curfew ? 'disabled' : ''} /><div class="hint">Heavy zahlt 2×, Light 0,5×. Hohe Entgelte ärgern Frachtairlines. Heute: ${s.stats.today.nightMov || 0} Nachtbewegungen, ${s.stats.today.complaints || 0} Lärmbeschwerden (ab 40 protestiert die Bürgerinitiative).</div></div>`;
     h += `<button class="btn" data-act="feereset">Auf Standard zurücksetzen</button>`;
     return h;
   }
@@ -317,8 +416,17 @@ export class ManagerPanel {
     h += `<tr class="sum"><td>Umsatz</td><td>${fmtMoney(rev, false)}</td></tr>`;
     for (const [k, v] of Object.entries(L.cost).sort((a, b) => b[1] - a[1])) h += `<tr><td>${EC.COST_CATS[k] || k}</td><td style="color:#fca5a5">−${fmtMoney(v, false)}</td></tr>`;
     h += `<tr class="sum"><td>Kosten</td><td>${fmtMoney(cost, false)}</td></tr>`;
-    if (L.capex) h += `<tr><td>Investitionen</td><td>−${fmtMoney(L.capex, false)}</td></tr>`;
-    h += `<tr class="sum"><td>Betriebsergebnis</td><td>${fmtMoney(rev - cost, false)}</td></tr></table>`;
+    h += `<tr class="sum"><td>Betriebsergebnis</td><td>${fmtMoney(rev - cost, false)}</td></tr>`;
+    if (L.capex) h += `<tr><td>Investitionen (Bau, Fahrzeuge)</td><td>−${fmtMoney(L.capex, false)}</td></tr>`;
+    if (L.fuelBuy) h += `<tr><td>Kerosineinkauf (Lager)</td><td>−${fmtMoney(L.fuelBuy, false)}</td></tr>`;
+    if (L.repay) h += `<tr><td>Kredittilgung</td><td>−${fmtMoney(L.repay, false)}</td></tr>`;
+    h += `</table>`;
+    // Kredite
+    const lim = loanLimit(s);
+    const r = loanRate(s);
+    h += `<div class="p-sec"><span>🏦 Kredite${qm('loans')}</span><span class="cnt">${fmtMoney(debt(s))}</span></div>`;
+    h += `<div class="card"><div class="row"><span class="t">Kreditrahmen ${fmtMoney(lim)}</span><span style="font-size:12px;color:var(--muted)">Zins ${(r * 100).toFixed(2).replace('.', ',')} % pro Tag</span></div><div class="s">Laufzeit ${LOAN_DAYS} Tage, gleiche Tagesraten. Besseres Ansehen = günstigerer Zins und höherer Rahmen.</div><div class="acts">${[1e6, 2e6, 5e6].map((a) => `<button class="btn" data-act="loan" data-v="${a}" ${a > lim ? 'disabled' : ''}>+${fmtMoney(a)} <small>(${fmtMoney(annuity(a, r))}/Tag)</small></button>`).join('')}</div></div>`;
+    for (const l of loans(s)) h += `<div class="card"><div class="row"><span class="t">Kredit ${fmtMoney(l.amount)}</span><span style="font-family:var(--mono);font-size:12px">Rest ${fmtMoney(l.rest)}</span></div><div class="bar"><i style="width:${(1 - l.rest / l.amount) * 100}%"></i></div><div class="s">Rate ${fmtMoney(l.daily)}/Tag · noch ${l.days} Tage · ${(l.rate * 100).toFixed(2).replace('.', ',')} %/Tag</div><div class="acts"><button class="mini" data-act="repay" data-v="${l.id}" ${s.cash < l.rest ? 'disabled' : ''}>Sondertilgung ${fmtMoney(l.rest)}</button></div></div>`;
     if (hist.length) {
       h += `<div class="p-sec"><span>Tabelle</span></div><table class="ledger"><tr><td><b>Tag</b></td><td><b>Umsatz · Kosten · Bew. · pünktl.</b></td></tr>`;
       for (const r of [...hist].reverse()) h += `<tr><td>Tag ${r.day}</td><td>${fmtMoney(r.rev)} · ${fmtMoney(r.cost)} · ${r.mov} · ${r.onTime}%</td></tr>`;
@@ -329,6 +437,7 @@ export class ManagerPanel {
 }
 
 function feeLabel(k, v) {
+  if (k === 'night') return `${Math.round(v)} €`;
   if (k === 'landing') return `${v.toFixed(1).replace('.', ',')} €/t`;
   if (k === 'pax') return `${v.toFixed(1).replace('.', ',')} €`;
   return `${Math.round(v)} €/h`;
@@ -393,4 +502,29 @@ function lineSvg(hist) {
   g += `<circle cx="${x(n - 1)}" cy="${y(last)}" r="4.5" fill="${C1}" stroke="#161e2e" stroke-width="2"/>`;
   g += `<text x="${x(n - 1) + 7}" y="${y(last) + 3}" font-size="10" fill="#e5edf7">${kTick(last)}</text>`;
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Kontostand">${g}</svg>`;
+}
+
+// Linie: Kerosinpreis mit Ø-Einkauf als Referenz
+function priceSvg(hist, avg) {
+  const W = 360, H = 120, pl = 40, pr = 44, pt = 8, pb = 18;
+  const vals = hist.map((x) => x.p);
+  const lo = Math.floor((Math.min(...vals, avg) * 0.97) / 10) * 10, hi = Math.ceil((Math.max(...vals, avg) * 1.03) / 10) * 10;
+  const n = vals.length;
+  const x = (i) => pl + ((W - pl - pr) * i) / Math.max(1, n - 1);
+  const y = (v) => pt + (H - pt - pb) * (1 - (v - lo) / (hi - lo || 1));
+  let g = '';
+  for (let i = 0; i <= 3; i++) {
+    const v = lo + ((hi - lo) / 3) * i;
+    g += `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(148,163,184,.16)"/><text x="${pl - 5}" y="${y(v) + 3}" text-anchor="end" font-size="9" fill="#94a3b8">${Math.round(v)}</text>`;
+  }
+  g += `<line x1="${pl}" x2="${W - pr}" y1="${y(avg)}" y2="${y(avg)}" stroke="${C2}" stroke-dasharray="4 3" stroke-width="1.5"/><text x="${W - pr + 4}" y="${y(avg) + 3}" font-size="9" fill="${C2}">Ø Einkauf</text>`;
+  const d = vals.map((v, i) => `${i ? 'L' : 'M'}${x(i)},${y(v)}`).join(' ');
+  g += `<path d="${d}" fill="none" stroke="${C1}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  hist.forEach((hh, i) => {
+    g += `<circle cx="${x(i)}" cy="${y(hh.p)}" r="6" fill="transparent" data-tip="${fmtClock(hh.t)} · ${hh.p} €/t · Bestand ${hh.s} t"/>`;
+    if (i % 12 === 0) g += `<text x="${x(i)}" y="${H - 4}" text-anchor="middle" font-size="9" fill="#94a3b8">${fmtClock(hh.t)}</text>`;
+  });
+  const last = vals[n - 1];
+  g += `<circle cx="${x(n - 1)}" cy="${y(last)}" r="4" fill="${C1}" stroke="#161e2e" stroke-width="2"/><text x="${x(n - 1) + 6}" y="${y(last) - 6}" font-size="10" fill="#e5edf7">${last}</text>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Kerosinpreis">${g}</svg>`;
 }

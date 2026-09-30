@@ -2,6 +2,13 @@
 import { UPGRADES, STAND_COSTS } from '../config.js';
 import { log, notify } from './messages.js';
 import { nextId } from './schedule.js';
+import { canWorkRunway, rwyCond } from './runway.js';
+
+// Arbeiten an der Piste: nur nachts in Verkehrspausen, Piste dann gesperrt
+export const RWY_WORKS = {
+  clean: { name: 'Gummiabrieb entfernen', cost: 180000, hours: 2.5, desc: 'Hochdruck-Wasserstrahl entfernt Reifenabrieb: Zustand +35 % (max. 90 %).' },
+  resurface: { name: 'Pistensanierung', cost: 2400000, hours: 14, desc: 'Neue Deckschicht: Zustand 100 %.' },
+};
 
 // Bauzeiten in Spielstunden
 export const STAND_HOURS = { remote: 6, cargo: 12, contactM: 14, contactL: 18, upgradeL: 8 };
@@ -70,8 +77,12 @@ export function remainingHours(p) {
 
 export function updateConstruction(state, dt) {
   const list = projects(state);
-  if (!list.length) return;
+  if (!list.length) {
+    state.rwyWorking = null;
+    return;
+  }
   const storm = state.weather.kind === 'storm';
+  let rwyWork = null;
   for (const p of list) {
     if (p.status === 'waiting') {
       const st = state.stands.find((s) => s.id === p.target);
@@ -82,11 +93,15 @@ export function updateConstruction(state, dt) {
       }
       continue;
     }
-    if (storm) continue; // Gewitter: Baustelle ruht
+    if (p.kind === 'rwy') {
+      if (storm || rwyWork || !canWorkRunway(state)) continue;
+      rwyWork = p.id;
+    } else if (storm) continue; // Gewitter: Baustelle ruht
     p.prog = Math.min(1, p.prog + dt / (p.hours * 3600));
     if (p.prog >= 1) complete(state, p);
   }
   state.projects = list.filter((p) => !p.done);
+  state.rwyWorking = rwyWork && state.projects.some((p) => p.id === rwyWork) ? rwyWork : null;
 }
 
 function complete(state, p) {
@@ -101,6 +116,8 @@ function complete(state, p) {
       st.closed = false;
       st.closing = false;
     }
+  } else if (p.kind === 'rwy') {
+    state.rwyCond = p.target === 'resurface' ? 100 : Math.max(rwyCond(state), Math.min(90, rwyCond(state) + 35));
   } else if (p.kind === 'upgrade') {
     state.upgrades[p.target] = Math.max(state.upgrades[p.target] || 0, p.level);
     if (p.target === 'hotel') state.reputation = Math.min(100, state.reputation + 3);

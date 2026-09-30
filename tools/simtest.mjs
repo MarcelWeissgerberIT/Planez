@@ -35,6 +35,9 @@ while (s.time < end) {
 }
 console.log('\nHistorie:');
 for (const h of s.history) console.log(JSON.stringify({ day: h.day, rev: h.rev, cost: h.cost, capex: h.capex, cash: h.cash, mov: h.mov, pax: h.pax, onTime: h.onTime, inc: h.incidents, ga: h.goArounds, div: h.diversions, rep: h.rep }));
+for (const h of s.history) console.log('  ', JSON.stringify({ day: h.day, slotOk: h.slotOk, slotMiss: h.slotMiss, gnd: h.slotMissGnd, taxiWait: h.taxiWait, deps: h.depN, wake: h.wakeInf, minFuel: h.minFuel, fuelT: h.fuelSold, fuelBuy: h.fuelBuy, night: h.nightMov, compl: h.complaints, rwy: h.rwyCond, xp: h.xp, fuelRev: Math.round(h.revBy.fuel || 0) }));
+console.log('Kerosin:', JSON.stringify({ stock: Math.round(s.fuel.stock), price: Math.round(s.fuel.price), orders: s.fuel.orders.length, trucks: s.vehicles.filter((v) => v.type === 'fuel').map((v) => v.st + ':' + Math.round(v.load)) }));
+console.log('Ziele:', JSON.stringify({ xp: s.goals.xp, rank: s.goals.rank, done: s.goals.done }), 'Piste', s.rwyCond.toFixed(1), 'Projekte', JSON.stringify(s.projects.map((p) => p.name + ' ' + p.prog.toFixed(2))), 'Kredite', s.loans.length);
 console.log('\nLange stillstehende Flugzeuge (Minuten):');
 const ST = new Set([PH.STAND, PH.HOLDING, PH.VACATED, PH.LINED, PH.STARTUP]);
 for (const [id, v] of stuck) {

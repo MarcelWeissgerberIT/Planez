@@ -24,6 +24,9 @@ import { PH } from './sim/aircraft.js';
 import * as LY from './layout.js';
 import { seqColor } from './ui/tower.js';
 import { siteGeom } from './render/sites.js';
+import { initGlossary, setGlossaryEnabled, glossify, glossaryHtml } from './ui/glossary.js';
+import { goalsState, activeGoals, goalProgress, goalText, goalFraction, RANKS, GOAL_DEFS } from './sim/goals.js';
+import { fuelState } from './sim/fuel.js';
 import { projects, cancelProject } from './sim/construction.js';
 
 const game = {
@@ -59,6 +62,7 @@ const game = {
     if (strip && focus !== 'map') strip.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   },
 };
+game.showGoals = () => showGoals();
 // Baustelle auf der Karte zeigen und auswählen
 game.showSite = (id) => {
   const s = game.state;
@@ -84,6 +88,7 @@ async function boot() {
   await loadAssets((p) => (fill.style.width = `${Math.round(p * 100)}%`));
   game.map = new MapRenderer($('#map'), game.cam);
   game.radar = new Radar($('#radar'));
+  initGlossary();
   $('#loading').classList.add('hidden');
   showMenu();
   wireMenu();
@@ -141,6 +146,15 @@ function startGame(state) {
   for (const m of state.log.slice(-40)) addLog(m, true);
   setSound(state.settings.sound);
   setTTS(state.settings.tts);
+  // ältere Spielstände ergänzen
+  if (state.settings.glossary === undefined) state.settings.glossary = true;
+  if (state.settings.curfew === undefined) state.settings.curfew = false;
+  if (state.fees.night === undefined) state.fees.night = 600;
+  if (!state.loans) state.loans = [];
+  if (!state.life) state.life = {};
+  fuelState(state);
+  goalsState(state);
+  setGlossaryEnabled(state.settings.glossary !== false);
   resize();
   const narrow = window.innerWidth < 760;
   game.cam.x = 36;
@@ -276,6 +290,10 @@ function updateHUD(force) {
   const t = s.stats.today;
   const deps = t.onTime + t.delayed;
   setHTML($('#hud-ontime'), deps ? `${Math.round((t.onTime / deps) * 100)} %` : '—');
+  const G = goalsState(s);
+  const next = RANKS[G.rank + 1];
+  const pct = next ? Math.round(((G.xp - RANKS[G.rank].xp) / (next.xp - RANKS[G.rank].xp)) * 100) : 100;
+  setHTML($('#btn-rank'), `<span class="rk-i">🏅</span><span class="rk-t"><b>${RANKS[G.rank].name}</b><i style="--p:${pct}%"></i></span>`);
 }
 
 // Anfragen / Konflikte akustisch melden
@@ -316,6 +334,7 @@ function addLog(m, silent = false) {
   const d = document.createElement('div');
   d.className = `lg ${m.kind}`;
   d.innerHTML = `<span class="t">${fmtClock(m.t)}</span>${m.from ? `<span class="fr">${esc(m.from)}</span>` : ''}${esc(m.text)}`;
+  glossify(d);
   box.appendChild(d);
   while (box.children.length > 90) box.firstChild.remove();
   if (atBottom) box.scrollTop = box.scrollHeight;
@@ -355,6 +374,18 @@ const GOALS = {
   observer: 'Der Flughafen lief heute vollautomatisch.',
 };
 
+// rollenspezifische Kennzahlen im Tagesbericht
+function reportExtras(rec) {
+  const role = game.state.role;
+  const cell = (k, v) => `<div><span>${k}</span><b>${v}</b></div>`;
+  const slots = (rec.slotOk || 0) + (rec.slotMiss || 0);
+  const tw = [cell('Slots eingehalten', slots ? `${rec.slotOk}/${slots}` : '—'), cell('Ø Wartezeit Rollhalt', rec.depN ? `${(rec.taxiWait / rec.depN).toFixed(1).replace('.', ',')} min` : '—'), cell('Wirbelschleppen-Verstöße', rec.wakeInf || 0), cell('Minimum Fuel', rec.minFuel || 0)];
+  const gd = [cell('Slots verpasst (Abfertigung)', rec.slotMissGnd || 0), cell('Kerosin vertankt', `${(rec.fuelSold || 0).toLocaleString('de-DE')} t`), cell('Durchstarts', rec.goArounds)];
+  const mg = [cell('Kerosin-Marge', fmtMoney((rec.revBy && rec.revBy.fuel) || 0)), cell('Kerosineinkauf', fmtMoney(rec.fuelBuy || 0)), cell('Nachtbewegungen', `${rec.nightMov || 0} (${rec.complaints || 0} Beschwerden)`), cell('Pistenzustand', `${rec.rwyCond ?? '—'} %`)];
+  const list = role === 'tower' ? tw : role === 'ground' ? gd : role === 'manager' ? mg : [...tw.slice(0, 2), ...mg.slice(0, 2)];
+  return list.join('');
+}
+
 function showReport(rec) {
   const prevSpeed = game.state.speed;
   const stars = rateDay(rec);
@@ -373,7 +404,9 @@ function showReport(rec) {
       <div><span>Investitionen</span><b>${fmtMoney(rec.capex)}</b></div>
       <div><span>Vorfälle</span><b>${rec.incidents}</b></div>
       <div><span>Ansehen</span><b>${rec.rep}/100</b></div>
+      ${reportExtras(rec)}
     </div>
+    ${rec.xp ? `<p style="margin:10px 0 0;color:var(--muted)">🏅 +${rec.xp} XP für den Tag · ${RANKS[goalsState(game.state).rank].name} (${goalsState(game.state).xp} XP)</p>` : ''}
     <div class="modal-acts"><button class="btn btn-primary" data-close-modal>Weiter</button></div>`,
     (box) => box.querySelector('[data-close-modal]').addEventListener('click', () => {
       closeModal();
@@ -477,6 +510,9 @@ function wireGame() {
     game.select(id, 'map');
     openMarkMenu(game, id, e.clientX, e.clientY);
   });
+  $('#radar-leg').addEventListener('click', () => $('#radar-legend').classList.toggle('hidden'));
+  $('#radar-legend .rl-x').addEventListener('click', () => $('#radar-legend').classList.add('hidden'));
+  glossify($('#radar-legend'));
   $('#radar-mf').addEventListener('click', () => {
     game.ui.markFilter = !game.ui.markFilter;
     $('#radar-mf').classList.toggle('on', game.ui.markFilter);
@@ -513,6 +549,8 @@ function wireGame() {
   $('#t-labels').classList.add('on');
   $('#t-radar').addEventListener('click', () => toggleRadar(!game.ui.radarOn));
   $('#t-help').addEventListener('click', () => showHelp(false));
+  $('#t-gloss').addEventListener('click', () => showHelp(false, 'gloss'));
+  $('#btn-rank').addEventListener('click', showGoals);
   $('#log-toggle').addEventListener('click', () => {
     const w = $('#log-wrap');
     w.classList.toggle('min');
@@ -811,6 +849,7 @@ function showGameMenu() {
     <div class="toggle-row"><span>Funksprüche vorlesen (Englisch, Tower-Rolle)</span><button class="switch ${s.settings.tts ? 'on' : ''}" data-set="tts"></button></div>
     <div class="toggle-row"><span>Beschriftungen auf der Karte</span><button class="switch ${game.ui.labels ? 'on' : ''}" data-set="labels"></button></div>
     <div class="toggle-row"><span>Tipps anzeigen</span><button class="switch ${s.settings.hints !== false ? 'on' : ''}" data-set="hints"></button></div>
+    <div class="toggle-row"><span>Abkürzungen erklären (Tooltips)</span><button class="switch ${s.settings.glossary !== false ? 'on' : ''}" data-set="glossary"></button></div>
     <div class="modal-acts">
       <button class="btn" data-m="help">❓ Anleitung</button>
       <button class="btn" data-m="role">🔁 Station wechseln</button>
@@ -828,8 +867,9 @@ function showGameMenu() {
             b.classList.toggle('on', game.ui.labels);
             return;
           }
-          s.settings[k] = k === 'hints' ? s.settings.hints === false : !s.settings[k];
+          s.settings[k] = k === 'hints' || k === 'glossary' ? s.settings[k] === false : !s.settings[k];
           b.classList.toggle('on', s.settings[k] !== false && !!s.settings[k]);
+          setGlossaryEnabled(s.settings.glossary !== false);
           setSound(s.settings.sound);
           setTTS(s.settings.tts);
         })
@@ -860,34 +900,101 @@ function showGameMenu() {
   );
 }
 
-function showHelp(first) {
-  openModal(
-    `<h2>${first ? 'Willkommen bei Planez!' : 'Anleitung'}</h2>
-    <p>Du leitest eine Station am Flughafen – alles andere erledigen KI-Kollegen automatisch. Die Station kannst du jederzeit oben rechts wechseln.</p>
+function helpGuide(first) {
+  return `<p>Du leitest eine Station am Flughafen – alles andere erledigen KI-Kollegen automatisch. Die Station kannst du jederzeit oben rechts wechseln. <b>Unterstrichene Abkürzungen</b> erklären sich beim Überfahren (Handy: antippen), <b>?</b> neben Abschnitten erklärt den Abschnitt, 📖 öffnet das Glossar.</p>
     <h3>🎧 Tower-Lotse</h3>
     <ul>
       <li><b>Anflug frei</b> <kbd>A</kbd> schickt Anflüge vom Fix (z.B. NOLTA) auf den Endanflug. Halte mindestens <b>3 NM</b> Abstand (auf dem Radar sichtbar) – nutze Geschwindigkeiten und <b>Warteschleife</b> <kbd>H</kbd>. Im Warteschleifen-Stapel zuerst den Untersten freigeben.</li>
-      <li><b>Landefreigabe</b> <kbd>L</kbd> nur bei freier Piste – sonst startet der Flieger durch. Ohne Freigabe bei 1 NM: Durchstarten.</li>
+      <li><b>Wirbelschleppen:</b> hinter schweren Flugzeugen (H) mehr Abstand: H→H 4 NM, H→M 5 NM, H→L 6 NM, M→L 5 NM. Die Pistenfolge zeigt „Soll“ und warnt 🌀. Bei Starts warten Piloten hinter einem Heavy bis zu 2 Minuten – plane Heavys möglichst hintereinander.</li>
+      <li><b>Treibstoff:</b> jeder Anflug hat nur begrenzt Reserve (⛽ Minuten auf dem Streifen). Unter 12 min meldet er MINIMUM FUEL, unter 5 min MAYDAY FUEL (Notfall), bei 0 weicht er aus. Lange Warteschleifen kosten also Treibstoff.</li>
+      <li><b>Landefreigabe</b> <kbd>L</kbd> nur bei freier Piste – sonst startet der Flieger durch. Ohne Freigabe bei 1 NM: Durchstarten. Bei Sperrung (FOD-Kontrolle, Bauarbeiten) gibt es keine Freigaben.</li>
+      <li><b>Slots (A-CDM):</b> manche Abflüge haben einen <b>CTOT</b> – Start nur im Fenster −5/+10 min. Meldet sich so ein Flug zu früh zum Pushback, sag <b>Warten bis TSAT</b> <kbd>E</kbd>: dann schiebt er erst zur TSAT und wartet nicht mit laufenden Triebwerken am Rollhalt. Verpasste Slots kosten Ansehen und Airline-Zufriedenheit.</li>
       <li>Am Boden: <b>Rollen zur Position</b> <kbd>R</kbd>, <b>Pushback</b> <kbd>P</kbd>, <b>Rollen zum Rollhalt</b> <kbd>R</kbd>, <b>Line up</b> <kbd>U</kbd>, <b>Startfreigabe</b> <kbd>T</kbd>, <b>Halt</b> <kbd>X</kbd>.</li>
-      <li><b>Pistenfolge:</b> Landungen (ab Anflugfreigabe) und Starts (ab Rollbereitschaft) stehen gemeinsam nummeriert oben im Panel – mit den passenden Freigaben. Reihenfolge per ▲▼, Ziehen oder <kbd>W</kbd>/<kbd>S</kbd> festlegen; „⇅ automatisch“ plant wieder selbst. Die Nummer erscheint auch auf Karte und Radar: <span style="color:#22d3ee">■ Landung</span> <span style="color:#a5f3fc">■ Landung frei</span> <span style="color:#f59e0b">■ Start</span> <span style="color:#e879f9">■ Startfreigabe</span>. Die Startfreigabe kann schon während des Rollens erteilt werden.</li>
-      <li><b>Markieren:</b> ⚑ auf dem Flugstreifen, Rechtsklick (Handy: lange drücken) auf ein Flugzeug in Karte oder Radar, die Farbpunkte in der Info-Karte oder <kbd>M</kbd> (weiterschalten, <kbd>Shift</kbd>+<kbd>M</kbd> entfernt). Farbe plus Notiz erscheinen als Ring und Fähnchen auf dem Radar, gestrichelter Ring auf der Karte und als Fahne auf dem Streifen. „⚑ Filter“ im Radar hebt nur markierte Flüge hervor.</li>
-      <li><kbd>N</kbd> / <kbd>Tab</kbd> springt zur nächsten offenen Anfrage. <kbd>F</kbd> vergrößert das Radar. Bei Rückenwind die Betriebsrichtung wechseln.</li>
+      <li><b>Pistenfolge:</b> Landungen und Starts nummeriert in einer Liste. Reihenfolge per ▲▼, Ziehen oder <kbd>W</kbd>/<kbd>S</kbd>; „⇅ automatisch“ plant wieder selbst. Farben auf Karte und Radar: <span style="color:#22d3ee">■ Landung</span> <span style="color:#a5f3fc">■ Landung frei</span> <span style="color:#f59e0b">■ Start</span> <span style="color:#e879f9">■ Startfreigabe</span>.</li>
+      <li><b>Wetter & Piste:</b> Bremswirkung (gut/mittel/schlecht) hängt vom Gummiabrieb und von Nässe ab. Bei Nebel gelten LVP (mehr Abstand); unter 550 m RVR geht es nur mit ILS CAT III. Bei mehr als 5 kt Rückenwind die Betriebsrichtung wechseln.</li>
+      <li><b>Markieren:</b> ⚑ auf dem Streifen, Rechtsklick/langes Drücken auf ein Flugzeug oder <kbd>M</kbd>. <kbd>N</kbd>/<kbd>Tab</kbd> springt zur nächsten Anfrage, <kbd>F</kbd> vergrößert das Radar, ⓘ im Radar erklärt die Anzeige.</li>
     </ul>
     <h3>🦺 Vorfeld &amp; Abfertigung</h3>
     <ul>
       <li>Ankünfte brauchen eine <b>Parkposition</b> (automatisch oder per Auswahl – oder Flugzeug anklicken, dann Position auf der Karte).</li>
       <li>Im Turnaround werden <b>gelbe Aufgaben</b> fällig: anklicken = nächstes freies Fahrzeug losschicken. Reihenfolge: Aussteigen → Reinigung/Catering → Einsteigen, Entladen → Beladen, Betankung, zum Schluss der Pushback-Schlepper.</li>
-      <li>Fahrzeugtypen kannst du einzeln auf <b>Auto</b> schalten. Verspätungen kosten Vertragsstrafen.</li>
+      <li><b>TOBT</b> zeigt, wann ein Flug voraussichtlich fertig ist. Liegt sie nach der STD, wird er verspätet – und ein Slot (CTOT) kann verfallen.</li>
+      <li><b>Tankwagen</b> fassen 36 t. Großraumflugzeuge brauchen 2–3 Ladungen; leere Tankwagen fahren selbst zum Tanklager. Ist das Tanklager leer, stockt die Betankung.</li>
     </ul>
     <h3>💼 Manager</h3>
     <ul>
       <li>Verträge annehmen, Gebühren festlegen, Parkpositionen und Terminal ausbauen, Fahrzeuge kaufen, Personal einstellen.</li>
-      <li><b>Baustellen:</b> Jeder Ausbau braucht Bauzeit (Spielstunden). Die Baustelle ist mit Zaun, Kran, Bagger und Betonmischer auf der Karte zu sehen, ein Schild zeigt Fortschritt und Restzeit. Im Tab <i>Ausbau</i> stehen alle Baustellen mit Fortschrittsbalken – „📍 Zeigen“ springt hin, „Abbrechen“ erstattet 50 % der noch nicht verbauten Kosten. Bei Gewitter ruhen die Arbeiten; der Umbau einer Position auf Klasse L sperrt sie, sobald sie frei ist.</li>
-      <li>Zu hohe Gebühren verärgern Airlines, zu wenig Kapazität verursacht Wartezeiten und Verspätungen.</li>
+      <li><b>Kerosin:</b> einkaufen, wenn der Marktpreis günstig ist, Marge festlegen, Lagerbestand im Blick behalten (Tab <i>Kerosin</i>). Die Automatik hält den Bestand, kauft aber nicht immer günstig.</li>
+      <li><b>Piste:</b> Landungen hinterlassen Gummiabrieb – der Zustand sinkt. Reinigung oder Sanierung laufen nachts in Verkehrspausen und sperren die Piste solange.</li>
+      <li><b>Baustellen:</b> jeder Ausbau braucht Bauzeit und ist mit Zaun, Kran, Bagger und Betonmischer zu sehen. „📍 Zeigen“ springt hin, „Abbrechen“ erstattet 50 % der noch nicht verbauten Kosten.</li>
+      <li><b>Kredite</b> überbrücken Engpässe (30 Tagesraten). <b>Nachtflüge</b> bringen Nachtentgelte, aber Lärmbeschwerden; ein Nachtflugverbot verärgert Frachtairlines.</li>
     </ul>
+    <h3>🎯 Ziele &amp; Rang</h3>
+    <p>Jede Station hat drei Ziele (🏅 oben rechts). Erreichte Ziele bringen Prämie und XP; der Flughafen steigt vom Regionalflughafen bis zum Weltflughafen auf – höhere Ränge ziehen mehr Airlines an.</p>
     <h3>Steuerung</h3>
-    <p>Karte ziehen = verschieben · Mausrad/Pinch = Zoom · Klick = auswählen · <kbd>Leertaste</kbd> Pause · <kbd>1</kbd>–<kbd>5</kbd> Tempo · <kbd>B</kbd> Beschriftungen · Pfeiltasten scrollen.</p>
-    <div class="modal-acts"><button class="btn btn-primary" data-x>Los geht's</button></div>`,
+    <p>Karte ziehen = verschieben · Mausrad/Pinch = Zoom · Klick = auswählen · <kbd>Leertaste</kbd> Pause · <kbd>1</kbd>–<kbd>5</kbd> Tempo · <kbd>B</kbd> Beschriftungen · Pfeiltasten scrollen.</p>`;
+}
+
+function showHelp(first, tab = 'guide') {
+  let cur = tab;
+  let q = '';
+  const body = () => (cur === 'gloss' ? `<input class="gl-search no-gl" type="search" placeholder="Suchen: z. B. TOBT, Heavy, RVR …" value="${esc(q)}" /><div class="help-scroll no-gl" id="gl-list">${glossaryHtml(q)}</div>` : `<div class="help-scroll">${helpGuide(first)}</div>`);
+  openModal(
+    `<h2>${first ? 'Willkommen bei Planez!' : cur === 'gloss' ? '📖 Glossar' : 'Anleitung'}</h2>
+    <div class="help-tabs"><button data-ht="guide" class="${cur === 'guide' ? 'on' : ''}">❓ Anleitung</button><button data-ht="gloss" class="${cur === 'gloss' ? 'on' : ''}">📖 Glossar &amp; Abkürzungen</button></div>
+    <div id="help-body">${body()}</div>
+    <div class="modal-acts"><button class="btn btn-primary" data-x>${first ? "Los geht's" : 'Schließen'}</button></div>`,
+    (box) => {
+      box.querySelector('[data-x]').addEventListener('click', closeModal);
+      const wire = () => {
+        const inp = box.querySelector('.gl-search');
+        if (inp) {
+          inp.addEventListener('input', () => {
+            q = inp.value;
+            box.querySelector('#gl-list').innerHTML = glossaryHtml(q);
+          });
+          if (window.innerWidth > 760) inp.focus();
+        } else glossify(box.querySelector('#help-body'));
+      };
+      box.querySelectorAll('[data-ht]').forEach((b) =>
+        b.addEventListener('click', () => {
+          cur = b.dataset.ht;
+          box.querySelectorAll('[data-ht]').forEach((x) => x.classList.toggle('on', x === b));
+          box.querySelector('h2').textContent = cur === 'gloss' ? '📖 Glossar' : 'Anleitung';
+          box.querySelector('#help-body').innerHTML = body();
+          wire();
+        })
+      );
+      wire();
+    }
+  );
+}
+
+// Ziele & Rang
+function showGoals() {
+  const s = game.state;
+  const G = goalsState(s);
+  const list = activeGoals(s);
+  const next = RANKS[G.rank + 1];
+  const pct = next ? Math.round(((G.xp - RANKS[G.rank].xp) / (next.xp - RANKS[G.rank].xp)) * 100) : 100;
+  const goals = list
+    .map((g) => {
+      const p = Math.max(0, goalProgress(s, g));
+      const f = goalFraction(s, g);
+      const d = GOAL_DEFS[g.key];
+      const val = d.type === 'level' ? '' : ` · ${Math.floor(Math.min(p, g.target)).toLocaleString('de-DE')} / ${g.target.toLocaleString('de-DE')}`;
+      return `<div class="card goal"><div class="row"><span class="t">🎯 ${esc(goalText(g))}</span><span class="rem">${Math.round(f * 100)} %</span></div><div class="bar"><i style="width:${f * 100}%;background:var(--manager)"></i></div><div class="s">${d.type === 'streak' ? 'Serie – ein Fehler setzt sie zurück' : d.type === 'level' ? 'Wert erreichen' : 'seit Zielvergabe'}${val}</div></div>`;
+    })
+    .join('');
+  openModal(
+    `<h2>🏅 ${esc(s.name)} – ${RANKS[G.rank].name}</h2>
+    <p style="margin:0 0 6px;color:var(--muted)">${G.xp} XP${next ? ` · nächster Rang „${next.name}“ ab ${next.xp} XP` : ' · höchster Rang erreicht'} · ${G.done} Ziele erreicht</p>
+    <div class="bar" style="height:9px"><i style="width:${pct}%;background:linear-gradient(90deg,#f59e0b,#fde047)"></i></div>
+    <div class="rank-steps">${RANKS.map((r, i) => `<span class="${i <= G.rank ? 'on' : ''}" title="${r.xp} XP">${i + 1}. ${r.name}</span>`).join('')}</div>
+    <div class="p-sec"><span>Ziele · ${ROLES[s.role].name}</span></div>
+    ${goals}
+    <p style="font-size:12px;color:var(--muted)">Prämie und XP gibt es sofort beim Erreichen; danach folgt ein neues Ziel. Jeder Tag bringt zusätzlich XP für Sicherheit, Pünktlichkeit und Gewinn. Höhere Ränge: mehr Vertragsangebote und Ansehen.</p>
+    <div class="modal-acts"><button class="btn btn-primary" data-x>Weiter</button></div>`,
     (box) => box.querySelector('[data-x]').addEventListener('click', closeModal)
   );
 }

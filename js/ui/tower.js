@@ -8,6 +8,33 @@ import { syncList, setHTML, toast } from './dom.js';
 import { sfx } from '../audio.js';
 import { flagButton, flagHtml, openMarkMenu } from './marks.js';
 import { updateSequence, isSeqArrival, seqEta, seqSlot, seqMove, seqMoveTo, seqSortByEta, seqIndex } from '../sim/sequence.js';
+import { qm, glTag } from './glossary.js';
+import { slotInfo } from '../sim/acdm.js';
+import { rwyCond, brakingAction, BRAKE_DE, runwayClosed, isWet } from '../sim/runway.js';
+import { isNight } from '../sim/finance.js';
+
+const WAKE_KEY = { L: 'Light', M: 'Medium', H: 'Heavy' };
+export const wakeTag = (w) => glTag(WAKE_KEY[w] || 'WTC', w);
+
+// Treibstoffreserve eines Anflugs (Minuten)
+export function fuelChip(ac) {
+  if (!ac.arr || ac.fuelMin === undefined || ac.mode !== 'air' || ac.phase === PH.DEPART) return '';
+  const m = Math.max(0, Math.round(ac.fuelMin));
+  const cls = ac.fuelEmergency || m <= 5 ? 'bad' : ac.minFuel || m <= 12 ? 'warn' : '';
+  return ` <span class="fuelc ${cls}" title="Treibstoffreserve">⛽ ${m}′${ac.fuelEmergency ? ' MAYDAY FUEL' : ac.minFuel ? ' MINFUEL' : ''}</span>`;
+}
+
+// A-CDM-Zeiten eines Abflugs
+export function acdmLine(state, ac) {
+  const rot = state.rots[ac.rot];
+  if (!rot || !rot.tobt || rot.atd) return '';
+  const late = rot.tobt > rot.std ? ' late' : '';
+  let h = `<span class="acdm${late}">TOBT ${fmtClock(rot.tobt)}</span>`;
+  if (rot.tsat && (rot.ctot || rot.tsat !== rot.tobt) && [PH.STAND, PH.PUSH].includes(ac.phase)) h += ` <span class="acdm">TSAT ${fmtClock(rot.tsat)}</span>`;
+  const si = slotInfo(state, rot);
+  if (si) h += ` <span class="slot ${si.cls}">CTOT ${fmtClock(rot.ctot)} · ${si.txt}</span>`;
+  return `<div class="s-acdm">${h}</div>`;
+}
 
 // Farben der Pistenfolge (auch Radar/Karte)
 export const SEQ_COL = { land: '#22d3ee', landClr: '#a5f3fc', dep: '#f59e0b', depClr: '#e879f9' };
@@ -69,11 +96,11 @@ export class TowerPanel {
         <div class="p-sec seq-head" id="tw-seq-head"></div>
         <div class="seq-legend"><span><i style="background:${SEQ_COL.land}"></i>Landung</span><span><i style="background:${SEQ_COL.landClr}"></i>Landung frei</span><span><i style="background:${SEQ_COL.dep}"></i>Start</span><span><i style="background:${SEQ_COL.depClr}"></i>Startfreigabe</span></div>
         <div id="tw-seq"></div>
-        <div class="p-sec"><span>Anflug · noch ohne Freigabe</span><span class="cnt" id="tw-c-arr">0</span></div>
+        <div class="p-sec"><span>Anflug · noch ohne Freigabe${qm('arr')}</span><span class="cnt" id="tw-c-arr">0</span></div>
         <div id="tw-arr"></div>
-        <div class="p-sec"><span>Rollverkehr</span><span class="cnt" id="tw-c-gnd">0</span></div>
+        <div class="p-sec"><span>Rollverkehr${qm('gnd')}</span><span class="cnt" id="tw-c-gnd">0</span></div>
         <div id="tw-gnd"></div>
-        <div class="p-sec"><span>Abflug · in der Luft</span><span class="cnt" id="tw-c-dep">0</span></div>
+        <div class="p-sec"><span>Abflug · in der Luft${qm('dep')}</span><span class="cnt" id="tw-c-dep">0</span></div>
         <div id="tw-dep"></div>
         <div class="p-sec"><span>An Parkpositionen</span><span class="cnt" id="tw-c-stand">0</span></div>
         <div class="empty" id="tw-stand-hint">Abfertigung läuft automatisch. Sobald ein Flug fertig ist, meldet er sich für den Pushback.</div>
@@ -196,8 +223,9 @@ export class TowerPanel {
     } else where = { STARTUP: 'Triebwerksstart', TAXI_OUT: 'rollt zum Rollhalt', HOLDING: `Rollhalt ${ac.rwy}`, LINEUP: 'rollt auf die Piste', LINED_UP: 'aufgestellt', TAKEOFF: 'Startlauf' }[ac.phase] || PHASE_DE[ac.phase];
     let gap = '';
     if (gapNm != null) {
-      const c = gapNm < 3 ? 'var(--bad)' : gapNm < 5 ? 'var(--warn)' : 'var(--muted)';
-      gap = ` · <span style="color:${c}">Abstand ${gapNm.toFixed(1)} NM</span>`;
+      const req = ac.wakeReq > 3 ? ac.wakeReq : 3;
+      const c = gapNm < 3 || ac.wakeWarn ? 'var(--bad)' : gapNm < req + 0.5 ? 'var(--warn)' : 'var(--muted)';
+      gap = ` · <span style="color:${c}">Abstand ${gapNm.toFixed(1)} NM${req > 3 ? ` / Soll ${req}${ac.wakeWarn ? ' 🌀' : ''}` : ''}</span>`;
     }
     let st = land ? (ac.clr.land ? '🛬 Landung frei' : '🛬 Landung') : ac.clr.takeoff ? '🛫 Startfreigabe erteilt' : ac.clr.lineup ? '🛫 Line up & wait' : '🛫 Start';
     if (ac.holdPos) st += ' · HALT';
@@ -206,7 +234,7 @@ export class TowerPanel {
       if (b) st += ` · wartet auf ${esc(b.cs)}`;
     }
     const rq = ac.req ? ` · <span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
-    const info = `<div class="s-info"><div class="s-cs">${flagButton(ac)}${esc(ac.cs)}<small>${ac.type}/${t.wake}${ac.emergency ? ' · 7700' : ''}</small>${flagHtml(ac)}</div><div class="s-alt" title="geplante Pistenzeit laut Folge">${eta <= 0 ? 'jetzt' : '~' + eta + ' min'}${shift >= 1 ? ` <small style="color:var(--warn)">+${shift}</small>` : ''}</div><div class="s-sub">${esc(acRoute(state, ac))} · ${esc(where)}${gap}</div><div class="s-state"><b style="color:${col}">${st}</b>${rq}</div></div>`;
+    const info = `<div class="s-info"><div class="s-cs">${flagButton(ac)}${esc(ac.cs)}<small>${ac.type}/${wakeTag(t.wake)}${ac.emergency ? ' · 7700' : ''}</small>${flagHtml(ac)}</div><div class="s-alt" title="geplante Pistenzeit laut Folge">${eta <= 0 ? 'jetzt' : '~' + eta + ' min'}${shift >= 1 ? ` <small style="color:var(--warn)">+${shift}</small>` : ''}</div><div class="s-sub">${esc(acRoute(state, ac))} · ${esc(where)}${gap}</div><div class="s-state"><b style="color:${col}">${st}</b>${rq}${fuelChip(ac)}</div>${land ? '' : acdmLine(state, ac)}</div>`;
     const ctl = `<button class="mini" data-seqmv="-1" data-ac="${ac.id}" title="früher (W)">▲</button><span class="grip" title="Ziehen zum Umsortieren">⠿</span><button class="mini" data-seqmv="1" data-ac="${ac.id}" title="später (S)">▼</button>`;
     return {
       cls: `strip seqs ${land ? (ac.clr.land ? 'k-landclr' : 'k-land') : ac.clr.takeoff ? 'k-depclr' : 'k-dep'}${sel ? ' sel' : ''}${ac.req ? ' req' : ''}${ac.emergency ? ' emg' : ''}${ac.conflict ? ' conf' : ''}`,
@@ -242,7 +270,8 @@ export class TowerPanel {
       if (b) st += ` · wartet auf ${b.cs}`;
     }
     const rq = ac.req ? ` · <span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
-    const info = `<div class="s-info"><div class="s-cs">${flagButton(ac)}${esc(ac.cs)}<small>${ac.type}/${t.wake}${ac.emergency ? ' · 7700' : ''}</small>${flagHtml(ac)}</div><div class="s-alt">${alt}</div><div class="s-sub">${esc(sub)}</div><div class="s-state">${esc(st)}${rq}</div></div>`;
+    const depSide = !ac.arr || [PH.STAND, PH.PUSH, PH.STARTUP, PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(ac.phase);
+    const info = `<div class="s-info"><div class="s-cs">${flagButton(ac)}${esc(ac.cs)}<small>${ac.type}/${wakeTag(t.wake)}${ac.emergency ? ' · 7700' : ''}</small>${flagHtml(ac)}</div><div class="s-alt">${alt}</div><div class="s-sub">${esc(sub)}</div><div class="s-state">${esc(st)}${rq}${fuelChip(ac)}</div>${depSide ? acdmLine(state, ac) : ''}</div>`;
     const cls = `strip ${kind}${sel ? ' sel' : ''}${ac.req ? ' req' : ''}${ac.emergency ? ' emg' : ''}${ac.conflict ? ' conf' : ''}`;
     return {
       cls,
@@ -261,6 +290,11 @@ export class TowerPanel {
     h += `<div>Status: ${occ.length ? `<span class="state busy">belegt · ${occ.map((a) => esc(a.cs)).join(', ')}</span>` : '<span class="state free">frei</span>'}</div><div></div>`;
     if (state.rwyPending) h += `<div style="color:var(--warn)">Wechsel auf ${state.rwyPending} ausstehend – ${drainCount(state)} Bewegungen laufen noch</div><button class="cmd" data-rwy="${state.rwy}">Abbrechen</button>`;
     else h += `<div>${pref !== state.rwy ? '<span style="color:var(--warn)">⚠ Rückenwind – Wechsel empfohlen</span>' : '<span style="color:var(--muted)">Betriebsrichtung passt</span>'}</div><button class="cmd ${pref !== state.rwy ? 'big' : ''}" data-rwy="${other}">→ ${other}</button>`;
+    const ba = brakingAction(state);
+    const closed = runwayClosed(state);
+    const cond = Math.round(rwyCond(state));
+    h += `<div class="rwy-cond">Zustand <b>${cond} %</b> · Bremswirkung <b class="ba-${ba}">${BRAKE_DE[ba]}</b>${isWet(state) ? ' (nass)' : ''}${state.weather.kind === 'fog' ? ` · RVR <b>${state.weather.rvr ?? '—'} m</b> · LVP` : ''}${isNight(state) ? ` · 🌙 Nacht${state.settings.curfew ? 'flugverbot' : ''}` : ''}</div>${qm('rwy')}`;
+    if (closed) h += `<div class="rwy-closed">⛔ Piste gesperrt: ${esc(closed)}${state.rwyClosedUntil > state.time ? ` bis ${fmtClock(state.rwyClosedUntil)}` : ''}</div><div></div>`;
     setHTML(this.el.rwy, h);
     this.el.gauto.classList.toggle('on', !!state.settings.towerGroundAuto);
 
@@ -269,7 +303,7 @@ export class TowerPanel {
     const byId = new Map(state.acs.map((a) => [a.id, a]));
     const seq = state.seq.map((id) => byId.get(id)).filter(Boolean);
     const inSeq = new Set(state.seq);
-    setHTML(this.el.seqHead, `<span>Pistenfolge RWY ${state.rwy} <small style="text-transform:none;letter-spacing:0">${state.seqManual ? '· manuell sortiert' : '· automatisch geplant'}</small></span><span>${state.seqManual ? '<button class="mini" data-seqsort title="wieder automatisch planen">⇅ automatisch</button> ' : ''}<span class="cnt">${seq.length}</span></span>`);
+    setHTML(this.el.seqHead, `<span>Pistenfolge RWY ${state.rwy}${qm('seq')} <small style="text-transform:none;letter-spacing:0">${state.seqManual ? '· manuell sortiert' : '· automatisch geplant'}</small></span><span>${state.seqManual ? '<button class="mini" data-seqsort title="wieder automatisch planen">⇅ automatisch</button> ' : ''}<span class="cnt">${seq.length}</span></span>`);
     let lastArr = null;
     const gaps = new Map();
     for (const a of seq) {

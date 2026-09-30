@@ -7,6 +7,9 @@ import { radio, log, notify } from './messages.js';
 import { nextId } from './schedule.js';
 import { onBlock, onPushbackStart, onPushbackDone, assignStandAuto } from './ground.js';
 import { onLanding, onTakeoff, penalize } from './economy.js';
+import { slotOpen, acdmOnTakeoff } from './acdm.js';
+import { wakeDepSec } from './wake.js';
+import { runwayClosed, decelFactor, onRunwayLanding, brakingAction } from './runway.js';
 
 export const PH = {
   INBOUND: 'ARR_INBOUND', HOLD: 'ARR_HOLD', APPROACH: 'ARR_APPROACH', GOAROUND: 'GO_AROUND',
@@ -114,6 +117,8 @@ function makeAircraft(state, rot, o) {
     blockedBy: null, blockedT: 0, ghostUntil: 0,
     engines: true,
     arr: true,
+    // Treibstoff für Anflug + Reserve in Minuten (Warteschleifen zehren daran)
+    fuelMin: 16 + randRange(state, 28, 50) + (t.size === 'L' ? 8 : 0),
   };
   return ac;
 }
@@ -147,6 +152,14 @@ export function spawnSpecial(state, opts) {
     ac.squawk = '7700';
   }
   return ac;
+}
+
+// Startfreigabe vor dem Slot-Fenster: Pilot wartet
+function holdForSlot(state, ac) {
+  if (ac.slotCall) return;
+  ac.slotCall = true;
+  const rot = getRot(state, ac);
+  if (rot && rot.ctot) radio(state, ac.cs, `${tel(ac)}, our slot is ${String(Math.floor((rot.ctot % 86400) / 3600)).padStart(2, '0')}${String(Math.floor((rot.ctot % 3600) / 60)).padStart(2, '0')}, we'll wait for the slot window.`);
 }
 
 export function setReq(state, ac, req) {
@@ -197,7 +210,35 @@ function enterHold(state, ac, fix) {
 
 export const fmtAlt = (a) => (a >= 10000 ? `FL${Math.round(a / 100)}` : `${Math.round(a / 100) * 100} feet`);
 
+// Treibstoffreserve der Ankünfte: MINIMUM FUEL -> MAYDAY FUEL -> Ausweichen
+function updateFuel(state, ac, dt) {
+  if (!ac.arr || ac.fuelMin === undefined || ![PH.INBOUND, PH.HOLD, PH.APPROACH, PH.GOAROUND].includes(ac.phase)) return false;
+  ac.fuelMin -= dt / 60;
+  if (ac.fuelMin <= 12 && !ac.minFuel) {
+    ac.minFuel = true;
+    radio(state, ac.cs, `${tel(ac)}, declaring minimum fuel.`);
+    notify(state, `⛽ ${ac.cs}: MINIMUM FUEL – bald Anflug freigeben`, 'warn');
+    log(state, 'sys', `${ac.cs} meldet Minimum Fuel (noch ca. ${Math.round(ac.fuelMin)} min Reserve).`);
+    state.stats.today.minFuel = (state.stats.today.minFuel || 0) + 1;
+  }
+  if (ac.fuelMin <= 5 && !ac.fuelEmergency) {
+    ac.fuelEmergency = true;
+    ac.emergency = true;
+    ac.squawk = '7700';
+    radio(state, ac.cs, `MAYDAY MAYDAY MAYDAY, ${tel(ac)}, fuel emergency, request immediate approach.`);
+    notify(state, `🚨 ${ac.cs}: MAYDAY FUEL – sofort landen lassen!`, 'bad');
+    penalize(state, 'fuelEmergency', ac);
+    state.fireAlert = state.fireAlert || { ac: ac.id, t: state.time };
+  }
+  if (ac.fuelMin <= 0 && (ac.phase === PH.HOLD || ac.phase === PH.INBOUND)) {
+    divert(state, ac, 'Treibstoffmangel');
+    return true;
+  }
+  return false;
+}
+
 function updateAir(state, ac, dt) {
+  if (updateFuel(state, ac, dt)) return;
   // Ziel bestimmen
   let tgt = null;
   let localizer = false;
@@ -272,10 +313,6 @@ function updateAir(state, ac, dt) {
     ac.tSpd = ac.spdOverride || (ac.alt > 10500 ? 280 : 250);
   } else if (ac.phase === PH.HOLD) {
     ac.tSpd = ac.spdOverride || 220;
-    if (state.time - ac.holdStart > 35 * 60 && !ac.emergency) {
-      divert(state, ac, 'Treibstoff knapp nach langer Warteschleife');
-      return;
-    }
   } else if (ac.phase === PH.GOAROUND) {
     ac.tSpd = 210;
     ac.tAlt = ac.altRestr ?? 4000;
@@ -348,6 +385,7 @@ export function goAround(state, ac, reason) {
   log(state, 'sys', `${ac.cs} startet durch – ${reason}.`);
   notify(state, `↗️ ${ac.cs} startet durch (${reason})`, 'warn');
   penalize(state, 'goaround', ac);
+  if (state.life) state.life.landStreak = 0;
   ac.clr = {};
   ac.req = null;
   ac.spdOverride = null;
@@ -361,13 +399,13 @@ export function goAround(state, ac, reason) {
   if (rot) rot.goArounds = (rot.goArounds || 0) + 1;
 }
 
-export function divert(state, ac, reason) {
+export function divert(state, ac, reason, pen = 'diversion') {
   const rot = getRot(state, ac);
   radio(state, ac.cs, `${tel(ac)}, unable to continue, diverting to alternate.`);
   log(state, 'sys', `${ac.cs} weicht aus: ${reason}.`);
   notify(state, `✈️↪ ${ac.cs} ausgewichen (${reason})`, 'bad');
   state.stats.today.diversions++;
-  penalize(state, 'diversion', ac);
+  penalize(state, pen, ac);
   if (rot) rot.status = 'diverted';
   if (ac.stand) {
     const st = state.stands.find((s) => s.id === ac.stand);
@@ -389,9 +427,14 @@ function updateMap(state, ac, dt) {
       if (!ac.decided && rem < 7) {
         ac.decided = true;
         const blk = runwayBlocker(state, ac);
+        const closed = runwayClosed(state);
         if (blk) {
           goAround(state, ac, `Piste belegt durch ${blk.cs}`);
           if (ac.clr.landGivenBlocked) penalize(state, 'incursion', ac);
+          return;
+        }
+        if (closed) {
+          goAround(state, ac, `Piste gesperrt – ${closed}`);
           return;
         }
       }
@@ -401,7 +444,7 @@ function updateMap(state, ac, dt) {
         ac.vacated = false;
         ac.decided = false;
         const exits = LY.exitsAhead(ac.rwy);
-        const decel = (t.wake === 'H' ? 0.0062 : 0.0082) * (state.upgrades.rapidExit ? 1.12 : 1) * randRange(state, 0.85, 1.12);
+        const decel = (t.wake === 'H' ? 0.0062 : 0.0082) * (state.upgrades.rapidExit ? 1.12 : 1) * decelFactor(state) * randRange(state, 0.85, 1.12);
         const ve = state.upgrades.rapidExit ? 0.16 : 0.12;
         const need = (ac.v * ac.v - ve * ve) / (2 * decel);
         let ex = exits.find((x) => Math.abs(x - tdx) >= need) ?? exits[exits.length - 1];
@@ -413,6 +456,8 @@ function updateMap(state, ac, dt) {
         ac.x = ac.path[0].x;
         ac.y = ac.path[0].y;
         onLanding(state, ac);
+        onRunwayLanding(state, ac);
+        ac.brake = brakingAction(state);
         radio(state, ac.cs, `${tel(ac)}, touchdown.`, 'sys');
       }
       break;
@@ -439,6 +484,7 @@ function updateMap(state, ac, dt) {
           else if (!ac.stand) {
             // ohne Parkposition zur Warteposition am Rollweg-Ende rollen
             const slot = state.acs.filter((o) => o !== ac && o.phase === PH.TAXI_WAIT).length;
+            ac.waitedStand = true;
             ac.phase = PH.TAXI_WAIT;
             ac.path = LY.pathToWait(ac.x, ac.rwy, ac.len, Math.min(slot, 1));
             ac.path[0] = { x: ac.x, y: ac.y };
@@ -504,7 +550,9 @@ function updateMap(state, ac, dt) {
       if (followPath(state, ac, dt, 0.13)) {
         ac.phase = PH.HOLDING;
         ac.v = 0;
-        if (ac.clr.takeoff || ac.clr.lineup) startLineUp(state, ac);
+        ac.waitT = 0;
+        if (ac.clr.lineup || (ac.clr.takeoff && slotOpen(state, ac, 45))) startLineUp(state, ac);
+        else if (ac.clr.takeoff) holdForSlot(state, ac);
         else {
           setReq(state, ac, 'takeoff');
           radio(state, ac.cs, `${tel(ac)}, holding point runway ${ac.rwy}, ready for departure.`);
@@ -514,7 +562,8 @@ function updateMap(state, ac, dt) {
     }
     case PH.HOLDING:
       ac.v = 0;
-      if (ac.clr.takeoff || ac.clr.lineup) startLineUp(state, ac);
+      if (ac.clr.lineup || (ac.clr.takeoff && slotOpen(state, ac, 45))) startLineUp(state, ac);
+      else if (ac.clr.takeoff) holdForSlot(state, ac);
       break;
     case PH.LINEUP: {
       if (followPath(state, ac, dt, 0.08)) {
@@ -526,7 +575,16 @@ function updateMap(state, ac, dt) {
     }
     case PH.LINED:
       ac.v = 0;
-      if (ac.clr.takeoff) {
+      if (ac.clr.takeoff && !slotOpen(state, ac)) holdForSlot(state, ac);
+      else if (ac.clr.takeoff && state.time - (state.lastTakeoff || -1e9) < wakeDepSec(state.lastTakeoffWake, ac.wake)) {
+        // Wirbelschleppen des vorigen Starts abwarten
+        if (!ac.wakeCall) {
+          ac.wakeCall = true;
+          const w = Math.ceil((wakeDepSec(state.lastTakeoffWake, ac.wake) - (state.time - state.lastTakeoff)) / 60);
+          radio(state, ac.cs, `${tel(ac)}, we'll wait ${w} minute${w > 1 ? 's' : ''} for wake turbulence.`);
+          state.stats.today.wakeWait = (state.stats.today.wakeWait || 0) + 1;
+        }
+      } else if (ac.clr.takeoff) {
         // Piste voraus frei?
         const blk = state.acs.find((o) => o !== ac && o.mode === 'map' && (o.phase === PH.ROLLOUT && !o.vacated));
         if (!blk) {
@@ -546,6 +604,7 @@ function updateMap(state, ac, dt) {
           state.lastTakeoff = state.time;
           state.lastTakeoffWake = ac.wake;
           onTakeoff(state, ac);
+          acdmOnTakeoff(state, ac, getRot(state, ac));
         }
         ac.z += ac.v * 0.11 * dt;
       }
