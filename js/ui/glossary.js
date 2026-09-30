@@ -27,6 +27,7 @@ export const GLOSSARY = [
   E('ATIS', 'Automatic Terminal Information Service', 'Bandansage mit Wetter, Wind und Piste in Betrieb. Jede neue Ausgabe hat einen Buchstaben (Alpha, Bravo, …), den Piloten beim Erstanruf nennen.', 'Flugsicherung'),
   E('TAF', 'Terminal Aerodrome Forecast', 'Flugplatzwettervorhersage. Im Radar zeigt die TAF-Zeile die nächste Wetterlage, z. B. „ab 15:20 TSRA“ (Gewitter mit Regen).', 'Flugsicherung'),
   E('TSRA', 'Thunderstorm with Rain', 'Wetterkürzel: Gewitter mit Regen. Weitere Kürzel: RA Regen, SN Schnee, FG Nebel, CAVOK klar.', 'Flugsicherung'),
+  E('Readback', 'Rücklesung', 'Der Pilot wiederholt jede Freigabe (Piste, Line up, Start, Landung). Der Lotse muss hinhören: Stimmt der Readback nicht, sofort mit „negative …“ korrigieren (im Spiel Taste Q) – sonst handelt der Pilot nach seinem Missverständnis.', 'Flugsicherung'),
   E('WS ALERT', 'Windshear Alert', 'Windscherungswarnung: plötzliche Wind- und Auftriebsänderung im kurzen Endanflug (meist durch eine Gewitterzelle). Anflüge können durchstarten müssen – ein Pistenwechsel hilft.', 'Flugsicherung'),
   E('Windscherung', 'Windshear', 'Schnelle Änderung von Windrichtung oder -stärke auf kurzer Strecke, gefährlich im Endanflug. Wird als WS ALERT gemeldet.', 'Flugsicherung', false),
   E('GS', 'Ground Speed', 'Geschwindigkeit über Grund in Knoten.', 'Flugsicherung'),

@@ -17,6 +17,7 @@ import { updateConstruction } from './construction.js';
 import { updateAcdm } from './acdm.js';
 import { updateScenario } from './scenarios.js';
 import { updateSecurity } from './security.js';
+import { updateReadback } from './readback.js';
 import { updateFuel } from './fuel.js';
 import { dailyLoans } from './finance.js';
 import { spend } from './economy.js';
@@ -51,6 +52,7 @@ export function step(state, dt) {
   updateAchievements(state, dt);
   updateAtis(state);
   updateSecurity(state, dt);
+  updateReadback(state, dt);
   updateGround(state, dt);
   updateConflicts(state, dt);
   updateAcdm(state, dt);

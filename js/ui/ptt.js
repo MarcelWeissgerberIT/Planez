@@ -7,6 +7,7 @@ import { toast } from './dom.js';
 import { sfx } from '../audio.js';
 import { radio } from '../sim/messages.js';
 import { tel } from '../sim/aircraft.js';
+import { correctReadback } from '../sim/readback.js';
 
 const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
@@ -87,6 +88,23 @@ export function initPTT(game) {
     handled = said;
     const s = game.state;
     const r = parseVoice(s, said);
+    // „Negative …“: falschen Readback korrigieren (ohne erkanntes Rufzeichen den einzigen offenen)
+    if (r.cmd === 'rbfix') {
+      const tgt = r.ac && r.ac.rbErr ? r.ac : s.acs.find((a) => a.rbErr);
+      if (tgt) {
+        voice.muteAtcUntil = performance.now() + 2500;
+        const res = correctReadback(s, tgt);
+        show(`✓ ${tgt.cs} · Readback korrigiert`, 'ok');
+        s.life = s.life || {};
+        s.life.voiceCmd = (s.life.voiceCmd || 0) + 1;
+        if (res.ok) game.select(tgt.id, false);
+        return hide(2200);
+      }
+      if (!r.ac) {
+        show(`„${said}“ – kein falscher Readback offen`, 'bad');
+        return hide(2400);
+      }
+    }
     if (!r.ac) {
       show(`„${said}“ – Rufzeichen nicht erkannt`, 'bad');
       // wie im echten Funk: irgendwer hat etwas gehört, aber nicht verstanden

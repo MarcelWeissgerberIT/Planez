@@ -149,6 +149,7 @@ const PEN = {
   fuelEmergency: { rep: -1.5, cost: 20000, cat: 'incidents' },
   diversionWx: { rep: -0.6, cost: 8000, cat: 'incidents', minor: true },
   wake: { rep: -0.6, cost: 12000, cat: 'incidents', minor: true },
+  readback: { rep: -1, cost: 8000, cat: 'incidents', minor: true },
 };
 export function penalize(state, kind, ac) {
   const p = PEN[kind];

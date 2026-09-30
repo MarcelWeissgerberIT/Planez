@@ -1,5 +1,6 @@
 // Tower-Arbeitsplatz: Flugstreifen & Befehle
 import { CMDS, command, validCommands, tailwind, preferredRunway, requestRunwayChange, drainCount, primaryCommand, departureWait } from '../sim/atc.js';
+import { correctReadback, RB_WINDOW, RB_HINT } from '../sim/readback.js';
 import { PH, PHASE_DE, runwayOccupants, fmtAlt } from '../sim/aircraft.js';
 import * as AS from '../sim/airspace.js';
 import { AC_TYPES, CITIES, AIRPORT } from '../config.js';
@@ -118,6 +119,23 @@ const mmss = (sec) => {
 };
 
 // Tower-Arbeitsplatz: rechts Radar + Pistenstatus + Funk in einem Fenster, unten die Flugstreifen-Leiste
+// Readback-Hinweis: mit Tipps nach kurzer Zeit, ohne Tipps später (dann heißt es: hinhören)
+export const rbHintDelay = (state) => (state.settings.hints === false ? 7 : RB_HINT);
+export function fixReadback(game, ac) {
+  const s = game.state;
+  const target = ac && ac.rbErr ? ac : s.acs.find((a) => a.rbErr);
+  if (!target) {
+    toast('👂 Kein falscher Readback offen – alle Rücklesungen stimmen', 'info', 2200);
+    return false;
+  }
+  const r = correctReadback(s, target);
+  if (r.ok) {
+    sfx.click();
+    toast(r.quick ? `👂 Gut aufgepasst! ${target.cs} korrigiert` : `✔ ${target.cs}: Readback korrigiert`, 'good', 2400);
+  }
+  return r.ok;
+}
+
 export class TowerPanel {
   constructor(root, game) {
     this.root = root;
@@ -201,6 +219,8 @@ export class TowerPanel {
 
   onClick(e) {
     const s = this.game.state;
+    const rb = e.target.closest('[data-rbfix]');
+    if (rb) return fixReadback(this.game, s.acs.find((a) => a.id === rb.dataset.rbfix));
     const b = e.target.closest('[data-cmd]');
     if (b) {
       const ac = s.acs.find((a) => a.id === b.dataset.ac);
@@ -408,6 +428,8 @@ export class TowerPanel {
         btns = `<span class="cmd big wait" title="Startfreigabe erst, wenn die Piste sicher frei bleibt – über die aktive Karte oder T geht es trotzdem">⏳ ${esc(w.why)} · ~${mmss(w.sec)}</span>`;
       }
     }
+    // falscher Readback: nach kurzer Zeit (Zeit zum Hinhören) Hinweis mit Korrektur-Knopf
+    if (ac.rbErr && ac.rbErr.age >= rbHintDelay(state)) btns = `<button class="cmd big rbfix" data-rbfix="${ac.id}" title="Pilot hat falsch zurückgelesen: „${esc(ac.rbErr.wrong)}“">⚠ Readback falsch – korrigieren <kbd>Q</kbd><i style="--p:${Math.max(0, ac.rbErr.left / RB_WINDOW)}"></i></button>` + (sel ? btns : '');
     let extra = '';
     if (sel) {
       const rot = state.rots[ac.rot];
@@ -421,7 +443,7 @@ export class TowerPanel {
     }
     const kind = inSeq ? (land ? (ac.clr.land ? 'k-landclr' : 'k-land') : ac.clr.takeoff ? 'k-depclr' : 'k-dep') : `k-${g}`;
     return {
-      cls: `fcard ${kind}${sel ? ' active' : ''}${ac.req ? ' req' : ''}${ac.emergency ? ' emg' : ''}${ac.conflict ? ' conf' : ''}${ac.wakeWarn ? ' conf' : ''}`,
+      cls: `fcard ${kind}${sel ? ' active' : ''}${ac.req ? ' req' : ''}${ac.emergency ? ' emg' : ''}${ac.conflict ? ' conf' : ''}${ac.wakeWarn ? ' conf' : ''}${ac.rbErr && ac.rbErr.age >= rbHintDelay(state) ? ' rberr' : ''}`,
       wrap: (inner) => `<div class="c-bar"></div><div class="c-body">${inner}</div>`,
       parts: { 'c-top': top, 'c-mid': mid, 'c-st': state2, 'c-extra': extra, 'c-btns': btns },
     };

@@ -7,7 +7,7 @@ import { newGame, loadGame, saveGame, hasSave, setRole, ROLES } from './state.js
 import { run, hooks } from './sim/sim.js';
 import { listeners } from './sim/messages.js';
 import { SPEEDS, AC_TYPES, dayMinutes } from './config.js';
-import { TowerPanel, REQ_DE } from './ui/tower.js';
+import { TowerPanel, REQ_DE, fixReadback } from './ui/tower.js';
 import { GroundPanel } from './ui/groundPanel.js';
 import { ManagerPanel } from './ui/managerPanel.js';
 import { $, toast, openModal, closeModal, modalOpen, setHTML } from './ui/dom.js';
@@ -124,6 +124,7 @@ const LOAD_TIPS = [
   'Tipp: Mit <kbd>V</kbd> (gedrückt halten) funkst du im Tower selbst – auf Englisch, wie echte Lotsen.',
   'Tipp: 📷 bzw. <kbd>Umschalt</kbd>+<kbd>P</kbd> öffnet den Fotomodus mit Filtern und PNG-Export.',
   'Tipp: <kbd>?</kbd> zeigt im Spiel alle Tastenkürzel deiner Station.',
+  'Tipp: Im Tower lohnt sich Hinhören – ein falscher Readback lässt sich mit Q korrigieren.',
   'Tipp: Etwa jede 18. Maschine trägt eine Sonderlackierung – fotografiere sie fürs 📒 Spotterbuch.',
   'Tipp: Eine Landung im Gewitter oder ein Nachtstart bringt im Spotterbuch Extrapunkte für den Moment.',
 ];
@@ -875,6 +876,12 @@ function wireGame() {
       info._html = null;
       return;
     }
+    const rbf = e.target.closest('[data-rbfix]');
+    if (rbf) {
+      fixReadback(game, s.acs.find((a) => a.id === rbf.dataset.rbfix));
+      info._html = null;
+      return;
+    }
     const sp = e.target.closest('[data-spot]');
     if (sp) {
       spotter().shoot(s.acs.find((a) => a.id === sp.dataset.spot));
@@ -1069,6 +1076,11 @@ function onKey(e) {
   if ((e.key === 'g' || e.key === 'G') && s.role === 'ground' && !e.ctrlKey && !e.metaKey) {
     if (!game.splan) game.splan = new StandPlan(game);
     return game.splan.toggle();
+  }
+  if ((e.key === 'q' || e.key === 'Q') && s.role === 'tower' && !e.ctrlKey && !e.metaKey) {
+    fixReadback(game, game.ui.selected && s.acs.find((a) => a.id === game.ui.selected));
+    game.refreshUi && game.refreshUi();
+    return;
   }
   if ((s.role === 'tower' || s.role === 'ground') && game.panel.key && !e.ctrlKey && !e.metaKey && game.panel.key(e, s)) return;
   const k = e.key.toLowerCase();
@@ -1268,6 +1280,7 @@ function helpGuide(first) {
       <li><b>Reihenfolge &amp; Auto-Staffelung:</b> Karten <b>ziehen</b> (oder ◀ ▶, <kbd>W</kbd>/<kbd>S</kbd>) – die Staffelung passt sich an: Anflugfreigaben kommen in deiner Reihenfolge, Anflüge werden auf 180/160 kt gebremst, Vorgezogene bekommen „Direkt FAF“, notfalls geht einer in die Warteschleife; vor eine Landung gezogene Starts bekommen eine Lücke („Startfenster in …“). Aus der Warteliste in die Pistenfolge ziehen = Anflug frei. Du gibst weiter Lande- und Startfreigaben. „⇅ zurücksetzen“ plant wieder automatisch. Farben auf Karte und Radar: <span style="color:#22d3ee">■ Landung</span> <span style="color:#a5f3fc">■ Landung frei</span> <span style="color:#f59e0b">■ Start</span> <span style="color:#e879f9">■ Startfreigabe</span>.</li>
       <li><b>Wetter & Piste:</b> Bremswirkung (gut/mittel/schlecht) hängt vom Gummiabrieb und von Nässe ab. Bei Nebel gelten LVP (mehr Abstand); unter 550 m RVR geht es nur mit ILS CAT III. Bei mehr als 5 kt Rückenwind die Betriebsrichtung wechseln.</li>
       <li><b>Markieren:</b> ⚑ auf dem Streifen, Rechtsklick/langes Drücken auf ein Flugzeug oder <kbd>M</kbd>. <kbd>N</kbd>/<kbd>Tab</kbd> springt zur nächsten Anfrage, <kbd>F</kbd> vergrößert das Radar, ⓘ im Radar erklärt die Anzeige.</li>
+      <li><b>👂 Readback-Fehler:</b> Hör auf die Rücklesungen! Ab und zu versteht ein Pilot „cleared for take-off“ statt „line up and wait“ oder nennt die falsche Landebahn. Korrigiere mit <kbd>Q</kbd>, dem roten Knopf auf dem Streifen oder per Sprechtaste („negative …“). Wer es sofort hört, bekommt mehr Punkte; nach ein paar Sekunden blendet der Streifen einen Hinweis ein. Unkorrigiert rollt der Pilot ohne Freigabe los bzw. fliegt die falsche Bahn an und startet durch.</li>
     </ul>
     <h3>🦺 Vorfeld &amp; Abfertigung</h3>
     <ul>

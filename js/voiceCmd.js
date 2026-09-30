@@ -22,6 +22,7 @@ function sim(a, b) {
 
 // Befehle nach Priorität (spezifisch vor allgemein)
 const RULES = [
+  ['rbfix', /\bnegative\b|\bcorrection\b|\bwrong runway\b|\bnot cleared\b/],
   ['goaround', /\bgo(ing)? around\b/],
   ['land', /\bclear(ed)? (to|two|2) land\b|\bcleared land\b/],
   ['takeoff', /\bclear(ed)? (for )?(take ?off|takeoff)\b/],

@@ -3,7 +3,7 @@ import { AC_TYPES, AIRLINES, CITIES, VEH_TYPES, UPGRADES, STAND_COSTS } from '..
 import { PH, PHASE_DE, fmtAlt } from '../sim/aircraft.js';
 import { fmtClock, fmtMoney, esc } from '../util.js';
 import { setHTML } from './dom.js';
-import { cmdButtons, acRoute, REQ_DE, distToLand, fuelChip, wakeTag } from './tower.js';
+import { cmdButtons, acRoute, REQ_DE, distToLand, fuelChip, wakeTag, rbHintDelay } from './tower.js';
 import { slotInfo, exot } from '../sim/acdm.js';
 import { WAKE_DE } from '../sim/wake.js';
 import { fuelState, FUEL, pending } from '../sim/fuel.js';
@@ -92,6 +92,7 @@ export function renderInfo(el, state, ui) {
     if (ac.req) h += `<div style="margin-top:6px;color:var(--warn);font-size:12px;font-weight:700">● ${REQ_DE[ac.req] || ac.req}</div>`;
     h += `<div class="i-marks"><span>⚑ Markieren</span>${MARK_KEYS.map((k) => `<button data-imark="${k}" data-ac="${ac.id}" class="${ac.mark && ac.mark.c === k ? 'cur' : ''}" style="--m:${MARKS[k].hex}" title="${MARKS[k].name}" aria-label="${MARKS[k].name}"></button>`).join('')}<button class="mini" data-imarkmenu="${ac.id}">Notiz…</button>${ac.mark ? `<button class="mini" data-imark="x" data-ac="${ac.id}">✕</button>` : ''}${flagHtml(ac)}</div>`;
     const role = state.role;
+    if (role === 'tower' && ac.rbErr && ac.rbErr.age >= rbHintDelay(state)) h += `<div class="i-rb">⚠ Falsch zurückgelesen – „${esc(ac.rbErr.wrong)}“ <button class="btn btn-warn" data-rbfix="${ac.id}">Korrigieren <kbd>Q</kbd></button></div>`;
     if (role === 'tower') {
       const b = cmdButtons(state, ac, true);
       if (b) h += `<div class="i-acts" data-part="cmds">${b}</div>`;

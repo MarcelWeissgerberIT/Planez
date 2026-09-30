@@ -58,6 +58,13 @@ export function scoreIncident(state, ac) {
   fail(state, ac, 300, 'Vorfall');
 }
 
+// Readback-Fehler: sofort gehört = mehr Punkte; überhört = Kombo weg
+export function scoreReadback(state, ac, ok, quick) {
+  if (!active(state, 'tower')) return;
+  if (ok) add(state, ac, quick ? 150 : 70, quick ? 'Readback-Fehler gehört' : 'Readback korrigiert');
+  else fail(state, ac, 120, 'Readback überhört');
+}
+
 // ---------- Vorfeld ----------
 export function scoreOffBlock(state, ac, delay, quick) {
   if (!active(state, 'ground')) return;

@@ -11,6 +11,7 @@ import { wakeNm, wakeDepSec } from './wake.js';
 import { slotOpen } from './acdm.js';
 import { runwayClosed, brakingAction, BRAKE_EN, updateRunway, stripForArrival, rwyName, segregated } from './runway.js';
 import { fmtClock } from '../util.js';
+import { readbackText } from './readback.js';
 
 const numTxt = (s, ac, suffix = '') => {
   updateSequence(s);
@@ -81,7 +82,7 @@ export const CMDS = {
       ac.req = null;
       const ba = brakingAction(s, ac.strip || 'N');
       const rn = rwyName(s, ac.strip || 'N');
-      say(s, ac, `${tel(ac)}, ${numTxt(s, ac)}runway ${rn}, cleared to land, ${windStr(s)}${ba !== 'good' ? `, braking action ${BRAKE_EN[ba]}` : ''}.`, `Cleared to land ${rn}, ${tel(ac)}.`);
+      say(s, ac, `${tel(ac)}, ${numTxt(s, ac)}runway ${rn}, cleared to land, ${windStr(s)}${ba !== 'good' ? `, braking action ${BRAKE_EN[ba]}` : ''}.`, readbackText(s, ac, 'land', `Cleared to land ${rn}, ${tel(ac)}.`));
     },
   },
   goaround: {
@@ -156,7 +157,7 @@ export const CMDS = {
       ac.clr.lineup = true;
       ac.req = null;
       const rn = rwyName(s, 'N', ac.rwy);
-      say(s, ac, `${tel(ac)}, runway ${rn}, line up and wait.`, `Line up and wait ${rn}, ${tel(ac)}.`);
+      say(s, ac, `${tel(ac)}, runway ${rn}, line up and wait.`, readbackText(s, ac, 'lineup', `Line up and wait ${rn}, ${tel(ac)}.`));
     },
   },
   takeoff: {
