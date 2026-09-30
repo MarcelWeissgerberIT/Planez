@@ -1,5 +1,6 @@
 // Isometrische Flughafenansicht
 import { IMG, shadowOf, glowTinted } from '../assets.js';
+import { drawAircraftBody, drawVehicleBody, drawCarBody } from './volume.js';
 import { HALF_W, HALF_H } from './camera.js';
 import * as LY from '../layout.js';
 import { AC_TYPES, AIRLINES, VEH_TYPES, ZS } from '../config.js';
@@ -19,6 +20,22 @@ function pat(ctx, img, tiles) {
   const p = ctx.createPattern(img, 'repeat');
   if (p.setTransform) p.setTransform(new DOMMatrix().scale(tiles / img.width));
   return p;
+}
+// Terminaldach als Bild in Weltkoordinaten (24 px je Kachel)
+function makeRoof(T) {
+  const PX = 24;
+  const c = document.createElement('canvas');
+  c.width = Math.ceil((T.x1 - T.x0) * PX);
+  c.height = Math.ceil((T.y1 - T.y0) * PX);
+  c.px = PX;
+  const g = c.getContext('2d');
+  g.fillStyle = pat(g, IMG.tex_roof, 3.2 * PX);
+  g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = 'rgba(255,255,255,0.55)';
+  g.fillRect(0, c.height - 0.08 * PX, c.width, 0.08 * PX);
+  g.fillStyle = 'rgba(40,50,60,0.12)';
+  g.fillRect(0, 1.6 * PX, c.width, 0.8 * PX);
+  return c;
 }
 const rgb = (c) => `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`;
 const mix = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
@@ -318,14 +335,12 @@ export class MapRenderer {
     const ctx = this.ctx, cam = this.cam;
     const T = LY.TERMINAL;
     const h = T.h;
-    // Dach
+    // Dach (einmal vorgerendert, je Scheibe nur ein Ausschnitt – Musterfüllung ist teuer)
     cam.setIso(ctx, h);
-    ctx.fillStyle = this.roofPat || (this.roofPat = pat(ctx, IMG.tex_roof, 3.2));
-    ctx.fillRect(xa - 0.01, T.y0, xb - xa + 0.03, T.y1 - T.y0);
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.fillRect(xa - 0.01, T.y1 - 0.08, xb - xa + 0.03, 0.08);
-    ctx.fillStyle = 'rgba(40,50,60,0.12)';
-    ctx.fillRect(xa - 0.01, T.y0 + 1.6, xb - xa + 0.03, 0.8);
+    const roof = this.roofCanvas || (this.roofCanvas = makeRoof(T));
+    const PX = roof.px;
+    const sx = Math.max(0, (xa - 0.01 - T.x0) * PX), ex = Math.min(roof.width, (xb + 0.02 - T.x0) * PX);
+    if (ex > sx) ctx.drawImage(roof, sx, 0, ex - sx, roof.height, T.x0 + sx / PX, T.y0, (ex - sx) / PX, T.y1 - T.y0);
     // Fassaden
     this.facade(xa, xb, T.y1, h, 'x', 0, night);
     if (last) this.facade(T.y0, T.y1, T.x1, h, 'y', 0.22, night);
@@ -417,17 +432,15 @@ export class MapRenderer {
 
   drawCar(p, car, night, lights) {
     const ctx = this.ctx, cam = this.cam;
-    cam.setIso(ctx, 0.03);
+    // Schatten
+    cam.setIso(ctx, 0);
     ctx.save();
-    ctx.translate(p.x, p.y);
+    ctx.translate(p.x + 0.06, p.y + 0.03);
     ctx.rotate(p.h);
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.fillRect(-0.15, -0.06, 0.34, 0.16);
-    ctx.fillStyle = car.c;
-    ctx.fillRect(-0.17, -0.075, 0.34, 0.15);
-    ctx.fillStyle = 'rgba(20,30,40,0.75)';
-    ctx.fillRect(0.02, -0.06, 0.08, 0.12);
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fillRect(-0.18, -0.085, 0.36, 0.17);
     ctx.restore();
+    drawCarBody(ctx, cam, p.x, p.y, p.h, car.c, prism, carShades, cam.zoom < 0.7);
     if (night > 0.2) {
       lights.push({ x: p.x + Math.cos(p.h) * 0.3, y: p.y + Math.sin(p.h) * 0.3, z: 0.03, c: '#fff4d0', s: 14, a: 0.7 });
       lights.push({ x: p.x - Math.cos(p.h) * 0.18, y: p.y - Math.sin(p.h) * 0.18, z: 0.03, c: '#ff3020', s: 8, a: 0.7 });
@@ -473,15 +486,16 @@ export class MapRenderer {
     const sh = shadowOf(type.sprite);
     if (sh) {
       cam.setIso(ctx, 0);
-      ctx.globalAlpha = clamp(0.3 - ac.z * 0.05, 0.06, 0.3);
+      ctx.globalAlpha = clamp(0.38 - ac.z * 0.06, 0.07, 0.38);
       ctx.save();
-      ctx.translate(ac.x + 0.12 + ac.z * 0.9, ac.y + 0.04 + ac.z * 0.2);
+      const sOff = L * 0.06 + ac.z * 0.9;
+      ctx.translate(ac.x + sOff, ac.y + sOff * 0.35);
       ctx.rotate(rot);
       ctx.drawImage(sh, -Wd / 2, -L / 2, Wd, L);
       ctx.restore();
       ctx.globalAlpha = 1;
     }
-    const zb = ac.z + 0.07;
+    const onGround = ac.mode !== 'air' && ac.z < 0.05;
     if (ui && ui.selected === ac.id) this.selRing(ac.x, ac.y, L * 0.62, ac.z);
     const mk = markOf(ac);
     if (mk) {
@@ -497,23 +511,19 @@ export class MapRenderer {
       ctx.setLineDash([]);
       ctx.lineDashOffset = 0;
     }
-    cam.setIso(ctx, zb);
-    ctx.save();
-    ctx.translate(ac.x, ac.y);
-    ctx.rotate(rot);
-    if (img) ctx.drawImage(img, -Wd / 2, -L / 2, Wd, L);
-    else {
-      ctx.fillStyle = '#eee';
-      ctx.fillRect(-0.1, -L / 2, 0.2, L);
-    }
-    ctx.restore();
-    // Seitenleitwerk in Airline-Farbe
+    // Körper mit Volumen (Fahrwerk, Flügel, Triebwerke, runder Rumpf)
     const al = AIRLINES[ac.airline] || AIRLINES.AUR;
+    const body = drawAircraftBody(ctx, cam, ac, img, type.sprite, L, Wd, rot, onGround, al.color);
+    const zb = body.wing;
+    // Seitenleitwerk in Airline-Farbe, sitzt auf dem Rumpfrücken
     const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg);
     const fh = type.finH * 0.8;
-    const P = (f, z) => cam.toScreen(ac.x + fx * f * L, ac.y + fy * f * L, zb + z);
+    const zf = body.top - body.r * 0.25;
+    const P = (f, z) => cam.toScreen(ac.x + fx * f * L, ac.y + fy * f * L, zf + z);
     cam.setScreen(ctx);
-    const a = P(-0.49, 0.05), b = P(-0.47, fh), c = P(-0.39, fh), d = P(-0.27, 0.05);
+    const a = P(-0.49, 0), b = P(-0.47, fh), c = P(-0.39, fh), d = P(-0.25, 0);
+    // Seite zum Betrachter etwas dunkler, je nach Blickwinkel
+    const side = Math.abs(fx - fy) / 1.42;
     ctx.fillStyle = al.color;
     ctx.strokeStyle = 'rgba(0,0,0,0.35)';
     ctx.lineWidth = Math.max(0.6, 0.8 * cam.zoom);
@@ -524,6 +534,8 @@ export class MapRenderer {
     ctx.lineTo(d.x, d.y);
     ctx.closePath();
     ctx.fill();
+    ctx.fillStyle = `rgba(8,12,24,${0.08 + 0.22 * (1 - side)})`;
+    ctx.fill();
     ctx.stroke();
     const m1 = P(-0.465, fh * 0.55), m2 = P(-0.37, fh * 0.55), m3 = P(-0.355, fh * 0.72), m4 = P(-0.47, fh * 0.72);
     ctx.fillStyle = al.color2;
@@ -533,6 +545,13 @@ export class MapRenderer {
     ctx.lineTo(m3.x, m3.y);
     ctx.lineTo(m4.x, m4.y);
     ctx.fill();
+    // Vorderkante glänzt
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = Math.max(0.6, 1 * cam.zoom);
+    ctx.beginPath();
+    ctx.moveTo(d.x, d.y);
+    ctx.lineTo(c.x, c.y);
+    ctx.stroke();
 
     // Lichter
     const t = this.time;
@@ -540,7 +559,7 @@ export class MapRenderer {
     const span = Wd * 0.48;
     const moving = ac.phase !== PH.STAND;
     if (ac.engines || moving) {
-      if ((t + (ac.id.length % 7) * 0.13) % 1.2 < 0.14) lights.push({ x: ac.x, y: ac.y, z: zb + 0.1, c: '#ff2a1a', s: 26, a: 0.95, day: true });
+      if ((t + (ac.id.length % 7) * 0.13) % 1.2 < 0.14) lights.push({ x: ac.x, y: ac.y, z: body.top + 0.02, c: '#ff2a1a', s: 26, a: 0.95, day: true });
       lights.push({ x: ac.x - rx * span, y: ac.y - ry * span, z: zb, c: '#ff2020', s: 11, a: 0.8 });
       lights.push({ x: ac.x + rx * span, y: ac.y + ry * span, z: zb, c: '#20ff60', s: 11, a: 0.8 });
     }
@@ -553,7 +572,7 @@ export class MapRenderer {
       lights.push({ x: ac.x + fx * L * 0.55, y: ac.y + fy * L * 0.55, z: zb, c: '#fff8e0', s: 34, a: 0.9 });
       lights.push({ x: ac.x + fx * L * 1.6, y: ac.y + fy * L * 1.6, z: 0, c: '#fff2d0', s: 70, a: 0.35 * (ac.z < 1.5 ? 1 : 0), flat: true, soft: true });
     }
-    const sp = cam.toScreen(ac.x, ac.y, zb);
+    const sp = cam.toScreen(ac.x, ac.y, body.mid);
     this.picks.push({ type: 'ac', id: ac.id, x: sp.x, y: sp.y, r: Math.max(14, L * 22 * cam.zoom) });
   }
 
@@ -576,24 +595,31 @@ export class MapRenderer {
     const img = IMG[vt.sprite];
     const L = vt.len * 1.15;
     const Wd = img ? (L * img.width) / img.height : L * 0.4;
-    cam.setIso(ctx, 0);
-    ctx.save();
-    ctx.translate(v.x + 0.05, v.y + 0.03);
-    ctx.rotate(v.hdg + Math.PI / 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.fillRect(-Wd / 2, -L / 2, Wd, L);
-    ctx.restore();
-    cam.setIso(ctx, 0.05);
-    ctx.save();
-    ctx.translate(v.x, v.y);
-    ctx.rotate(v.hdg + Math.PI / 2);
-    if (img) ctx.drawImage(img, -Wd / 2, -L / 2, Wd, L);
-    ctx.restore();
+    const H = VEH_H[v.type] || 0.1;
+    this.vehShadow(vt.sprite, v.x, v.y, v.hdg, L, Wd, H);
+    if (img) drawVehicleBody(ctx, cam, vt.sprite, v.x, v.y, v.hdg, L, Wd, H);
     const active = v.st !== 'idle';
     const broken = v.brokenUntil > state.time;
-    if ((active && (this.time * 2 + v.x) % 1 < 0.35) || broken) lights.push({ x: v.x, y: v.y, z: 0.15, c: broken ? '#ff3030' : '#ffae00', s: 16, a: 0.9, day: true });
+    if ((active && (this.time * 2 + v.x) % 1 < 0.35) || broken) lights.push({ x: v.x, y: v.y, z: H + 0.05, c: broken ? '#ff3030' : '#ffae00', s: 16, a: 0.9, day: true });
     const sp = cam.toScreen(v.x, v.y, 0.1);
     this.picks.push({ type: 'veh', id: v.id, x: sp.x, y: sp.y, r: 10 });
+  }
+
+  // Schattenriss eines Fahrzeugs, je nach Höhe versetzt (Sonne von Nordwest)
+  vehShadow(sprite, x, y, hdg, L, Wd, H) {
+    const ctx = this.ctx, cam = this.cam;
+    const sh = shadowOf(sprite);
+    cam.setIso(ctx, 0);
+    ctx.save();
+    ctx.globalAlpha = 0.34;
+    ctx.translate(x + 0.03 + H * 0.55, y + 0.02 + H * 0.25);
+    ctx.rotate(hdg + Math.PI / 2);
+    if (sh) ctx.drawImage(sh, -Wd / 2 - 0.01, -L / 2 - 0.01, Wd + 0.02, L + 0.02);
+    else {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(-Wd / 2, -L / 2, Wd, L);
+    }
+    ctx.restore();
   }
 
   drawFireTruck(t, lights) {
@@ -601,15 +627,11 @@ export class MapRenderer {
     const img = IMG.veh_fire;
     const L = 0.75;
     const Wd = img ? (L * img.width) / img.height : 0.3;
-    cam.setIso(ctx, 0.05);
-    ctx.save();
-    ctx.translate(t.x, t.y);
-    ctx.rotate(t.hdg + Math.PI / 2);
-    if (img) ctx.drawImage(img, -Wd / 2, -L / 2, Wd, L);
-    ctx.restore();
+    this.vehShadow('veh_fire', t.x, t.y, t.hdg, L, Wd, 0.15);
+    if (img) drawVehicleBody(ctx, cam, 'veh_fire', t.x, t.y, t.hdg, L, Wd, 0.15);
     if (t.st !== 'home') {
       const on = (this.time * 3 + t.x) % 1 < 0.5;
-      lights.push({ x: t.x, y: t.y, z: 0.2, c: on ? '#3060ff' : '#ff2020', s: 22, a: 1, day: true });
+      lights.push({ x: t.x, y: t.y, z: 0.22, c: on ? '#3060ff' : '#ff2020', s: 22, a: 1, day: true });
     }
   }
 
@@ -925,6 +947,18 @@ function prism(ctx, cam, pts, z0, z1, cTop, cA, cB) {
   P1.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
   ctx.closePath();
   ctx.fill();
+}
+
+// Aufbauhöhe der Vorfeldfahrzeuge (Kacheln)
+const VEH_H = { tug: 0.075, baggage: 0.07, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13 };
+// Lackfarbe -> Dach/Seiten + getönte Scheiben (gecacht)
+const carShadeCache = {};
+function carShades(hex) {
+  if (carShadeCache[hex]) return carShadeCache[hex];
+  const n = parseInt(hex.slice(1), 16);
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const sc = (f) => c.map((v) => Math.round(v * f));
+  return (carShadeCache[hex] = { top: sc(1.0), a: sc(0.72), b: sc(0.5), glassTop: [70, 90, 110], glassA: [38, 52, 68], glassB: [26, 36, 50] });
 }
 
 // Autos auf der Landseite
