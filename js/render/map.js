@@ -7,6 +7,8 @@ import { Polish } from './polish.js';
 import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowySprite } from './snow.js';
 import { updateWetness, drawWetGround, drawWetReflections } from './wet.js';
 import { Wildlife } from './wildlife.js';
+import { seasonalTree, seasonalGrass } from './seasonal.js';
+import { season as seasonOf } from '../sim/winter.js';
 import { HALF_W, HALF_H } from './camera.js';
 import * as LY from '../layout.js';
 import { AC_TYPES, AIRLINES, VEH_TYPES, ZS, TIME_SCALE } from '../config.js';
@@ -216,7 +218,7 @@ export class MapRenderer {
   }
 
   groundKey(state) {
-    return state.stands.map((s) => (s.built ? s.size : '-')).join('') + '|' + state.upgrades.parking + state.upgrades.hotel + state.upgrades.rapidExit + (state.upgrades.rwy2 || 0) + (state.upgrades.rail || 0) + '|' + Math.round((state.rwyCond ?? 88) / 10) + Math.round((state.rwyCondS ?? 100) / 10);
+    return seasonOf(state).id + '|' + state.stands.map((s) => (s.built ? s.size : '-')).join('') + '|' + state.upgrades.parking + state.upgrades.hotel + state.upgrades.rapidExit + (state.upgrades.rwy2 || 0) + (state.upgrades.rail || 0) + '|' + Math.round((state.rwyCond ?? 88) / 10) + Math.round((state.rwyCondS ?? 100) / 10);
   }
 
   // ---------- Boden-Cache ----------
@@ -261,7 +263,13 @@ export class MapRenderer {
     ctx.fillRect(0, 0, cam.w, cam.h);
     const corners = [cam.toWorld(0, 0), cam.toWorld(cam.w, 0), cam.toWorld(cam.w, cam.h), cam.toWorld(0, cam.h)];
     cam.setIso(ctx);
-    ctx.fillStyle = this.grassPat || (this.grassPat = pat(ctx, IMG.tex_grass, 7));
+    const sid = seasonOf(state).id;
+    this.seasonId = sid;
+    if (this.grassPatKey !== sid) {
+      this.grassPat = pat(ctx, seasonalGrass(sid), 7);
+      this.grassPatKey = sid;
+    }
+    ctx.fillStyle = this.grassPat;
     ctx.beginPath();
     corners.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
     ctx.fill();
@@ -713,7 +721,7 @@ export class MapRenderer {
   }
 
   drawTree(t) {
-    const img = IMG[t.t];
+    const img = seasonalTree(t.t, this.seasonId || 'summer', Math.floor(Math.abs(t.x * 7.3 + t.y * 13.1)));
     if (!img) return;
     const ctx = this.ctx, cam = this.cam;
     cam.setScreen(ctx);
@@ -1426,7 +1434,7 @@ function carPos(car, t) {
 
 // ---------- Boden zeichnen (einmalig in den Cache) ----------
 function drawGround(g, state, trees) {
-  const grass = pat(g, IMG.tex_grass, 7);
+  const grass = pat(g, seasonalGrass(seasonOf(state).id), 7);
   const concrete = pat(g, IMG.tex_concrete, 2.2);
   const asphalt = pat(g, IMG.tex_asphalt, 4);
   // Gras
