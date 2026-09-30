@@ -2,6 +2,7 @@
 import { AC_TYPES, AIRLINES, COSTS, VEH_TYPES, UPGRADES, STAND_COSTS, MARKETING, FEE_LIMITS, CITIES } from '../config.js';
 import { clamp, fmtMoney, rand, dayOf } from '../util.js';
 import { log, notify, fx } from './messages.js';
+import { newsDayEnd } from './news.js';
 import { acceptOffer, feeIndex, standDemand } from './schedule.js';
 import { makeVehicle, freeBay, vehicleAvailable, efficiency } from './ground.js';
 import { PH } from './aircraft.js';
@@ -187,6 +188,7 @@ export function closeDay(state) {
     day: dayOf(state.time - 1),
     rev: Math.round(rev),
     cost: Math.round(cost),
+    profit: Math.round(rev - cost),
     capex: Math.round(L.capex),
     cash: Math.round(state.cash),
     mov: s.mov,
@@ -214,6 +216,7 @@ export function closeDay(state) {
   };
   state.history.push(rec);
   if (state.history.length > 60) state.history.shift();
+  newsDayEnd(state, rec);
   state.lastReport = rec;
   state.ledger = { rev: {}, cost: {}, capex: 0, fuelBuy: 0, repay: 0 };
   state.stats.today = freshToday();

@@ -5,6 +5,7 @@ import { setHTML, toast } from './dom.js';
 import * as EC from '../sim/economy.js';
 import { acceptOffer, declineOffer, cancelContract, feeIndex, standDemand } from '../sim/schedule.js';
 import { fleetSummary, efficiency } from '../sim/ground.js';
+import { newsState, paxRating } from '../sim/news.js';
 import { PH } from '../sim/aircraft.js';
 import { sfx } from '../audio.js';
 import { projects, standProject, projectFor, cancelProject, standBuildHours, upgradeHours, STAND_HOURS, remainingHours } from '../sim/construction.js';
@@ -240,6 +241,8 @@ export class ManagerPanel {
       const f = goalFraction(s, g);
       return `<div class="s">🎯 ${esc(goalText(g))}</div><div class="bar"><i style="width:${f * 100}%;background:var(--manager)"></i></div>`;
     }).join('')}</div>`;
+    h += trendsHtml(s);
+    h += voicesHtml(s);
     if (s.offers.length) h += `<div class="card offer"><div class="row"><span class="t">📨 ${s.offers.length} Vertragsangebot${s.offers.length > 1 ? 'e' : ''} warten</span><button class="btn" data-tab="contracts">Ansehen</button></div></div>`;
     const ps = projects(s);
     if (ps.length) {
@@ -598,4 +601,38 @@ function priceSvg(hist, avg) {
   const last = vals[n - 1];
   g += `<circle cx="${x(n - 1)}" cy="${y(last)}" r="4" fill="${C1}" stroke="#161e2e" stroke-width="2"/><text x="${x(n - 1) + 6}" y="${y(last) - 6}" font-size="10" fill="#e5edf7">${last}</text>`;
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Kerosinpreis">${g}</svg>`;
+}
+
+// Trends der letzten Tage als kleine Verlaufskurven
+function spark(vals, col, fmt) {
+  const W = 120, H = 34;
+  if (vals.length < 2) return `<svg class="spark" viewBox="0 0 ${W} ${H}"></svg>`;
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const x = (i) => 2 + ((W - 4) * i) / (vals.length - 1);
+  const y = (v) => H - 3 - ((H - 6) * (v - lo)) / (hi - lo || 1);
+  const d = vals.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const area = `${d} L${x(vals.length - 1)},${H} L${x(0)},${H} Z`;
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${area}" fill="${col}" opacity=".14"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/><circle cx="${x(vals.length - 1)}" cy="${y(vals[vals.length - 1])}" r="2.8" fill="${col}"/></svg>`;
+}
+function trendsHtml(s) {
+  const hist = s.history.slice(-14);
+  if (hist.length < 2) return `<div class="p-sec"><span>📈 Entwicklung</span></div><div class="empty">Trends erscheinen ab dem zweiten Tagesabschluss.</div>`;
+  const last = hist[hist.length - 1], prev = hist[hist.length - 2];
+  const card = (label, key, col, fmt, good = 1) => {
+    const val = (r) => (key === 'profit' ? r.profit ?? (r.rev || 0) - (r.cost || 0) : r[key] ?? 0);
+    const vals = hist.map(val);
+    const d = val(last) - val(prev);
+    const cls = d === 0 ? '' : d * good > 0 ? 'up' : 'down';
+    return `<div class="trend"><div class="tr-h"><span>${label}</span><b class="${cls}">${d > 0 ? '▲' : d < 0 ? '▼' : '•'} ${fmt(val(last))}</b></div>${spark(vals, col)}</div>`;
+  };
+  return `<div class="p-sec"><span>📈 Entwicklung (${hist.length} Tage)</span></div><div class="trends">${card('Ergebnis', 'profit', '#4ade80', (v) => fmtMoney(v))}${card('Passagiere', 'pax', '#38bdf8', (v) => fmtInt(v))}${card('Pünktlich', 'onTime', '#fbbf24', (v) => v + ' %')}${card('Ansehen', 'rep', '#c084fc', (v) => v)}${card('Bewegungen', 'mov', '#f472b6', (v) => v)}${card('Kasse', 'cash', '#2dd4bf', (v) => fmtMoney(v))}</div>`;
+}
+function voicesHtml(s) {
+  const N = newsState(s);
+  const r = paxRating(s);
+  let h = `<div class="p-sec"><span>💬 Passagierstimmen</span>${r ? `<span class="cnt">${'★'.repeat(Math.round(r))}${'☆'.repeat(5 - Math.round(r))} ${r.toFixed(1).replace('.', ',')}</span>` : ''}</div>`;
+  if (!N.quotes.length) return h + '<div class="empty">Noch keine Stimmen – die ersten Reisenden sind unterwegs.</div>';
+  h += N.quotes.slice(0, 4).map((q) => `<div class="card voice"><div class="v-st">${'★'.repeat(q.stars)}<span>${'★'.repeat(5 - q.stars)}</span></div><div class="v-t">„${esc(q.text)}“</div><div class="s">${esc(q.who)} · ${fmtClock(q.t)}</div></div>`).join('');
+  h += `<div class="p-sec"><span>📰 Nachrichten</span></div>` + N.items.slice(0, 5).map((i) => `<div class="card news ${i.tone}"><span>${i.icon}</span><div><div class="v-t">${esc(i.text)}</div><div class="s">${fmtClock(i.t)}</div></div></div>`).join('');
+  return h;
 }

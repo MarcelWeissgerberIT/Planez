@@ -18,6 +18,7 @@ import { sfx, setSound, setTTS, unlock } from './audio.js';
 import { voice } from './voice.js';
 import { initPTT } from './ui/ptt.js';
 import { DecisionCard } from './ui/decision.js';
+import { NewsTicker } from './ui/ticker.js';
 import { command } from './sim/atc.js';
 import { dispatch, assignStand, standFits, standFree } from './sim/ground.js';
 import * as EC from './sim/economy.js';
@@ -291,6 +292,8 @@ function loop(ts) {
     if (game.mgmt && game.mgmt.isOpen()) game.mgmt.update(s);
     if (!game.decision) game.decision = new DecisionCard(game);
     game.decision.update(s);
+    if (!game.ticker) game.ticker = new NewsTicker(game);
+    game.ticker.update(s);
     watchAlerts(s);
     game.hintT = (game.hintT || 0) + 0.2;
     if (game.hintT >= 1.2) {
