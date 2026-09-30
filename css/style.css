@@ -760,3 +760,22 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .mg-body .card.bigcard.has-pic { display: grid; grid-template-columns: minmax(220px, 34%) 1fr; column-gap: 16px; align-items: start; }
 .mg-body .card.bigcard.has-pic .card-pic { grid-row: 1 / span 4; margin: -9px 0 -9px -10px; height: auto; min-height: 160px; align-self: stretch; border: 0; border-right: 1px solid rgba(148,163,184,.18); }
 @media (max-width: 760px) { .card-pic { height: 110px; } .mg-body .card.bigcard.has-pic { display: block; } .mg-body .card.bigcard.has-pic .card-pic { margin: -9px -10px 9px; min-height: 0; height: 120px; } }
+
+/* Echter Funk: Sendelampe, gesprochene Zeile, Sprechtaste */
+.log-tools { display: inline-flex; align-items: center; gap: 5px; }
+.rx { display: inline-flex; align-items: center; gap: 5px; font: 700 10.5px var(--mono); color: var(--dim); min-width: 0; }
+.rx.on::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px #34d399; animation: pulse .7s infinite; }
+.rx.on.pilot { color: #93c5fd; }
+.rx.on.pilot::before { background: #60a5fa; box-shadow: 0 0 8px #60a5fa; }
+.rx.on.atc { color: #6ee7b7; }
+#voice-t.on { color: #6ee7b7; border-color: rgba(52,211,153,.5); }
+#ptt-btn.hidden { display: none; }
+.lg.speaking { background: linear-gradient(90deg, rgba(52,211,153,.16), transparent 80%); border-radius: 4px; }
+.lg.pilot.speaking { background: linear-gradient(90deg, rgba(96,165,250,.18), transparent 80%); }
+#ptt { position: absolute; left: 50%; bottom: calc(var(--rail-h, 0px) + 22px); transform: translateX(-50%); z-index: 30; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 12px; background: rgba(6,14,26,.92); border: 1px solid rgba(52,211,153,.5); color: #e2e8f0; font-size: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.5); max-width: min(720px, 90vw); }
+#ptt.hidden { display: none; }
+#ptt .ptt-dot { width: 12px; height: 12px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 10px #ef4444; animation: pulse .6s infinite; flex-shrink: 0; }
+#ptt.ok { border-color: rgba(52,211,153,.8); }
+#ptt.ok .ptt-dot { background: #34d399; box-shadow: 0 0 10px #34d399; animation: none; }
+#ptt.bad { border-color: rgba(248,113,113,.8); }
+#ptt.bad .ptt-dot { background: #f87171; animation: none; }

@@ -10,22 +10,29 @@ const SEG = 9.6;
 
 // ---------- Voreinstellungen (auch ohne laufendes Spiel) ----------
 const PREFS_KEY = 'planez_prefs';
-const PREF_DEF = { sound: true, tts: false, glossary: true, hints: true };
+const PREF_DEF = { sound: true, tts: true, glossary: true, hints: true, voiceVol: 0.9 };
 export function loadPrefs() {
   try {
-    return { ...PREF_DEF, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') };
+    const p = { ...PREF_DEF, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') };
+    // Echter Funk ist neu und standardmäßig an (einmalig auch für ältere Einstellungen)
+    if (!p.voice2) {
+      p.tts = true;
+      p.voice2 = true;
+    }
+    return p;
   } catch (e) {
     return { ...PREF_DEF };
   }
 }
 export function savePrefs(p) {
   try {
-    localStorage.setItem(PREFS_KEY, JSON.stringify(p));
+    const old = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
+    localStorage.setItem(PREFS_KEY, JSON.stringify({ ...old, ...p, voice2: true }));
   } catch (e) {}
 }
 export const PREF_ROWS = [
   ['sound', 'Sound-Effekte', 'Funk, Warnungen, Kasse'],
-  ['tts', 'Funksprüche vorlesen', 'englische Sprachausgabe in der Tower-Rolle'],
+  ['tts', 'Echter Funk (Sprachausgabe)', 'Lotse und Piloten sprechen – mit Funkrauschen, eigener Stimme je Flugzeug'],
   ['glossary', 'Abkürzungen erklären', 'Tooltips für ILS, TOBT, CTOT, RVR …'],
   ['hints', 'Tipps anzeigen', 'Hinweise zur nächsten sinnvollen Aktion'],
 ];

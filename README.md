@@ -5,7 +5,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 
 | Station | Deine Aufgabe | Automatisch |
 |---|---|---|
-| 🎧 **Tower-Lotse** | Radar + Funk rechts in einem Fenster, Flugstreifen-Leiste unten (Landungen/Starts geteilt, Filter An/Ab, aktive Karte groß); Reihenfolge per Drag & Drop mit Auto-Staffelung (Anflugfreigaben, Tempo, Direktanflug, Startlücken), Warteschleifen, Lande-/Startfreigaben, Pushback, Rollverkehr, Pistenwechsel bei Rückenwind | Abfertigung, Management |
+| 🎧 **Tower-Lotse** | **Echter Funk**: Lotse und Piloten sprechen (eigene Stimme je Flugzeug, Funkrauschen, ICAO-Aussprache), Sprechtaste `V` für Freigaben per Stimme (Chrome/Edge); Radar + Funk rechts in einem Fenster, Flugstreifen-Leiste unten (Landungen/Starts geteilt, Filter An/Ab, aktive Karte groß); Reihenfolge per Drag & Drop mit Auto-Staffelung (Anflugfreigaben, Tempo, Direktanflug, Startlücken), Warteschleifen, Lande-/Startfreigaben, Pushback, Rollverkehr, Pistenwechsel bei Rückenwind | Abfertigung, Management |
 | 🦺 **Vorfeld & Abfertigung** | Parkpositionen vergeben, Turnaround steuern (Aussteigen, Entladen, Reinigung, Catering, Betankung, Einsteigen, Beladen, Pushback), Fahrzeuge disponieren | Flugsicherung, Management |
 | 💼 **Flughafen-Manager** | Airline-Verträge, Gebühren, Ausbau (Positionen, Terminal, Hotel, ILS CAT III …), Fuhrpark, Personal, Finanzen | Flugsicherung, Abfertigung |
 | 👁️ **Beobachter** | zurücklehnen | alles |
@@ -39,7 +39,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 - Karte ziehen = verschieben · Mausrad / Pinch = Zoom · Klick = auswählen
 - `Leertaste` Pause · `1`–`5` Tempo (1×, 2×, 5×, 10×, 20×; bei 10× dauert ein Spieltag ca. 10 Minuten, Manager/Beobachter starten mit 10×) · `B` Beschriftungen · `N`/`Tab` nächste Anfrage · `F` Radar groß · `W`/`S` Flug in der Pistenfolge vor/zurück (auch ◀ ▶ oder Karte ziehen)
 - Markieren: `M` (Farbe weiterschalten, `Shift`+`M` entfernen), ⚑ auf dem Flugstreifen oder Rechtsklick / langes Drücken auf ein Flugzeug in Karte bzw. Radar – mit Farbe und Notiz, sichtbar auf Radar, Karte und Streifen („⚑ Filter“ im Radar)
-- Tower: `A` Anflug frei · `D` Direkt FAF · `H` Warteschleife · `L` Landefreigabe · `G` Durchstarten · `R` Rollfreigabe · `P` Pushback · `E` Warten bis TSAT · `U` Line up · `T` Startfreigabe · `X` Halt · `C` Weiterrollen
+- Tower: `V` gedrückt halten = Sprechtaste (Freigabe auf Englisch einsprechen) · `A` Anflug frei · `D` Direkt FAF · `H` Warteschleife · `L` Landefreigabe · `G` Durchstarten · `R` Rollfreigabe · `P` Pushback · `E` Warten bis TSAT · `U` Line up · `T` Startfreigabe · `X` Halt · `C` Weiterrollen
 
 ## Technik
 Reines HTML/CSS/JavaScript (ES-Module, Canvas 2D) ohne Build-Schritt – läuft direkt auf GitHub Pages.

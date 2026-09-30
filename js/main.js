@@ -14,7 +14,9 @@ import { $, toast, openModal, closeModal, modalOpen, setHTML } from './ui/dom.js
 import { renderInfo } from './ui/info.js';
 import { currentHint } from './ui/hints.js';
 import { initMarkMenu, openMarkMenu, closeMarkMenu, markMenuOpen, cycleMark, clearMark, setMark, MARKS } from './ui/marks.js';
-import { sfx, setSound, setTTS, speak, unlock } from './audio.js';
+import { sfx, setSound, setTTS, unlock } from './audio.js';
+import { voice } from './voice.js';
+import { initPTT } from './ui/ptt.js';
 import { command } from './sim/atc.js';
 import { dispatch, assignStand, standFits, standFree } from './sim/ground.js';
 import * as EC from './sim/economy.js';
@@ -135,10 +137,28 @@ function wireMenu() {
   $('#btn-continue').addEventListener('click', () => {
     unlock();
     const s = loadGame();
-    if (s) startGame(s);
+    if (s) {
+      s.settings.tts = loadPrefs().tts;
+      startGame(s);
+    }
   });
   $('#btn-help-menu').addEventListener('click', () => showHelp(false));
 }
+
+// Echter Funk: nur für Tower und Beobachter, Einstellung aus den Voreinstellungen
+function syncVoice() {
+  const s = game.state;
+  const on = !!(s && s.settings.tts && (s.role === 'tower' || s.role === 'observer'));
+  voice.set({ on, vol: loadPrefs().voiceVol ?? 0.9 });
+  const b = $('#voice-t');
+  if (b) {
+    b.textContent = s && s.settings.tts ? '🔊' : '🔇';
+    b.classList.toggle('on', !!(s && s.settings.tts));
+  }
+  const p = $('#ptt-btn');
+  if (p) p.classList.toggle('hidden', !(s && s.role === 'tower'));
+}
+game.syncVoice = syncVoice;
 
 function startGame(state) {
   game.state = state;
@@ -151,7 +171,7 @@ function startGame(state) {
   $('#log').innerHTML = '';
   for (const m of state.log.slice(-40)) addLog(m, true);
   setSound(state.settings.sound);
-  setTTS(state.settings.tts);
+  setTTS(false);
   // ältere Spielstände ergänzen
   if (state.settings.glossary === undefined) state.settings.glossary = true;
   if (state.settings.curfew === undefined) state.settings.curfew = false;
@@ -175,6 +195,7 @@ function startGame(state) {
     $('#log-toggle').textContent = '+';
   }
   applyRole();
+  syncVoice();
   lastSpeed = state.speed || lastSpeed;
   game.running = true;
   game.lastTs = performance.now();
@@ -213,6 +234,7 @@ function applyRole() {
   }
   $('#btn-role').textContent = `${ROLES[s.role].icon} ${ROLES[s.role].short} ▾`;
   toggleRadar(s.role === 'tower');
+  if (game.syncVoice) game.syncVoice();
   game.ui.labelFn = labelFn(s.role);
   game.ui.seqCol = (ac) => (s.seq && s.seq.includes(ac.id) ? seqColor(ac) : null);
   $('#hud-name').textContent = s.name;
@@ -350,9 +372,12 @@ function addLog(m, silent = false) {
   box.appendChild(d);
   while (box.children.length > 90) box.firstChild.remove();
   if (atBottom) box.scrollTop = box.scrollHeight;
+  m._el = d;
   if (!silent && (m.kind === 'atc' || m.kind === 'pilot')) {
-    if (s.role === 'tower' || s.role === 'observer') sfx.radio();
-    if (s.role === 'tower') speak(m.text, m.kind === 'atc');
+    if (s.role === 'tower' || s.role === 'observer') {
+      if (voice.on) voice.say(m, s.speed);
+      else sfx.radio();
+    }
   }
 }
 listeners.radio.push((m) => {
@@ -567,6 +592,33 @@ function wireGame() {
   $('#t-help').addEventListener('click', () => showHelp(false));
   $('#t-gloss').addEventListener('click', () => showHelp(false, 'gloss'));
   $('#btn-rank').addEventListener('click', showGoals);
+  // Echter Funk: Lautsprecher-Schalter, Sendelampe, hervorgehobene Zeile, Sprechtaste
+  $('#voice-t').addEventListener('click', () => {
+    const s = game.state;
+    if (!s) return;
+    s.settings.tts = !s.settings.tts;
+    savePrefs({ tts: s.settings.tts });
+    syncVoice();
+    toast(s.settings.tts ? '🔊 Echter Funk an – Lotse und Piloten sprechen' : '🔇 Funk stumm', 'info', 2200);
+  });
+  let spokenEl = null;
+  voice.listeners.push((cur) => {
+    const rx = $('#rx');
+    if (spokenEl) spokenEl.classList.remove('speaking');
+    spokenEl = null;
+    if (cur) {
+      rx.className = `rx on ${cur.kind}`;
+      rx.textContent = cur.kind === 'atc' ? 'TWR' : cur.from || '';
+      if (cur._el) {
+        spokenEl = cur._el;
+        spokenEl.classList.add('speaking');
+      }
+    } else {
+      rx.className = 'rx';
+      rx.textContent = '';
+    }
+  });
+  initPTT(game);
   $('#log-toggle').addEventListener('click', () => {
     const w = $('#log-wrap');
     w.classList.toggle('min');
@@ -871,7 +923,7 @@ function showGameMenu() {
       }
       s.settings[k] = k === 'hints' || k === 'glossary' ? s.settings[k] === false : !s.settings[k];
       setSound(s.settings.sound);
-      setTTS(s.settings.tts);
+      syncVoice();
       setGlossaryEnabled(s.settings.glossary !== false);
       prefsSync();
     },
@@ -902,6 +954,7 @@ function helpGuide(first) {
       <li><b>Landefreigabe</b> <kbd>L</kbd> nur bei freier Piste – sonst startet der Flieger durch. Ohne Freigabe bei 1 NM: Durchstarten. Bei Sperrung (FOD-Kontrolle, Bauarbeiten) gibt es keine Freigaben.</li>
       <li><b>Slots (A-CDM):</b> manche Abflüge haben einen <b>CTOT</b> – Start nur im Fenster −5/+10 min. Meldet sich so ein Flug zu früh zum Pushback, sag <b>Warten bis TSAT</b> <kbd>E</kbd>: dann schiebt er erst zur TSAT und wartet nicht mit laufenden Triebwerken am Rollhalt. Verpasste Slots kosten Ansehen und Airline-Zufriedenheit.</li>
       <li>Am Boden: <b>Rollen zur Position</b> <kbd>R</kbd>, <b>Pushback</b> <kbd>P</kbd>, <b>Rollen zum Rollhalt</b> <kbd>R</kbd>, <b>Line up</b> <kbd>U</kbd>, <b>Startfreigabe</b> <kbd>T</kbd>, <b>Halt</b> <kbd>X</kbd>.</li>
+      <li><b>Echter Funk:</b> Lotse und Piloten sprechen (🔊 im Funkfenster, jedes Flugzeug mit eigener Stimme, Funkrauschen, eine Frequenz – niemand spricht gleichzeitig). <b>Sprechtaste:</b> <kbd>V</kbd> gedrückt halten (oder 🎙) und auf Englisch funken, z.&nbsp;B. „Aurora five four two, runway two seven, cleared to land“, „Rheinjet four one two, line up and wait“, „… cleared for take-off“, „… cleared ILS approach“, „… hold as published“, „… reduce speed one six zero“, „… taxi to stand“, „… pushback approved“. Funktioniert in Chrome und Edge (Mikrofon erlauben).</li>
       <li><b>Arbeitsplatz:</b> rechts Radar, Pistenstatus und Funk in einem Fenster (⤢ bzw. <kbd>F</kbd> macht das Radar groß), unten die <b>Flugstreifen</b>: links Landungen, rechts Starts, Filter <b>An / Beide / Ab</b>. Die ausgewählte Karte wird groß und zeigt alle Befehle; kleine Karten zeigen nur den gerade fälligen Befehl.</li>
       <li><b>Reihenfolge &amp; Auto-Staffelung:</b> Karten <b>ziehen</b> (oder ◀ ▶, <kbd>W</kbd>/<kbd>S</kbd>) – die Staffelung passt sich an: Anflugfreigaben kommen in deiner Reihenfolge, Anflüge werden auf 180/160 kt gebremst, Vorgezogene bekommen „Direkt FAF“, notfalls geht einer in die Warteschleife; vor eine Landung gezogene Starts bekommen eine Lücke („Startfenster in …“). Aus der Warteliste in die Pistenfolge ziehen = Anflug frei. Du gibst weiter Lande- und Startfreigaben. „⇅ zurücksetzen“ plant wieder automatisch. Farben auf Karte und Radar: <span style="color:#22d3ee">■ Landung</span> <span style="color:#a5f3fc">■ Landung frei</span> <span style="color:#f59e0b">■ Start</span> <span style="color:#e879f9">■ Startfreigabe</span>.</li>
       <li><b>Wetter & Piste:</b> Bremswirkung (gut/mittel/schlecht) hängt vom Gummiabrieb und von Nässe ab. Bei Nebel gelten LVP (mehr Abstand); unter 550 m RVR geht es nur mit ILS CAT III. Bei mehr als 5 kt Rückenwind die Betriebsrichtung wechseln.</li>
