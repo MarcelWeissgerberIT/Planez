@@ -168,6 +168,8 @@ export const voice = {
     if (!this.on || !window.speechSynthesis) return;
     if (m.kind !== 'atc' && m.kind !== 'pilot') return;
     if (m.kind === 'atc' && performance.now() < this.muteAtcUntil) return;
+    // ATIS läuft eigentlich auf eigener Frequenz: nur vorlesen, wenn sonst niemand funkt
+    if (m.from === 'ATIS' && (this.current || this.queue.length || speed > 2)) return;
     const urgent = /MAYDAY|PAN PAN|go around|going around|fuel emergency/i.test(m.text);
     // bei hohem Tempo nur Wichtiges, sonst läuft der Funk hinterher
     if (speed > 2 && !urgent && !/request|ready|cleared to land|cleared for take-off/i.test(m.text)) return;

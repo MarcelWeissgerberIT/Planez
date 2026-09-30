@@ -6,6 +6,10 @@ import { AC_TYPES } from '../config.js';
 import { clamp, esc } from '../util.js';
 import { isSeqArrival } from '../sim/sequence.js';
 import { markHex } from '../ui/marks.js';
+import { wakeNm } from '../sim/wake.js';
+import { atis } from '../sim/aircraft.js';
+import { qnh } from '../sim/atis.js';
+import { temperature } from '../sim/winter.js';
 
 // Farben der Pistenfolge (RGB)
 const SC = { land: [34, 211, 238], landClr: [165, 243, 252], dep: [245, 158, 11], depClr: [232, 121, 249] };
@@ -220,6 +224,36 @@ export class Radar {
     }
     ctx.lineWidth = 1;
 
+    // Abstände zwischen aufeinanderfolgenden Anflügen (je Bahn), farbig gegen den Sollabstand
+    for (const strip of ['N', 'S']) {
+      const arr = state.acs.filter((a) => a.mode === 'air' && a.arr && (a.phase === PH.APPROACH || a.phase === PH.FINAL) && (a.strip || 'N') === strip).map((a) => ({ a, d: AS.routeDistance(a.pos, a.route.length ? a.route : [AS.THR[a.rwy]]) })).sort((x, y) => x.d - y.d);
+      for (let i = 1; i < arr.length; i++) {
+        const lead = arr[i - 1], foll = arr[i];
+        const gap = foll.d - lead.d;
+        if (gap > 20) continue;
+        const req = Math.max(3, wakeNm(lead.a.wake, foll.a.wake));
+        const c = gap < req ? '248,113,113' : gap < req + 1.5 ? '251,191,36' : '134,239,172';
+        const p0 = this.toScreen(lead.a.pos.x, lead.a.pos.y), p1 = this.toScreen(foll.a.pos.x, foll.a.pos.y);
+        ctx.strokeStyle = `rgba(${c},0.45)`;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.moveTo(p0.x, p0.y);
+        ctx.lineTo(p1.x, p1.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        const mx = (p0.x + p1.x) / 2, my = (p0.y + p1.y) / 2;
+        const txt = `${gap.toFixed(1)}${req > 3 ? '/' + req : ''} NM`;
+        ctx.font = '600 10px ui-monospace, monospace';
+        const tw = ctx.measureText(txt).width;
+        ctx.fillStyle = 'rgba(3,20,14,0.85)';
+        ctx.fillRect(mx - tw / 2 - 3, my - 7, tw + 6, 13);
+        ctx.fillStyle = `rgb(${c})`;
+        ctx.textAlign = 'center';
+        ctx.fillText(txt, mx, my + 3);
+        ctx.textAlign = 'left';
+      }
+    }
+
     // Sweep
     this.sweep = (this.sweep + dt * (Math.PI * 2) / 3.2) % (Math.PI * 2);
     const sw = this.sweep;
@@ -427,6 +461,16 @@ export class Radar {
       this.blips.push({ id: ac.id, x: p.x, y: p.y, tx, ty });
     }
     ctx.restore();
+    // ATIS-Zeile oben links
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = '700 11px ui-monospace, monospace';
+    ctx.fillStyle = 'rgba(3,20,14,0.8)';
+    const at = `ATIS ${atis(state)[0]} · QNH ${qnh(state)} · ${Math.round(temperature(state))}°C`;
+    const aw = ctx.measureText(at).width;
+    ctx.fillRect(6, 6, aw + 12, 18);
+    ctx.fillStyle = 'rgba(134,239,172,0.95)';
+    ctx.fillText(at, 12, 19);
 
     // Kompassrose
     ctx.strokeStyle = 'rgba(80,255,160,0.35)';

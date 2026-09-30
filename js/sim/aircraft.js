@@ -32,7 +32,7 @@ export function tel(ac) {
 }
 const ATIS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const atisName = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliett', 'Kilo', 'Lima', 'Mike', 'November', 'Oscar', 'Papa', 'Quebec', 'Romeo', 'Sierra', 'Tango', 'Uniform', 'Victor', 'Whiskey', 'X-ray', 'Yankee', 'Zulu'];
-export const atis = (state) => atisName[Math.floor(state.time / 3600) % 26];
+export const atis = (state) => atisName[(state.atisN ?? Math.floor(state.time / 3600)) % 26];
 export const windStr = (state) => `wind ${String(Math.round(state.wind.dir / 10) * 10).padStart(3, '0')} degrees ${Math.round(state.wind.spd)} knots`;
 
 export function getRot(state, ac) {

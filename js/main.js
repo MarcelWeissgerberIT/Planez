@@ -594,6 +594,7 @@ function wireGame() {
     // Tower-Fenster: groß als Overlay über der Karte, klein zurück ins Fenster
     const slot = $('#tw-radar-slot');
     if (slot) (game.ui.radarBig ? $('#game') : slot).appendChild(w);
+    $('#game').classList.toggle('radar-big', game.ui.radarBig);
     resize();
   });
   $('#radar-rng').addEventListener('click', () => {

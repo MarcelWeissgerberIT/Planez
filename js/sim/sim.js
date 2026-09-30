@@ -12,6 +12,7 @@ import { updateDecisions } from './decisions.js';
 import { updateNews } from './news.js';
 import { updateWinter } from './winter.js';
 import { updateAchievements } from './achievements.js';
+import { updateAtis } from './atis.js';
 import { updateConstruction } from './construction.js';
 import { updateAcdm } from './acdm.js';
 import { updateFuel } from './fuel.js';
@@ -46,6 +47,7 @@ export function step(state, dt) {
   updateNews(state, dt);
   updateWinter(state, dt);
   updateAchievements(state, dt);
+  updateAtis(state);
   updateGround(state, dt);
   updateConflicts(state, dt);
   updateAcdm(state, dt);

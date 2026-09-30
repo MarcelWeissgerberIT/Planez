@@ -900,3 +900,4 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .ach .ai { font-size: 22px; }
 .ach b { font-size: 12.5px; color: #f1f5f9; overflow-wrap: anywhere; hyphens: auto; }
 .ach small { font-size: 10.5px; color: var(--muted); line-height: 1.3; }
+#game.tw-layout.radar-big #info { left: auto; right: calc(var(--panel-w) + 70px); transform: none; max-width: min(460px, calc(100vw - var(--panel-w) - 120px - min(calc(100vh - var(--hud-h) - var(--rail-h) - 40px), calc(100vw - var(--panel-w) - 40px)))); }
