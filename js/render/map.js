@@ -1055,6 +1055,22 @@ export class MapRenderer {
   }
 
   // Löschangriff: Wasser-/Schaumbögen von den Dachwerfern, Schaumteppich unter dem Flugzeug
+  // Haltebalken (Stop Bars): rote Lichterreihe am Rollhalt der aktiven Bahn und an den Kreuzungen –
+  // erlischt mit der Line-up-/Start- bzw. Kreuzungsfreigabe, dann führen grüne Lichter auf die Bahn
+  stopBars(state, lights) {
+    const rw = LY.RWY;
+    const thrX = rw.thr[state.rwy];
+    const cleared = state.acs.some((a) => a.mode === 'map' && [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP].includes(a.phase) && (a.clr.lineup || a.clr.takeoff) && Math.abs(a.x - thrX) < 2.5);
+    if (!cleared) for (let d = -0.6; d <= 0.61; d += 0.2) lights.push({ x: thrX + d, y: LY.HOLD_Y, z: 0.02, c: '#ff2a20', s: 8, a: 0.95, day: true });
+    else for (let y = LY.HOLD_Y; y <= rw.y + 0.01; y += 0.46) lights.push({ x: thrX, y, z: 0.02, c: '#30ff60', s: 7, a: 0.9, day: true });
+    if (!state.upgrades.rwy2) return;
+    for (const c of LY.CROSS) {
+      const go = state.acs.some((a) => a.mode === 'map' && a.crossX === c && (a.crossing || a.clr.taxi));
+      if (!go) for (let d = -0.5; d <= 0.51; d += 0.25) lights.push({ x: c + d, y: LY.HOLD_CROSS + 0.12, z: 0.02, c: '#ff2a20', s: 6, a: 0.85, day: true });
+      else for (let y = LY.HOLD_CROSS; y >= rw.y - rw.hw - 0.3; y -= 0.5) lights.push({ x: c, y, z: 0.02, c: '#30ff60', s: 6, a: 0.85, day: true });
+    }
+  }
+
   // Lichtsignal vom Tower (Funkausfall): farbiger Strahl aus der Kanzel zum Flugzeug, ein paar Sekunden lang
   drawLightBeam(state) {
     const B = state.lightBeam;
@@ -1217,6 +1233,7 @@ export class MapRenderer {
     }
     const rw = LY.RWY;
     const t = this.time;
+    this.stopBars(state, lights);
     if (night > 0.05 && state.upgrades.rwy2) {
       // Südbahn: Randfeuer, Schwellen, Rollweg B, Anflugbefeuerung
       const S = LY.RWY_S;
