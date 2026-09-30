@@ -22,6 +22,40 @@ function pat(ctx, img, tiles) {
   if (p.setTransform) p.setTransform(new DOMMatrix().scale(tiles / img.width));
   return p;
 }
+// Parkplatz: Stellplatzreihen und vorgerenderte 3D-Autos (maßstabsgerecht)
+const LOT_ROWS = [2.1, 2.48, 3.56, 3.94, 5.02, 5.4, 6.16];
+function bakeLot(level) {
+  const Z = 2.4, pw = 12.5 + level * 2;
+  const x0 = 56, y0 = 2.0, x1 = 56 + pw, y1 = 6.6, top = 0.2, pad = 6;
+  const c = document.createElement('canvas');
+  c.width = Math.ceil((x1 - x0 + y1 - y0) * HALF_W * Z) + pad * 2;
+  c.height = Math.ceil((x1 - x0 + y1 - y0) * HALF_H * Z + top * ZS * Z) + pad * 2;
+  const g = c.getContext('2d');
+  const ox = pad - (x0 - y1) * HALF_W * Z, oy = pad - (x0 + y0) * HALF_H * Z + top * ZS * Z;
+  const cam = {
+    zoom: Z,
+    dpr: 1,
+    toScreen: (wx, wy, wz = 0) => ({ x: (wx - wy) * HALF_W * Z + ox, y: (wx + wy) * HALF_H * Z - wz * ZS * Z + oy }),
+    setScreen: (ctx) => ctx.setTransform(1, 0, 0, 1, 0, 0),
+    setIso: (ctx, wz = 0) => ctx.setTransform(HALF_W * Z, HALF_H * Z, -HALF_W * Z, HALF_H * Z, ox, oy - wz * ZS * Z),
+  };
+  let seed = 777 + level;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  // von hinten nach vorn zeichnen (Tiefe)
+  for (const yy of LOT_ROWS) {
+    for (let x = 56.15; x < x1 - 0.35; x += 0.2) {
+      if (rnd() < 0.3) continue;
+      const cx = x + 0.1, cy = yy + 0.17;
+      cam.setIso(g, 0);
+      g.fillStyle = 'rgba(0,0,0,0.28)';
+      g.fillRect(cx - 0.05, cy - 0.13, 0.13, 0.3);
+      drawCarBody(g, cam, cx, cy, Math.PI / 2 + (rnd() < 0.5 ? 0 : Math.PI), CAR_COLORS[Math.floor(rnd() * CAR_COLORS.length)], prism, carShades, false, 0.95, 0);
+    }
+  }
+  const f = cam.toScreen(x0, y0, 0);
+  return { c, Z, fx: f.x, fy: f.y };
+}
+
 // Parkhaus vorrendern: Decks mit Stützen, Brüstungen, kleinen 3D-Autos, Treppenhaus mit P-Schild
 function bakeGarage(b, level) {
   const Z = 2.4;
@@ -249,6 +283,7 @@ export class MapRenderer {
       const x0 = b.fx - b.w, y0 = b.fy - b.d;
       items.push({ d: (x0 + b.fx) / 2 + (y0 + b.fy) / 2, f: () => this.drawBuilding(b) });
     }
+    items.push({ d: 56 + 2.0, f: () => this.drawLot(state) });
     for (const s of sites) siteItems(this, state, s.p, s.g, items);
     permanentItems(this, state, items, sites);
     const T = LY.TERMINAL;
@@ -280,9 +315,21 @@ export class MapRenderer {
       if (ac.z > 0.35) flying.push(ac);
       else items.push({ d: ac.x + ac.y, f: () => this.drawAircraft(state, ac, lights, night, ui) });
     }
+    // Fahrzeuge unter Flügel oder Heck eines stehenden Flugzeugs vor dem Flugzeug zeichnen (sonst liegen sie obendrauf)
+    const parked = state.acs.filter((a) => a.mode === 'map' && a.z < 0.05);
     for (const v of state.vehicles) {
       if (!inView(view, v.x, v.y, 2)) continue;
-      items.push({ d: v.x + v.y, f: () => this.drawVehicle(state, v, lights) });
+      let d = v.x + v.y;
+      for (const a of parked) {
+        const dx = v.x - a.x, dy = v.y - a.y;
+        if (dx * dx + dy * dy > a.len * a.len * 0.36) continue;
+        const fx = Math.cos(a.hdg), fy = Math.sin(a.hdg);
+        const along = dx * fx + dy * fy, side = -dx * fy + dy * fx;
+        const span = a.len * 0.5;
+        const viewerSide = side * (-fy + fx) > 0; // seitlich zum Betrachter hin versetzt
+        if (Math.abs(along) < a.len * 0.5 && Math.abs(side) < span && !(viewerSide && Math.abs(side) < 0.6 && along > -a.len * 0.3)) d = Math.min(d, a.x + a.y - 0.05);
+      }
+      items.push({ d, f: () => this.drawVehicle(state, v, lights) });
     }
     if (state.fire) for (const t of state.fire.trucks) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
     items.push({ d: 66 + 35.6, f: () => this.drawWindsock(state) });
@@ -443,6 +490,17 @@ export class MapRenderer {
       this.topZ[b.id + 'Y'] = cy;
     }
     this.picks.push({ type: 'building', id: b.id, x: fc.x, y: fc.y - dh * 0.45, r: dw * 0.35 });
+  }
+
+  drawLot(state) {
+    const ctx = this.ctx, cam = this.cam;
+    const lvl = state.upgrades.parking || 0;
+    if (!this.lot || this.lot.lvl !== lvl) this.lot = { lvl, ...bakeLot(lvl) };
+    const L = this.lot;
+    cam.setScreen(ctx);
+    const k = cam.zoom / L.Z;
+    const p = cam.toScreen(56, 2.0);
+    ctx.drawImage(L.c, p.x - L.fx * k, p.y - L.fy * k, L.c.width * k, L.c.height * k);
   }
 
   // Parkhaus: prozedural und maßstabsgerecht (Etagen je Ausbaustufe), einmal vorgerendert
@@ -1247,24 +1305,11 @@ function drawGround(g, state, trees) {
   const pw = 12.5 + state.upgrades.parking * 2;
   g.fillStyle = asphalt;
   g.fillRect(56, 2.0, pw, 4.6);
-  const rowsY = [2.1, 2.48, 3.56, 3.94, 5.02, 5.4, 6.16];
   g.fillStyle = 'rgba(255,255,255,0.6)';
-  for (const yy of rowsY) for (let x = 56.15; x < 56 + pw - 0.15; x += 0.2) g.fillRect(x, yy, 0.012, 0.34);
-  const cc = ['#e2e8f0', '#1f2937', '#b91c1c', '#1d4ed8', '#9ca3af', '#f59e0b', '#065f46', '#475569', '#f8fafc', '#7c2d12'];
-  for (const yy of rowsY) {
-    for (let x = 56.15; x < 56 + pw - 0.35; x += 0.2) {
-      if (r() < 0.28) continue;
-      const cx = x + 0.1, cy = yy + 0.17;
-      g.fillStyle = 'rgba(0,0,0,0.3)';
-      g.fillRect(cx - 0.055, cy - 0.13, 0.13, 0.3);
-      g.fillStyle = cc[Math.floor(r() * cc.length)];
-      g.fillRect(cx - 0.065, cy - 0.145, 0.13, 0.29);
-      g.fillStyle = 'rgba(255,255,255,0.18)';
-      g.fillRect(cx - 0.045, cy - 0.06, 0.09, 0.13);
-      g.fillStyle = 'rgba(20,30,40,0.65)';
-      g.fillRect(cx - 0.05, cy - 0.1, 0.1, 0.04);
-    }
-  }
+  for (const yy of LOT_ROWS) for (let x = 56.15; x < 56 + pw - 0.15; x += 0.2) g.fillRect(x, yy, 0.012, 0.34);
+  // Fahrgassen-Pfeile
+  g.fillStyle = 'rgba(255,255,255,0.45)';
+  for (const ay of [3.2, 4.65]) for (let x = 57.5; x < 56 + pw - 1; x += 3) g.fillRect(x, ay - 0.02, 0.5, 0.04);
   // Zaun Luft-/Landseite
   g.strokeStyle = 'rgba(60,60,60,0.55)';
   g.lineWidth = 0.05;

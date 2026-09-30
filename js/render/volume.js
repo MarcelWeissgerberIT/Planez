@@ -187,18 +187,26 @@ export function drawAircraftBody(ctx, cam, ac, img, name, L, Wd, rot, onGround, 
   const hpx = (zTop - zBot) * ZS * cam.zoom;
   const detail = hpx >= 3.5;
 
-  // Fahrwerk (nur am Boden): Bugrad + zwei Hauptfahrwerke als dunkle Beine
+  // Fahrwerk (nur am Boden): Federbeine als Linien, Radpakete als dunkle Rechtecke am Boden
   if (onGround && detail) {
-    atZ(ctx, F, ac.z);
-    ctx.fillStyle = '#1f2328';
-    const gw = Math.max(0.02, r * 0.3);
-    for (const [f, sx] of [[0.36, 0], [-0.04, r * 1.5], [-0.04, -r * 1.5]]) {
-      // Beine als senkrechte Stapel aus kleinen Quadraten
-      for (let z = ac.z; z <= zBot + r * 0.3; z += Math.max(0.01, (zBot - ac.z) / 4)) {
-        atZ(ctx, F, z);
-        ctx.fillRect(sx - gw / 2, -f * L - gw / 2, gw, gw);
-      }
+    const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg), rx = -fy, ry = fx;
+    const legs = [[0.36, 0, 0.5], [-0.04, r * 1.4, 1], [-0.04, -r * 1.4, 1]];
+    atZ(ctx, F, ac.z + 0.004);
+    ctx.fillStyle = '#16181c';
+    for (const [f, sx, big] of legs) ctx.fillRect(sx - r * 0.28 * big, -f * L - r * 0.4 * big, r * 0.56 * big, r * 0.8 * big);
+    cam.setScreen(ctx);
+    ctx.strokeStyle = '#3a3f46';
+    ctx.lineWidth = Math.max(1, r * 0.22 * ZS * cam.zoom);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (const [f, sx] of legs) {
+      const gx = ac.x + fx * f * L + rx * sx, gy = ac.y + fy * f * L + ry * sx;
+      const a = cam.toScreen(gx, gy, ac.z + r * 0.15), b = cam.toScreen(gx, gy, zBot + r * 0.5);
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
     }
+    ctx.stroke();
+    ctx.lineCap = 'butt';
   }
 
   // Rumpf als Scheibenstapel (runder Querschnitt); zwei Durchgänge, damit der Flügel dazwischen liegt
@@ -246,18 +254,33 @@ export function drawAircraftBody(ctx, cam, ac, img, name, L, Wd, rot, onGround, 
     drawFus(0, iWing);
     if (!v.rear) drawEngines();
   }
-  // Flügel mit dunkler Unterkante (Dicke)
-  if (detail) {
-    atZ(ctx, F, zWing - Math.max(0.012, r * 0.14));
-    ctx.drawImage(v.wingDark, -Wd / 2, -L / 2, Wd, L);
-  }
-  atZ(ctx, F, zWing);
-  ctx.drawImage(img, -Wd / 2, -L / 2, Wd, L);
+  // Flügel mit dunkler Unterkante (Dicke); Heckteil (Höhenleitwerk) sitzt höher, auf halber Rumpfhöhe
+  const TS = 0.74;
+  const zTail = v.wing === 'high' ? zWing : zMid + r * 0.1;
+  const part2 = (im, z) => {
+    const H = im.height, W = im.width;
+    atZ(ctx, F, z);
+    ctx.drawImage(im, 0, 0, W, H * TS, -Wd / 2, -L / 2, Wd, L * TS);
+  };
+  const tail2 = (im, z) => {
+    const H = im.height, W = im.width;
+    atZ(ctx, F, z);
+    ctx.drawImage(im, 0, H * TS, W, H * (1 - TS), -Wd / 2, -L / 2 + L * TS, Wd, L * (1 - TS));
+  };
+  if (detail) part2(v.wingDark, zWing - Math.max(0.012, r * 0.14));
+  part2(img, zWing);
   if (v.wing === 'high') {
     drawFus(0, nF);
     drawEngines();
+    if (detail) tail2(v.wingDark, zTail - 0.012);
+    tail2(img, zTail);
   } else {
-    drawFus(iWing + 1, nF);
+    // Rumpf bis zur Leitwerkshöhe, dann Höhenleitwerk, dann obere Rumpfhälfte
+    const iTail = clamp(Math.floor(((zTail - zBot) / (zTop - zBot)) * nF), iWing + 1, nF);
+    drawFus(iWing + 1, iTail);
+    if (detail) tail2(v.wingDark, zTail - Math.max(0.01, r * 0.1));
+    tail2(img, zTail);
+    drawFus(iTail + 1, nF);
     if (v.rear) drawEngines();
   }
   return { top: zTop, mid: zMid, r, wing: zWing };
