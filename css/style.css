@@ -999,3 +999,4 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 #menu.scn-open .mm-tag { margin: 10px 0 10px; }
 #menu.scn-open .mm-left { justify-content: flex-start; overflow-y: auto; }
 .scn-item .lk { margin-left: 6px; }
+.cmd.big.wait { cursor: default; background: rgba(51,65,85,.35); border-color: rgba(148,163,184,.35); color: #cbd5e1; font-weight: 600; }

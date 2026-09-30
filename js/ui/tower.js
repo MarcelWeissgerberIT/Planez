@@ -1,5 +1,5 @@
 // Tower-Arbeitsplatz: Flugstreifen & Befehle
-import { CMDS, command, validCommands, tailwind, preferredRunway, requestRunwayChange, drainCount } from '../sim/atc.js';
+import { CMDS, command, validCommands, tailwind, preferredRunway, requestRunwayChange, drainCount, primaryCommand, departureWait } from '../sim/atc.js';
 import { PH, PHASE_DE, runwayOccupants, fmtAlt } from '../sim/aircraft.js';
 import * as AS from '../sim/airspace.js';
 import { AC_TYPES, CITIES, AIRPORT } from '../config.js';
@@ -103,10 +103,15 @@ export function acRoute(state, ac) {
 }
 
 // Hauptbefehl je Anfrage (für die kleinen Karten)
-const PRIMARY = { approach: ['approach'], land: ['land'], taxi_in: ['taxiIn'], push: ['push', 'startWait'], taxi_out: ['taxiOut'], takeoff: ['takeoff', 'lineup'], cross: ['cross'] };
 const Q_PH = new Set([PH.INBOUND, PH.HOLD, PH.GOAROUND, PH.MISSED]);
 const ARR_GND = new Set([PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN]);
 const DEP_APRON = new Set([PH.PUSH]);
+// Start/Line-up vor dem Startfenster: erlaubt, aber mit Warnung (der nächste Anflug muss evtl. durchstarten)
+function earlyWarning(state, ac, key) {
+  if ((key !== 'takeoff' && key !== 'lineup') || ac.phase === PH.LINED) return null;
+  const w = departureWait(state, ac);
+  return w.sec > 0 && w.why.startsWith('Landung') ? `⚠ ${ac.cs}: ${w.why} – die Landung muss womöglich durchstarten` : null;
+}
 const mmss = (sec) => {
   const t = Math.max(0, Math.round(sec));
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
@@ -200,9 +205,13 @@ export class TowerPanel {
     if (b) {
       const ac = s.acs.find((a) => a.id === b.dataset.ac);
       if (!ac) return;
+      const early = earlyWarning(s, ac, b.dataset.cmd);
       const r = command(s, ac, b.dataset.cmd);
       if (!r.ok) toast(r.msg, 'warn');
-      else sfx.click();
+      else {
+        sfx.click();
+        if (early) toast(early, 'warn', 3500);
+      }
       this.game.select(ac.id, false);
       return;
     }
@@ -390,9 +399,14 @@ export class TowerPanel {
       btns = cmdButtons(state, ac, false, true);
       if (inSeq) btns += `<span class="c-mv"><button class="mini" data-seqmv="-1" data-ac="${ac.id}" title="in der Pistenfolge früher (W)">◀ früher</button><button class="mini" data-seqmv="1" data-ac="${ac.id}" title="in der Pistenfolge später (S)">später ▶</button></span>`;
     } else if (ac.req) {
-      const valid = validCommands(state, ac);
-      const k = (PRIMARY[ac.req] || []).find((x) => valid.includes(x));
+      const k = primaryCommand(state, ac);
       if (k) btns = `<button class="cmd big" data-cmd="${k}" data-ac="${ac.id}">${CMDS[k].label}${CMDS[k].key ? ` <kbd>${CMDS[k].key}</kbd>` : ''}</button>`;
+      else if ((ac.req === 'taxi_in' || ac.req === 'cross') && !ac.stand) btns = `<span class="cmd big wait" title="Das Vorfeld hat noch keine Parkposition zugewiesen">⏳ wartet auf Parkposition</span>`;
+      else if (ac.req === 'approach') btns = `<span class="cmd big wait" title="Die Auto-Staffelung gibt Anflüge in der Reihenfolge der Warteliste frei. Vorziehen: Karte in die Pistenfolge ziehen.">🕒 Auto-Staffelung gibt frei</span>`;
+      else if (ac.req === 'takeoff') {
+        const w = departureWait(state, ac);
+        btns = `<span class="cmd big wait" title="Startfreigabe erst, wenn die Piste sicher frei bleibt – über die aktive Karte oder T geht es trotzdem">⏳ ${esc(w.why)} · ~${mmss(w.sec)}</span>`;
+      }
     }
     let extra = '';
     if (sel) {
@@ -501,9 +515,13 @@ export class TowerPanel {
     }
     for (const key of validCommands(state, ac)) {
       if (CMDS[key].key === k) {
+        const early = earlyWarning(state, ac, key);
         const r = command(state, ac, key);
         if (!r.ok) toast(r.msg, 'warn');
-        else sfx.click();
+        else {
+          sfx.click();
+          if (early) toast(early, 'warn', 3500);
+        }
         return true;
       }
     }

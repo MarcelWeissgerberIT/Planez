@@ -212,6 +212,42 @@ export function validCommands(state, ac) {
   return Object.keys(CMDS).filter((k) => CMDS[k].valid(state, ac));
 }
 
+// Hauptbefehl zu einer Anfrage (Karte, Bots): mit Auto-Staffelung wartet ein Start am Rollhalt, bis sein Startfenster offen ist –
+// sonst landet der nächste Anflug auf eine belegte Piste und muss durchstarten
+export const PRIMARY = { approach: ['approach'], land: ['land'], taxi_in: ['taxiIn'], push: ['push', 'startWait'], taxi_out: ['taxiOut'], takeoff: ['takeoff', 'lineup'], cross: ['cross'] };
+export function primaryCommand(state, ac) {
+  if (!ac.req) return null;
+  if (ac.req === 'takeoff' && ac.phase !== PH.LINED && departureWait(state, ac).sec > 0) return null;
+  // ohne Parkposition vom Vorfeld hat Rollen keinen Sinn
+  if ((ac.req === 'taxi_in' || ac.req === 'cross') && !ac.stand) return null;
+  // Anflugfreigaben verteilt die Auto-Staffelung selbst in der richtigen Reihenfolge
+  if (ac.req === 'approach' && spacingOn(state)) return null;
+  const valid = validCommands(state, ac);
+  return (PRIMARY[ac.req] || []).find((x) => valid.includes(x)) || null;
+}
+// Kann ein Start vom Rollhalt jetzt sicher los? Sonst ungefähre Wartezeit (s) und Grund – wie beim automatischen Lotsen:
+// Piste frei, nächste Landung weit genug weg, Wirbelschleppen-Abstand zum letzten Start
+export function departureWait(state, ac) {
+  const strip = ac.strip || 'N';
+  const occ = runwayOccupants(state, strip).filter((o) => o !== ac);
+  if (occ.length) return { sec: 30, why: `Piste belegt (${occ[0].cs})` };
+  const arrs = state.acs.filter((a) => (a.phase === PH.APPROACH || a.phase === PH.FINAL) && a.rwy === state.rwy && (a.strip || 'N') === strip);
+  let next = null, nd = 99;
+  for (const a of arrs) {
+    const d = distToLand(a);
+    if (d < nd) {
+      nd = d;
+      next = a;
+    }
+  }
+  // vom Rollhalt braucht ein Start gut 1½ Minuten, bis die Piste wieder frei ist
+  const need = ac.phase === PH.LINED || ac.phase === PH.LINEUP ? 2.8 : 6;
+  if (next && nd < need) return { sec: Math.round((nd / Math.max(120, next.spd || 140)) * 3600 + 45), why: `Landung ${next.cs} zuerst` };
+  const gap = wakeDepSec(state.lastTakeoffWake, ac.wake) - (state.time - (state.lastTakeoff || -999)) - 20;
+  if (gap > 0) return { sec: Math.round(gap), why: 'Wirbelschleppen-Abstand' };
+  return { sec: 0, why: '' };
+}
+
 // ---------- Pistenrichtung ----------
 export function tailwind(state, rwy) {
   const hdg = rwy === '27' ? 270 : 90;
@@ -510,7 +546,8 @@ export function updateConflicts(state, dt) {
   if (state.stcaTimer > 0) return;
   state.stcaTimer = 1;
   const air = state.acs.filter((a) => a.mode === 'air' && a.alt > 700);
-  for (const a of air) {
+  // alle zurücksetzen – auch gelandete, sonst bleibt eine alte Warnung am Boden hängen
+  for (const a of state.acs) {
     a.conflict = false;
     a.predConflict = false;
   }

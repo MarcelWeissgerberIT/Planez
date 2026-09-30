@@ -1,6 +1,6 @@
 // Kontextbezogene Tipps je Station
 import { PH } from '../sim/aircraft.js';
-import { tailwind, preferredRunway } from '../sim/atc.js';
+import { tailwind, preferredRunway, departureWait } from '../sim/atc.js';
 import { TASKS, VEH_TYPES } from '../config.js';
 import { fleetSummary } from '../sim/ground.js';
 import { esc, fmtClock } from '../util.js';
@@ -31,9 +31,12 @@ function towerHint(s) {
   const tx = s.acs.find((a) => a.req === 'taxi_out');
   if (tx) return `<b>${esc(tx.cs)}</b> ist startklar – Rollfreigabe zum Rollhalt (R).`;
   const first = s.seq && s.seq.length ? s.acs.find((a) => a.id === s.seq[0]) : null;
-  if (first && first.phase === PH.HOLDING && !first.clr.takeoff && !first.clr.lineup) return `<b>${esc(first.cs)}</b> ist #1 der Pistenfolge und wartet am Rollhalt – Startfreigabe (T) oder erst „Line up“ (U).`;
-  const to = s.acs.find((a) => a.req === 'takeoff');
-  if (to) return `<b>${esc(to.cs)}</b> wartet am Rollhalt. Startfreigabe (T), wenn der nächste Anflug noch mindestens ~5 NM entfernt ist.`;
+  const to = (first && first.phase === PH.HOLDING && !first.clr.takeoff && !first.clr.lineup ? first : null) || s.acs.find((a) => a.req === 'takeoff');
+  if (to) {
+    const w = departureWait(s, to);
+    if (!w.sec) return `<b>${esc(to.cs)}</b> wartet am Rollhalt und die Piste ist frei – jetzt Startfreigabe (T).`;
+    return `<b>${esc(to.cs)}</b> wartet am Rollhalt: ${esc(w.why)} (ca. ${Math.ceil(w.sec / 60)} min). Danach Startfreigabe (T).`;
+  }
   const app = s.acs.filter((a) => a.phase === PH.APPROACH || a.phase === PH.FINAL).length;
   const holds = s.acs.filter((a) => a.phase === PH.HOLD).sort((a, b) => a.alt - b.alt);
   const wait = holds[0] || s.acs.filter((a) => a.phase === PH.INBOUND).sort((a, b) => Math.hypot(a.pos.x, a.pos.y) - Math.hypot(b.pos.x, b.pos.y))[0];
