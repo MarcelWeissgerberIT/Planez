@@ -51,6 +51,7 @@ import { scoreState } from './sim/score.js';
 import { keysHtml } from './ui/keys.js';
 import { Fids } from './ui/fids.js';
 import { SpotterUi } from './ui/spotter.js';
+import { briefingHtml } from './ui/briefing.js';
 import { RankUp } from './ui/rankUp.js';
 
 const game = {
@@ -306,6 +307,8 @@ function startGame(state) {
   syncVoice();
   if (!game.tutorial) game.tutorial = new Tutorial(game);
   if (!state.scenario) game.tutorial.maybeStart();
+  // neues Spiel (ohne Einführung): gleich mit dem Schichtbriefing beginnen
+  if (!state.scenario && state.time < 7 * 3600 && tutSeen(state.role)) setTimeout(() => game.state === state && !modalOpen() && showBriefing(state.speed || 1), 600);
   lastSpeed = state.speed || lastSpeed;
   game.running = true;
   game.lastTs = performance.now();
@@ -669,9 +672,37 @@ function showReport(rec) {
     (box) => box.querySelector('[data-close-modal]').addEventListener('click', () => {
       closeModal();
       game.state.speed = prevSpeed;
+      showBriefing(prevSpeed);
     })
   );
 }
+
+// Schichtbriefing (Tower, Vorfeld, Management) – pausiert, bis die Schicht beginnt
+const tutSeen = (role) => {
+  try {
+    return !!localStorage.getItem('planez_tut_' + role);
+  } catch (e) {
+    return true;
+  }
+};
+function showBriefing(resume) {
+  const s = game.state;
+  if (!s || s.scenario || !['tower', 'ground', 'manager'].includes(s.role) || loadPrefs().briefing === false) return;
+  if (game.tutorial && game.tutorial.on) return;
+  s.speed = 0;
+  openModal(briefingHtml(s), (box) => {
+    box.querySelector('[data-close-modal]').addEventListener('click', () => {
+      if (box.querySelector('[data-brief-off]')?.checked) {
+        savePrefs({ briefing: false });
+        toast('Schichtbriefing ausgeschaltet – im Hauptmenü unter Einstellungen wieder einschaltbar', 'info', 3500);
+      }
+      closeModal();
+      s.speed = resume || 1;
+      if (s.settings.sound !== false) sfx.select && sfx.select();
+    });
+  });
+}
+game.showBriefing = () => showBriefing(game.state && (game.state.speed || lastSpeed || 1));
 
 // ---------------- Eingabe ----------------
 function wireGame() {
@@ -1029,7 +1060,12 @@ function onKey(e) {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
   const s = game.state;
   if (modalOpen()) {
-    if (e.key === 'Escape') closeModal();
+    // Briefing/Tagesbericht mit Esc schließen = wie „Weiter“ (Tempo zurück, Briefing folgt)
+    if (e.key === 'Escape' || (e.key === 'Enter' && !['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(e.target.tagName) && document.querySelector('#modal-box [data-close-modal]'))) {
+      const b = document.querySelector('#modal-box .modal-acts [data-close-modal]');
+      if (b) b.click();
+      else closeModal();
+    }
     return;
   }
   if (e.key.startsWith('Arrow')) {
@@ -1314,6 +1350,8 @@ function helpGuide(first) {
     <p>Im Tower und im Vorfeld gibt es Punkte für gute Arbeit – saubere Landungen, Starts in der Lücke vor der nächsten Landung, kurze Wartezeiten am Rollhalt, Pushbacks auf die Minute und schnelle Turnarounds. Jeder Erfolg erhöht den Kombo-Multiplikator (bis ×3, oben neben dem Rang); ein Durchstarten, ein Vorfall oder eine große Verspätung setzt ihn zurück. Windscherung zählt nicht gegen dich.</p>
     <h3>⭐ Herausforderungen</h3>
     <p>Im Hauptmenü unter <b>Herausforderungen</b>: kurze Einsätze mit festem Start – Morgenwelle, Nebelsuppe, Gewitterfront, Notfall-Schicht (Tower), Ferienstart, Streiktag, Winterchaos (Vorfeld), Sanierungsfall und Wachstumskurs (Manager). Oben zeigt eine Leiste Restzeit und Ziele; jedes Ziel bringt 1–3 Sterne, die Gesamtwertung ist der Durchschnitt (ein verfehltes Ziel = nicht geschafft). Ein Stern schaltet die nächste Herausforderung der Station frei. Herausforderungen überschreiben deinen Spielstand nicht.</p>
+    <h3>📋 Schichtbriefing</h3>
+    <p>Zu Beginn jedes Tages (Tower, Vorfeld, Manager) fasst ein Briefing die Schicht zusammen: Wetter und Vorhersage, geplanter Verkehr je Stunde mit Spitzenstunde, besondere Flüge (A380, VIP), die Lage deiner Station (Betriebsrichtung und Heavys, Positionen und Tanklager, Kasse, auslaufende Verträge und Marktanteil) und die Ziele der Schicht. <kbd>Enter</kbd> beginnt die Schicht; abschaltbar im Briefing oder unter Einstellungen.</p>
     <h3>📒 Spotterbuch</h3>
     <p>Klicke ein Flugzeug auf der Karte an und drücke <b>📷 Spotten</b> (außerhalb des Towers auch <kbd>F</kbd>): Das Foto landet im Spotterbuch (<kbd>J</kbd> oder 📒). Punkte gibt es nach Seltenheit des Typs (häufig bis legendär – der A380), für neue Typen und Airlines, für seltene <b>Sonderlackierungen</b> (Regenbogen, Retro, 50 Jahre … – etwa jede 18. Maschine) und für <b>Momente</b> im Bild: Landung, Start, Pushback, Nacht, goldene Stunde, Regen, Gewitter, Schnee, Nebel, Enteisung, Durchstarten, Notfall. Dasselbe Flugzeug zählt erneut, sobald ein neuer Moment dazukommt. Jedes Flugzeug trägt ein eigenes Kennzeichen (z.B. D-AXYZ). Das Spotterbuch gilt für alle Spielstände.</p>
     <h3>Steuerung</h3>

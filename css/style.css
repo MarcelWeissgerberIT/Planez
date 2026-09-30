@@ -1310,3 +1310,33 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .lg.crew .fr { color: #fb923c; font-family: var(--mono); font-weight: 700; margin-right: 5px; }
 .lg.crew .fr::before { content: '📻 '; }
 .lg.crew.speaking { background: linear-gradient(90deg, rgba(251,146,60,.2), transparent 80%); }
+
+/* ---------- Schichtbriefing ---------- */
+.modal-box:has(.brief) { width: min(860px, 100%); background: linear-gradient(180deg, #0f1a2e, #0b1220); }
+.brief .br-top { position: relative; padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px dashed var(--line-2); }
+.br-kick { font: 700 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--role, var(--accent)); }
+.brief h2 { font: 700 26px 'Chakra Petch', var(--sans); margin: 2px 0 0; }
+.br-stamp { position: absolute; right: 4px; top: 6px; transform: rotate(-6deg); border: 2px solid rgba(248,113,113,.7); color: #fca5a5; font: 700 12px var(--mono); letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; opacity: .85; }
+.br-cols { display: grid; grid-template-columns: 1fr 1.6fr; gap: 14px; margin-bottom: 12px; }
+.br-cols + .br-cols { grid-template-columns: 1fr 1fr; }
+.br-h { font: 700 11px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; gap: 8px; }
+.br-h span { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--dim); }
+.br-wx, .br-traffic { background: rgba(255,255,255,.035); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.br-now { display: flex; gap: 10px; align-items: center; }
+.br-now .ic { font-size: 34px; }
+.br-now b { display: block; font-size: 15px; }
+.br-now small { color: var(--muted); font-size: 12px; }
+.br-fc { margin-top: 8px; font-size: 12.5px; color: #cbd5e1; padding-top: 7px; border-top: 1px solid var(--line); }
+.br-traffic svg { width: 100%; height: 80px; display: block; }
+.br-leg { display: flex; gap: 12px; font-size: 11px; color: var(--muted); margin-top: 2px; }
+.br-leg i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.br-sp { display: flex; flex-wrap: wrap; gap: 6px; margin: -2px 0 12px; }
+.br-sp span { font-size: 12.5px; padding: 4px 10px; border-radius: 999px; background: rgba(245,166,35,.14); border: 1px solid rgba(245,166,35,.45); color: #fde68a; }
+.br-list { list-style: none; margin: 0; padding: 0; }
+.br-list li { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 1.4; }
+.br-list li i { font-style: normal; width: 20px; text-align: center; flex: none; }
+.br-list li.warn span { color: #fcd34d; }
+.br-tip { margin-top: 10px; font-size: 12.5px; color: #bae6fd; background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.25); border-radius: 8px; padding: 7px 10px; }
+.brief .modal-acts { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.br-off { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; cursor: pointer; }
+@media (max-width: 760px) { .br-cols, .br-cols + .br-cols { grid-template-columns: 1fr; } .brief h2 { font-size: 21px; } .br-stamp { display: none; } }
