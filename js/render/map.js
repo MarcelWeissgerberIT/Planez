@@ -3,6 +3,7 @@ import { IMG, shadowOf, glowTinted } from '../assets.js';
 import { drawAircraftBody, drawVehicleBody, drawCarBody } from './volume.js';
 import { Ambient } from './ambient.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
+import { Polish } from './polish.js';
 import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowySprite } from './snow.js';
 import { HALF_W, HALF_H } from './camera.js';
 import * as LY from '../layout.js';
@@ -198,6 +199,7 @@ export class MapRenderer {
     this.topZ = {};
     this.fxList = [];
     this.siteCenters = new Map();
+    this.polish = new Polish();
     this.picks = [];
   }
 
@@ -354,6 +356,10 @@ export class MapRenderer {
     for (const it of items) it.f();
     flying.sort((a, b) => a.x + a.y - (b.x + b.y));
     for (const ac of flying) this.drawAircraft(state, ac, lights, night, ui);
+    // Reifenrauch, Gischt, Wolken
+    this.polish.update(this, state, dtReal * (state.speed ? Math.min(3, 0.6 + state.speed * 0.4) : 0));
+    this.polish.drawParticles(this);
+    this.polish.drawClouds(this, state);
 
     // Nacht / Dämmerung
     const h = hourOf(state.time);
@@ -905,6 +911,14 @@ export class MapRenderer {
       if ((t + (ac.id.length % 7) * 0.13) % 1.2 < 0.14) lights.push({ x: ac.x, y: ac.y, z: body.top + 0.02, c: '#ff2a1a', s: 26, a: 0.95, day: true });
       lights.push({ x: ac.x - rx * span, y: ac.y - ry * span, z: zb, c: '#ff2020', s: 11, a: 0.8 });
       lights.push({ x: ac.x + rx * span, y: ac.y + ry * span, z: zb, c: '#20ff60', s: 11, a: 0.8 });
+    }
+    // Kabinenfenster leuchten nachts
+    if (night > 0.35) {
+      const n = Math.max(2, Math.round(L * 1.4));
+      for (let i = 0; i < n; i++) {
+        const f = -0.3 + (0.62 * i) / Math.max(1, n - 1);
+        for (const sd of [-1, 1]) lights.push({ x: ac.x + fx * f * L + rx * sd * body.r * 0.9, y: ac.y + fy * f * L + ry * sd * body.r * 0.9, z: body.mid + body.r * 0.3, c: '#ffd89a', s: 5, a: 0.55 });
+      }
     }
     const onRwy = [PH.FINAL, PH.ROLLOUT, PH.LINED, PH.TAKEOFF, PH.MISSED, PH.LINEUP].includes(ac.phase);
     if (onRwy && (t % 1.1 < 0.06 || (t % 1.1 > 0.16 && t % 1.1 < 0.22))) {
