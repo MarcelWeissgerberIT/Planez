@@ -27,6 +27,7 @@ import { siteGeom } from './render/sites.js';
 import { initGlossary, setGlossaryEnabled, glossify, glossaryHtml } from './ui/glossary.js';
 import { goalsState, activeGoals, goalProgress, goalText, goalFraction, RANKS, GOAL_DEFS } from './sim/goals.js';
 import { fuelState } from './sim/fuel.js';
+import { initMainMenu, refreshMainMenu, showPauseMenu, loadPrefs, savePrefs } from './ui/menus.js';
 import { projects, cancelProject } from './sim/construction.js';
 
 const game = {
@@ -89,6 +90,13 @@ async function boot() {
   game.map = new MapRenderer($('#map'), game.cam);
   game.radar = new Radar($('#radar'));
   initGlossary();
+  initMainMenu({
+    gloss: () => showHelp(false, 'gloss'),
+    prefsChanged: (p) => {
+      setGlossaryEnabled(p.glossary);
+      setSound(p.sound);
+    },
+  });
   $('#loading').classList.add('hidden');
   showMenu();
   wireMenu();
@@ -99,16 +107,8 @@ async function boot() {
 function showMenu() {
   $('#menu').classList.remove('hidden');
   $('#game').classList.add('hidden');
-  const v = $('#menu-video');
-  try {
-    v.play().catch(() => {});
-  } catch (e) {}
-  const save = hasSave() ? loadGame() : null;
-  const box = $('#continue-box');
-  if (save) {
-    box.classList.remove('hidden');
-    $('#continue-info').textContent = `${save.name} · Tag ${dayOf(save.time)} ${fmtClock(save.time)} · ${ROLES[save.role]?.name || ''} · ${fmtMoney(save.cash)}`;
-  } else box.classList.add('hidden');
+  setGlossaryEnabled(loadPrefs().glossary);
+  refreshMainMenu(hasSave() ? loadGame() : null);
 }
 
 function wireMenu() {
@@ -116,7 +116,10 @@ function wireMenu() {
     unlock();
     const name = $('#inp-name').value.trim() || 'Planez International';
     const density = Number($('#inp-density').value) || 1;
-    startGame(newGame({ role, name, density }));
+    const st = newGame({ role, name, density });
+    const pr = loadPrefs();
+    Object.assign(st.settings, { sound: pr.sound, tts: pr.tts, glossary: pr.glossary, hints: pr.hints });
+    startGame(st);
     if (!localStorage.getItem('planez_help_seen')) {
       try {
         localStorage.setItem('planez_help_seen', '1');
@@ -696,7 +699,8 @@ function onKey(e) {
   if (e.key === '-') return game.cam.zoomAt(0.83, game.cam.w / 2, game.cam.h / 2);
   if (e.key === 'Escape') {
     if (markMenuOpen()) return closeMarkMenu();
-    return game.select(null);
+    if (game.ui.sel) return game.select(null);
+    return showGameMenu();
   }
   if (e.key === 'm' || e.key === 'M') {
     const ac = game.ui.selected && s.acs.find((a) => a.id === game.ui.selected);
@@ -841,63 +845,35 @@ function showRoleModal() {
 
 function showGameMenu() {
   const s = game.state;
-  const prev = s.speed;
-  s.speed = 0;
-  openModal(
-    `<h2>☰ Menü</h2>
-    <div class="toggle-row"><span>Sound-Effekte</span><button class="switch ${s.settings.sound ? 'on' : ''}" data-set="sound"></button></div>
-    <div class="toggle-row"><span>Funksprüche vorlesen (Englisch, Tower-Rolle)</span><button class="switch ${s.settings.tts ? 'on' : ''}" data-set="tts"></button></div>
-    <div class="toggle-row"><span>Beschriftungen auf der Karte</span><button class="switch ${game.ui.labels ? 'on' : ''}" data-set="labels"></button></div>
-    <div class="toggle-row"><span>Tipps anzeigen</span><button class="switch ${s.settings.hints !== false ? 'on' : ''}" data-set="hints"></button></div>
-    <div class="toggle-row"><span>Abkürzungen erklären (Tooltips)</span><button class="switch ${s.settings.glossary !== false ? 'on' : ''}" data-set="glossary"></button></div>
-    <div class="modal-acts">
-      <button class="btn" data-m="help">❓ Anleitung</button>
-      <button class="btn" data-m="role">🔁 Station wechseln</button>
-      <button class="btn" data-m="save">💾 Speichern</button>
-      <button class="btn" data-m="quit">🏠 Hauptmenü</button>
-      <button class="btn btn-primary" data-m="resume">▶ Weiter</button>
-    </div>`,
-    (box) => {
-      box.querySelectorAll('[data-set]').forEach((b) =>
-        b.addEventListener('click', () => {
-          const k = b.dataset.set;
-          if (k === 'labels') {
-            game.ui.labels = !game.ui.labels;
-            $('#t-labels').classList.toggle('on', game.ui.labels);
-            b.classList.toggle('on', game.ui.labels);
-            return;
-          }
-          s.settings[k] = k === 'hints' || k === 'glossary' ? s.settings[k] === false : !s.settings[k];
-          b.classList.toggle('on', s.settings[k] !== false && !!s.settings[k]);
-          setGlossaryEnabled(s.settings.glossary !== false);
-          setSound(s.settings.sound);
-          setTTS(s.settings.tts);
-        })
-      );
-      box.querySelector('[data-m=resume]').addEventListener('click', () => {
-        closeModal();
-        s.speed = prev || 1;
-      });
-      box.querySelector('[data-m=save]').addEventListener('click', () => {
-        toast(saveGame(s) ? '💾 Gespeichert' : 'Speichern nicht möglich', 'good', 1800);
-      });
-      box.querySelector('[data-m=help]').addEventListener('click', () => {
-        s.speed = prev || 1;
-        showHelp(false);
-      });
-      box.querySelector('[data-m=role]').addEventListener('click', () => {
-        s.speed = prev || 1;
-        showRoleModal();
-      });
-      box.querySelector('[data-m=quit]').addEventListener('click', () => {
-        s.speed = prev || 1;
-        saveGame(s);
-        closeModal();
-        game.running = false;
-        showMenu();
-      });
-    }
-  );
+  const prefsSync = () => savePrefs({ sound: !!s.settings.sound, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false });
+  showPauseMenu(game, {
+    settings: () => ({ sound: !!s.settings.sound, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false, labels: game.ui.labels }),
+    toggle: (k) => {
+      if (k === 'labels') {
+        game.ui.labels = !game.ui.labels;
+        $('#t-labels').classList.toggle('on', game.ui.labels);
+        return;
+      }
+      s.settings[k] = k === 'hints' || k === 'glossary' ? s.settings[k] === false : !s.settings[k];
+      setSound(s.settings.sound);
+      setTTS(s.settings.tts);
+      setGlossaryEnabled(s.settings.glossary !== false);
+      prefsSync();
+    },
+    save: () => {
+      saveGame(s);
+      toast('💾 Gespeichert', 'good', 1500);
+    },
+    role: () => showRoleModal(),
+    goals: () => showGoals(),
+    help: () => showHelp(false),
+    gloss: () => showHelp(false, 'gloss'),
+    quit: () => {
+      saveGame(s);
+      game.running = false;
+      showMenu();
+    },
+  });
 }
 
 function helpGuide(first) {

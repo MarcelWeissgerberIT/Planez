@@ -1,0 +1,346 @@
+// Hauptmenü und Pausenmenü: großer Titel, nummerierte Einträge, Status-Panel, Szenen-Video im Hintergrund
+import { ROLES } from '../state.js';
+import { esc, fmtMoney, fmtClock, dayOf } from '../util.js';
+import { RANKS, goalsState, activeGoals, goalText, goalFraction } from '../sim/goals.js';
+import { glossify } from './glossary.js';
+
+// Szenen des Hintergrund-Loops (je ~9,6 s, nahtlos ineinander übergehend)
+const SCENES = ['Anflug im Morgengrauen', 'Tower zur blauen Stunde', 'Vorfeld bei Nacht', 'Frachtverladung im Regen', 'Start in den Sonnenuntergang'];
+const SEG = 9.6;
+
+// ---------- Voreinstellungen (auch ohne laufendes Spiel) ----------
+const PREFS_KEY = 'planez_prefs';
+const PREF_DEF = { sound: true, tts: false, glossary: true, hints: true };
+export function loadPrefs() {
+  try {
+    return { ...PREF_DEF, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') };
+  } catch (e) {
+    return { ...PREF_DEF };
+  }
+}
+export function savePrefs(p) {
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(p));
+  } catch (e) {}
+}
+export const PREF_ROWS = [
+  ['sound', 'Sound-Effekte', 'Funk, Warnungen, Kasse'],
+  ['tts', 'Funksprüche vorlesen', 'englische Sprachausgabe in der Tower-Rolle'],
+  ['glossary', 'Abkürzungen erklären', 'Tooltips für ILS, TOBT, CTOT, RVR …'],
+  ['hints', 'Tipps anzeigen', 'Hinweise zur nächsten sinnvollen Aktion'],
+];
+const switchRow = (k, name, sub, on) => `<button class="mm-toggle" data-pref="${k}" aria-pressed="${on}"><span class="l"><b>${name}</b><small>${sub}</small></span><span class="switch ${on ? 'on' : ''}"></span></button>`;
+
+// ---------- Seitenpanel-Inhalte ----------
+const ROLE_INFO = {
+  tower: { img: 'assets/ui/role_tower.jpg', you: ['Anflüge vom Fix auf den Endanflug schicken', 'Lande- und Startfreigaben, Durchstarten', 'Pistenfolge mit Wirbelschleppen-Abständen', 'Slots (CTOT) einhalten, Treibstoffreserven im Blick'], auto: 'Vorfeld, Abfertigung und Management laufen automatisch.' },
+  ground: { img: 'assets/ui/role_ground.jpg', you: ['Parkpositionen passend zu Typ und Größe vergeben', 'Turnaround: Fahrzeuge rechtzeitig losschicken', 'Tankwagen-Logistik und TOBT halten', 'Pünktlich zum Pushback fertig werden'], auto: 'Tower und Management laufen automatisch.' },
+  manager: { img: 'assets/ui/role_manager.jpg', you: ['Airline-Verträge und Gebühren', 'Ausbau mit Baustellen, Pistenwartung', 'Kerosin einkaufen und verkaufen', 'Fuhrpark, Personal, Kredite, Nachtflugregeln'], auto: 'Tower und Vorfeld laufen automatisch.' },
+  observer: { img: 'assets/ui/menu_poster.jpg', you: ['Zurücklehnen und den Betrieb beobachten', 'Jederzeit eine Station übernehmen'], auto: 'Alles läuft automatisch.' },
+};
+
+function sideRole(key) {
+  const r = ROLES[key];
+  const info = ROLE_INFO[key];
+  return `<div class="ms-card ms-role r-${key}"><div class="ms-img" style="background-image:url(${info.img})"></div>
+    <div class="ms-body"><div class="ms-h">${r.icon} ${esc(r.name)}</div>
+    <div class="ms-sec">Deine Aufgaben</div><ul>${info.you.map((x) => `<li>${x}</li>`).join('')}</ul>
+    <div class="ms-auto">⚙️ ${info.auto}</div></div></div>`;
+}
+
+export function statusPanel(s, title = 'Status') {
+  const G = s.goals || { xp: 0, rank: 0, done: 0 };
+  const t = (s.stats && s.stats.today) || {};
+  const deps = (t.onTime || 0) + (t.delayed || 0);
+  const tile = (k, v, cls = '') => `<div class="ms-tile ${cls}"><span>${k}</span><b>${v}</b></div>`;
+  const row = (icon, v, k) => `<div class="ms-row"><i>${icon}</i><b>${v}</b><small>${k}</small></div>`;
+  const rank = RANKS[G.rank || 0];
+  let goals = '';
+  try {
+    if (s.goals) goals = activeGoals(s).map((g) => `<div class="ms-goal"><small>${esc(goalText(g))}</small><span class="ms-bar"><i style="width:${Math.round(goalFraction(s, g) * 100)}%"></i></span></div>`).join('');
+  } catch (e) {}
+  return `<div class="ms-card ms-status"><div class="ms-body">
+    <div class="ms-h">${esc(title)}</div><div class="ms-subt">${esc(s.name)} · ${esc(ROLES[s.role]?.name || '')}</div>
+    <div class="ms-tiles">${tile('Spielzeit', `Tag ${dayOf(s.time)} · ${fmtClock(s.time)}`)}${tile('Kasse', fmtMoney(s.cash), s.cash < 0 ? 'neg' : '')}${tile('Ansehen', `${Math.round(s.reputation)}/100`)}${tile('Rang', `${esc(rank.name)}<small>${G.xp || 0} XP</small>`, 'rank')}</div>
+    <div class="ms-sec">Heute</div>
+    <div class="ms-rows">${row('✈️', t.mov || 0, 'Bewegungen')}${row('🧳', (t.pax || 0).toLocaleString('de-DE'), 'Passagiere')}${row('⏱️', deps ? Math.round((t.onTime / deps) * 100) + ' %' : '—', 'pünktlich')}${row('🎯', t.slotOk || 0, 'Slots eingehalten')}${row('⛽', `${Math.round(t.fuelSold || 0)} t`, 'Kerosin vertankt')}${row('⚠️', t.incidents || 0, 'Vorfälle')}</div>
+    ${goals ? `<div class="ms-sec">Ziele</div>${goals}` : ''}
+    <div class="ms-foot">${(s.contracts || []).length} Verträge · ${(s.stands || []).filter((x) => x.built).length} Parkpositionen · ${(s.vehicles || []).length} Fahrzeuge · ${G.done || 0} Ziele erreicht</div>
+  </div></div>`;
+}
+
+const SIDE = {
+  new: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Neuer Flughafen</div><div class="ms-subt">Wähle eine Station – alles andere erledigen KI-Kollegen.</div>
+    <div class="ms-trio">${['tower', 'ground', 'manager'].map((k) => `<div style="background-image:url(${ROLE_INFO[k].img})"><span>${ROLES[k].icon} ${ROLES[k].short}</span></div>`).join('')}</div>
+    <div class="ms-sec">Start</div><ul><li>6 Uhr morgens, erste Maschinen sind schon im Anflug</li><li>5 Mio € Startkapital, 20 Airline-Verträge</li><li>Station jederzeit im Spiel wechselbar</li></ul></div></div>`,
+  help: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">So funktioniert es</div><ul><li>Jede Station spielt sich anders: Lotse, Abfertigung oder Management.</li><li>💡 Tipps oben im Panel zeigen die nächste sinnvolle Aktion.</li><li>Unterstrichene Abkürzungen erklären sich beim Überfahren.</li><li>🏅 Ziele bringen Prämien und heben den Flughafen-Rang.</li></ul></div></div>`,
+  gloss: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Glossar</div><div class="ms-subt">Über 100 Begriffe – ein paar Beispiele:</div><dl class="ms-dl"><dt>ILS</dt><dd>Instrumentenlandesystem</dd><dt>TOBT</dt><dd>Zielzeit „Abfertigung fertig“</dd><dt>CTOT</dt><dd>Startslot, Fenster −5/+10 min</dd><dt>RVR</dt><dd>Pistensichtweite</dd><dt>STCA</dt><dd>Konfliktwarnung im Radar</dd><dt>FL</dt><dd>Flugfläche in 100 ft</dd></dl></div></div>`,
+  settings: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Einstellungen</div><div class="ms-subt">Gelten für neue Spiele und lassen sich im Pausenmenü jederzeit ändern.</div></div></div>`,
+  about: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Über Planez</div><ul><li>Airport-Simulation mit isometrischer Karte, Radar und Wirtschaft</li><li>Grafiken, Porträts und Hintergrundvideos: Higgsfield AI (GPT Image, Kling)</li><li>Alle Airlines, Rufzeichen und Flüge sind fiktiv</li><li>Reines HTML/JavaScript – läuft direkt im Browser</li></ul></div></div>`,
+};
+
+// ---------- Tastatur-/Maus-Navigation einer Liste ----------
+function renumber(list) {
+  let n = 0;
+  for (const b of list.querySelectorAll('.mm-item')) {
+    if (b.offsetParent === null) continue;
+    n++;
+    const el = b.querySelector('.n');
+    if (el) el.textContent = String(n).padStart(2, '0');
+  }
+}
+function setActive(list, btn) {
+  for (const b of list.querySelectorAll('.mm-item.on, .mm-toggle.on')) b.classList.remove('on');
+  if (btn) btn.classList.add('on');
+}
+function moveActive(list, d) {
+  const items = [...list.querySelectorAll('.mm-item, .mm-toggle')].filter((b) => b.offsetParent !== null);
+  if (!items.length) return null;
+  let i = items.findIndex((b) => b.classList.contains('on'));
+  i = (i + d + items.length) % items.length;
+  for (const b of items) b.classList.remove('on');
+  items[i].classList.add('on');
+  items[i].focus({ preventScroll: false });
+  return items[i];
+}
+
+// ---------- Hauptmenü ----------
+let mm = null;
+export function initMainMenu(api) {
+  const root = document.getElementById('menu');
+  const lists = { main: root.querySelector('#mm-main'), new: root.querySelector('#mm-new'), settings: root.querySelector('#mm-settings') };
+  const side = root.querySelector('#mm-side');
+  const scene = root.querySelector('#mm-scene');
+  const video = root.querySelector('#menu-video');
+  mm = { root, lists, side, cur: 'main', save: null, api };
+
+  const showSide = (key) => {
+    let html = '';
+    if (key === 'save' && mm.save) html = statusPanel(mm.save, 'Letzter Spielstand');
+    else if (ROLE_INFO[key]) html = sideRole(key);
+    else if (SIDE[key]) html = SIDE[key]();
+    else html = mm.save ? statusPanel(mm.save, 'Letzter Spielstand') : SIDE.new();
+    if (side._html !== html) {
+      side.innerHTML = html;
+      side._html = html;
+      side.classList.remove('in');
+      void side.offsetWidth;
+      side.classList.add('in');
+      glossify(side);
+    }
+  };
+  mm.showSide = showSide;
+
+  const openList = (key) => {
+    for (const [k, el] of Object.entries(lists)) el.classList.toggle('hidden', k !== key);
+    mm.cur = key;
+    if (key === 'settings') renderPrefs();
+    renumber(lists[key]);
+    const first = lists[key].querySelector('.mm-item, .mm-toggle');
+    setActive(lists[key], first);
+    showSide(key === 'new' ? 'new' : key === 'settings' ? 'settings' : mm.save ? 'save' : 'new');
+  };
+  mm.openList = openList;
+
+  const renderPrefs = () => {
+    const p = loadPrefs();
+    root.querySelector('#mm-prefs').innerHTML = PREF_ROWS.map(([k, n, sub]) => switchRow(k, n, sub, !!p[k])).join('');
+  };
+
+  root.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-mm]');
+    if (t) {
+      const a = t.dataset.mm;
+      if (a === 'new') openList('new');
+      else if (a === 'settings') openList('settings');
+      else if (a === 'back') openList('main');
+      else if (a === 'gloss') api.gloss();
+      else if (a === 'about') showSide('about');
+      return;
+    }
+    const pr = e.target.closest('[data-pref]');
+    if (pr) {
+      const p = loadPrefs();
+      p[pr.dataset.pref] = !p[pr.dataset.pref];
+      savePrefs(p);
+      renderPrefs();
+      api.prefsChanged && api.prefsChanged(p);
+    }
+  });
+  root.addEventListener('mouseover', (e) => {
+    const b = e.target.closest('.mm-item');
+    if (!b) return;
+    setActive(lists[mm.cur], b);
+    if (b.dataset.side) showSide(b.dataset.side);
+  });
+  root.addEventListener('focusin', (e) => {
+    const b = e.target.closest('.mm-item');
+    if (b && b.dataset.side) showSide(b.dataset.side);
+  });
+  window.addEventListener('keydown', (e) => {
+    if (root.classList.contains('hidden') || document.getElementById('modal').classList.contains('hidden') === false) return;
+    if (e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) {
+      if (e.key === 'Escape') e.target.blur();
+      return;
+    }
+    const list = lists[mm.cur];
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const b = moveActive(list, e.key === 'ArrowDown' ? 1 : -1);
+      if (b && b.dataset.side) showSide(b.dataset.side);
+    } else if (e.key === 'Enter') {
+      const b = list.querySelector('.mm-item.on, .mm-toggle.on');
+      if (b && document.activeElement !== b) {
+        e.preventDefault();
+        b.click();
+      }
+    } else if (e.key === 'Escape' || e.key === 'Backspace') {
+      if (mm.cur !== 'main') {
+        e.preventDefault();
+        openList('main');
+      }
+    }
+  });
+
+  // Hintergrundvideo: kleinere Datei auf schmalen Bildschirmen; Szenenname unten rechts
+  const small = window.matchMedia('(max-width: 900px)').matches ? '_sm' : '';
+  const webm = video.canPlayType('video/webm; codecs="vp9"');
+  const mp4 = video.canPlayType('video/mp4; codecs="avc1.640028"');
+  video.src = `assets/ui/menu_loop${small}.${webm && (webm === 'probably' || !mp4) ? 'webm' : 'mp4'}`;
+  scene.querySelector('.dots').innerHTML = SCENES.map(() => '<i></i>').join('');
+  let lastSeg = -1;
+  video.addEventListener('timeupdate', () => {
+    const seg = Math.min(SCENES.length - 1, Math.floor(video.currentTime / SEG));
+    if (seg === lastSeg) return;
+    lastSeg = seg;
+    scene.querySelector('b').textContent = SCENES[seg];
+    scene.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i === seg));
+    scene.classList.remove('in');
+    void scene.offsetWidth;
+    scene.classList.add('in');
+  });
+  scene.querySelector('b').textContent = SCENES[0];
+}
+
+// beim Öffnen des Hauptmenüs: Spielstand-Infos, Nummern, Seitenpanel
+export function refreshMainMenu(save) {
+  if (!mm) return;
+  mm.save = save;
+  const box = mm.root.querySelector('#continue-box');
+  box.classList.toggle('hidden', !save);
+  if (save) mm.root.querySelector('#continue-info').textContent = `${save.name} · Tag ${dayOf(save.time)} · ${fmtClock(save.time)} · ${ROLES[save.role]?.name || ''}`;
+  mm.openList('main');
+  const v = mm.root.querySelector('#menu-video');
+  try {
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});
+  } catch (e) {}
+}
+
+// ---------- Pausenmenü ----------
+let pz = null;
+export function pauseOpen() {
+  return !!(pz && !pz.el.classList.contains('hidden'));
+}
+export function showPauseMenu(game, api) {
+  const s = game.state;
+  if (!pz) {
+    const el = document.createElement('div');
+    el.id = 'pause';
+    el.className = 'hidden';
+    document.getElementById('game').appendChild(el);
+    pz = { el };
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-pm]');
+      const pr = e.target.closest('[data-pref]');
+      if (pr) {
+        const k = pr.dataset.pref;
+        pz.api.toggle(k);
+        renderPause();
+        return;
+      }
+      if (!b) return;
+      const a = b.dataset.pm;
+      if (a === 'settings') {
+        pz.showSettings = !pz.showSettings;
+        renderPause();
+        return;
+      }
+      if (a === 'save') {
+        pz.api.save();
+        b.querySelector('small').textContent = `Gespeichert um ${fmtClock(pz.game.state.time)} ✓`;
+        return;
+      }
+      closePause();
+      if (a !== 'resume' && pz.api[a]) pz.api[a]();
+    });
+    el.addEventListener('mouseover', (e) => {
+      const b = e.target.closest('.mm-item, .mm-toggle');
+      if (b) setActive(el.querySelector('.mm-list'), b);
+    });
+    window.addEventListener('keydown', (e) => {
+      if (!pauseOpen()) return;
+      const list = pz.el.querySelector('.mm-list');
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        closePause();
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        moveActive(list, e.key === 'ArrowDown' ? 1 : -1);
+      } else if (e.key === 'Enter') {
+        const b = list.querySelector('.mm-item.on, .mm-toggle.on');
+        if (b && document.activeElement !== b) {
+          e.preventDefault();
+          b.click();
+        }
+      }
+      e.stopImmediatePropagation();
+    }, true);
+  }
+  pz.game = game;
+  pz.api = api;
+  pz.prevSpeed = s.speed;
+  pz.showSettings = false;
+  s.speed = 0;
+  pz.el.classList.remove('hidden');
+  renderPause();
+  const first = pz.el.querySelector('.mm-item');
+  setActive(pz.el.querySelector('.mm-list'), first);
+  if (first) first.focus({ preventScroll: true });
+}
+
+function renderPause() {
+  const s = pz.game.state;
+  const set = pz.api.settings();
+  const item = (a, title, sub = '', cls = '') => `<button class="mm-item ${cls}" data-pm="${a}"><span class="n"></span><span class="l"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`;
+  const prefs = pz.showSettings ? `<div class="pm-prefs">${[...PREF_ROWS, ['labels', 'Beschriftungen auf der Karte', 'Rufzeichen und Status an Flugzeugen']].map(([k, n, sub]) => switchRow(k, n, sub, !!set[k])).join('')}</div>` : '';
+  pz.el.innerHTML = `<div class="pm-shade"></div><i class="mm-corner tl"></i><i class="mm-corner bl"></i>
+    <div class="mm-left pm-left">
+      <div class="pm-paused"><i></i><i></i>Pausiert</div>
+      <h1 class="mm-title sm"><span class="t1">PLANEZ</span><span class="t2">AIRPORT</span></h1>
+      <div class="mm-tag"><span>${esc(s.name.toUpperCase())} · TAG ${dayOf(s.time)}</span><i></i></div>
+      <nav class="mm-list">
+        ${item('resume', 'Weiter', 'Der Flughafen läuft da weiter, wo er stand.')}
+        ${item('save', 'Jetzt speichern', 'Automatisch alle 45 Sekunden und zum Tagesende')}
+        ${item('settings', 'Einstellungen', pz.showSettings ? '' : 'Sound, Sprachausgabe, Tooltips, Tipps')}
+        ${prefs}
+        ${item('role', 'Station wechseln', `aktuell: ${esc(ROLES[s.role].name)}`)}
+        ${item('goals', 'Ziele & Rang')}
+        ${item('help', 'So funktioniert es')}
+        ${item('gloss', 'Glossar')}
+        ${item('quit', 'Zurück ins Hauptmenü', '', 'gold')}
+      </nav>
+      <div class="mm-foot"><span class="mm-credit">Esc = weiter · ↑↓ + Enter zum Auswählen</span></div>
+    </div>
+    <aside class="mm-side pm-side in">${statusPanel(s, 'Status')}</aside>`;
+  renumber(pz.el.querySelector('.mm-list'));
+  glossify(pz.el.querySelector('.pm-side'));
+}
+
+export function closePause() {
+  if (!pz) return;
+  pz.el.classList.add('hidden');
+  if (pz.game && pz.game.state) pz.game.state.speed = pz.prevSpeed || 1;
+}

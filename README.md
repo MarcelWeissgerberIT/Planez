@@ -27,6 +27,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 - Baustellen: Jeder Ausbau hat eine Bauzeit (Spielstunden) und ist auf der Karte als Baustelle sichtbar – Bauzaun, Kran mit Warnlicht, Bagger, Betonmischer, Baucontainer; Beton wächst, das Hotel steigt Stockwerk für Stockwerk als Rohbau empor, Pylonen sperren Rollwege. Schild mit Fortschritt und Restzeit, Liste im Tab *Ausbau* mit „📍 Zeigen“ und Abbruch (50 % Erstattung der noch nicht verbauten Kosten); bei Gewitter ruht die Arbeit
 - Wirtschaft: Lande-, Passagier- und Positionsentgelte, Shops, Parken, Fracht, Vertragsstrafen, Airline-Zufriedenheit, Tagesberichte
 - Ereignisse: Notfälle (Squawk 7700 + Feuerwehr), Vogelschlag, VIP-Jets, Streik, Fahrzeugdefekte, Winddrehungen
+- Hauptmenü und Pausenmenü mit großem Titel, nummerierten Einträgen (Maus oder ↑↓/Enter/Esc) und Status-Panel; im Hintergrund ein nahtloser Video-Loop durch fünf Flughafenszenen (Anflug im Morgengrauen, Tower, Vorfeld bei Nacht, Frachtverladung im Regen, Start in den Sonnenuntergang)
 - Speichern im Browser, Funkprotokoll (englische Phraseologie, optional per Sprachausgabe)
 
 ## Steuerung
@@ -40,5 +41,5 @@ Reines HTML/CSS/JavaScript (ES-Module, Canvas 2D) ohne Build-Schritt – läuft 
 Lokal starten: `npx http-server .` und `http://localhost:8080` öffnen. Headless-Simulationstest: `node tools/simtest.mjs 3`.
 
 ## Credits
-Alle Grafiken (Gebäude-, Flugzeug- und Fahrzeug-Sprites, Baumaschinen, Rohbau, Texturen, Rollen-Porträts, Logo) sowie das animierte Titelvideo wurden mit **Higgsfield AI** generiert (GPT Image 2.5, Kling 3.0).
+Alle Grafiken (Gebäude-, Flugzeug- und Fahrzeug-Sprites, Baumaschinen, Rohbau, Texturen, Rollen-Porträts, Logo) sowie die Menü-Hintergrundvideos wurden mit **Higgsfield AI** generiert (GPT Image 2.5, Kling 3.0 – Clips mit Start- und Endbild verkettet, dadurch nahtlose Übergänge).
 Alle Airlines und Flugnummern sind fiktiv.

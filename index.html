@@ -9,76 +9,74 @@
   <link rel="icon" type="image/webp" href="assets/sprites/plane_narrow.webp" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=Chakra+Petch:wght@500;600;700&family=Orbitron:wght@700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
   <meta property="og:title" content="Planez – Airport Simulator" />
-  <meta property="og:image" content="assets/ui/title.jpg" />
+  <meta property="og:image" content="assets/ui/menu_poster.jpg" />
 </head>
 <body>
   <!-- Ladebildschirm -->
   <div id="loading">
-    <img src="assets/ui/logo.webp" alt="Planez" class="load-logo" />
+    <div class="mm-title load-title" aria-label="Planez Airport"><span class="t1">PLANEZ</span><span class="t2">AIRPORT</span></div>
     <div class="load-bar"><div id="load-fill"></div></div>
     <div class="load-txt">Lade Flughafen …</div>
   </div>
 
   <!-- Hauptmenü -->
   <div id="menu" class="hidden">
-    <video id="menu-video" autoplay muted loop playsinline poster="assets/ui/title.jpg">
-      <source src="assets/ui/title_loop.mp4" type="video/mp4" />
-    </video>
-    <div class="menu-shade"></div>
-    <div class="menu-inner">
-      <img src="assets/ui/logo.webp" alt="Planez – Airport Simulator" class="menu-logo" />
-      <p class="menu-tag">Simulation · Wirtschaft · Logistik — wähle deine Station, den Rest erledigt der Flughafen.</p>
-      <div id="continue-box" class="continue hidden">
-        <button id="btn-continue" class="btn btn-primary btn-lg">▶ Weiterspielen</button>
-        <span id="continue-info"></span>
+    <div class="mm-bg"><video id="menu-video" autoplay muted loop playsinline preload="auto" poster="assets/ui/menu_poster.jpg"></video></div>
+    <div class="mm-shade"></div>
+    <i class="mm-corner tl"></i><i class="mm-corner bl"></i>
+    <div class="mm-left">
+      <h1 class="mm-title" aria-label="Planez Airport"><span class="t1">PLANEZ</span><span class="t2">AIRPORT</span></h1>
+      <div class="mm-tag"><span>LANDEN. ABFERTIGEN. AUSBAUEN. WACHSEN.</span><i></i></div>
+
+      <nav class="mm-list" id="mm-main" aria-label="Hauptmenü">
+        <div id="continue-box" class="hidden">
+          <button class="mm-item" id="btn-continue" data-side="save"><span class="n"></span><span class="l"><b>Weiterspielen</b><small id="continue-info"></small></span></button>
+        </div>
+        <button class="mm-item" data-mm="new" data-side="new"><span class="n"></span><span class="l"><b>Neues Spiel</b><small>Flughafen gründen und Station wählen</small></span></button>
+        <button class="mm-item" data-role-start="observer" data-side="observer"><span class="n"></span><span class="l"><b>Nur zuschauen</b></span></button>
+        <button class="mm-item" id="btn-help-menu" data-side="help"><span class="n"></span><span class="l"><b>So funktioniert es</b></span></button>
+        <button class="mm-item" data-mm="gloss" data-side="gloss"><span class="n"></span><span class="l"><b>Glossar</b></span></button>
+        <button class="mm-item" data-mm="settings" data-side="settings"><span class="n"></span><span class="l"><b>Einstellungen</b></span></button>
+      </nav>
+
+      <nav class="mm-list hidden" id="mm-new" aria-label="Neues Spiel">
+        <button class="mm-back" data-mm="back">← Zurück</button>
+        <div class="mm-setup">
+          <label><span>Flughafenname</span><input id="inp-name" maxlength="40" value="Planez International" /></label>
+          <label><span>Verkehr</span>
+            <select id="inp-density">
+              <option value="0.7">Ruhig</option>
+              <option value="1" selected>Normal</option>
+              <option value="1.4">Hektisch</option>
+            </select>
+          </label>
+        </div>
+        <div class="mm-sub">Station wählen – den Rest erledigen KI-Kollegen</div>
+        <button class="mm-item role-card" data-role="tower" data-side="tower"><span class="n"></span><span class="l"><b>Tower-Lotse</b><small>Radar, Pistenfolge, Freigaben, Slots</small></span></button>
+        <button class="mm-item role-card" data-role="ground" data-side="ground"><span class="n"></span><span class="l"><b>Vorfeld &amp; Abfertigung</b><small>Parkpositionen, Turnaround, Tankwagen</small></span></button>
+        <button class="mm-item role-card" data-role="manager" data-side="manager"><span class="n"></span><span class="l"><b>Flughafen-Manager</b><small>Verträge, Ausbau, Kerosin, Finanzen</small></span></button>
+        <button class="mm-item" data-role-start="observer" data-side="observer"><span class="n"></span><span class="l"><b>Beobachter</b><small>alles läuft automatisch</small></span></button>
+      </nav>
+
+      <nav class="mm-list hidden" id="mm-settings" aria-label="Einstellungen">
+        <button class="mm-back" data-mm="back">← Zurück</button>
+        <div id="mm-prefs"></div>
+      </nav>
+
+      <div class="mm-foot">
+        <button class="mm-link" data-mm="gloss">📖 Abkürzungen</button>
+        <button class="mm-link" data-mm="about">Über das Spiel</button>
+        <span class="mm-credit">Grafiken &amp; Videos: Higgsfield AI · alle Airlines fiktiv</span>
       </div>
-      <div class="menu-setup">
-        <label>Flughafenname
-          <input id="inp-name" maxlength="40" value="Planez International" />
-        </label>
-        <label>Verkehr
-          <select id="inp-density">
-            <option value="0.7">Ruhig</option>
-            <option value="1" selected>Normal</option>
-            <option value="1.4">Hektisch</option>
-          </select>
-        </label>
-      </div>
-      <div class="roles">
-        <button class="role-card" data-role="tower">
-          <img src="assets/ui/role_tower.jpg" alt="" />
-          <div class="rc-body">
-            <div class="rc-title">🎧 Tower-Lotse</div>
-            <div class="rc-desc">Radar &amp; Flugstreifen: Anflüge sequenzieren, Lande- und Startfreigaben, Rollverkehr lenken.</div>
-          </div>
-        </button>
-        <button class="role-card" data-role="ground">
-          <img src="assets/ui/role_ground.jpg" alt="" />
-          <div class="rc-body">
-            <div class="rc-title">🦺 Vorfeld &amp; Abfertigung</div>
-            <div class="rc-desc">Parkpositionen vergeben, Schlepper, Tankwagen, Catering &amp; Busse disponieren – pünktlich rausbringen.</div>
-          </div>
-        </button>
-        <button class="role-card" data-role="manager">
-          <img src="assets/ui/role_manager.jpg" alt="" />
-          <div class="rc-body">
-            <div class="rc-title">💼 Flughafen-Manager</div>
-            <div class="rc-desc">Airline-Verträge, Gebühren, Ausbau, Fuhrpark und Personal – wachse profitabel.</div>
-          </div>
-        </button>
-      </div>
-      <div class="menu-foot">
-        <button class="btn btn-ghost" data-role-start="observer">👁️ Nur zuschauen</button>
-        <button class="btn btn-ghost" id="btn-help-menu">❓ Anleitung</button>
-      </div>
-      <div class="credits">Grafiken, Porträts &amp; Titelvideo generiert mit Higgsfield AI · Alle Airlines sind fiktiv</div>
     </div>
+
+    <aside class="mm-side" id="mm-side" aria-live="polite"></aside>
+    <div class="mm-scene" id="mm-scene"><small>Szene</small><b></b><span class="dots"></span></div>
   </div>
 
-  <!-- Spiel -->
   <div id="game" class="hidden">
     <canvas id="map"></canvas>
 
