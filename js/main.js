@@ -43,6 +43,8 @@ import { initMainMenu, refreshMainMenu, showPauseMenu, loadPrefs, savePrefs } fr
 import { ManagementPage } from './ui/mgmtPage.js';
 import { ManagerDock } from './ui/managerDock.js';
 import { projects, cancelProject } from './sim/construction.js';
+import { scenarioById, applyScenario, scenarioListeners } from './sim/scenarios.js';
+import { ScenarioUi } from './ui/scenarioUi.js';
 
 const game = {
   state: null,
@@ -107,6 +109,7 @@ async function boot() {
   initGlossary();
   initMainMenu({
     gloss: () => showHelp(false, 'gloss'),
+    scenario: (id) => startScenario(id),
     prefsChanged: (p) => {
       setGlossaryEnabled(p.glossary);
       setSound(p.sound);
@@ -126,14 +129,38 @@ function showMenu() {
   refreshMainMenu(hasSave() ? loadGame() : null);
 }
 
+// Einstellungen aus den Voreinstellungen übernehmen
+function applyPrefs(st) {
+  const pr = loadPrefs();
+  Object.assign(st.settings, { sound: pr.sound, ambience: pr.ambience, tts: pr.tts, glossary: pr.glossary, hints: pr.hints });
+  return st;
+}
+
+// Herausforderung starten: frischer Flughafen mit Szenario-Vorgaben, dann Einsatzbesprechung
+function startScenario(id) {
+  const def = scenarioById(id);
+  if (!def) return;
+  unlock();
+  closeModal();
+  const st = applyPrefs(newGame({ role: def.role, name: 'Planez International', density: def.density, hour: def.hour }));
+  applyScenario(st, def);
+  startGame(st);
+  game.scn.brief(def);
+}
+scenarioListeners.push((s, def, res) => {
+  if (game.state === s && game.scn) {
+    if (game.cinema && game.cinema.on) game.cinema.stop && game.cinema.stop();
+    closeModal();
+    game.scn.result(def, res);
+  }
+});
+
 function wireMenu() {
   const start = (role) => {
     unlock();
     const name = $('#inp-name').value.trim() || 'Planez International';
     const density = Number($('#inp-density').value) || 1;
-    const st = newGame({ role, name, density });
-    const pr = loadPrefs();
-    Object.assign(st.settings, { sound: pr.sound, ambience: pr.ambience, tts: pr.tts, glossary: pr.glossary, hints: pr.hints });
+    const st = applyPrefs(newGame({ role, name, density }));
     startGame(st);
     try {
       localStorage.setItem('planez_help_seen', '1');
@@ -207,10 +234,12 @@ function startGame(state) {
     $('#log-wrap').classList.add('min');
     $('#log-toggle').textContent = '+';
   }
+  if (!game.scn) game.scn = new ScenarioUi(game, { start: (id) => startScenario(id), menu: () => quitToMenu() });
+  game.scn.hide();
   applyRole();
   syncVoice();
   if (!game.tutorial) game.tutorial = new Tutorial(game);
-  game.tutorial.maybeStart();
+  if (!state.scenario) game.tutorial.maybeStart();
   lastSpeed = state.speed || lastSpeed;
   game.running = true;
   game.lastTs = performance.now();
@@ -251,7 +280,7 @@ function applyRole() {
   toggleRadar(s.role === 'tower');
   if (game.syncVoice) game.syncVoice();
   if (game.tutorial && game.tutorial.on) game.tutorial.stop();
-  if (game.tutorial) game.tutorial.maybeStart();
+  if (game.tutorial && !s.scenario) game.tutorial.maybeStart();
   game.ui.labelFn = labelFn(s.role);
   game.ui.seqCol = (ac) => (s.seq && s.seq.includes(ac.id) ? seqColor(ac) : null);
   $('#hud-name').textContent = s.name;
@@ -337,6 +366,7 @@ function loop(ts) {
     if (!game.ticker) game.ticker = new NewsTicker(game);
     game.ticker.update(s);
     if (game.tutorial) game.tutorial.update();
+    if (game.scn) game.scn.update();
     watchAlerts(s);
     game.hintT = (game.hintT || 0) + 0.2;
     if (game.hintT >= 1.2) {
@@ -982,6 +1012,7 @@ function togglePanel() {
 // ---------------- Modals ----------------
 function showRoleModal() {
   const s = game.state;
+  if (s.scenario && !s.scenario.done) return toast('In einer Herausforderung bleibt die Station fest', 'info', 2500);
   const img = { tower: 'role_tower.jpg', ground: 'role_ground.jpg', manager: 'role_manager.jpg', observer: 'title.jpg' };
   openModal(
     `<h2>Station wechseln</h2><p>Deine Station übernimmst du selbst – alle anderen Bereiche laufen automatisch weiter.</p>
@@ -1038,13 +1069,18 @@ function showGameMenu() {
       game.tutorial.start();
     },
     gloss: () => showHelp(false, 'gloss'),
-    quit: () => {
-      saveGame(s);
-      if (game.mgmt) game.mgmt.close();
-      game.running = false;
-      showMenu();
-    },
+    quit: () => quitToMenu(),
   });
+}
+
+function quitToMenu() {
+  if (game.state) saveGame(game.state);
+  if (game.mgmt) game.mgmt.close();
+  if (game.scn) game.scn.hide();
+  if (game.cinema && game.cinema.on && game.cinema.stop) game.cinema.stop();
+  closeModal();
+  game.running = false;
+  showMenu();
 }
 
 function helpGuide(first) {
@@ -1081,6 +1117,8 @@ function helpGuide(first) {
     </ul>
     <h3>🎯 Ziele &amp; Rang</h3>
     <p>Jede Station hat drei Ziele (🏅 oben rechts). Erreichte Ziele bringen Prämie und XP; der Flughafen steigt vom Regionalflughafen bis zum Weltflughafen auf – höhere Ränge ziehen mehr Airlines an.</p>
+    <h3>⭐ Herausforderungen</h3>
+    <p>Im Hauptmenü unter <b>Herausforderungen</b>: kurze Einsätze mit festem Start – Morgenwelle, Nebelsuppe, Gewitterfront, Notfall-Schicht (Tower), Ferienstart, Streiktag, Winterchaos (Vorfeld), Sanierungsfall und Wachstumskurs (Manager). Oben zeigt eine Leiste Restzeit und Ziele; jedes Ziel bringt 1–3 Sterne, die Gesamtwertung ist der Durchschnitt (ein verfehltes Ziel = nicht geschafft). Ein Stern schaltet die nächste Herausforderung der Station frei. Herausforderungen überschreiben deinen Spielstand nicht.</p>
     <h3>Steuerung</h3>
     <p><b>🎬 Kino-Modus</b> (<kbd>K</kbd> oder 🎬): Die Kamera fährt selbst zu Landungen, Starts, Durchstarts, Abfertigungen, Baustellen und zur Landseite – mit Letterbox und Bildunterschrift. ← → nächste Szene, <kbd>K</kbd>/<kbd>Esc</kbd> beendet.</p>
     <p><b>Entscheidungen:</b> Ab und zu kommt eine Ereigniskarte (links) – Gepäckband kaputt, fehlender Passagier, medizinischer Notfall, Vogelschwarm, Airline will Rabatt, Gewerkschaft, Festival-Charter … Jede Option hat echte Folgen. Ohne Antwort gilt nach Ablauf die erste Option. Auf der Karte zeigen aufsteigende Texte, was gerade passiert (✓ pünktlich, +Erlös, Verspätung).</p>

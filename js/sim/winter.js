@@ -12,6 +12,7 @@ export const SEASONS = [
 ];
 export const SEASON_DAYS = 4;
 export function season(state) {
+  if (state.seasonFix) return SEASONS.find((x) => x.id === state.seasonFix) || SEASONS[0]; // Szenarien: feste Jahreszeit
   const d = Math.floor(state.time / 86400);
   return SEASONS[Math.floor(d / SEASON_DAYS) % 4];
 }

@@ -3,6 +3,8 @@ import { ROLES } from '../state.js';
 import { esc, fmtMoney, fmtClock, dayOf } from '../util.js';
 import { RANKS, goalsState, activeGoals, goalText, goalFraction } from '../sim/goals.js';
 import { glossify } from './glossary.js';
+import { scenarioListHtml, scenarioSide } from './scenarioUi.js';
+import { SCENARIOS, totalStars } from '../sim/scenarios.js';
 
 // Szenen des Hintergrund-Loops (je ~9,6 s, nahtlos ineinander übergehend)
 const SCENES = ['Anflug im Morgengrauen', 'Tower zur blauen Stunde', 'Vorfeld bei Nacht', 'Frachtverladung im Regen', 'Start in den Sonnenuntergang'];
@@ -85,6 +87,8 @@ const SIDE = {
   help: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">So funktioniert es</div><ul><li>Jede Station spielt sich anders: Lotse, Abfertigung oder Management.</li><li>💡 Tipps oben im Panel zeigen die nächste sinnvolle Aktion.</li><li>Unterstrichene Abkürzungen erklären sich beim Überfahren.</li><li>🏅 Ziele bringen Prämien und heben den Flughafen-Rang.</li></ul></div></div>`,
   gloss: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Glossar</div><div class="ms-subt">Über 100 Begriffe – ein paar Beispiele:</div><dl class="ms-dl"><dt>ILS</dt><dd>Instrumentenlandesystem</dd><dt>TOBT</dt><dd>Zielzeit „Abfertigung fertig“</dd><dt>CTOT</dt><dd>Startslot, Fenster −5/+10 min</dd><dt>RVR</dt><dd>Pistensichtweite</dd><dt>STCA</dt><dd>Konfliktwarnung im Radar</dd><dt>FL</dt><dd>Flugfläche in 100 ft</dd></dl></div></div>`,
   settings: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Einstellungen</div><div class="ms-subt">Gelten für neue Spiele und lassen sich im Pausenmenü jederzeit ändern.</div></div></div>`,
+  scnall: () => `<div class="ms-card"><div class="ms-img" style="background-image:url(assets/scn/storm.webp)"></div><div class="ms-body"><div class="ms-h">Herausforderungen</div><div class="ms-subt">${SCENARIOS.length} Szenarien · ⭐ ${totalStars()} / ${SCENARIOS.length * 3} Sterne</div>
+    <ul><li>Kurze Einsätze mit festem Start: Morgenwelle, Nebel, Gewitterfront, Notfälle, Streik, Winterchaos, Sanierungsfall …</li><li>Jedes Ziel bringt 1–3 Sterne – der Bestwert bleibt gespeichert</li><li>Mit einem Stern schaltest du die nächste Stufe deiner Station frei</li></ul></div></div>`,
   about: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Über Planez</div><ul><li>Airport-Simulation mit isometrischer Karte, Radar und Wirtschaft</li><li>Grafiken, Porträts und Hintergrundvideos: Higgsfield AI (GPT Image, Kling)</li><li>Alle Airlines, Rufzeichen und Flüge sind fiktiv</li><li>Reines HTML/JavaScript – läuft direkt im Browser</li></ul></div></div>`,
 };
 
@@ -117,7 +121,7 @@ function moveActive(list, d) {
 let mm = null;
 export function initMainMenu(api) {
   const root = document.getElementById('menu');
-  const lists = { main: root.querySelector('#mm-main'), new: root.querySelector('#mm-new'), settings: root.querySelector('#mm-settings') };
+  const lists = { main: root.querySelector('#mm-main'), new: root.querySelector('#mm-new'), scn: root.querySelector('#mm-scn'), settings: root.querySelector('#mm-settings') };
   const side = root.querySelector('#mm-side');
   const scene = root.querySelector('#mm-scene');
   const video = root.querySelector('#menu-video');
@@ -126,6 +130,7 @@ export function initMainMenu(api) {
   const showSide = (key) => {
     let html = '';
     if (key === 'save' && mm.save) html = statusPanel(mm.save, 'Letzter Spielstand');
+    else if (key.startsWith('scn:')) html = scenarioSide(key.slice(4));
     else if (ROLE_INFO[key]) html = sideRole(key);
     else if (SIDE[key]) html = SIDE[key]();
     else html = mm.save ? statusPanel(mm.save, 'Letzter Spielstand') : SIDE.new();
@@ -143,11 +148,15 @@ export function initMainMenu(api) {
   const openList = (key) => {
     for (const [k, el] of Object.entries(lists)) el.classList.toggle('hidden', k !== key);
     mm.cur = key;
+    root.classList.toggle('scn-open', key === 'scn');
     if (key === 'settings') renderPrefs();
+    if (key === 'scn') lists.scn.innerHTML = scenarioListHtml();
     renumber(lists[key]);
     const first = lists[key].querySelector('.mm-item, .mm-toggle');
     setActive(lists[key], first);
-    showSide(key === 'new' ? 'new' : key === 'settings' ? 'settings' : mm.save ? 'save' : 'new');
+    const f = key === 'scn' && lists.scn.querySelector('.mm-item:not(.locked)');
+    if (f) setActive(lists[key], f);
+    showSide(key === 'new' ? 'new' : key === 'settings' ? 'settings' : f ? f.dataset.side : mm.save ? 'save' : 'new');
   };
   mm.openList = openList;
 
@@ -161,10 +170,20 @@ export function initMainMenu(api) {
     if (t) {
       const a = t.dataset.mm;
       if (a === 'new') openList('new');
+      else if (a === 'scn') openList('scn');
       else if (a === 'settings') openList('settings');
       else if (a === 'back') openList('main');
       else if (a === 'gloss') api.gloss();
       else if (a === 'about') showSide('about');
+      return;
+    }
+    const sc = e.target.closest('[data-scn]');
+    if (sc) {
+      if (sc.classList.contains('locked')) {
+        sc.classList.remove('shake');
+        void sc.offsetWidth;
+        sc.classList.add('shake');
+      } else api.scenario && api.scenario(sc.dataset.scn);
       return;
     }
     const pr = e.target.closest('[data-pref]');

@@ -103,7 +103,11 @@ function randomEvent(state) {
     ['birdstrike', 1],
     ['fod', 0.7],
   ];
-  const kind = pickWeighted(state, opts, (o) => o[1])[0];
+  triggerEvent(state, pickWeighted(state, opts, (o) => o[1])[0]);
+}
+
+// Ereignis gezielt auslösen (auch für Szenarien); gibt das betroffene Flugzeug zurück, falls es eins gibt
+export function triggerEvent(state, kind, opt = {}) {
   if (kind === 'vip') {
     const n = randInt(state, 100, 999);
     spawnSpecial(state, { airline: 'VIP', type: 'C68A', arrNo: `VIP${n}`, depNo: `VIP${n + 1}`, city: pick(state, ['NCE', 'GVA', 'OLB', 'LHR']), pax: randInt(state, 2, 8), special: 'vip', feeMult: 2.5 });
@@ -117,15 +121,17 @@ function randomEvent(state) {
     radio(state, ac.cs, `MAYDAY MAYDAY MAYDAY, ${AIRLINES[al].tel} ${n}, ${pick(state, ['engine failure', 'medical emergency on board', 'smoke in the cabin'])}, request immediate landing.`);
     notify(state, `🚨 Notfall: ${ac.cs} (Squawk 7700) – Vorrang geben!`, 'bad');
     state.fireAlert = { ac: ac.id, t: state.time };
+    return ac;
   } else if (kind === 'breakdown') {
     const vs = state.vehicles.filter((v) => v.st === 'idle' && !(v.brokenUntil > state.time));
-    if (!vs.length) return;
-    const v = pick(state, vs);
-    v.brokenUntil = state.time + randRange(state, 2, 5) * 3600;
+    const pool = opt.type ? vs.filter((x) => x.type === opt.type) : vs;
+    if (!pool.length) return;
+    const v = pick(state, pool);
+    v.brokenUntil = state.time + (opt.hours || randRange(state, 2, 5)) * 3600;
     notify(state, `🔧 ${v.name} (${VEH_TYPES[v.type].name}) defekt – in Reparatur`, 'warn');
     log(state, 'gnd', `${v.name} ausgefallen.`);
   } else if (kind === 'strike') {
-    state.strikeUntil = state.time + randRange(state, 3, 6) * 3600;
+    state.strikeUntil = state.time + (opt.hours || randRange(state, 3, 6)) * 3600;
     notify(state, '✊ Warnstreik beim Bodenpersonal – Abfertigung verlangsamt', 'bad');
     log(state, 'gnd', 'Warnstreik: Bodenpersonal nur eingeschränkt verfügbar.');
   } else if (kind === 'fod') {
@@ -133,8 +139,10 @@ function randomEvent(state) {
     fodEvent(state);
   } else if (kind === 'birdstrike') {
     const deps = state.acs.filter((a) => a.phase === PH.DEPART && a.alt < 6000);
-    if (!deps.length) return;
-    birdstrikeOn(state, pick(state, deps));
+    if (!deps.length) return null;
+    const ac = pick(state, deps);
+    birdstrikeOn(state, ac);
+    return ac;
   }
 }
 

@@ -15,6 +15,7 @@ import { updateAchievements } from './achievements.js';
 import { updateAtis } from './atis.js';
 import { updateConstruction } from './construction.js';
 import { updateAcdm } from './acdm.js';
+import { updateScenario } from './scenarios.js';
 import { updateFuel } from './fuel.js';
 import { dailyLoans } from './finance.js';
 import { spend } from './economy.js';
@@ -57,6 +58,7 @@ export function step(state, dt) {
   updateGoals(state, dt);
   maybeOffer(state, dt);
   updateFire(state, dt);
+  if (state.scenario) updateScenario(state);
 }
 
 function spawnDue(state) {

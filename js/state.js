@@ -28,7 +28,7 @@ export function newGame(opts = {}) {
     seed: opts.seed ?? (Date.now() & 0x7fffffff),
     name: (opts.name || AIRPORT.name).slice(0, 40),
     role,
-    time: 6 * 3600,
+    time: (opts.hour ?? 6) * 3600,
     speed: DEFAULT_SPEED[role] || 1,
     rwy: '27',
     rwyPending: null,
@@ -139,6 +139,7 @@ export function setRole(state, role) {
 }
 
 export function saveGame(state) {
+  if (state.scenario) return false; // Herausforderungen werden nicht als Spielstand gespeichert
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
     return true;
