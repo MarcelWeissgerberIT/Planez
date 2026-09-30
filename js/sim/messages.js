@@ -1,9 +1,9 @@
 // Funk-/Ereignisprotokoll und Benachrichtigungen (im Spielstand, flüchtige Toasts separat)
 export const listeners = { radio: [], toast: [], fx: [], ach: [], rank: [] };
 
-// kind: 'atc' (Lotse), 'pilot', 'gnd' (Vorfeld), 'mgr' (Management), 'sys'
-export function log(state, kind, text, from = '') {
-  const m = { t: state.time, kind, text, from };
+// kind: 'atc' (Lotse), 'pilot', 'gnd' (Vorfeld), 'crew' (Betriebsfunk Vorfeld), 'mgr' (Management), 'sys'
+export function log(state, kind, text, from = '', extra = null) {
+  const m = extra ? { t: state.time, kind, text, from, ...extra } : { t: state.time, kind, text, from };
   state.log.push(m);
   if (state.log.length > 160) state.log.splice(0, state.log.length - 160);
   for (const fn of listeners.radio) fn(m);

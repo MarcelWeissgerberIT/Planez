@@ -1,5 +1,6 @@
 // Wetter, Wind und Zufallsereignisse
 import { rand, randRange, randInt, pick, pickWeighted, hourOf, clamp, degNorm, fmtClock } from '../util.js';
+import { crewBroken } from './crew.js';
 import { log, notify, radio } from './messages.js';
 import { spawnSpecial, PH, divert, goAround } from './aircraft.js';
 import * as AS from './airspace.js';
@@ -201,6 +202,7 @@ export function triggerEvent(state, kind, opt = {}) {
     v.brokenUntil = state.time + (opt.hours || randRange(state, 2, 5)) * 3600;
     notify(state, `🔧 ${v.name} (${VEH_TYPES[v.type].name}) defekt – in Reparatur`, 'warn');
     log(state, 'gnd', `${v.name} ausgefallen.`);
+    crewBroken(state, v, (v.brokenUntil - state.time) / 3600);
   } else if (kind === 'strike') {
     state.strikeUntil = state.time + (opt.hours || randRange(state, 3, 6)) * 3600;
     notify(state, '✊ Warnstreik beim Bodenpersonal – Abfertigung verlangsamt', 'bad');

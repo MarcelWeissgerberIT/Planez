@@ -1305,3 +1305,8 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .rv-lab .a { color: #7dd3fc; } .rv-lab .b { color: #fbbf24; }
 .rv-news { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; }
 .rv-news .card { margin: 0; }
+/* Betriebsfunk Vorfeld */
+.lg.crew { color: #fde68a; }
+.lg.crew .fr { color: #fb923c; font-family: var(--mono); font-weight: 700; margin-right: 5px; }
+.lg.crew .fr::before { content: '📻 '; }
+.lg.crew.speaking { background: linear-gradient(90deg, rgba(251,146,60,.2), transparent 80%); }

@@ -109,9 +109,17 @@ export function micClick(vol = 0.9) {
 
 // ---------------- Stimmen ----------------
 let voices = [];
+let deVoices = [];
 function loadVoices() {
   if (!window.speechSynthesis) return;
-  voices = speechSynthesis.getVoices().filter((v) => v.lang && v.lang.toLowerCase().startsWith('en'));
+  const all = speechSynthesis.getVoices();
+  voices = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith('en'));
+  deVoices = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith('de'));
+}
+// Bodencrew (Betriebsfunk, Deutsch): feste Stimme je Fahrzeug
+function crewVoice(from) {
+  if (deVoices.length) return deVoices[hash(from) % deVoices.length];
+  return null;
 }
 if (typeof window !== 'undefined' && window.speechSynthesis) {
   loadVoices();
@@ -166,6 +174,16 @@ export const voice = {
   // m: Logeintrag { kind: 'atc'|'pilot', from, text }; speed: Spieltempo
   say(m, speed = 1) {
     if (!this.on || !window.speechSynthesis) return;
+    // Betriebsfunk im Vorfeld: Wichtiges immer, Routine nur bei ruhigem Kanal und normalem Tempo
+    if (m.kind === 'crew') {
+      const prio = m.prio || 1;
+      if (prio < 2 && (speed > 1 || this.current || this.queue.length)) return;
+      if (prio < 3 && speed > 5) return;
+      if (prio >= 3) this.queue.unshift(m);
+      else this.queue.push(m);
+      while (this.queue.length > 3) this.queue.pop();
+      return this.pump();
+    }
     if (m.kind !== 'atc' && m.kind !== 'pilot') return;
     if (m.kind === 'atc' && performance.now() < this.muteAtcUntil) return;
     // ATIS läuft eigentlich auf eigener Frequenz: nur vorlesen, wenn sonst niemand funkt
@@ -186,12 +204,14 @@ export const voice = {
     if (this.current || !this.queue.length || !window.speechSynthesis) return;
     const m = this.queue.shift();
     const isAtc = m.kind === 'atc';
-    const u = new SpeechSynthesisUtterance(spoken(m.text));
-    const v = isAtc ? atcVoice() : pilotVoice(m.from || 'X');
+    const isCrew = m.kind === 'crew';
+    // Crew: Rufname vorweg wie im echten Betriebsfunk („Tank 2: …“), Text bleibt deutsch
+    const u = new SpeechSynthesisUtterance(isCrew ? `${m.from}. ${m.text}` : spoken(m.text));
+    const v = isCrew ? crewVoice(m.from || 'C') : isAtc ? atcVoice() : pilotVoice(m.from || 'X');
     if (v) {
       u.voice = v;
       u.lang = v.lang;
-    } else u.lang = 'en-US';
+    } else u.lang = isCrew ? 'de-DE' : 'en-US';
     const h = hash(m.from || 'TWR');
     u.rate = (isAtc ? 1.08 : 1.02 + (h % 7) * 0.03) * this.rate;
     u.pitch = isAtc ? 0.95 : 0.8 + (h % 9) * 0.06;

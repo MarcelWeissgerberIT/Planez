@@ -1,5 +1,6 @@
 // Bodenabfertigung: Parkpositionen, Turnaround, Fahrzeuge
 import { AC_TYPES, TASKS, TASK_ORDER, VEH_TYPES, SIZE_RANK, AIRLINES } from '../config.js';
+import { crewDispatch, crewDone, crewEmpty, crewOnBlock, crewPushStart, crewPushDone } from './crew.js';
 import { scoreDeice } from './score.js';
 import * as LY from '../layout.js';
 import { clamp, dist, angNorm, hourOf, rand } from '../util.js';
@@ -106,12 +107,14 @@ export function onBlock(state, ac) {
     if (rot.landT && !ac.waitedStand && state.life) state.life.noStandWait = (state.life.noStandWait || 0) + 1;
   }
   log(state, 'gnd', `${rot ? rot.arrNo : ac.cs} an Position ${st ? st.id : '?'} angekommen (Abflug als ${ac.cs}).`);
+  crewOnBlock(state, ac);
 }
 
 export function onPushbackStart(state, ac) {
   const rot = getRot(state, ac);
   const tug = ac.ta && ac.ta.tasks.push.veh ? state.vehicles.find((v) => v.id === ac.ta.tasks.push.veh) : null;
   if (tug) tug.st = 'attached';
+  crewPushStart(state, ac, tug);
   if (rot) {
     rot.offBlock = state.time;
     rot.status = 'offblock';
@@ -126,6 +129,7 @@ export function onPushbackDone(state, ac) {
   if (task) {
     task.st = 'done';
     const tug = state.vehicles.find((v) => v.id === task.veh);
+    crewPushDone(state, ac, tug);
     if (tug) releaseVehicle(state, tug, true);
   }
   ac.stand = null;
@@ -218,6 +222,7 @@ export function updateGround(state, dt) {
             task.veh = null;
             releaseVehicle(state, v, true);
             log(state, 'gnd', `${ac.cs}: Tankwagen leer nach ${Math.round(task.delivered)} von ${Math.round(task.uplift)} t – nächster Tankwagen nötig.`);
+            crewEmpty(state, v, ac, task);
             continue;
           }
           if (task.prog >= 0.999) task.prog = 1;
@@ -230,10 +235,9 @@ export function updateGround(state, dt) {
         if (task.prog >= 1) {
           task.prog = 1;
           task.st = 'done';
-          if (task.veh) {
-            const v = state.vehicles.find((x) => x.id === task.veh);
-            if (v) releaseVehicle(state, v, false);
-          }
+          const tv = task.veh ? state.vehicles.find((x) => x.id === task.veh) : null;
+          crewDone(state, tv, ac, k, task);
+          if (tv) releaseVehicle(state, tv, false);
           if (k === 'board') log(state, 'gnd', `${ac.cs}: Boarding abgeschlossen.`);
           if (k === 'deice') {
             state.life = state.life || {};
@@ -333,6 +337,7 @@ export function dispatch(state, ac, k, vehId = null) {
   v.target = sp;
   task.st = 'assigned';
   task.veh = v.id;
+  crewDispatch(state, v, ac, k);
   return { ok: true, v };
 }
 

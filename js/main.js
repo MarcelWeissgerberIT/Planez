@@ -239,7 +239,7 @@ function wireMenu() {
 // Echter Funk: nur für Tower und Beobachter, Einstellung aus den Voreinstellungen
 function syncVoice() {
   const s = game.state;
-  const on = !!(s && s.settings.tts && (s.role === 'tower' || s.role === 'observer'));
+  const on = !!(s && s.settings.tts && (s.role === 'tower' || s.role === 'observer' || s.role === 'ground'));
   voice.set({ on, vol: loadPrefs().voiceVol ?? 0.9 });
   const b = $('#voice-t');
   if (b) {
@@ -534,7 +534,7 @@ function watchAlerts(s) {
 // ---------------- Log & Toasts ----------------
 const LOG_FILTER = {
   tower: null,
-  ground: ['gnd', 'sys', 'mgr'],
+  ground: ['gnd', 'crew', 'sys', 'mgr'],
   manager: ['mgr', 'sys', 'gnd'],
   observer: null,
 };
@@ -553,6 +553,10 @@ function addLog(m, silent = false) {
   while (box.children.length > 90) box.firstChild.remove();
   if (atBottom) box.scrollTop = box.scrollHeight;
   m._el = d;
+  if (!silent && m.kind === 'crew' && s.role === 'ground') {
+    if (voice.on) voice.say(m, s.speed);
+    else if ((m.prio || 1) >= 2) sfx.radio();
+  }
   if (!silent && (m.kind === 'atc' || m.kind === 'pilot')) {
     if (s.role === 'tower' || s.role === 'observer') {
       if (voice.on) voice.say(m, s.speed);
@@ -833,7 +837,7 @@ function wireGame() {
     s.settings.tts = !s.settings.tts;
     savePrefs({ tts: s.settings.tts });
     syncVoice();
-    toast(s.settings.tts ? '🔊 Echter Funk an – Lotse und Piloten sprechen' : '🔇 Funk stumm', 'info', 2200);
+    toast(s.settings.tts ? (s.role === 'ground' ? '🔊 Betriebsfunk an – die Bodencrews melden sich' : '🔊 Echter Funk an – Lotse und Piloten sprechen') : '🔇 Funk stumm', 'info', 2200);
   });
   let spokenEl = null;
   voice.listeners.push((cur) => {
@@ -1291,7 +1295,8 @@ function helpGuide(first) {
       <li>Im Turnaround werden <b>gelbe Aufgaben</b> fällig: anklicken = nächstes freies Fahrzeug losschicken. Reihenfolge: Aussteigen → Reinigung/Catering → Einsteigen, Entladen → Beladen, Betankung, zum Schluss der Pushback-Schlepper.</li>
       <li><b>TOBT</b> zeigt, wann ein Flug voraussichtlich fertig ist. Liegt sie nach der STD, wird er verspätet – und ein Slot (CTOT) kann verfallen.</li>
       <li><b>Tankwagen</b> fassen 36 t. Großraumflugzeuge brauchen 2–3 Ladungen; leere Tankwagen fahren selbst zum Tanklager. Ist das Tanklager leer, stockt die Betankung.</li>
-    </ul>
+          <li><b>📻 Betriebsfunk:</b> Die Bodencrews melden sich auf Deutsch – „Tank 2: verstanden, rolle zu Position 5“, „Laderaum zu“, „Push läuft“, „Einweiser 6: Keile liegen“, „leer – brauche Ablösung!“. Mit <i>Echter Funk</i> (🔊 oder Einstellungen) sprechen sie mit Funkrauschen; Wichtiges (Pushback, Boarding fertig, Pannen, leerer Tankwagen) immer, Routine nur bei ruhigem Kanal und 1×.</li>
+</ul>
     <h3>💼 Manager</h3>
     <ul>
       <li><b>🚶 Sicherheitskontrolle:</b> Zu Stoßzeiten stauen sich die Reisenden (Wartezeit im Leitstand, Schlange vor dem Terminal). Ab ~12 Minuten dauert das Boarding länger, ab 20 Minuten leidet das Ansehen. Mehr Sicherheitsspuren schaffen Abhilfe – wachsender Verkehr braucht mehr Spuren.</li>

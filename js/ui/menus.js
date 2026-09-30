@@ -37,7 +37,7 @@ export const PREF_ROWS = [
   ['sound', 'Sound-Effekte', 'Funk, Warnungen, Kasse'],
   ['perf', 'Leistungsmodus', 'weniger Details und Belebung, geringere Auflösung – flüssiger auf langsamen Rechnern'],
   ['ambience', 'Klangkulisse', 'Triebwerke, Wind, Regen, Donner, Vögel und Grillen'],
-  ['tts', 'Echter Funk (Sprachausgabe)', 'Lotse und Piloten sprechen – mit Funkrauschen, eigener Stimme je Flugzeug'],
+  ['tts', 'Echter Funk (Sprachausgabe)', 'Tower: Lotse und Piloten sprechen – Vorfeld: Betriebsfunk der Bodencrews auf Deutsch'],
   ['glossary', 'Abkürzungen erklären', 'Tooltips für ILS, TOBT, CTOT, RVR …'],
   ['hints', 'Tipps anzeigen', 'Hinweise zur nächsten sinnvollen Aktion'],
 ];

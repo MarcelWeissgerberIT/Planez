@@ -76,6 +76,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 - Vorfeld: `D` alles bedienen · `G` Positionsplan
 - Tower: `V` gedrückt halten = Sprechtaste (Freigabe auf Englisch einsprechen) · `A` Anflug frei · `D` Direkt FAF · `H` Warteschleife · `L` Landefreigabe · `G` Durchstarten · `R` Rollfreigabe · `P` Pushback · `E` Warten bis TSAT · `U` Line up · `T` Startfreigabe · `X` Halt · `C` Weiterrollen
 - 👂 Readback-Fehler im Tower: Piloten lesen ab und zu falsch zurück („cleared for take-off“ statt „line up and wait“, falsche Landebahn) – mit echter Sprachausgabe zu hören. Korrektur per `Q`, rotem Knopf auf dem Streifen/der Info-Karte oder Sprechtaste („negative …“); sofort gehört gibt mehr Punkte, nach ein paar Sekunden erscheint ein Hinweis. Unkorrigiert rollt der Pilot ohne Freigabe los (bei belegter Piste ein Vorfall) bzw. fliegt die falsche Bahn an und startet durch. Neuer Erfolg „Gutes Gehör“.
+- 📻 Betriebsfunk im Vorfeld: Bodencrews melden sich auf Deutsch (Auftrag übernommen, Betankung mit Menge, Laderaum zu, Kabine sauber, Boarding fertig, Pushback, Einweiser „Keile liegen“, leerer Tankwagen, Panne) – mit „Echter Funk“ als deutsche Sprachausgabe mit Funkrauschen und fester Stimme je Fahrzeug; Wichtiges immer, Routine nur bei freiem Kanal und 1×.
 
 ## Technik
 Reines HTML/CSS/JavaScript (ES-Module, Canvas 2D) ohne Build-Schritt – läuft direkt auf GitHub Pages.
