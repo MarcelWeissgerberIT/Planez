@@ -236,7 +236,96 @@ export const SCENARIOS = [
     fail: (m, s) => (s.cash < -5000000 ? 'Die Investoren haben die Reißleine gezogen.' : null),
   },
 ];
-export const scenarioById = (id) => SCENARIOS.find((x) => x.id === id);
+export const scenarioById = (id) => (id && id.startsWith('daily-') ? dailyDef(id.slice(6)) : SCENARIOS.find((x) => x.id === id));
+
+// ---------- Tagesherausforderung ----------
+// Jeden Kalendertag eine neue Mischung: Grund-Szenario (Tower/Vorfeld) + zwei Zusatzregeln, fester Zufall für alle
+const DAILY_BASES = ['morning', 'fog', 'storm', 'mayday', 'rushGround', 'strike', 'winter'];
+const retry = (s, kind) => {
+  if (!triggerEvent(s, kind)) s.scenario.retry = { at: s.time + 300, kind };
+};
+export const MUTATORS = {
+  dense: { icon: '📈', name: 'Hochbetrieb', text: '25 % mehr Verkehr – die Zielwerte liegen höher', roles: ['tower', 'ground'] },
+  nordo: { icon: '📻', name: 'Funkausfall', text: 'Ein anfliegendes Flugzeug verliert den Funk – Lichtsignale geben', roles: ['tower'], at: 35 * 60, run: (s) => retry(s, 'nordo') },
+  a380: { icon: '🐋', name: 'Superjumbo', text: 'Ein A380 kommt zu Besuch', roles: ['tower', 'ground'], at: 25 * 60, run: (s) => retry(s, 'a380') },
+  vip: { icon: '🕴️', name: 'Staatsbesuch', text: 'Ein VIP-Flug will bevorzugt behandelt werden', roles: ['tower', 'ground'], at: 15 * 60, run: (s) => triggerEvent(s, 'vip') },
+  birds: { icon: '🐦', name: 'Vogelzug', text: 'Ein Vogelschlag mitten in der Schicht', roles: ['tower'], at: 70 * 60, run: (s) => retry(s, 'birdstrike') },
+  emergency: { icon: '🚨', name: 'Notfall', text: 'Ein MAYDAY mitten in der Schicht', roles: ['tower'], at: 50 * 60, run: (s) => triggerEvent(s, 'emergency') },
+  gusts: {
+    icon: '🧭', name: 'Winddrehung', text: 'Nach einer Stunde dreht der Wind – Betriebsrichtung wechseln', roles: ['tower'], at: 60 * 60,
+    run: (s) => {
+      windShift(s, (s.wind.dir + 180) % 360, 12);
+      notify(s, '🧭 Der Wind dreht – Betriebsrichtung wechseln!', 'warn');
+      if (s.auto.atc) requestRunwayChange(s, s.rwy === '27' ? '09' : '27');
+    },
+  },
+  tanker: { icon: '⛽', name: 'Tankwagen-Panne', text: 'Ein Tankwagen fällt für zwei Stunden aus', roles: ['ground'], at: 10 * 60, run: (s) => triggerEvent(s, 'breakdown', { type: 'fuel', hours: 2 }) },
+  tugs: { icon: '🚜', name: 'Schlepper knapp', text: 'Ein Pushback-Schlepper ist den ganzen Tag in der Werkstatt', roles: ['ground'], at: 60, run: (s) => triggerEvent(s, 'breakdown', { type: 'tug', hours: 4 }) },
+};
+const COUNT_KEYS = ['mov', 'landings', 'deps', 'depsDone', 'deiced'];
+export function dailyKey(d = new Date()) {
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+}
+export const dailyLabel = (key) => `${key.slice(6, 8)}.${key.slice(4, 6)}.${key.slice(0, 4)}`;
+export function dailyDef(key = dailyKey()) {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  const rnd = () => {
+    h = (h + 0x6d2b79f5) | 0;
+    let t = Math.imul(h ^ (h >>> 15), 1 | h);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const baseId = DAILY_BASES[Math.floor(rnd() * DAILY_BASES.length)];
+  const base = SCENARIOS.find((x) => x.id === baseId);
+  const cands = Object.keys(MUTATORS).filter((k) => MUTATORS[k].roles.includes(base.role));
+  const muts = [];
+  while (muts.length < 2 && cands.length) muts.push(cands.splice(Math.floor(rnd() * cands.length), 1)[0]);
+  const dense = muts.includes('dense');
+  const goals = base.goals.map((g) => ({ ...g, t: dense && !g.low && COUNT_KEYS.includes(g.key) ? g.t.map((v) => Math.round(v * 1.2)) : g.t }));
+  const script = [...(base.script || []), ...muts.filter((m) => MUTATORS[m].at).map((m) => ({ at: MUTATORS[m].at, run: MUTATORS[m].run }))].sort((a, b) => a.at - b.at);
+  return {
+    ...base,
+    id: 'daily-' + key,
+    daily: key,
+    sub: base.title,
+    icon: '📅',
+    title: `Heute: ${base.title}`,
+    density: base.density * (dense ? 1.25 : 1),
+    seed: (h >>> 0) % 2147483647,
+    script,
+    goals,
+    muts,
+    brief: `${base.brief} Heute zusätzlich: ${muts.map((m) => `${MUTATORS[m].icon} ${MUTATORS[m].name}`).join(' und ')}.`,
+    tips: [...base.tips.slice(0, 2), ...muts.map((m) => MUTATORS[m].text)],
+  };
+}
+// Serie: an aufeinanderfolgenden Tagen mindestens einen Stern
+const DAILY_KEY = 'planez_daily';
+export function dailyInfo() {
+  try {
+    return JSON.parse(localStorage.getItem(DAILY_KEY) || 'null') || { streak: 0, last: null, days: {} };
+  } catch (e) {
+    return { streak: 0, last: null, days: {} };
+  }
+}
+function recordDaily(key, stars) {
+  const D = dailyInfo();
+  D.days = D.days || {};
+  D.days[key] = Math.max(D.days[key] || 0, stars);
+  if (stars >= 1 && D.last !== key) {
+    const y = new Date(Number(key.slice(0, 4)), Number(key.slice(4, 6)) - 1, Number(key.slice(6, 8)) - 1);
+    D.streak = D.last === dailyKey(y) ? (D.streak || 0) + 1 : 1;
+    D.last = key;
+    D.best = Math.max(D.best || 0, D.streak);
+  }
+  const keys = Object.keys(D.days).sort();
+  while (keys.length > 60) delete D.days[keys.shift()];
+  try {
+    localStorage.setItem(DAILY_KEY, JSON.stringify(D));
+  } catch (e) {}
+  return D;
+}
 
 // Szenario auf einen frischen Spielstand anwenden
 export function applyScenario(state, def) {
@@ -283,6 +372,7 @@ export function finishScenario(state, failed = null) {
   state.speed = 0;
   const best = recordBest(def.id, stars, rows, pts);
   sc.result.best = best;
+  if (def.daily) sc.result.daily = recordDaily(def.daily, stars);
   radio(state, 'TWR', stars ? 'All stations, shift complete, good work.' : 'All stations, shift ended.', 'atc');
   for (const fn of scenarioListeners) fn(state, def, sc.result);
 }
@@ -321,7 +411,7 @@ function recordBest(id, stars, rows, pts = 0) {
   }
   return { ...all[id], ...(isNew || ptsNew ? {} : old), isNew, ptsNew, prev: old || null };
 }
-export const totalStars = () => Object.values(loadBest()).reduce((a, b) => a + (b.stars || 0), 0);
+export const totalStars = () => Object.entries(loadBest()).reduce((a, [k, b]) => a + (k.startsWith('daily-') ? 0 : b.stars || 0), 0);
 // Freischaltung: die erste Herausforderung je Station ist offen, weitere nach mindestens einem Stern
 export function unlocked(def) {
   const same = SCENARIOS.filter((x) => x.role === def.role);

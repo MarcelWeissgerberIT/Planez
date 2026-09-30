@@ -1,5 +1,5 @@
 // Herausforderungen: Menüliste, Seitenkarte, Einsatzbesprechung, Ziel-Leiste im Spiel und Ergebnisbildschirm
-import { SCENARIOS, scenarioById, scenarioLive, loadBest, unlocked, goalValue, goalNeed, totalStars } from '../sim/scenarios.js';
+import { SCENARIOS, scenarioById, scenarioLive, loadBest, unlocked, goalValue, goalNeed, totalStars, dailyKey, dailyDef, dailyInfo, dailyLabel, MUTATORS } from '../sim/scenarios.js';
 import { ROLES } from '../state.js';
 import { esc } from '../util.js';
 import { TIME_SCALE } from '../config.js';
@@ -18,6 +18,12 @@ const realMin = (def) => Math.round(def.dur / TIME_SCALE / (def.role === 'manage
 export function scenarioListHtml() {
   const best = loadBest();
   let html = `<button class="mm-back" data-mm="back">← Zurück</button><div class="scn-total">⭐ ${totalStars()} / ${SCENARIOS.length * 3} Sterne</div>`;
+  // Tagesherausforderung ganz oben
+  const dd = dailyDef();
+  const db = best[dd.id];
+  const di = dailyInfo();
+  const streak = di.last === dailyKey() || di.last === dailyKey(new Date(Date.now() - 864e5)) ? di.streak || 0 : 0;
+  html += `<div class="mm-sub">📅 Heute · ${dailyLabel(dd.daily)}</div><button class="mm-item scn-item daily" data-scn="${dd.id}" data-side="scn:${dd.id}"><span class="n"></span><span class="l"><b>📅 ${esc(dd.sub)} ${dd.muts.map((m) => MUTATORS[m].icon).join('')}</b><small>${ROLES[dd.role].icon} ${esc(ROLES[dd.role].short)} · jeden Tag neu${streak ? ` · 🔥 Serie ${streak} Tag${streak > 1 ? 'e' : ''}` : ''}</small></span><span class="scn-st ${db && db.stars ? 'got' : ''}">${starStr(db ? db.stars : 0)}</span></button>`;
   for (const role of ['tower', 'ground', 'manager']) {
     html += `<div class="mm-sub">${ROLES[role].icon} ${esc(ROLES[role].name)}</div>`;
     for (const def of SCENARIOS.filter((d) => d.role === role)) {
@@ -38,8 +44,10 @@ export function scenarioSide(id) {
     <div class="ms-body"><div class="ms-h">${def.icon} ${esc(def.title)}</div>
     <div class="ms-subt">${ROLES[def.role].icon} ${esc(ROLES[def.role].short)} · ${DIFF[def.diff]} · ${durText(def)} (ca. ${realMin(def)} min)</div>
     <p class="scn-brief">${esc(def.brief)}</p>
+    ${def.daily ? `<div class="ms-sec">Heute zusätzlich</div><div class="scn-muts">${def.muts.map((m) => `<span title="${esc(MUTATORS[m].text)}">${MUTATORS[m].icon} ${esc(MUTATORS[m].name)}</span>`).join('')}</div>` : ''}
     <div class="ms-sec">Ziele</div>
     <table class="scn-goals">${def.goals.map((g) => `<tr><td>${esc(g.text)}</td>${[0, 1, 2].map((i) => `<td><span class="st">${'★'.repeat(i + 1)}</span> ${goalNeed(g, i)}</td>`).join('')}</tr>`).join('')}</table>
+    ${def.daily ? `<div class="ms-sec">Serie</div><div class="scn-streak">${(() => { const di = dailyInfo(); const days = []; for (let i = 6; i >= 0; i--) { const k = dailyKey(new Date(Date.now() - i * 864e5)); const st = (di.days || {})[k] || 0; days.push(`<i class="${st ? 'on' : ''}" title="${dailyLabel(k)}: ${st}★">${st ? '★' : '·'}</i>`); } return days.join('') + ` <small>🔥 ${di.last === dailyKey() || di.last === dailyKey(new Date(Date.now() - 864e5)) ? di.streak || 0 : 0} Tage in Folge · Rekord ${di.best || 0}</small>`; })()}</div>` : ''}
     <div class="ms-auto">${b ? `🏆 Bestwert: <b class="scn-gold">${starStr(b.stars)}</b>${b.pts ? ` · ⭐ ${b.pts.toLocaleString('de-DE')} Punkte` : ''}` : open ? '▶ Klicken zum Starten' : '🔒 Gesperrt – hol erst einen Stern in der vorigen Herausforderung dieser Station'}</div></div></div>`;
 }
 
@@ -123,7 +131,7 @@ export class ScenarioUi {
   result(def, res) {
     this.def = def;
     const nextDef = SCENARIOS.filter((d) => d.role === def.role)[SCENARIOS.filter((d) => d.role === def.role).indexOf(def) + 1] || SCENARIOS[(SCENARIOS.indexOf(def) + 1) % SCENARIOS.length];
-    const canNext = nextDef && unlocked(nextDef);
+    const canNext = !def.daily && nextDef && unlocked(nextDef);
     const title = res.failed ? 'Abgebrochen' : res.stars === 3 ? 'Perfekt!' : res.stars === 2 ? 'Sehr gut!' : res.stars === 1 ? 'Geschafft' : 'Nicht geschafft';
     this.ov.innerHTML = `<div class="scn-box res ${res.stars ? 'win' : 'lose'}"><div class="scn-hero sm" style="background-image:url(${def.img})"><div class="scn-k">${def.icon} ${esc(def.title)}</div><h2>${title}</h2>
       <div class="scn-big">${[0, 1, 2].map((i) => `<span class="${i < res.stars ? 'on' : ''}" style="animation-delay:${0.25 + i * 0.35}s">★</span>`).join('')}</div></div>
@@ -133,6 +141,7 @@ export class ScenarioUi {
         return `<tr class="s${r.stars}"><td>${esc(g.text)}</td><td class="v">${goalValue(g, r.v == null ? null : Math.round(r.v))}</td><td class="st">${starStr(r.stars)}</td><td class="nx">${r.stars < 3 ? `nächster Stern ${goalNeed(g, r.stars)}` : '✓ Bestwert'}</td></tr>`;
       }).join('')}</table>
       ${res.pts && def.role !== 'manager' ? `<p class="scn-pts">⭐ ${res.pts.toLocaleString('de-DE')} Schichtpunkte${res.best && res.best.ptsNew ? ' · <b>neuer Punkte-Rekord!</b>' : res.best && res.best.prev && res.best.prev.pts ? ` · Rekord ${res.best.prev.pts.toLocaleString('de-DE')}` : ''}</p>` : ''}
+      ${res.daily ? `<p class="scn-pts">📅 Tagesherausforderung ${dailyLabel(def.daily)}${res.stars ? ` · 🔥 Serie ${res.daily.streak} Tag${res.daily.streak > 1 ? 'e' : ''}` : ' · für die Serie zählt mindestens ein Stern'} · morgen gibt es eine neue</p>` : ''}
       <p class="scn-note">${[res.best && res.best.isNew && res.stars ? '🏆 <b>Neuer Bestwert!</b>' : res.best && res.best.prev ? `Bisheriger Bestwert: ${starStr(res.best.prev.stars)}` : '', `Gesamt ⭐ ${totalStars()} / ${SCENARIOS.length * 3}`].filter(Boolean).join(' · ')}</p>
       <div class="scn-acts"><button class="btn" data-so="menu">Hauptmenü</button><button class="btn ${res.stars ? '' : 'btn-primary'}" data-so="retry">↻ Nochmal</button>${canNext && res.stars ? `<button class="btn btn-primary" data-so="next" data-id="${nextDef.id}">Weiter: ${nextDef.icon} ${esc(nextDef.title)} ▶</button>` : ''}</div></div></div>`;
     this.ov.classList.remove('hidden');

@@ -1,16 +1,18 @@
 // Herausforderungen headless durchspielen (alles automatisch) und Sterne ausgeben: node tools/scntest.mjs [id] [seed]
 import { newGame } from '../js/state.js';
 import { step } from '../js/sim/sim.js';
-import { SCENARIOS, applyScenario, scenarioListeners } from '../js/sim/scenarios.js';
+import { SCENARIOS, applyScenario, scenarioListeners, scenarioById } from '../js/sim/scenarios.js';
 import { buyUpgrade } from '../js/sim/economy.js';
 
 const only = process.argv[2] && process.argv[2] !== 'all' ? process.argv[2] : null;
 const seeds = process.argv[3] ? [Number(process.argv[3])] : [1, 2, 3];
 let res = null;
 scenarioListeners.push((s, def, r) => (res = r));
-for (const def of SCENARIOS) {
+// Tagesherausforderungen: daily-JJJJMMTT (mit ihrem festen Zufall, sofern kein Seed angegeben)
+const list = only && only.startsWith('daily-') ? [scenarioById(only)] : SCENARIOS;
+for (const def of list) {
   if (only && def.id !== only) continue;
-  for (const seed of seeds) {
+  for (const seed of def.daily && !process.argv[3] ? [def.seed] : seeds) {
     const s = newGame({ role: def.role, seed, hour: def.hour, density: def.density });
     applyScenario(s, def);
     s.auto = { atc: true, ground: true, manager: true };
