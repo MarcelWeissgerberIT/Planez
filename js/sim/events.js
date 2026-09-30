@@ -118,7 +118,9 @@ export function triggerEvent(state, kind, opt = {}) {
     const t = pick(state, AIRLINES[al].types.filter((x) => x !== 'B789'));
     const n = randInt(state, 700, 899);
     const ac = spawnSpecial(state, { airline: al, type: t, arrNo: `${al}${n}`, depNo: `${al}${n + 1}`, city: pick(state, ['PMI', 'LHR', 'CDG', 'FCO', 'ARN']), emergency: true, special: 'emergency' });
-    radio(state, ac.cs, `MAYDAY MAYDAY MAYDAY, ${AIRLINES[al].tel} ${n}, ${pick(state, ['engine failure', 'medical emergency on board', 'smoke in the cabin'])}, request immediate landing.`);
+    const why = opt.kind || pick(state, ['engine', 'medical', 'smoke']);
+    ac.emgKind = why;
+    radio(state, ac.cs, `MAYDAY MAYDAY MAYDAY, ${AIRLINES[al].tel} ${n}, ${{ engine: 'engine fire', medical: 'medical emergency on board', smoke: 'smoke in the cabin' }[why]}, request immediate landing${why === 'medical' ? '' : ', request fire services'}.`);
     notify(state, `🚨 Notfall: ${ac.cs} (Squawk 7700) – Vorrang geben!`, 'bad');
     state.fireAlert = { ac: ac.id, t: state.time };
     return ac;
@@ -155,6 +157,8 @@ export function birdstrikeOn(state, ac) {
   ac.emergency = true;
   ac.squawk = '7700';
   ac.returning = true;
+  ac.emgKind = rand(state) < 0.5 ? 'engine' : 'bird';
+  if (!state.fireAlert) state.fireAlert = { ac: ac.id, t: state.time };
   ac.fuelMin = 90; // gerade getankt
   ac.route = [];
   ac.tAlt = 5000;

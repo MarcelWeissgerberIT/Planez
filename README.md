@@ -49,7 +49,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 - **Erklärungen:** jede Abkürzung (ILS, TOBT, CTOT, RVR, STCA …), jedes Rufzeichen und jeder Flugzeugtyp erklärt sich per Tooltip; Glossar mit Suche (📖), „?“-Erklärungen an allen Abschnitten, Radar-Legende
 - Baustellen: Jeder Ausbau hat eine Bauzeit (Spielstunden) und ist auf der Karte als Baustelle sichtbar – Bauzaun, Kran mit Warnlicht, Bagger, Betonmischer, Baucontainer; Beton wächst, das Hotel steigt Stockwerk für Stockwerk als Rohbau empor, Pylonen sperren Rollwege. Schild mit Fortschritt und Restzeit, Liste im Tab *Ausbau* mit „📍 Zeigen“ und Abbruch (50 % Erstattung der noch nicht verbauten Kosten); bei Gewitter ruht die Arbeit
 - Wirtschaft: Lande-, Passagier- und Positionsentgelte, Shops, Parken, Fracht, Vertragsstrafen, Airline-Zufriedenheit, Tagesberichte
-- Ereignisse: Notfälle (Squawk 7700 + Feuerwehr), Vogelschlag, VIP-Jets, Streik, Fahrzeugdefekte, Winddrehungen
+- Ereignisse: Notfälle (Squawk 7700 + Feuerwehr; bei Triebwerksbrand oder Rauch zieht das Flugzeug eine Rauchfahne, hält auf der Piste an, die Löschfahrzeuge umstellen es und löschen mit Schaum – die Bahn ist währenddessen gesperrt), Vogelschlag, VIP-Jets, Streik, Fahrzeugdefekte, Winddrehungen
 - Hauptmenü und Pausenmenü mit großem Titel, nummerierten Einträgen (Maus oder ↑↓/Enter/Esc) und Status-Panel; im Hintergrund ein nahtloser Video-Loop durch fünf Flughafenszenen (Anflug im Morgengrauen, Tower, Vorfeld bei Nacht, Frachtverladung im Regen, Start in den Sonnenuntergang)
 - Speichern im Browser, Funkprotokoll (englische Phraseologie, optional per Sprachausgabe)
 

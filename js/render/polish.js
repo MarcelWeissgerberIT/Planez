@@ -35,6 +35,14 @@ export class Polish {
         const side = Math.random() < 0.5 ? -1 : 1;
         this.parts.push({ x: ac.x - fx * ac.len * 0.3 + rx * side * 0.25 * big, y: ac.y - fy * ac.len * 0.3 + ry * side * 0.25 * big, z: 0.02, vx: -fx * sp * (0.8 + Math.random()), vy: -fy * sp * (0.8 + Math.random()), vz: 0.03, life: 0, dur: 1 + Math.random() * 0.8, r: 0.1, grow: 0.9 * big, c: state.weather.kind === 'snow' ? '250,252,255' : '215,225,235', a: 0.38 });
       }
+      // Brand/Rauch: dunkle Rauchfahne vom Triebwerk, bis die Feuerwehr gelöscht hat
+      if (ac.emergency && (ac.emgKind === 'engine' || ac.emgKind === 'smoke') && !ac.fireDone && Math.random() < dt * 14 * Q.agents) {
+        const fa = state.fireAlert;
+        const k = fa && fa.ac === ac.id ? clamp(1 - (fa.sprayed || 0) / 110, 0.1, 1) : 1;
+        const side = ac.emgKind === 'engine' ? 1 : 0;
+        const moving = ac.fireStop ? 0 : 1;
+        this.parts.push({ x: ac.x + rx * side * 0.32 * big - fx * 0.1, y: ac.y + ry * side * 0.32 * big - fy * 0.1, z: Math.max(0.12, ac.z + 0.1), vx: -fx * moving * 0.8 + (Math.random() - 0.5) * 0.08, vy: -fy * moving * 0.8 + (Math.random() - 0.5) * 0.08, vz: 0.12 + Math.random() * 0.1, life: 0, dur: 2.2 + Math.random() * 1.5, r: 0.1 * big, grow: 0.8 * big, c: ac.emgKind === 'engine' ? '52,52,56' : '120,120,126', a: 0.55 * k });
+      }
       this.prev.set(ac.id, ac.phase);
     }
     for (const id of this.prev.keys()) if (!seen.has(id)) this.prev.delete(id);

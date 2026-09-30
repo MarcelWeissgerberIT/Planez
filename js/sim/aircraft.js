@@ -9,7 +9,7 @@ import { onBlock, onPushbackStart, onPushbackDone, assignStandAuto } from './gro
 import { onLanding, onTakeoff, penalize } from './economy.js';
 import { slotOpen, acdmOnTakeoff } from './acdm.js';
 import { wakeDepSec } from './wake.js';
-import { runwayClosed, decelFactor, onRunwayLanding, brakingAction, stripGeom, rwyName } from './runway.js';
+import { runwayClosed, decelFactor, onRunwayLanding, brakingAction, stripGeom, rwyName, closeRunway } from './runway.js';
 
 export const PH = {
   INBOUND: 'ARR_INBOUND', HOLD: 'ARR_HOLD', APPROACH: 'ARR_APPROACH', GOAROUND: 'GO_AROUND',
@@ -474,6 +474,28 @@ function updateMap(state, ac, dt) {
       const onRwy = Math.abs(ac.y - G.y) < 0.2 && (ac.exitX - ac.x) * d > 0.3;
       let vmax;
       if (onRwy) {
+        // Brand/Rauch: auf der Piste anhalten, bis die Feuerwehr gelöscht hat (Piste gesperrt)
+        if (ac.emergency && (ac.emgKind === 'engine' || ac.emgKind === 'smoke') && !ac.fireDone) {
+          if (!ac.fireStop && ac.v <= ac.ve + 0.03) {
+            ac.fireStop = state.time;
+            ac.v = 0;
+            closeRunway(state, 8, 'Feuerwehreinsatz', ac.strip || 'N');
+            radio(state, ac.cs, `${tel(ac)}, stopping on the runway, evacuation not required, request fire services.`);
+            if (state.fireAlert) state.fireAlert.stop = true;
+          }
+          if (ac.fireStop) {
+            ac.v = 0;
+            const fa = state.fireAlert;
+            // Löschen fertig (oder Feuerwehr kommt nicht): nach der Sprühzeit weiter zum Abrollweg
+            if ((fa && (fa.sprayed || 0) > 100) || state.time - ac.fireStop > 480 || !fa) {
+              ac.fireDone = true;
+              ac.v = ac.ve;
+              if (state.rwyClosedWhy === 'Feuerwehreinsatz') state.rwyClosedUntil = Math.min(state.rwyClosedUntil, state.time + 60);
+              radio(state, ac.cs, `${tel(ac)}, fire services report fire extinguished, vacating the runway.`);
+            }
+            break;
+          }
+        }
         const dx = Math.abs(ac.exitX - ac.x);
         vmax = Math.sqrt(ac.ve * ac.ve + 2 * ac.decel * Math.max(0, dx - 1.0));
         ac.v = Math.min(ac.v, vmax + 0.01);

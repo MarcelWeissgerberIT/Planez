@@ -110,6 +110,32 @@ function updateFire(state, dt) {
         t.st = 'out';
       });
     }
+    // Löschangriff: Fahrzeuge umstellen das auf der Piste stehende Flugzeug und sprühen Schaum auf Triebwerke/Rumpf
+    if (alert.deployed && ac && ac.fireStop && !ac.fireDone) {
+      const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg), rx = -fy, ry = fx;
+      const spots = [[0.1, 1.25], [0.1, -1.25], [-ac.len * 0.75, 0.35]];
+      let n = 0;
+      f.trucks.forEach((t, i) => {
+        const [a, b] = spots[i % 3];
+        const tx = ac.x + fx * a + rx * b, ty = ac.y + fy * a + ry * b;
+        const d = Math.hypot(tx - t.x, ty - t.y);
+        t.path = null;
+        if (d > 0.12) {
+          const st = Math.min(d, 0.32 * dt);
+          t.hdg = Math.atan2(ty - t.y, tx - t.x);
+          t.x += ((tx - t.x) / d) * st;
+          t.y += ((ty - t.y) / d) * st;
+          t.spray = false;
+        } else {
+          t.hdg = Math.atan2(ac.y - t.y, ac.x - t.x);
+          t.spray = { x: ac.x + fx * (i === 2 ? -ac.len * 0.3 : 0.05) + rx * (i === 0 ? 0.55 : i === 1 ? -0.55 : 0), y: ac.y + fy * (i === 2 ? -ac.len * 0.3 : 0.05) + ry * (i === 0 ? 0.55 : i === 1 ? -0.55 : 0) };
+          n++;
+        }
+        t.st = 'standby';
+        t.roadY = t.roadY || 34.5;
+      });
+      if (n >= 2) alert.sprayed = (alert.sprayed || 0) + dt;
+    } else for (const t of f.trucks) t.spray = false;
     if (alert.deployed && (!ac || ac.phase === PH.STAND || ac.phase === PH.GONE || ac.phase === PH.TAXI_IN)) {
       alert.doneT = alert.doneT ?? state.time;
       if (state.time - alert.doneT > 180) {

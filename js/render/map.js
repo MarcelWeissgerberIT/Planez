@@ -364,6 +364,7 @@ export class MapRenderer {
     deiceFx(this, state, items);
     items.sort((a, b) => a.d - b.d);
     for (const it of items) it.f();
+    this.drawFireSpray(state);
     flying.sort((a, b) => a.x + a.y - (b.x + b.y));
     for (const ac of flying) this.drawAircraft(state, ac, lights, night, ui);
     // Reifenrauch, Gischt, Wolken
@@ -1012,6 +1013,50 @@ export class MapRenderer {
       ctx.fillRect(-Wd / 2, -L / 2, Wd, L);
     }
     ctx.restore();
+  }
+
+  // Löschangriff: Wasser-/Schaumbögen von den Dachwerfern, Schaumteppich unter dem Flugzeug
+  drawFireSpray(state) {
+    const f = state.fire;
+    if (!f || !f.trucks.some((t) => t.spray)) return;
+    const { ctx, cam } = this;
+    const al = state.fireAlert;
+    const ac = al && state.acs.find((a) => a.id === al.ac);
+    if (ac) {
+      // Schaumteppich wächst mit der Sprühzeit
+      const u = clamp((al.sprayed || 0) / 100, 0, 1);
+      cam.setIso(ctx, 0.01);
+      ctx.fillStyle = `rgba(245,248,252,${0.35 + 0.3 * u})`;
+      for (let k = 0; k < 7; k++) {
+        const a = k * 0.9 + 0.4, rr = (0.25 + 0.55 * u) * (0.6 + ((k * 37) % 10) / 20);
+        ctx.beginPath();
+        ctx.ellipse(ac.x + Math.cos(a) * 0.5 * u, ac.y + Math.sin(a) * 0.5 * u, rr, rr * 0.8, a, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    cam.setScreen(ctx);
+    for (const t of f.trucks) {
+      if (!t.spray) continue;
+      const tgt = t.spray;
+      for (let k = 0; k < 16; k++) {
+        const ph = (this.time * 1.4 + k / 16) % 1;
+        const x = t.x + (tgt.x - t.x) * ph, y = t.y + (tgt.y - t.y) * ph;
+        const z = 0.34 + ph * (1 - ph) * 1.6 - ph * 0.22;
+        const p = cam.toScreen(x, y, z);
+        const r = (1.2 + ph * 4.5) * cam.zoom;
+        ctx.fillStyle = k % 4 ? `rgba(235,245,255,${0.75 * (1 - ph * 0.6)})` : `rgba(190,215,240,${0.6 * (1 - ph)})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Dampf/Sprühnebel am Ziel
+      const p = cam.toScreen(tgt.x, tgt.y, 0.2);
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 22 * cam.zoom);
+      g.addColorStop(0, 'rgba(240,244,250,0.55)');
+      g.addColorStop(1, 'rgba(240,244,250,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(p.x - 22 * cam.zoom, p.y - 22 * cam.zoom, 44 * cam.zoom, 44 * cam.zoom);
+    }
   }
 
   drawFireTruck(t, lights) {
