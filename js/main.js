@@ -52,6 +52,7 @@ import { keysHtml } from './ui/keys.js';
 import { Fids } from './ui/fids.js';
 import { SpotterUi } from './ui/spotter.js';
 import { briefingHtml } from './ui/briefing.js';
+import { careerDayEnd, careerAch, careerTick, careerRank } from './career.js';
 import { RankUp } from './ui/rankUp.js';
 
 const game = {
@@ -180,9 +181,15 @@ for (const ev of ['pointerdown', 'keydown'])
 function showMenu() {
   $('#menu').classList.remove('hidden');
   $('#game').classList.add('hidden');
+  const R = careerRank();
+  const ci = $('#career-info');
+  if (ci) ci.textContent = `${R.cur.icon} ${R.cur.name} · ${R.pts.toLocaleString('de-DE')} Punkte`;
   syncMenuMusic();
   setGlossaryEnabled(loadPrefs().glossary);
-  refreshMainMenu(hasSave() ? loadGame() : null);
+  const sv = hasSave() ? loadGame() : null;
+  // Erfolge bestehender Spielstände in die Karriere übernehmen
+  if (sv && sv.ach) for (const id of Object.keys(sv.ach)) careerAch(id);
+  refreshMainMenu(sv);
 }
 
 // Einstellungen aus den Voreinstellungen übernehmen
@@ -422,6 +429,7 @@ function loop(ts) {
     game.cam.update(dt);
   }
   keyPan(dt);
+  if (s.speed && !document.hidden) careerTick(dt);
   game.map.render(s, dt, game.ui);
   soundscape.on = !!s.settings.sound && s.settings.ambience !== false && !document.hidden;
   soundscape.update(s, game.cam, game.map, dt, !s.speed || modalOpen());
@@ -572,6 +580,7 @@ listeners.radio.push((m) => {
 });
 listeners.ach.push((a) => {
   if (game.running) showAchievement(a);
+  if (a && a.id) careerAch(a.id);
 });
 listeners.rank.push((s, rank) => {
   if (!game.running || game.state !== s || s.role === 'observer' || s.scenario) return;
@@ -590,6 +599,7 @@ hooks.dayEnd.push((rec) => {
   const s = game.state;
   if (!s) return;
   saveGame(s);
+  careerDayEnd(s, rec, rateDay(rec));
   showReport(rec);
 });
 

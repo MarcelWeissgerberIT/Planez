@@ -5,6 +5,7 @@ import { RANKS, goalsState, activeGoals, goalText, goalFraction } from '../sim/g
 import { glossify } from './glossary.js';
 import { sfx } from '../audio.js';
 import { scenarioListHtml, scenarioSide } from './scenarioUi.js';
+import { careerSummary, careerRank } from '../career.js';
 import { SCENARIOS, totalStars } from '../sim/scenarios.js';
 
 // Szenen des Hintergrund-Loops (je ~9,6 s, nahtlos ineinander übergehend)
@@ -93,7 +94,12 @@ const SIDE = {
   scnall: () => `<div class="ms-card"><div class="ms-img" style="background-image:url(assets/scn/storm.webp)"></div><div class="ms-body"><div class="ms-h">Herausforderungen</div><div class="ms-subt">${SCENARIOS.length} Szenarien · ⭐ ${totalStars()} / ${SCENARIOS.length * 3} Sterne</div>
     <ul><li>Kurze Einsätze mit festem Start: Morgenwelle, Nebel, Gewitterfront, Notfälle, Streik, Winterchaos, Sanierungsfall …</li><li>Jedes Ziel bringt 1–3 Sterne – der Bestwert bleibt gespeichert</li><li>Mit einem Stern schaltest du die nächste Stufe deiner Station frei</li></ul></div></div>`,
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
-    <div class="ms-sec">Spielen</div><ul>
+    <div class="ms-sec">Ganz frisch</div><ul>
+      <li>📅 <b>Tagesherausforderung</b> mit Zusatzregeln und 🔥 Serie · 🎖️ <b>Karriere</b> über alle Spielstände</li>
+      <li>👂 <b>Readback-Fehler</b> hören und mit <kbd>Q</kbd> korrigieren · 📻✖ <b>Funkausfall</b> mit Lichtsignalen</li>
+      <li>📻 <b>Betriebsfunk</b> der Bodencrews auf Deutsch · 📋 <b>Schichtbriefing</b> zum Tagesbeginn</li>
+      <li>🏢 <b>Wettbewerb</b> gegen Nordhafen mit Marktanteil · 📒 <b>Spotterbuch</b> mit Sonderlackierungen</li>
+    </ul><div class="ms-sec">Spielen</div><ul>
       <li>⭐ <b>Herausforderungen</b>: 9 Szenarien mit Sternen und Punkte-Rekorden</li>
       <li>⭐ <b>Schichtpunkte</b> mit Kombo für Tower und Vorfeld</li>
       <li>🎚️ <b>Schwierigkeit</b> Entspannt / Normal / Profi · 💾 <b>3 Speicherplätze</b></li>
@@ -107,6 +113,25 @@ const SIDE = {
       <li>🎥 <b>Folgen</b>-Kamera · 🎬 Kino-Modus als Live-Übertragung · <kbd>?</kbd> Tastenkürzel</li>
       <li>🪧 <b>Anzeigetafel</b> im Fallblatt-Stil (<kbd>I</kbd>)</li>
     </ul></div></div>`,
+  career: () => {
+    const S = careerSummary();
+    const R = careerRank();
+    const c = S.c;
+    const h = Math.floor(c.playSec / 3600), m = Math.floor((c.playSec % 3600) / 60);
+    const cell = (k, v) => `<div><span>${k}</span><b>${v}</b></div>`;
+    const role = (r) => {
+      const x = c.byRole[r] || { days: 0, bestScore: 0, perfect: 0, bestPunct: 0 };
+      return `<tr><td>${ROLES[r].icon} ${esc(ROLES[r].short)}</td><td>${x.days}</td><td>${x.bestScore ? x.bestScore.toLocaleString('de-DE') : '—'}</td><td>${x.bestPunct ? x.bestPunct + ' %' : '—'}</td><td>${x.perfect || 0}</td></tr>`;
+    };
+    return `<div class="ms-card career"><div class="ms-body">
+      <div class="cr-id"><div class="cr-badge">${R.cur.icon}</div><div><div class="cr-k">Dienstausweis · Planez</div><div class="cr-rank">${esc(R.cur.name)}</div><div class="cr-pts">${R.pts.toLocaleString('de-DE')} Karrierepunkte</div></div></div>
+      <div class="cr-bar"><i style="width:${Math.round(R.frac * 100)}%"></i></div>
+      <div class="cr-next">${R.next ? `Nächster Rang: ${R.next.icon} <b>${esc(R.next.name)}</b> ab ${R.next.pts.toLocaleString('de-DE')}` : 'Höchster Rang erreicht'}</div>
+      <div class="cr-grid">${cell('Schichten (Tage)', c.days)}${cell('Spielzeit', `${h} h ${m} min`)}${cell('Bewegungen', c.mov.toLocaleString('de-DE'))}${cell('Passagiere', c.pax.toLocaleString('de-DE'))}${cell('Perfekte Tage ★★★★★', c.perfect)}${cell('Erfolge', `${c.ach.length} / ${S.achAll}`)}${cell('Herausforderungen', `⭐ ${S.stars}`)}${cell('Tagesserie', `🔥 ${S.daily.streak || 0} · Rekord ${S.daily.best || 0}`)}${cell('Spotterpunkte', S.spot.pts.toLocaleString('de-DE'))}</div>
+      <div class="ms-sec">Je Station</div>
+      <table class="cr-tab"><tr><th></th><th>Tage</th><th>Bestwert ⭐</th><th>Pünktl.</th><th>Perfekt</th></tr>${['tower', 'ground', 'manager', 'observer'].map(role).join('')}</table>
+      <div class="ms-auto">Punkte gibt es für gespielte Tage, Verkehr, Sterne, Erfolge, Tagesherausforderungen, perfekte Tage und das Spotterbuch.</div></div></div>`;
+  },
   about: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Über Planez</div><ul><li>Airport-Simulation mit isometrischer Karte, Radar und Wirtschaft</li><li>Grafiken, Porträts und Hintergrundvideos: Higgsfield AI (GPT Image, Kling)</li><li>Alle Airlines, Rufzeichen und Flüge sind fiktiv</li><li>Reines HTML/JavaScript – läuft direkt im Browser</li></ul></div></div>`,
 };
 
@@ -244,6 +269,7 @@ export function initMainMenu(api) {
       else if (a === 'gloss') api.gloss();
       else if (a === 'about') showSide('about');
       else if (a === 'whatsnew') showSide('whatsnew');
+      else if (a === 'career') showSide('career');
       return;
     }
     const del = e.target.closest('[data-slot-del]');
