@@ -10,6 +10,7 @@ import { radio, log, notify, fx } from './messages.js';
 import { penalize } from './economy.js';
 import { scoreWx } from './score.js';
 import { degDiff } from '../util.js';
+import { diff } from './difficulty.js';
 
 export const WX_WINDOW = 14; // Echtzeit-Sekunden, bis der Pilot ohne Antwort selbst ausweicht (oder 5 NM vor der Zelle)
 const BUF = 1.5; // Sicherheitsabstand zur Zelle (NM)
@@ -128,7 +129,7 @@ export function approveWx(state, ac, own = false) {
   if (own) {
     radio(state, ac.cs, `${tel(ac)}, no reply, deviating ${q.deg} degrees ${q.side} due weather.`);
     log(state, 'sys', `⛈️ ${ac.cs} weicht ohne Freigabe der Gewitterzelle aus – Anfrage blieb unbeantwortet.`);
-    scoreWx(state, ac, 'late');
+    if (diff(state).events <= 1) scoreWx(state, ac, 'late'); // auf „Entspannt“ ohne Punktabzug
   } else {
     radio(state, 'TWR', `${tel(ac)}, deviation ${q.deg} degrees ${q.side} approved${nx ? `, when clear of weather proceed direct ${nx}` : ', report clear of weather'}.`, 'atc');
     radio(state, ac.cs, `Deviating ${q.side}${nx ? `, then direct ${nx}` : ''}, ${tel(ac)}.`);
@@ -170,7 +171,7 @@ export function updateWxDev(state, dt) {
     q.near = Math.hypot(ac.pos.x - c.x, ac.pos.y - c.y) - c.r;
     if (!humanTower(state)) {
       if (state.time - q.t > 8) approveWx(state, ac);
-    } else if (q.age > WX_WINDOW || q.near < 5) approveWx(state, ac, true);
+    } else if (q.age > WX_WINDOW * Math.min(1.5, diff(state).events) || q.near < 5) approveWx(state, ac, true);
   }
   state.wxTimer = (state.wxTimer || 0) - dt;
   if (state.wxTimer > 0) return;

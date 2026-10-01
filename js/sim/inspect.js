@@ -9,6 +9,7 @@ import { radio, log, notify } from './messages.js';
 import { closeRunway, runwayClosed, rwyName } from './runway.js';
 import { penalize } from './economy.js';
 import { scoreInspect } from './score.js';
+import { diff } from './difficulty.js';
 
 export const INSP_MIN = 3; // Minuten auf der Bahn
 export const CHECK = 'CHECK1';
@@ -97,7 +98,7 @@ export function updateInspection(state, dt) {
     I.active = null;
     I.last = state.time;
     I.done++;
-    I.next = state.time + EVERY * (0.85 + 0.3 * hash01(state.time));
+    I.next = state.time + EVERY * diff(state).events * (0.85 + 0.3 * hash01(state.time)); // Entspannt seltener, Profi öfter
     const found = hash01(state.time + 7) < 0.18;
     if (found) {
       I.found++;
