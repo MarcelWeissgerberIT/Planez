@@ -29,8 +29,11 @@ export function stripForArrival(state) {
   return 'S';
 }
 export function runwayStrips(state) {
-  const list = [{ id: 'N', label: `Bahn ${rwyName(state, 'N')}`, icon: '🛫', role: segregated(state) ? 'Starts' : 'Starts & Landungen', len: '1.400 m · Nordbahn' }];
-  if (hasRwy2(state)) list.push({ id: 'S', label: `Bahn ${rwyName(state, 'S')}`, icon: '🛬', role: segregated(state) ? 'Landungen' : 'Reserve', len: '1.400 m · Südbahn' });
+  const two = hasRwy2(state);
+  const len = (R) => `${Math.round((R.x1 - R.x0) * 20).toLocaleString('de-DE')} m`;
+  const N = LY.RWY;
+  const list = [{ id: 'N', label: `${N.grass ? 'Graspiste' : 'Bahn'} ${rwyName(state, 'N')}`, icon: '🛫', role: segregated(state) ? 'Starts' : 'Starts & Landungen', len: `${len(N)}${N.grass ? ' · Gras' : two ? ' · Nordbahn' : ' · Asphalt'}` }];
+  if (two) list.push({ id: 'S', label: `Bahn ${rwyName(state, 'S')}`, icon: '🛬', role: segregated(state) ? 'Landungen' : 'Reserve', len: `${len(LY.RWY_S)} · Südbahn` });
   return list;
 }
 

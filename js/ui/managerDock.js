@@ -8,7 +8,7 @@ import { esc, fmtMoney, fmtClock } from '../util.js';
 import { projects, remainingHours } from '../sim/construction.js';
 import { fuelState, FUEL } from '../sim/fuel.js';
 import { rwyCond, brakingAction, BRAKE_DE, hasRwy2 } from '../sim/runway.js';
-import { goalsState, activeGoals, goalText, goalFraction, RANKS } from '../sim/goals.js';
+import { goalsState, activeGoals, goalText, goalFraction, RANKS, rankName } from '../sim/goals.js';
 import { PH } from '../sim/aircraft.js';
 import { forecastInfo } from '../sim/events.js';
 import { secState, secLanes } from '../sim/security.js';
@@ -102,7 +102,7 @@ export class ManagerDock {
     const G = goalsState(s);
     setHTML(
       this.root.querySelector('#dk-goals'),
-      `<div class="dock-rank" data-open="goals">🏅 ${RANKS[G.rank].name} · ${G.xp} XP</div>` + activeGoals(s).map((g) => `<div class="dock-goal"><small>${esc(goalText(g))}</small><div class="bar"><i style="width:${goalFraction(s, g) * 100}%;background:var(--manager)"></i></div></div>`).join('')
+      `<div class="dock-rank" data-open="goals">🏅 ${rankName(s, G.rank)} · ${G.xp} XP</div>` + activeGoals(s).map((g) => `<div class="dock-goal"><small>${esc(goalText(g))}</small><div class="bar"><i style="width:${goalFraction(s, g) * 100}%;background:var(--manager)"></i></div></div>`).join('')
     );
     setHTML(this.root.querySelector('#mp-sub'), `${fmtClock(s.time)} · ${fmtMoney(s.cash)}`);
   }

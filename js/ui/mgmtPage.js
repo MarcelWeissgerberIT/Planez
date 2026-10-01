@@ -11,7 +11,7 @@ import { PH } from '../sim/aircraft.js';
 import { RouteMap } from './routeMap.js';
 import { rivalState } from '../sim/rival.js';
 import { boardBadge } from './board.js';
-import { isCareer, stageOf, STAGES, stageUpStatus } from '../sim/career.js';
+import { isCareer, stageOf, STAGES, stageUpStatus, careerState } from '../sim/career.js';
 
 export const CATS = [
   ['career', 'Aufbau', 'Ausbaustufen, Partner und Marketing – vom Grasplatz zum Drehkreuz'],
@@ -29,6 +29,26 @@ export const CATS = [
   ['fin', 'Finanzen & Kredite', 'Umsatz, Kosten, Kontostand, Kredite'],
   ['goals', 'Ziele & Rang', 'Aufgaben, Prämien, Flughafen-Rang'],
 ];
+
+// Namen und Untertitel am kleinen Platz (Aufbau-Modus: Grasplatz, Verkehrslandeplatz)
+const SMALL_CAT = {
+  0: {
+    stands: ['Abstellplätze', 'Wiese für Kleinflugzeuge – wer steht wo, und wann es mehr Platz gibt'],
+    runways: ['Graspiste', 'Zustand der Graspiste, mähen und walzen'],
+    ops: ['Helfer & Fuhrpark', 'Platzwart, Flugleitung und Helfer – Fahrzeuge ab Verkehrslandeplatz'],
+    fees: ['Gebühren', 'Landeentgelt und Fluggastentgelt'],
+  },
+  1: {
+    stands: ['Abstellplätze & Vorfeld', 'Wiese für Kleinflugzeuge und Vorfeld für Turboprops'],
+    runways: ['Piste & Rollwege', 'Zustand der Asphaltbahn und Pflege'],
+    ops: ['Fuhrpark & Personal', 'Erste Fahrzeuge für die Turboprops, Personal, Fixkosten'],
+  },
+};
+export function catInfo(s, k) {
+  const c = CATS.find((x) => x[0] === k) || CATS[0];
+  const o = isCareer(s) && SMALL_CAT[stageOf(s)] && SMALL_CAT[stageOf(s)][c[0]];
+  return o ? [c[0], ...o] : c;
+}
 
 // Bereiche, die es am Grasplatz/Verkehrslandeplatz noch nicht gibt (Aufbau-Modus)
 const SMALL_HIDE = new Set(['rival', 'board', 'terminal', 'fuel']);
@@ -136,18 +156,21 @@ export class ManagementPage {
     const fu = fuelState(s);
     const waiting = s.acs.filter((a) => (a.phase === PH.VACATED || a.phase === PH.TAXI_WAIT) && !a.stand).length;
     const ps = projects(s);
+    const small = isCareer(s) && stageOf(s) < 2;
+    const ga = s.stands.filter((x) => x.ga && !x.closed && x.built);
+    const gaFree = ga.filter((x) => !x.occ && !x.resv).length;
     const badge = {
-      over: `Ansehen ${Math.round(s.reputation)} · pünktlich ${(() => { const t = s.stats.today; const d = t.onTime + t.delayed; return d ? Math.round((t.onTime / d) * 100) + ' %' : '—'; })()}`,
+      over: small ? `Ansehen ${Math.round(s.reputation)} · Bekanntheit ${Math.round(careerState(s).fame)}` : `Ansehen ${Math.round(s.reputation)} · pünktlich ${(() => { const t = s.stats.today; const d = t.onTime + t.delayed; return d ? Math.round((t.onTime / d) * 100) + ' %' : '—'; })()}`,
       contracts: s.offers.length ? `📨 ${s.offers.length} neue${s.offers.length > 1 ? '' : 's'} Angebot${s.offers.length > 1 ? 'e' : ''}` : `${s.contracts.length} Verträge`,
       rival: `Marktanteil ${Math.round(rivalState(s).share)} %${rivalState(s).feeCutUntil > s.time ? ' · 💸 Preiskampf' : rivalState(s).closedUntil > s.time ? ' · ⛔ Nordhafen zu' : ''}`,
       board: boardBadge(s),
       sites: ps.length ? `🏗️ ${ps.length} aktiv` : 'keine Baustelle',
       runways: `${hasRwy2(s) ? '2 Bahnen' : '1 Bahn'} · Zustand ${Math.round(rwyCond(s))} %${hasRwy2(s) ? ` / ${Math.round(rwyCond(s, 'S'))} %` : ''}`,
-      stands: waiting ? `⚠ ${waiting} Flugzeug${waiting > 1 ? 'e' : ''} ohne Position` : `${s.stands.filter((x) => x.built).length} von ${s.stands.length} gebaut`,
+      stands: waiting ? `⚠ ${waiting} Flugzeug${waiting > 1 ? 'e' : ''} ohne Position` : small ? `${gaFree} von ${ga.length} Wiesenplätzen frei` : `${s.stands.filter((x) => x.built && !x.ga).length} von ${s.stands.filter((x) => !x.ga).length} gebaut`,
       terminal: `Shops ${s.upgrades.retail} · Sicherheit ${s.upgrades.security} · Hotel ${s.upgrades.hotel ? '✓' : '—'}`,
-      ops: `${s.vehicles.length} Fahrzeuge · ${s.staff} Personal`,
+      ops: isCareer(s) && stageOf(s) === 0 ? `${s.staff} Leute am Platz · keine Fahrzeuge` : `${s.vehicles.length} Fahrzeuge · ${s.staff} Personal`,
       fuel: `${fu.stock < FUEL.cap * 0.15 ? '⚠ ' : ''}${Math.round(fu.stock)} t · ${Math.round(fu.price)} €/t`,
-      fees: s.settings.curfew ? '🌙 Nachtflugverbot aktiv' : `Nachtentgelt ${Math.round(s.fees.night ?? 600)} €`,
+      fees: isCareer(s) && stageOf(s) === 0 ? `Landeentgelt ${String(s.fees.landing).replace('.', ',')} €/t · nur bei Tag` : s.settings.curfew ? '🌙 Nachtflugverbot aktiv' : `Nachtentgelt ${Math.round(s.fees.night ?? 600)} €`,
       fin: `${s.cash < 0 ? '⚠ ' : ''}Kasse ${fmtMoney(s.cash)}${loans(s).length ? ` · ${loans(s).length} Kredit${loans(s).length > 1 ? 'e' : ''}` : ''}`,
       goals: `${G.xp} XP · ${G.done} erreicht`,
       career: (() => {
@@ -169,6 +192,8 @@ export class ManagementPage {
       b.classList.toggle('attn', !!warn[k]);
       const sm = b.querySelector('small');
       if (sm.textContent !== badge[k]) sm.textContent = badge[k];
+      const nm = b.querySelector('b'), label = catInfo(s, k)[1];
+      if (nm.textContent !== label) nm.textContent = label;
     }
     const live = this.el.querySelector('#mg-live');
     live.classList.toggle('on', this.live);
@@ -178,8 +203,9 @@ export class ManagementPage {
   update(s, force = false) {
     if (!this.isOpen() || !s) return;
     this.renderNav(s);
-    const c = CATS.find(([k]) => k === this.cat) || CATS[0];
-    const i = CATS.indexOf(c);
+    const c = catInfo(s, this.cat);
+    const vis = [...this.el.querySelectorAll('#mg-list .mm-item:not(.hidden)')].map((b) => b.dataset.cat);
+    const i = Math.max(0, vis.indexOf(c[0]));
     setHTML(this.el.querySelector('#mg-kick'), `${String(i + 1).padStart(2, '0')} · Management`);
     setHTML(this.el.querySelector('#mg-title'), c[1]);
     setHTML(this.el.querySelector('#mg-desc'), c[2]);

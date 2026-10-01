@@ -405,8 +405,13 @@ function clearNextApproach(state, cands, distCleared, departuresWaiting, order =
     const below = state.acs.some((o) => o !== c && o.mode === 'air' && o.alt < c.alt - 300 && ((o.phase === PH.HOLD && Math.hypot(o.pos.x - c.pos.x, o.pos.y - c.pos.y) < 9) || (Math.hypot(o.pos.x - c.pos.x, o.pos.y - c.pos.y) < 6 && o.alt > 4500)));
     return { c, d: AS.routeDistance(c.pos, AS.approachRoute(c.pos, rwy)) + (below ? 50 : 0), blocked: below, o: order ? order.indexOf(c.id) : 0 };
   });
-  const prio = (x) => (x.c.emergency ? 2 : 0) + (x.c.minFuel ? 1 : 0) + (x.c.protocol ? 1.5 : 0);
-  scored.sort((x, y) => prio(y) - prio(x) || (order ? x.o - y.o : 0) || x.d - y.d);
+  // knappe Reserve schon vor MINIMUM FUEL vorziehen (hinter langsamen Sportfliegern wird es sonst zu spät)
+  const prio = (x) => (x.c.emergency ? 2 : 0) + (x.c.minFuel ? 1 : x.c.fuelMin !== undefined && x.c.fuelMin < 24 ? 0.8 : 0) + (x.c.protocol ? 1.5 : 0);
+  // ohne Spieler-Reihenfolge: nach Entfernung, aber wer schon lange wartet, rückt vor (sonst drängeln sich die nah
+  // auftauchenden Sportflieger dauernd vor die Linienflüge, bis diese Treibstoff-Notstand melden)
+  for (const x of scored) if (x.c.qT === undefined) x.c.qT = state.time;
+  const eff = (x) => x.d - Math.min(30, (state.time - x.c.qT) / 60) * 1.2;
+  scored.sort((x, y) => prio(y) - prio(x) || (order ? x.o - y.o : eff(x) - eff(y)));
   const next = scored[0];
   if (!next) return null;
   const c = next.c;
@@ -423,7 +428,9 @@ function clearNextApproach(state, cands, distCleared, departuresWaiting, order =
     const vL = AC_TYPES[lead.type].vmax, vF = AC_TYPES[foll.type].vmax || 180;
     if (vL && vF > vL + 10) fast = Math.min(22, Math.max(fast, Math.min(d, next.d) * (vF / Math.min(vL, 140) - 1)));
     // Wirbelschleppen: Mehrabstand hinter schweren Flugzeugen
-    let sep = 7 + fast + (wakeNm(lead.wake, foll.wake) - 3) * 1.3 + (state.weather.kind === 'fog' ? 2.5 : 0);
+    // Grundabstand: zwischen zwei Kleinflugzeugen reichen 3,5 NM (bei 65–110 kt rund zwei Minuten), mit einem 5 NM
+    const lL = AC_TYPES[lead.type].light, lF = AC_TYPES[foll.type].light;
+    let sep = (lL && lF ? 3.5 : lL || lF ? 5 : 7) + fast + (wakeNm(lead.wake, foll.wake) - 3) * 1.3 + (state.weather.kind === 'fog' ? 2.5 : 0);
     if (departuresWaiting > 0) sep += 2.5;
     if (Math.abs(next.d - d) < sep) return null;
     if (next.d < d) return null; // nicht vordrängeln

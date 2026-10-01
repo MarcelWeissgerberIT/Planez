@@ -4,6 +4,7 @@ import { rivalState, shareTarget, ourScore, rivalScore, offerFactor, renewBonus,
 import { fmtMoney, fmtInt, esc, clamp, fmtClock, dayOf } from '../util.js';
 import { setHTML, toast } from './dom.js';
 import * as EC from '../sim/economy.js';
+import * as LY from '../layout.js';
 import { acceptOffer, declineOffer, cancelContract, feeIndex, standDemand, negotiateOffer, negotiateChance, interestLabel } from '../sim/schedule.js';
 import { fleetSummary, efficiency } from '../sim/ground.js';
 import { newsState, paxRating } from '../sim/news.js';
@@ -18,9 +19,10 @@ import { RWY_WORKS } from '../sim/construction.js';
 import { rwyCond, brakingAction, BRAKE_DE, runwayStrips } from '../sim/runway.js';
 import { fuelState, FUEL, orderFuel, maxOrder, avgCost, sellPrice, pending, burnRate, inventory } from '../sim/fuel.js';
 import { loans, loanLimit, loanRate, takeLoan, repayLoan, annuity, LOAN_DAYS, debt } from '../sim/finance.js';
-import { goalsState, activeGoals, goalFraction, goalText, RANKS } from '../sim/goals.js';
+import { goalsState, activeGoals, goalFraction, goalText, RANKS, rankName } from '../sim/goals.js';
+import { smallField, stageOf, STAGES, upgradeAllowed, upgradeStage, isCareer, careerState, stageUpStatus, partnerContracts, rwyWorkCost, staffBase, vehicleAllowed, standBuildable } from '../sim/career.js';
 import { boardPageHtml } from './board.js';
-import { careerPageHtml, careerClick } from './careerUi.js';
+import { careerPageHtml, careerClick, stagePic } from './careerUi.js';
 
 const TABS = [
   ['over', 'Übersicht'],
@@ -39,6 +41,11 @@ const C2 = '#d95926'; // Kosten (Kategorie 2)
 // Bilder zu Ausbauten, Fahrzeugen & Co. (Management-Zentrale), damit man sieht, was man kauft
 const PICS = new Set(['retail', 'security', 'lounge', 'parking', 'hotel', 'rwy2', 'ils3', 'rapidExit', 'apronLights', 'marketing', 'stand_contact', 'stand_remote', 'stand_heavy', 'veh_tug', 'veh_baggage', 'veh_fuel', 'veh_catering', 'veh_cleaning', 'veh_bus', 'veh_deice', 'staff', 'fuel_farm', 'rwy_maint', 'solar', 'rail']);
 const pic = (k, tag = '') => (PICS.has(k) ? `<div class="card-pic" style="background-image:url(assets/menu/${k}.webp)">${tag ? `<span class="pic-tag">${tag}</span>` : ''}</div>` : '');
+// Bilder für den kleinen Platz (Aufbau-Modus)
+const cpic = (url, tag = '') => `<div class="card-pic kb-slow" style="background-image:url(${url})">${tag ? `<span class="pic-tag">${tag}</span>` : ''}</div>`;
+const CPIC = { meadow: 'assets/career/meadow.webp', grass: 'assets/career/grass_mow.webp', apron: 'assets/career/apron_small.webp', crew: 'assets/career/crew.webp' };
+// Wiesenplätze und Vorfeld des kleinen Platzes
+const gaSlots = (s) => s.stands.filter((x) => x.ga && !x.closed && x.built);
 
 // Fluggast-Zufriedenheit: was Reisende heute am Flughafen erleben – aus Pünktlichkeit, Wartezeit an der
 // Sicherheitskontrolle, Shopping/Lounge, Anreise (Parkhaus, Bahnhof) und Vorfällen; mit Tipp zur schwächsten Stelle
@@ -46,7 +53,16 @@ function satisfactionHtml(s) {
   const t = s.stats.today, u = s.upgrades;
   const deps = t.onTime + t.delayed;
   const wait = secState(s).wait || 0;
-  const rows = [
+  // kleiner Platz: Piloten und Ausflugsgäste statt Fluggäste – Piste, Abstellplätze, Vereinsheim, Sicherheit
+  const small = smallField(s);
+  const ga = small ? gaSlots(s) : [];
+  const rows = small ? [
+    ['🛬', LY.RWY.grass ? 'Zustand der Graspiste' : 'Zustand der Piste', Math.round(rwyCond(s)), LY.RWY.grass ? 'Graspiste mähen und walzen (Pisten & Rollwege)' : 'Piste pflegen (Pisten & Rollwege)'],
+    ['🌾', 'Platz zum Abstellen', ga.length ? Math.round(100 - (ga.filter((x) => x.occ || x.resv).length / ga.length) * 60) : 60, 'nicht zu viele Gäste auf einmal – volle Wiese heißt Abdrehen'],
+    ['☕', 'Vereinsheim & Service', clamp(Math.round(55 + careerState(s).fame * 0.4), 0, 100), 'Flugplatzfest oder Fly-In machen den Platz lebendiger'],
+    ['⏱️', 'Pünktlichkeit', deps ? Math.round((t.onTime / deps) * 100) : 90, 'Abfertigung beschleunigen'],
+    ['🛡️', 'Sicherheitsgefühl', clamp(100 - (t.incidents || 0) * 20, 0, 100), 'Zwischenfälle vermeiden'],
+  ] : [
     ['⏱️', 'Pünktlichkeit', deps ? Math.round((t.onTime / deps) * 100) : 90, 'Abfertigung beschleunigen, mehr Fahrzeuge oder Personal'],
     ['🛂', 'Sicherheitskontrolle', clamp(Math.round(70 + (u.security || 0) * 10 - wait * 3), 0, 100), 'weitere Sicherheitsspuren bauen'],
     ['🛍️', 'Shopping & Lounge', clamp(45 + (u.retail || 0) * 15 + (u.lounge ? 10 : 0), 0, 100), 'Shopping & Gastronomie ausbauen'],
@@ -58,7 +74,7 @@ function satisfactionHtml(s) {
   const starStr = '★'.repeat(Math.floor(stars)) + (stars % 1 ? '⯪' : '') + '☆'.repeat(5 - Math.ceil(stars));
   const low = rows.slice().sort((a, b) => a[2] - b[2])[0];
   const bar = (v) => `<div class="bar"><i style="width:${v}%;background:${v < 45 ? 'var(--bad)' : v < 70 ? 'var(--warn)' : 'var(--good)'}"></i></div>`;
-  return `<div class="card sat"><div class="row"><span class="t">😊 Fluggast-Zufriedenheit</span><span class="sat-st" title="${Math.round(avg)} von 100">${starStr}</span></div>
+  return `<div class="card sat"><div class="row"><span class="t">😊 ${small ? 'Zufriedenheit der Piloten & Gäste' : 'Fluggast-Zufriedenheit'}</span><span class="sat-st" title="${Math.round(avg)} von 100">${starStr}</span></div>
     ${rows.map(([i, n, v]) => `<div class="sat-r"><span>${i} ${n}</span><b>${v}</b></div>${bar(v)}`).join('')}
     ${low[2] < 70 ? `<div class="s">💡 Schwächste Stelle: ${low[1]} – ${low[3]}.</div>` : ''}</div>`;
 }
@@ -268,7 +284,18 @@ export class ManagerPanel {
     const fu = fuelState(s);
     const cond = Math.round(rwyCond(s));
     const ba = brakingAction(s);
-    h += `<div class="kpis kpis2">
+    if (smallField(s)) {
+      const ga = gaSlots(s);
+      const C = careerState(s), S = stageUpStatus(s);
+      h += `<div class="kpis kpis2">
+      <div class="k"><span>${LY.RWY.grass ? 'Graspiste' : 'Piste'}</span><b class="${cond < 45 ? 'neg' : ''}">${cond} % · ${BRAKE_DE[ba]}</b></div>
+      <div class="k"><span>Bekanntheit</span><b>${Math.round(C.fame)}/100</b></div>
+      <div class="k"><span>Partner</span><b>${partnerContracts(s).length}</b></div>
+      <div class="k"><span>Wiese frei</span><b class="${ga.every((x) => x.occ || x.resv) ? 'neg' : ''}">${ga.filter((x) => !x.occ && !x.resv).length} / ${ga.length}</b></div>
+      <div class="k"><span>Sprit heute</span><b>${fmtMoney(L.rev.fuel || 0)}</b></div>
+      <div class="k"><span>Nächste Stufe</span><b>${S ? `${S.reqs.filter((r) => r.ok).length}/${S.reqs.length} erfüllt` : '—'}</b></div>
+    </div>`;
+    } else h += `<div class="kpis kpis2">
       <div class="k" title="Starts im Slot-Fenster (CTOT) heute"><span>Slots eingehalten</span><b class="${slotTot && t.slotMiss ? 'neg' : ''}">${slotTot ? Math.round(((t.slotOk || 0) / slotTot) * 100) + ' %' : '—'}</b></div>
       <div class="k" title="Mittlere Wartezeit mit laufenden Triebwerken am Rollhalt"><span>Ø Wartezeit Rollhalt</span><b>${dN ? (((t.taxiWait || 0) / 60) / dN).toFixed(1).replace('.', ',') + ' min' : '—'}</b></div>
       <div class="k"><span>Piste</span><b class="${cond < 45 ? 'neg' : ''}">${cond} % · ${BRAKE_DE[ba]}</b></div>
@@ -279,7 +306,7 @@ export class ManagerPanel {
     h += satisfactionHtml(s);
     const G = goalsState(s);
     const gl = activeGoals(s);
-    h += `<div class="card goalcard"><div class="row"><span class="t">🏅 ${RANKS[G.rank].name} · ${G.xp} XP</span><button class="btn" data-act="goals">Ziele</button></div>${gl.map((g) => {
+    h += `<div class="card goalcard"><div class="row"><span class="t">🏅 ${rankName(s, G.rank)} · ${G.xp} XP</span><button class="btn" data-act="goals">Ziele</button></div>${gl.map((g) => {
       const f = goalFraction(s, g);
       return `<div class="s">🎯 ${esc(goalText(g))}</div><div class="bar"><i style="width:${f * 100}%;background:var(--manager)"></i></div>`;
     }).join('')}</div>`;
@@ -293,9 +320,13 @@ export class ManagerPanel {
     }
     if (waiting) h += `<div class="card" style="border-color:var(--bad)">🅿️ ${waiting} Flugzeug${waiting > 1 ? 'e warten' : ' wartet'} auf eine freie Parkposition – Ausbau prüfen.</div>`;
     h += `<div class="p-sec"><span>Auslastung (Plan)</span></div>`;
-    h += meter(`Piste (${EC.plannedMovements(s)} von ~${EC.runwayCapacity(s)} Bewegungen/Tag)`, rUse) + meter('Passagierpositionen', paxUse) + meter('Großraum (Klasse L)', lUse) + meter('Fracht', cUse);
+    if (smallField(s)) {
+      const ga = gaSlots(s);
+      h += meter(`Piste (${EC.plannedMovements(s)} von ~${EC.runwayCapacity(s)} Bewegungen/Tag)`, rUse) + meter('Abstellplätze auf der Wiese (jetzt)', ga.filter((x) => x.occ || x.resv).length / Math.max(1, ga.length));
+      if (stageOf(s) === 1) h += meter('Vorfeld-Positionen (Plan)', paxUse);
+    } else h += meter(`Piste (${EC.plannedMovements(s)} von ~${EC.runwayCapacity(s)} Bewegungen/Tag)`, rUse) + meter('Passagierpositionen', paxUse) + meter('Großraum (Klasse L)', lUse) + meter('Fracht', cUse);
     if (rUse > 0.9) h += `<div class="card" style="border-color:var(--bad)">🛬 Die Piste ist ausgelastet – weitere Verträge führen zu langen Warteschleifen, Treibstoffnot und Vorfällen. Schnellabrollwege oder die Parallelbahn schaffen Kapazität.</div>`;
-    h += `<div class="p-sec"><span>Airline-Zufriedenheit</span></div>`;
+    h += `<div class="p-sec"><span>${smallField(s) ? 'Zufriedenheit der Partner & Airlines' : 'Airline-Zufriedenheit'}</span></div>`;
     const byAl = {};
     for (const c of s.contracts) {
       byAl[c.airline] = byAl[c.airline] || { sat: 0, n: 0, fl: 0 };
@@ -360,27 +391,59 @@ export class ManagerPanel {
   runwaysHtml(s) {
     const ps = projects(s);
     const rwyBusy = ps.some((p) => p.kind === 'rwy');
-    let h = `<div class="p-sec"><span>🛬 Pisten${qm('rwy')}</span></div><div class="card has-pic pic-only">${pic('rwy_maint', 'Pistenwartung: Gummiabrieb entfernen oder neu asphaltieren')}</div>`;
+    const grass = !!LY.RWY.grass;
+    let h = `<div class="p-sec"><span>🛬 Pisten${qm('rwy')}</span></div><div class="card has-pic pic-only">${grass ? cpic(CPIC.grass, 'Pflege der Graspiste: mähen, walzen, neue Grasnarbe') : pic('rwy_maint', 'Pistenwartung: Gummiabrieb entfernen oder neu asphaltieren')}</div>`;
     for (const strip of runwayStrips(s)) {
       const cond = Math.round(rwyCond(s, strip.id));
       const ba = brakingAction(s, strip.id);
       h += `<div class="card"><div class="row"><span class="t">${strip.icon} ${esc(strip.label)} · ${esc(strip.role)}</span><span style="font-size:12px">Bremswirkung <b class="ba-${ba}">${BRAKE_DE[ba]}</b></span></div>
         <div class="row" style="font-size:12px;color:var(--muted);margin-top:3px"><span>Zustand ${cond} %</span><span>${strip.len}</span></div><div class="bar"><i style="width:${cond}%;background:${cond < 35 ? 'var(--bad)' : cond < 60 ? 'var(--warn)' : 'var(--good)'}"></i></div>
-        <div class="acts">${Object.entries(RWY_WORKS).map(([k, w]) => `<button class="btn${k === 'clean' ? ' btn-good' : ''}" data-act="rwy" data-v="${k}:${strip.id}" ${rwyBusy || s.cash < w.cost ? 'disabled' : ''} title="${esc(w.desc)}">${w.name} · ${fmtMoney(w.cost)} · ${w.hours} h</button>`).join('')}</div></div>`;
+        <div class="acts">${Object.entries(RWY_WORKS).map(([k, w]) => {
+          const c = rwyWorkCost(s, w);
+          return `<button class="btn${k === 'clean' ? ' btn-good' : ''}" data-act="rwy" data-v="${k}:${strip.id}" ${rwyBusy || s.cash < c ? 'disabled' : ''} title="${esc(EC.rwyWorkDesc(s, k))}">${esc(EC.rwyWorkName(s, k, strip.id).replace(/ \((Nord|Süd)bahn\)$/, ''))} · ${fmtMoney(c)} · ${w.hours} h</button>`;
+        }).join('')}</div></div>`;
     }
-    h += `<div class="s" style="font-size:12px;color:var(--muted);margin:2px 4px 8px">Jede Landung hinterlässt Gummiabrieb (schwere Flugzeuge mehr). Unter 60 % wird die Bremswirkung bei Nässe schlecht. Arbeiten laufen nachts (22:30–5:30) in Verkehrspausen und sperren die jeweilige Piste.${rwyBusy ? ' 🏗️ Arbeiten beauftragt.' : ''}</div>`;
+    h += `<div class="s" style="font-size:12px;color:var(--muted);margin:2px 4px 8px">${grass ? 'Jede Landung drückt Spuren in die Grasnarbe, Regen weicht sie auf. Unter 60 % bremst die Bahn bei Nässe schlecht. Gepflegt wird nach Betriebsschluss.' : 'Jede Landung hinterlässt Gummiabrieb (schwere Flugzeuge mehr). Unter 60 % wird die Bremswirkung bei Nässe schlecht. Arbeiten laufen nachts (22:30–5:30) in Verkehrspausen und sperren die jeweilige Piste.'}${rwyBusy ? ' 🏗️ Arbeiten beauftragt.' : ''}</div>`;
     h += this.upgradesHtml(s, ['Pisten'], false) + this.upgradesHtml(s, ['Betrieb'], true, 'Rollwege, Befeuerung & Navigation');
     return h;
   }
 
+  // kleiner Platz: Wiese (und ab Verkehrslandeplatz das kleine Vorfeld), Ausblick auf die nächste Stufe
+  smallStandsHtml(s) {
+    const st = stageOf(s);
+    const ga = gaSlots(s);
+    const who = (x) => {
+      const a = x.occ ? s.acs.find((q) => q.id === x.occ) : null;
+      return a ? `${esc(a.cs)} · ${a.type}` : x.resv ? 'reserviert' : 'frei';
+    };
+    const used = ga.filter((x) => x.occ || x.resv).length;
+    let h = `<div class="p-sec"><span>🌾 Abstellplätze auf der Wiese</span><span class="cnt">${ga.length - used} frei / ${ga.length}</span></div>`;
+    h += `<div class="card has-pic pic-only">${cpic(CPIC.meadow, `${used} von ${ga.length} belegt`)}</div>`;
+    h += `<div class="ga-grid">${ga.map((x, i) => `<div class="ga-slot${x.occ ? ' on' : x.resv ? ' resv' : ''}"><b>W${i + 1}</b><small>${who(x)}</small></div>`).join('')}</div>`;
+    h += `<div class="s" style="font-size:12px;color:var(--muted);margin:4px 4px 10px">Kleinflugzeuge rollen selbst auf die Wiese und werden von Hand festgezurrt. Parkgebühren gibt es hier nicht – verdient wird an Landeentgelt, AvGas und am Vereinsheim. Ist die Wiese voll, drehen Gäste wieder ab.</div>`;
+    if (st >= 1) {
+      const ap = s.stands.filter((x) => !x.ga && x.built);
+      h += `<div class="p-sec"><span>🛩️ Vorfeld</span><span class="cnt">${ap.filter((x) => !x.occ).length} frei / ${ap.length}</span></div>`;
+      h += `<div class="card has-pic pic-only">${cpic(CPIC.apron, 'Turboprops ohne Fluggastbrücke – zu Fuß oder mit dem Vorfeldbus')}</div>`;
+      for (const x of ap) h += `<div class="card"><div class="row"><span class="t">P${x.id} · Vorfeld · Turboprop</span><span style="font-size:12px;color:var(--muted)">${who(x)}</span></div></div>`;
+    }
+    const next = st === 0 ? ['Verkehrslandeplatz', 'Mit dem Verkehrslandeplatz kommt ein asphaltiertes Vorfeld mit fünf Positionen für Turboprops und Geschäftsreiseflugzeuge.'] : ['Regionalflughafen', 'Positionen mit Fluggastbrücke, Busvorfeld und später Großraum-Positionen baust du ab dem Regionalflughafen selbst.'];
+    h += `<div class="card lockcard"><div class="row"><span class="t">🔒 ${next[1]}</span><button class="mini" data-tab="career">ab ${next[0]}</button></div></div>`;
+    return h;
+  }
+
   standsHtml(s) {
-    let h = `<div class="p-sec"><span>🅿️ Parkpositionen</span><span class="cnt">${s.stands.filter((x) => x.built).length} / ${s.stands.length}</span></div>`;
+    if (smallField(s)) return this.smallStandsHtml(s);
+    const list = s.stands.filter((x) => !(x.ga && x.closed));
+    let h = `<div class="p-sec"><span>🅿️ Parkpositionen</span><span class="cnt">${list.filter((x) => x.built).length} / ${list.length}</span></div>`;
     for (const st of s.stands) {
+      if (st.ga && st.closed) continue;
       const occ = st.occ ? s.acs.find((a) => a.id === st.occ) : null;
       const pj = standProject(s, st.id);
       if (!st.built) {
         const cost = EC.standBuildCost(st);
-        const right = pj ? projectInline(pj) : `<button class="btn btn-good" data-act="stand" data-v="${st.id}" ${s.cash < cost ? 'disabled' : ''}>Bauen ${fmtMoney(cost)}</button>`;
+        const ok = standBuildable(s, st);
+        const right = pj ? projectInline(pj) : ok ? `<button class="btn btn-good" data-act="stand" data-v="${st.id}" ${s.cash < cost ? 'disabled' : ''}>Bauen ${fmtMoney(cost)}</button>` : `<button class="mini" data-tab="career">🔒 ab ${esc(STAGES[3].name)}</button>`;
         const sp = st.kind === 'remote' ? 'stand_remote' : st.size === 'L' ? 'stand_heavy' : 'stand_contact';
         h += `<div class="card has-pic${pj ? ' site' : ''}">${pic(sp)}<div class="row"><span class="t">P${st.id} · ${KIND_DE[st.kind]} · Klasse ${st.size}</span>${right}</div>${pj ? '' : `<div class="s">Bauzeit ${standBuildHours(st)} h · noch nicht gebaut</div>`}</div>`;
       } else {
@@ -396,9 +459,16 @@ export class ManagerPanel {
   upgradesHtml(s, catList, withHead = true, title = null) {
     let h = '';
     for (const cat of catList) {
-      const list = Object.entries(UPGRADES).filter(([, u]) => u.cat === cat);
-      if (!list.length) continue;
+      const all = Object.entries(UPGRADES).filter(([, u]) => u.cat === cat);
+      const list = all.filter(([k]) => upgradeAllowed(s, k) || (s.upgrades[k] || 0) > 0);
+      const locked = all.filter(([k]) => !list.some(([x]) => x === k));
+      if (!all.length) continue;
       if (withHead) h += `<div class="p-sec"><span>${title || cat}</span></div>`;
+      if (locked.length && isCareer(s)) {
+        const byStage = {};
+        for (const [k, u] of locked) (byStage[upgradeStage(k)] = byStage[upgradeStage(k)] || []).push(u.name);
+        h += Object.entries(byStage).map(([st, names]) => `<div class="card lockcard"><div class="row"><span class="t">🔒 ${esc(names.join(' · '))}</span><button class="mini" data-tab="career">ab ${esc(STAGES[st].name)}</button></div></div>`).join('');
+      }
       for (const [k, u] of list) {
         const lvl = s.upgrades[k] || 0;
         const maxed = lvl >= u.max;
@@ -434,7 +504,7 @@ export class ManagerPanel {
     const G = goalsState(s);
     const next = RANKS[G.rank + 1];
     const pct = next ? Math.round(((G.xp - RANKS[G.rank].xp) / (next.xp - RANKS[G.rank].xp)) * 100) : 100;
-    let h = `<div class="p-sec"><span>🏅 Flughafen-Rang${qm('goals')}</span></div><div class="card"><div class="row"><span class="t">${RANKS[G.rank].name}</span><span style="font-family:var(--mono);font-size:12px">${G.xp} XP</span></div><div class="bar"><i style="width:${pct}%;background:linear-gradient(90deg,#f59e0b,#fde047)"></i></div><div class="s">${next ? `Nächster Rang „${next.name}“ ab ${next.xp} XP` : 'Höchster Rang erreicht'} · ${G.done} Ziele erreicht</div><div class="rank-steps">${RANKS.map((r, i) => `<span class="${i <= G.rank ? 'on' : ''}">${i + 1}. ${r.name}</span>`).join('')}</div></div>`;
+    let h = `<div class="p-sec"><span>🏅 ${isCareer(s) ? 'Dein Rang' : 'Flughafen-Rang'}${qm('goals')}</span></div><div class="card"><div class="row"><span class="t">${rankName(s, G.rank)}</span><span style="font-family:var(--mono);font-size:12px">${G.xp} XP</span></div><div class="bar"><i style="width:${pct}%;background:linear-gradient(90deg,#f59e0b,#fde047)"></i></div><div class="s">${next ? `Nächster Rang „${rankName(s, G.rank + 1)}“ ab ${next.xp} XP` : 'Höchster Rang erreicht'} · ${G.done} Ziele erreicht</div><div class="rank-steps">${RANKS.map((r, i) => `<span class="${i <= G.rank ? 'on' : ''}">${i + 1}. ${rankName(s, i)}</span>`).join('')}</div></div>`;
     h += achievementsHtml(s);
     h += `<div class="p-sec"><span>🎯 Ziele</span></div>`;
     for (const g of activeGoals(s)) {
@@ -449,18 +519,21 @@ export class ManagerPanel {
     const fs = fleetSummary(s);
     const eff = efficiency(s);
     const wait = s.stats.vehWait || {};
+    const small = smallField(s);
     let h = `<div class="p-sec"><span>Fuhrpark</span><span class="cnt">${s.vehicles.length} / 24</span></div>`;
-    for (const [k, vt] of Object.entries(VEH_TYPES)) {
+    if (!vehicleAllowed(s, 'tug')) h += `<div class="card has-pic">${cpic(CPIC.grass, 'Einziges Fahrzeug: der Traktor des Platzwarts')}<div class="row"><span class="t">🤝 Kein Fuhrpark nötig</span><button class="mini" data-tab="career">ab Verkehrslandeplatz</button></div><div class="s">Piloten schieben ihre Maschinen selbst auf die Wiese und tanken an der AvGas-Säule. Schlepper, Tankwagen, Gepäckzug und Enteiser kommen mit dem Verkehrslandeplatz.</div></div>`;
+    else for (const [k, vt] of Object.entries(VEH_TYPES)) {
       const f = fs[k];
       const w = Math.round((wait[k] || 0) / 60);
       h += `<div class="card has-pic">${pic('veh_' + k, `${f.total}× im Fuhrpark`)}<div class="row"><span class="t">${vt.name}</span><span style="font-family:var(--mono)">${f.total}× <small style="color:var(--muted)">(${f.busy} im Einsatz${f.broken ? `, ${f.broken} defekt` : ''})</small></span></div>
         <div class="s">Wartezeit auf Fahrzeug zuletzt: ${w} min ${w > 30 ? '<span style="color:var(--warn)">– Engpass!</span>' : ''} · Unterhalt ${fmtMoney(vt.upkeep)}/Tag</div>
         <div class="acts"><button class="btn btn-good" data-act="buy" data-v="${k}" ${s.cash < vt.price ? 'disabled' : ''}>+ Kaufen ${fmtMoney(vt.price)}</button><button class="btn" data-act="sell" data-v="${k}">− Verkaufen</button></div></div>`;
     }
-    h += `<div class="p-sec"><span>Bodenpersonal</span></div>
-      <div class="card has-pic">${pic('staff')}<div class="row"><span class="t">${s.staff} Mitarbeitende</span><span>Effizienz <b style="font-family:var(--mono);color:${eff < 0.9 ? 'var(--warn)' : 'var(--good)'}">${Math.round(eff * 100)} %</b></span></div>
-      <div class="s">Bedarf ≈ ${Math.round(10 + 2.2 * s.vehicles.length)} · Kosten ${fmtMoney(260)} je Person/Tag</div>
-      <div class="acts"><button class="btn btn-good" data-act="hire" data-v="5">+5 einstellen</button><button class="btn" data-act="hire" data-v="-5">−5 abbauen</button></div></div>`;
+    const step = small ? 1 : 5;
+    h += `<div class="p-sec"><span>${small ? 'Platzwart, Flugleitung & Helfer' : 'Bodenpersonal'}</span></div>
+      <div class="card has-pic">${small ? cpic(CPIC.crew) : pic('staff')}<div class="row"><span class="t">${s.staff} Mitarbeitende</span><span>Effizienz <b style="font-family:var(--mono);color:${eff < 0.9 ? 'var(--warn)' : 'var(--good)'}">${Math.round(eff * 100)} %</b></span></div>
+      <div class="s">Bedarf ≈ ${Math.round(staffBase(s) + 2.2 * s.vehicles.length)} · Kosten ${fmtMoney(260)} je Person/Tag</div>
+      <div class="acts"><button class="btn btn-good" data-act="hire" data-v="${step}">+${step} einstellen</button><button class="btn" data-act="hire" data-v="-${step}">−${step} abbauen</button></div></div>`;
     const fc = EC.dailyFixedCosts(s);
     h += `<div class="p-sec"><span>Fixkosten pro Tag</span></div><table class="ledger">`;
     let sum = 0;
@@ -506,16 +579,22 @@ export class ManagerPanel {
   // ---------- Gebühren ----------
   fees(s) {
     const fi = feeIndex(s);
-    const mood = fi > 1.25 ? ['var(--bad)', 'Airlines verärgert – weniger Angebote, Kündigungen drohen'] : fi > 1.05 ? ['var(--warn)', 'Airlines skeptisch'] : fi < 0.85 ? ['var(--good)', 'Sehr attraktiv – aber weniger Erlös je Flug'] : ['var(--good)', 'Marktüblich'];
+    const who = isCareer(s) && stageOf(s) === 0 ? 'Gäste' : 'Airlines';
+    const mood = fi > 1.25 ? ['var(--bad)', `${who} verärgert – weniger ${who === 'Gäste' ? 'Besuch' : 'Angebote, Kündigungen drohen'}`] : fi > 1.05 ? ['var(--warn)', `${who} skeptisch`] : fi < 0.85 ? ['var(--good)', 'Sehr attraktiv – aber weniger Erlös je Flug'] : ['var(--good)', 'Marktüblich'];
     let h = `<div class="card"><div class="row"><span class="t">Preisniveau ${Math.round(fi * 100)} %</span><span style="color:${mood[0]};font-size:12px">${mood[1]}</span></div><div class="s">100 % = Marktdurchschnitt. Änderungen wirken sofort auf neue Flüge und langsam auf die Zufriedenheit.</div></div>`;
+    const grass = isCareer(s) && stageOf(s) === 0;
     const rows = [
-      ['landing', 'Landeentgelt', 'je Tonne Höchstabfluggewicht'],
-      ['pax', 'Passagierentgelt', 'je abfliegendem Passagier'],
+      ['landing', 'Landeentgelt', grass ? 'je Tonne Höchstabfluggewicht, Kleinflugzeuge zahlen mindestens 1,5 t' : 'je Tonne Höchstabfluggewicht'],
+      ['pax', 'Passagierentgelt', grass ? 'je abfliegendem Fluggast (Rundflug, Lufttaxi)' : 'je abfliegendem Passagier'],
       ['parking', 'Positionsentgelt', 'je Stunde an der Parkposition'],
-    ];
+    ].filter((r) => !(grass && r[0] === 'parking'));
     for (const [k, name, hint] of rows) {
       const [a, b] = FEE_LIMITS[k];
       h += `<div class="fee-row"><div class="row"><span>${name}</span><b data-feeval="${k}" style="font-family:var(--mono)">${feeLabel(k, s.fees[k])}</b></div><input type="range" min="${a}" max="${b}" step="0.5" value="${s.fees[k]}" data-fee="${k}" /><div class="hint">${hint} · Standard ${feeLabel(k, DEFAULT_FEES[k])}</div></div>`;
+    }
+    if (grass) {
+      h += `<div class="p-sec"><span>Betriebszeiten</span></div><div class="card"><div class="row"><span class="t">☀️ Nur bei Tag, nach Sichtflugregeln</span><button class="mini" data-tab="career">Nachtflug ab Verkehrslandeplatz</button></div><div class="s">Eine Graspiste ohne Befeuerung wird nur zwischen Sonnenauf- und -untergang angeflogen – Nachtentgelte und Nachtflugverbot gibt es hier noch nicht.</div></div>`;
+      return h + `<button class="btn" data-act="feereset">Auf Standard zurücksetzen</button>`;
     }
     h += `<div class="p-sec"><span>Nachtflüge (23–5 Uhr)${qm('fees')}</span></div>`;
     const [na, nb] = FEE_LIMITS.night;
@@ -540,7 +619,9 @@ export class ManagerPanel {
       h += lineSvg(hist);
     } else h += `<div class="empty">Diagramme erscheinen nach dem ersten Tagesabschluss (Mitternacht).</div>`;
     h += `<div class="p-sec"><span>Heute bisher</span></div><table class="ledger">`;
-    for (const [k, v] of Object.entries(L.rev).sort((a, b) => b[1] - a[1])) h += `<tr><td>${EC.REV_CATS[k] || k}</td><td style="color:var(--good)">+${fmtMoney(v, false)}</td></tr>`;
+    const SMALL_REV = { fuel: 'Spritverkauf (AvGas)', retail: 'Vereinsheim (Kaffee & Kuchen)', parking: 'Abstellen' };
+    const revName = (k) => (smallField(s) && SMALL_REV[k] ? SMALL_REV[k] : EC.REV_CATS[k] || k);
+    for (const [k, v] of Object.entries(L.rev).sort((a, b) => b[1] - a[1])) h += `<tr><td>${revName(k)}</td><td style="color:var(--good)">+${fmtMoney(v, false)}</td></tr>`;
     h += `<tr class="sum"><td>Umsatz</td><td>${fmtMoney(rev, false)}</td></tr>`;
     for (const [k, v] of Object.entries(L.cost).sort((a, b) => b[1] - a[1])) h += `<tr><td>${EC.COST_CATS[k] || k}</td><td style="color:#fca5a5">−${fmtMoney(v, false)}</td></tr>`;
     h += `<tr class="sum"><td>Kosten</td><td>${fmtMoney(cost, false)}</td></tr>`;
@@ -553,7 +634,7 @@ export class ManagerPanel {
     const lim = loanLimit(s);
     const r = loanRate(s);
     h += `<div class="p-sec"><span>🏦 Kredite${qm('loans')}</span><span class="cnt">${fmtMoney(debt(s))}</span></div>`;
-    h += `<div class="card"><div class="row"><span class="t">Kreditrahmen ${fmtMoney(lim)}</span><span style="font-size:12px;color:var(--muted)">Zins ${(r * 100).toFixed(2).replace('.', ',')} % pro Tag</span></div><div class="s">Laufzeit ${LOAN_DAYS} Tage, gleiche Tagesraten. Besseres Ansehen = günstigerer Zins und höherer Rahmen.</div><div class="acts">${[1e6, 2e6, 5e6].map((a) => `<button class="btn" data-act="loan" data-v="${a}" ${a > lim ? 'disabled' : ''}>+${fmtMoney(a)} <small>(${fmtMoney(annuity(a, r))}/Tag)</small></button>`).join('')}</div></div>`;
+    h += `<div class="card"><div class="row"><span class="t">Kreditrahmen ${fmtMoney(lim)}</span><span style="font-size:12px;color:var(--muted)">Zins ${(r * 100).toFixed(2).replace('.', ',')} % pro Tag</span></div><div class="s">Laufzeit ${LOAN_DAYS} Tage, gleiche Tagesraten. Besseres Ansehen = günstigerer Zins und höherer Rahmen.</div><div class="acts">${loanSteps(lim).map((a) => `<button class="btn" data-act="loan" data-v="${a}" ${a > lim ? 'disabled' : ''}>+${fmtMoney(a)} <small>(${fmtMoney(annuity(a, r))}/Tag)</small></button>`).join('')}</div></div>`;
     for (const l of loans(s)) h += `<div class="card"><div class="row"><span class="t">Kredit ${fmtMoney(l.amount)}</span><span style="font-family:var(--mono);font-size:12px">Rest ${fmtMoney(l.rest)}</span></div><div class="bar"><i style="width:${(1 - l.rest / l.amount) * 100}%"></i></div><div class="s">Rate ${fmtMoney(l.daily)}/Tag · noch ${l.days} Tage · ${(l.rate * 100).toFixed(2).replace('.', ',')} %/Tag</div><div class="acts"><button class="mini" data-act="repay" data-v="${l.id}" ${s.cash < l.rest ? 'disabled' : ''}>Sondertilgung ${fmtMoney(l.rest)}</button></div></div>`;
     if (hist.length) {
       h += `<div class="p-sec"><span>Tabelle</span></div><table class="ledger"><tr><td><b>Tag</b></td><td><b>Umsatz · Kosten · Bew. · pünktl.</b></td></tr>`;
@@ -562,6 +643,16 @@ export class ManagerPanel {
     }
     return h;
   }
+}
+
+// Kreditbeträge passend zum Rahmen (am Grasplatz 15/30/60 Tsd € statt Millionen)
+function loanSteps(lim) {
+  if (lim >= 5e6) return [1e6, 2e6, 5e6];
+  const nice = (v) => {
+    const u = v >= 1e6 ? 1e5 : v >= 1e5 ? 1e4 : 5e3;
+    return Math.max(u, Math.floor(v / u) * u);
+  };
+  return [...new Set([0.25, 0.5, 1].map((f) => nice(lim * f)))];
 }
 
 function feeLabel(k, v) {
@@ -684,7 +775,7 @@ function trendsHtml(s) {
 function voicesHtml(s) {
   const N = newsState(s);
   const r = paxRating(s);
-  let h = `<div class="p-sec"><span>💬 Passagierstimmen</span>${r ? `<span class="cnt">${'★'.repeat(Math.round(r))}${'☆'.repeat(5 - Math.round(r))} ${r.toFixed(1).replace('.', ',')}</span>` : ''}</div>`;
+  let h = `<div class="p-sec"><span>💬 ${smallField(s) ? 'Stimmen am Platz' : 'Passagierstimmen'}</span>${r ? `<span class="cnt">${'★'.repeat(Math.round(r))}${'☆'.repeat(5 - Math.round(r))} ${r.toFixed(1).replace('.', ',')}</span>` : ''}</div>`;
   if (!N.quotes.length) return h + '<div class="empty">Noch keine Stimmen – die ersten Reisenden sind unterwegs.</div>';
   h += N.quotes.slice(0, 4).map((q) => `<div class="card voice"><div class="v-st">${'★'.repeat(q.stars)}<span>${'★'.repeat(5 - q.stars)}</span></div><div class="v-t">„${esc(q.text)}“</div><div class="s">${esc(q.who)} · ${fmtClock(q.t)}</div></div>`).join('');
   h += `<div class="p-sec"><span>📰 Nachrichten</span></div>` + N.items.slice(0, 5).map((i) => `<div class="card news ${i.tone}"><span>${i.icon}</span><div><div class="v-t">${esc(i.text)}</div><div class="s">${fmtClock(i.t)}</div></div></div>`).join('');

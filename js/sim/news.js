@@ -5,6 +5,8 @@ import { rand, pick, hourOf } from '../util.js';
 import { PH } from './aircraft.js';
 import { fuelState } from './fuel.js';
 import { rwyCond } from './runway.js';
+import { smallField, stageOf, careerState } from './career.js';
+import * as LY from '../layout.js';
 
 const H = 3600;
 const FIRST = ['Anna', 'Jonas', 'Mia', 'Luca', 'Lea', 'Ben', 'Sofia', 'Emil', 'Hanna', 'Noah', 'Clara', 'Felix', 'Ida', 'Paul', 'Mila', 'Elias', 'Aylin', 'Mehmet', 'Olga', 'Piotr'];
@@ -59,7 +61,35 @@ export function updateNews(state, dt) {
   }
 }
 
+// kleiner Platz (Aufbau): Meldungen aus Vereinsheim, Platzrunde und Lokalzeitung statt Kerosinmarkt und Lounge
+function smallHeadline(state) {
+  const opts = [];
+  const w = state.weather.kind, h = hourOf(state.time);
+  const grass = LY.RWY.grass;
+  if (w === 'storm') opts.push(['Gewitter über dem Platz – alle Flieger sind am Boden und gut verzurrt.', 'bad', '⛈️']);
+  if (w === 'fog') opts.push(['Nebel im Tal: Heute fliegt nur, wer warten kann – Kaffee im Vereinsheim.', 'warn', '🌫️']);
+  if (w === 'clear' && h > 9 && h < 18) opts.push(['Bestes Flugwetter – Ausflügler sitzen mit Kuchen am Zaun und schauen den Landungen zu.', 'good', '☀️']);
+  if (rwyCond(state) < 50) opts.push([grass ? 'Piloten melden Furchen in der Grasnarbe – Zeit fürs Walzen.' : 'Piloten melden Risse im Belag – die Bahn braucht Pflege.', 'bad', '🛬']);
+  if (state.projects && state.projects.length) {
+    const p = pick(state, state.projects);
+    opts.push([`Baustelle „${p.name}“ zu ${Math.floor(p.prog * 100)} % fertig.`, 'info', '🏗️']);
+  }
+  const C = careerState(state);
+  if (C.fame > 50) opts.push([`Lokalzeitung: „${state.name} – der kleine Platz, über den alle reden.“`, 'good', '📰']);
+  opts.push([pick(state, grass
+    ? ['Vereinsheim: Sonntag gibt es wieder Pflaumenkuchen.', 'Der Platzwart hat gemäht – die Schafe vom Nachbarhof schauen zu.', 'Fliegerclub sucht Flugschüler – Schnupperflug am Wochenende.', 'Fundsache im Vereinsheim: eine Fliegerbrille und ein Kuchenblech.', 'Segelflieger aus dem Nachbarort bewundern die frisch gemähte Bahn.', 'Der Windsack hat eine neue Hülle – leuchtend orange.']
+    : ['Neue Asphaltbahn: Anwohner kommen zum Zuschauen an den Zaun.', 'Die Flugleitung lädt zum Tag der offenen Tür in den neuen Turm.', 'Erste Geschäftsreisende loben den kurzen Weg vom Parkplatz zum Flieger.', 'Fliegerclub und Flugschule teilen sich jetzt die neue Halle.', 'Fundsache im Abfertigungsgebäude: ein Schal und ein Modellflugzeug.']), 'info', '📰']);
+  return opts;
+}
+
 function headline(state) {
+  if (smallField(state)) {
+    const opts = smallHeadline(state);
+    const recent = new Set(newsState(state).items.slice(0, 6).map((i) => i.text));
+    const fresh = opts.filter((o) => !recent.has(o[0]));
+    if (fresh.length) push(state, ...pick(state, fresh));
+    return;
+  }
   const opts = [];
   const f = fuelState(state);
   const t = state.stats.today;
@@ -96,7 +126,29 @@ function headline(state) {
   push(state, text, tone, icon);
 }
 
+// Stimmen am kleinen Platz: Piloten und Ausflugsgäste
+function smallVoice(state) {
+  const pool = [];
+  const grass = LY.RWY.grass;
+  const ga = state.stands.filter((x) => x.ga && !x.closed && x.built);
+  const full = ga.length && ga.filter((x) => x.occ || x.resv).length >= ga.length - 1;
+  if (grass) pool.push(['Kurze Bahn, aber super gepflegt – Landung wie auf Teppich.', 5], ['Bei Seitenwind ganz schön sportlich hier.', 3], ['Der Kuchen im Vereinsheim lohnt den Ausflug.', 5]);
+  else pool.push(['Endlich Asphalt – und trotzdem familiär.', 5], ['Mit dem Turboprop in 50 Minuten am Ziel, ohne Schlange.', 5], ['Kurze Wege: vom Auto zum Flieger in drei Minuten.', 5]);
+  pool.push(['Am Funk freundlich, Platzrunde gut erklärt.', 5], ['AvGas-Säule nimmt Karte – so muss das.', 4]);
+  if (rwyCond(state) < 50) pool.push([grass ? 'Die Bahn ist ganz schön holprig geworden.' : 'Die Bahn hat Löcher, das spürt man beim Aufsetzen.', 2]);
+  if (full) pool.push(['Kaum noch Platz zum Abstellen – fast wäre ich umgedreht.', 2]);
+  if (state.reputation > 65) pool.push(['Mein Lieblingsplatz für den Sonntagsflug.', 5]);
+  if (state.reputation < 45) pool.push(['Hier lande ich nur noch im Notfall.', 1]);
+  if (state.weather.kind === 'rain') pool.push(['Nasses Gras, lange Landestrecke – aber geklappt.', 3]);
+  const recentQ = new Set(newsState(state).quotes.slice(0, 3).map((q) => q.text));
+  const freshQ = pool.filter((p) => !recentQ.has(p[0]));
+  if (!freshQ.length) return;
+  const [text, stars] = pick(state, freshQ);
+  quote(state, text, stars, `${pick(state, FIRST)}, ${pick(state, grass ? ['fliegt privat', 'zu Besuch', 'lernt hier fliegen', 'im Fliegerclub'] : ['auf Geschäftsreise', 'fliegt privat', 'zu Besuch', 'im Fliegerclub'])}`);
+}
+
 function passenger(state) {
+  if (smallField(state)) return smallVoice(state);
   const t = state.stats.today;
   const deps = t.onTime + t.delayed;
   const pct = deps ? t.onTime / deps : 1;

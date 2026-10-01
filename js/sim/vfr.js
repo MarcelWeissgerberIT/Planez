@@ -132,6 +132,7 @@ export function updateVfr(state, dt) {
   let p = S.p;
   if (!p) {
     state.vfrOcc = null;
+    state.vfrFinal = null; // sonst hält ein alter Endanflug-Wert alle Starts auf
     if (state.time < S.next || state.time < 2 * 3600 || state.rwyPending) return;
     const early = state.scenario ? 6 : 8; // in Herausforderungen fliegt die Flugschule schon ab 6 Uhr
     if (hr < early || hr > 18.5 || !wxOk) {

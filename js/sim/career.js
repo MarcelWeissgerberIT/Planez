@@ -132,6 +132,13 @@ export function upgradeAllowed(state, key) {
   if (key === 'lounge' || key === 'rail') return st >= 3;
   return true;
 }
+// ab welcher Stufe ein Ausbau aus dem Katalog möglich ist (Karriere)
+export const upgradeStage = (key) => (key === 'rwy2' ? 4 : key === 'lounge' || key === 'rail' ? 3 : 2);
+// kleiner Platz (Grasplatz oder Verkehrslandeplatz): Zentrale zeigt Wiese, AvGas und Vereinsheim statt Terminal & Co.
+export const smallField = (state) => isCareer(state) && stageOf(state) < 2;
+// Fahrzeuge gibt es erst ab dem Verkehrslandeplatz – am Grasplatz schieben Piloten selbst und tanken an der Säule
+export const vehicleAllowed = (state, type) => !isCareer(state) || stageOf(state) >= 1 || !type;
+
 // Kreditrahmen und Pistenarbeiten passen zur Größe des Platzes
 export const LOAN_CAP = [60000, 600000, 6000000, 14000000, 22000000];
 export const RWY_WORK_F = [0.02, 0.12, 0.6, 1, 1];
@@ -171,8 +178,13 @@ export function visitorsFor(state, day) {
   if (weekend(day)) n *= 1.6;
   if (C.adUntil && C.adUntil > (day - 1) * 86400) n *= 1.3;
   n *= [1, 1.3, 0.45][st] ?? 0;
-  return Math.max(1, Math.round(n));
+  // mehr Gäste, als die Bahn (Sichtflug, eine Piste, 8–18 Uhr) neben Partnern und Linie verkraftet, kommen nicht
+  const planned = state.contracts.reduce((t, c) => t + c.perDay * 2, 0);
+  const room = Math.max(2, (RWY_DAY[st] - planned) / 2);
+  return Math.max(1, Math.round(Math.min(n, room)));
 }
+// Bewegungen pro Tag, die Graspiste, Verkehrslandeplatz und Regionalflughafen im Aufbau sicher abwickeln
+export const RWY_DAY = [60, 96, 150];
 
 // GA-Umlauf: kommt an, bleibt eine Weile (Café, Tanken), fliegt weiter
 export function makeGaRot(state, o) {

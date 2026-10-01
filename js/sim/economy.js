@@ -15,7 +15,7 @@ import { onNightMovement, takeLoan, repayLoan, loanLimit, loans } from './financ
 import { rwyCond } from './runway.js';
 import { bump } from './goals.js';
 import { careerReserve } from './career.js';
-import { isCareer, careerFixedCosts, gaTakeoffRevenue, hourlyCareer, autoCareer, stageOf, standBuildable, upgradeAllowed, rwyWorkCost, airlineRotations, rotCap } from './career.js';
+import { isCareer, careerFixedCosts, gaTakeoffRevenue, hourlyCareer, autoCareer, stageOf, standBuildable, upgradeAllowed, rwyWorkCost, airlineRotations, rotCap, smallField, vehicleAllowed } from './career.js';
 import * as LY from '../layout.js';
 
 export const REV_CATS = { landing: 'Landegebühren', pax: 'Passagierentgelte', parking: 'Parkpositionen', handling: 'Abfertigung', fuel: 'Kerosinverkauf (Marge)', retail: 'Shops & Gastro', carpark: 'Parken (Landseite)', cargo: 'Fracht', hotel: 'Hotel', night: 'Nacht-/Lärmentgelte', deice: 'Enteisung', energy: 'Stromverkauf (Solar)', rail: 'Bahnhof', other: 'Sonstiges' };
@@ -327,6 +327,15 @@ export function buyUpgrade(state, key) {
   startProject(state, 'upgrade', key, { name: UPGRADE_NAMES(key, lvl + 1), cost, hours: upgradeHours(key, lvl + 1), level: lvl + 1 });
   return true;
 }
+// Name und Beschreibung der Pistenarbeit (Graspiste: mähen/walzen bzw. neue Grasnarbe)
+export function rwyWorkName(state, key, strip = 'N') {
+  if (LY.RWY.grass) return key === 'clean' ? 'Graspiste mähen und walzen' : 'Grasnarbe erneuern';
+  return `${RWY_WORKS[key].name}${state.upgrades.rwy2 ? (strip === 'S' ? ' (Südbahn)' : ' (Nordbahn)') : ''}`;
+}
+export function rwyWorkDesc(state, key) {
+  if (LY.RWY.grass) return key === 'clean' ? 'Mähen, Maulwurfshügel einebnen, walzen: Zustand +35 % (max. 90 %).' : 'Neue Grasnarbe einsäen und walzen: Zustand 100 %.';
+  return RWY_WORKS[key].desc;
+}
 // Pistenarbeiten beauftragen (laufen nachts in Verkehrspausen)
 export function orderRunwayWork(state, spec) {
   const [key, strip = 'N'] = String(spec).split(':');
@@ -335,13 +344,14 @@ export function orderRunwayWork(state, spec) {
   if (strip === 'S' && !state.upgrades.rwy2) return false;
   const wc = rwyWorkCost(state, w);
   if (state.cash < wc) return notify(state, 'Nicht genug Geld', 'bad'), false;
-  const name = LY.RWY.grass ? (key === 'clean' ? 'Graspiste mähen und walzen' : 'Grasnarbe erneuern') : `${w.name}${state.upgrades.rwy2 ? (strip === 'S' ? ' (Südbahn)' : ' (Nordbahn)') : ''}`;
+  const name = rwyWorkName(state, key, strip);
   capex(state, wc, name);
   startProject(state, 'rwy', key, { name, cost: wc, hours: w.hours, strip });
   return true;
 }
 export function buyVehicle(state, type) {
   const vt = VEH_TYPES[type];
+  if (!vehicleAllowed(state, type)) return notify(state, 'Fahrzeuge gibt es erst mit dem Verkehrslandeplatz', 'warn'), false;
   if (state.cash < vt.price) return notify(state, 'Nicht genug Geld', 'bad'), false;
   if (state.vehicles.length >= 24) return notify(state, 'Depot voll (max. 24 Fahrzeuge)', 'warn'), false;
   capex(state, vt.price, vt.name);
@@ -361,7 +371,8 @@ export function hire(state, n) {
     spend(state, 'staff', n * 2500);
     state.staff += n;
   } else {
-    const k = Math.min(-n, state.staff - 5);
+    const k = Math.max(0, Math.min(-n, state.staff - (smallField(state) ? 1 : 5)));
+    if (!k) return;
     spend(state, 'staff', k * 6000);
     state.staff -= k;
     rep(state, -0.3 * k);
@@ -457,7 +468,7 @@ export function autoManager(state) {
     state.stats.vehWait = {};
   }
   // Personal
-  if (efficiency(state) < 0.95 && !(state.strikeUntil > state.time) && state.cash > reserve * 0.5 && state.hourTick % 3 === 0) hire(state, 3);
+  if (efficiency(state) < 0.95 && !(state.strikeUntil > state.time) && state.cash > reserve * 0.5 && state.hourTick % 3 === 0) hire(state, smallField(state) ? 1 : 3);
   const cargoWaiting = state.acs.some((a) => (a.phase === PH.VACATED || a.phase === PH.TAXI_WAIT || a.phase === PH.HOLD) && !a.stand && AC_TYPES[a.type].cargo);
   if (cargoWaiting) state.cargoShortage = (state.cargoShortage || 0) + 1;
   const cargoSite = state.stands.some((s) => !s.built && s.kind === 'cargo' && standProject(state, s.id));

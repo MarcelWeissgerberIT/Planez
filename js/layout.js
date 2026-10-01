@@ -264,10 +264,11 @@ export function pathToWait(fromX, rwy, len, slot = 0) {
 }
 
 // Verfügbare Abrollwege in Landerichtung, nach Entfernung
-export function exitsAhead(rwy) {
+// Abrollwege voraus; Kleinflugzeuge (min 2,5) dürfen auch den ersten kurz hinter dem Aufsetzpunkt nehmen
+export function exitsAhead(rwy, min = RWY.grass ? 2.5 : 4) {
   const d = rwyDir(rwy);
   const tdx = RWY.thr[rwy] + d * RWY.td;
-  return EXITS.filter((x) => (x - tdx) * d > (RWY.grass ? 2.5 : 4) && x > RWY.x0 && x < RWY.x1).sort((a, b) => (a - tdx) * d - (b - tdx) * d);
+  return EXITS.filter((x) => (x - tdx) * d > min && x > RWY.x0 && x < RWY.x1).sort((a, b) => (a - tdx) * d - (b - tdx) * d);
 }
 
 function dedupe(pts) {

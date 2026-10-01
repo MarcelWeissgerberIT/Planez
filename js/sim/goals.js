@@ -16,6 +16,10 @@ export const RANKS = [
   { name: 'Weltflughafen', xp: 5500 },
 ];
 
+// Im Aufbau-Modus heißen die Ränge nach der Person, nicht nach dem Platz (sonst „Regionalflughafen“ am Grasplatz)
+const CAREER_RANK = ['Neu am Platz', 'Platzleitung', 'Flughafenleitung', 'Luftfahrt-Profi', 'Luftfahrt-Legende'];
+export const rankName = (state, i) => (state && state.career ? CAREER_RANK[i] : RANKS[i].name);
+
 const n0 = (v) => Math.round(v).toLocaleString('de-DE');
 // type: sum = Zuwachs seit Zielvergabe, streak = aktuelle Serie, level = aktueller Wert
 export const GOAL_DEFS = {

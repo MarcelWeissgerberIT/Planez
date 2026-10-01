@@ -55,7 +55,7 @@ import * as LY from './layout.js';
 import { seqColor } from './ui/tower.js';
 import { siteGeom } from './render/sites.js';
 import { initGlossary, setGlossaryEnabled, glossify, glossaryHtml } from './ui/glossary.js';
-import { goalsState, activeGoals, goalProgress, goalText, goalFraction, RANKS, GOAL_DEFS } from './sim/goals.js';
+import { goalsState, activeGoals, goalProgress, goalText, goalFraction, RANKS, GOAL_DEFS, rankName } from './sim/goals.js';
 import { fuelState } from './sim/fuel.js';
 import { initMainMenu, refreshMainMenu, showPauseMenu, loadPrefs, savePrefs, applyA11y } from './ui/menus.js';
 import { ManagementPage } from './ui/mgmtPage.js';
@@ -345,8 +345,8 @@ function startGame(state) {
   if (state.fees.night === undefined) state.fees.night = 600;
   if (!state.loans) state.loans = [];
   if (!state.life) state.life = {};
-  // Winter: ältere Spielstände bekommen zwei Enteisungsfahrzeuge
-  if (!state.vehicles.some((v) => v.type === 'deice')) for (let i = 0; i < 2; i++) state.vehicles.push(makeVehicle(state, 'deice', freeBay(state)));
+  // Winter: ältere Spielstände bekommen zwei Enteisungsfahrzeuge (nicht im Aufbau-Modus: dort bringt sie der Ausbau)
+  if (!state.career && !state.vehicles.some((v) => v.type === 'deice')) for (let i = 0; i < 2; i++) state.vehicles.push(makeVehicle(state, 'deice', freeBay(state)));
   if (state.settings.vehAuto && state.settings.vehAuto.deice === undefined) state.settings.vehAuto.deice = false;
   fuelState(state);
   goalsState(state);
@@ -816,7 +816,7 @@ function showReport(rec) {
     ${newspaperHtml(game.state, rec)}
     ${momentsHtml()}
     ${rec.score && (game.state.role === 'tower' || game.state.role === 'ground') ? `<p class="rep-score">⭐ Schichtpunkte heute: <b>${rec.score.toLocaleString('de-DE')}</b>${rec.score >= rec.scoreBest ? ' · <span>neuer Tagesbestwert!</span>' : ` · Bestwert ${rec.scoreBest.toLocaleString('de-DE')}`}</p>` : ''}
-    ${rec.xp ? `<p style="margin:10px 0 0;color:var(--muted)">🏅 +${rec.xp} XP für den Tag · ${RANKS[goalsState(game.state).rank].name} (${goalsState(game.state).xp} XP)</p>` : ''}
+    ${rec.xp ? `<p style="margin:10px 0 0;color:var(--muted)">🏅 +${rec.xp} XP für den Tag · ${rankName(game.state, goalsState(game.state).rank)} (${goalsState(game.state).xp} XP)</p>` : ''}
     <div class="modal-acts"><button class="btn btn-primary" data-close-modal>Weiter</button></div>`,
     (box) => box.querySelector('[data-close-modal]').addEventListener('click', () => {
       closeModal();
@@ -1646,7 +1646,8 @@ function helpGuide(first) {
       <li><b>Geld verdienen:</b> Landegebühren, Spritmarge, Vereinsheim-Café und Abstellgebühren bringen wenig – <b>Partner</b> bringen mehr: Flugschule, Rundflüge und Fallschirmclub (ab Verkehrslandeplatz auch ein Lufttaxi) fragen an, sobald der Platz bekannt genug ist, und zahlen Pacht plus Provision je Flug (Management-Zentrale › Airlines &amp; Verträge).</li>
       <li><b>Bekannter werden:</b> In der Leiste rechts und unter Management-Zentrale › <b>Aufbau</b> startest du Aktionen – <b>Flugplatzfest</b> (Eintritt, Besucher, Gastflieger, Ansehen; bei Regen kommen weniger), <b>Anzeige im Fliegermagazin</b> (mehr Gastflieger für 4 Tage) und <b>Fly-In</b> (Pilotentreffen am nächsten Vormittag). Jede Aktion hat eine Pause, bevor sie wieder geht.</li>
       <li><b>Ausbauen:</b> Jede Stufe hat Bedingungen (Ansehen, Bewegungen, Partner bzw. Airline-Verträge, Passagiere). Sind sie erfüllt, bauen Land, Kreis und Investoren – du zahlst den <b>Eigenanteil</b>. Stufen: Grasplatz → Verkehrslandeplatz (Asphaltbahn, kleines Vorfeld, Abfertigungsgebäude, Turboprops) → Regionalflughafen (Terminal mit Brücken, Tower, Jets) → Internationaler Flughafen (Großraum, Fracht) → Drehkreuz (Parallelbahn, A380).</li>
-      <li><b>Hart, aber ehrlich:</b> Kosten, Bußgelder und Kreditrahmen passen zur Größe des Platzes; ist die Abstellwiese voll, fliegen Gäste woanders hin, und mehr Linienflüge als das Vorfeld verkraftet nimmt die KI nicht an. Rote Zahlen kosten jeden Tag Ansehen.</li>
+      <li><b>Hart, aber ehrlich:</b> Kosten, Bußgelder und Kreditrahmen passen zur Größe des Platzes; ist die Abstellwiese voll, fliegen Gäste woanders hin, und mehr Linienflüge als das Vorfeld verkraftet nimmt die KI nicht an. Rote Zahlen kosten jeden Tag Ansehen. Mehr Gastflieger, als die Bahn neben Partnern und Linie verkraftet, kommen nicht.</li>
+      <li><b>Zentrale passt zur Größe:</b> Am Grasplatz zeigt die Management-Zentrale die Abstellwiese (W1–W10, wer steht wo), die Pflege der Graspiste (mähen, walzen, neue Grasnarbe), Platzwart und Helfer statt Fuhrpark, Gebühren ohne Nachtflug und Kredite in passender Größe. Was erst später kommt (Fluggastbrücken, ILS, Parallelbahn, Fahrzeuge), steht gesperrt mit der nötigen Stufe da.</li>
     </ul>
     <h3>🎧 Tower-Lotse</h3>
     <ul>
@@ -1798,10 +1799,10 @@ function showGoals() {
     })
     .join('');
   openModal(
-    `<h2>🏅 ${esc(s.name)} – ${RANKS[G.rank].name}</h2>
-    <p style="margin:0 0 6px;color:var(--muted)">${G.xp} XP${next ? ` · nächster Rang „${next.name}“ ab ${next.xp} XP` : ' · höchster Rang erreicht'} · ${G.done} Ziele erreicht</p>
+    `<h2>🏅 ${esc(s.name)} – ${rankName(s, G.rank)}</h2>
+    <p style="margin:0 0 6px;color:var(--muted)">${G.xp} XP${next ? ` · nächster Rang „${rankName(s, G.rank + 1)}“ ab ${next.xp} XP` : ' · höchster Rang erreicht'} · ${G.done} Ziele erreicht</p>
     <div class="bar" style="height:9px"><i style="width:${pct}%;background:linear-gradient(90deg,#f59e0b,#fde047)"></i></div>
-    <div class="rank-steps">${RANKS.map((r, i) => `<span class="${i <= G.rank ? 'on' : ''}" title="${r.xp} XP">${i + 1}. ${r.name}</span>`).join('')}</div>
+    <div class="rank-steps">${RANKS.map((r, i) => `<span class="${i <= G.rank ? 'on' : ''}" title="${r.xp} XP">${i + 1}. ${rankName(s, i)}</span>`).join('')}</div>
     <div class="p-sec"><span>Ziele · ${ROLES[s.role].name}</span></div>
     ${goals}
     ${achievementsHtml(s)}

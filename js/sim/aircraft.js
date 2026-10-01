@@ -500,8 +500,11 @@ function updateMap(state, ac, dt) {
       ac.z = Math.max(0, rem * 0.075);
       if (!ac.decided && rem < 7) {
         ac.decided = true;
-        const blk = runwayBlocker(state, ac);
+        let blk = runwayBlocker(state, ac);
         const closed = runwayClosed(state, ac.strip || 'N');
+        // „Landung hinter rollendem Verkehr“ (an kleinen Plätzen üblich): ein leichtes Flugzeug darf aufsetzen, wenn der
+        // ausrollende Sportflieger vor ihm schon über 280 m weiter die Bahn hinunter ist
+        if (blk && blk.phase === PH.ROLLOUT && t.wake === 'L' && t.size === 'S' && AC_TYPES[blk.type] && AC_TYPES[blk.type].light && (blk.x - tdx) * d > 14) blk = null;
         if (blk) {
           goAround(state, ac, `Piste belegt durch ${blk.cs}`);
           if (ac.clr.landGivenBlocked) penalize(state, 'incursion', ac);
@@ -518,8 +521,8 @@ function updateMap(state, ac, dt) {
         ac.vacated = false;
         ac.decided = false;
         const south = ac.strip === 'S';
-        const exits = south ? LY.exitsAheadS(ac.rwy) : LY.exitsAhead(ac.rwy);
-        const decel = (t.wake === 'H' ? 0.0062 : 0.0082) * (state.upgrades.rapidExit ? 1.12 : 1) * decelFactor(state, ac.strip || 'N') * randRange(state, 0.85, 1.12);
+        const exits = south ? LY.exitsAheadS(ac.rwy) : LY.exitsAhead(ac.rwy, t.light ? 2.5 : undefined);
+        const decel = (t.wake === 'H' ? 0.0062 : 0.0082) * (t.light ? 1.5 : 1) * (state.upgrades.rapidExit ? 1.12 : 1) * decelFactor(state, ac.strip || 'N') * randRange(state, 0.85, 1.12);
         const ve = state.upgrades.rapidExit ? 0.16 : 0.12;
         const need = (ac.v * ac.v - ve * ve) / (2 * decel);
         let ex = exits.find((x) => Math.abs(x - tdx) >= need) ?? exits[exits.length - 1];
