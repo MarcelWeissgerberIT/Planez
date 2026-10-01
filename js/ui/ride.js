@@ -9,6 +9,8 @@ import { voice } from '../voice.js';
 import { icon } from './icons.js';
 import { toast } from './dom.js';
 import { sfx } from '../audio.js';
+import * as AS from '../sim/airspace.js';
+import * as LY from '../layout.js';
 
 const KT = 323; // Kacheln je Spielsekunde -> Knoten (wie Info-Karte und Kino)
 const FT = 500; // z -> Fuß
@@ -50,7 +52,8 @@ export class Ride {
   start(acId, mode = 'window') {
     const s = this.game.state;
     const ac = s && s.acs.find((a) => a.id === acId);
-    if (!ac || ac.mode !== 'map') return toast('Einsteigen geht, sobald das Flugzeug am Flughafen ist', 'info', 2400);
+    const inbound = ac && ac.mode === 'air' && ac.arr && ARR_PH.has(ac.phase);
+    if (!ac || (ac.mode !== 'map' && !inbound)) return toast('Einsteigen geht im Anflug oder am Flughafen', 'info', 2400);
     this.on = true;
     this.id = acId;
     this.called = new Set();
@@ -109,6 +112,8 @@ export class Ride {
     const g = this.game, s = g.state, cam = g.cam;
     if (g.cinema && g.cinema.on) return this.stop();
     const ac = s && s.acs.find((a) => a.id === this.id);
+    // noch im Anflug außerhalb der Karte: Kamera wartet am Anfang des Endanflugs, Instrumente mit echten Luftdaten
+    if (ac && ac.mode === 'air' && ac.arr && ARR_PH.has(ac.phase)) return this.updateAir(s, ac, dt);
     if (!ac || ac.mode !== 'map' || ac.phase === PH.GONE) {
       toast(ac && !this.arriving ? '✈️ Gute Reise! Das Flugzeug hat den Flughafen verlassen.' : 'Ausgestiegen', 'info', 2600);
       return this.stop();
@@ -186,6 +191,36 @@ export class Ride {
     }
   }
 }
+
+Ride.prototype.updateAir = function (s, ac, dt) {
+  const cam = this.game.cam;
+  const dir = s.rwy === '27' ? 1 : -1; // Anflug auf die 27 kommt von Osten
+  const tx = (dir > 0 ? LY.RWY.x1 + 8 : LY.RWY.x0 - 8), ty = LY.RWY.y - 1.5;
+  const k = 1 - Math.pow(0.02, dt);
+  cam.x += (tx - cam.x) * k;
+  cam.y += (ty - cam.y) * k;
+  cam.zoom += ((this.mode === 'cockpit' ? 1.4 : 1.8) - cam.zoom) * Math.min(1, dt * 2);
+  cam.tx = null;
+  const d = AS.routeDistance(ac.pos, ac.route.length && ac.phase === PH.APPROACH ? ac.route : AS.approachRoute(ac.pos, ac.rwy));
+  const rot = s.rots[ac.rot];
+  const city = rot && CITIES[rot.city] ? CITIES[rot.city].name : '';
+  const where = `${esc(ac.cs)} · ${esc(AC_TYPES[ac.type].name)}${city ? ` · aus ${esc(city)}` : ''}`;
+  const txt = `${this.mode === 'window' ? `Platz ${12 + (ac.id.length * 7) % 18}F` : 'Cockpit'} · ${where} · ${PHASE_DE[ac.phase] || ''} · noch ${d.toFixed(1)} NM`;
+  if (this.tEl.innerHTML !== txt) this.tEl.innerHTML = txt;
+  this.arriving = true;
+  this.el.querySelector('.rd-belt').classList.add('on');
+  if (this.mode === 'cockpit') {
+    this.R.spd.textContent = Math.round(ac.spd || 0);
+    this.R.alt.textContent = Math.round((ac.alt || 0) / 10) * 10;
+    this.R.vs.textContent = ac.tAlt < ac.alt - 150 ? '↓' : ac.tAlt > ac.alt + 150 ? '↑' : '';
+    const hdg = Math.round(((ac.crs || 0) + 360) % 360);
+    this.R.hdg.textContent = String(hdg).padStart(3, '0');
+    this.R.rose.style.transform = `rotate(${-hdg}deg)`;
+    this.R.fma.textContent = { [PH.HOLD]: 'HOLD', [PH.APPROACH]: ac.clr && ac.clr.land ? 'G/S · LOC' : 'APP', [PH.INBOUND]: 'NAV', [PH.GOAROUND]: 'GA' }[ac.phase] || 'NAV';
+    this.el.querySelector('.rd-hor').style.transform = `translateY(${ac.tAlt < ac.alt - 150 ? -5 : 0}px)`;
+    this.R.nd.textContent = `RWY ${s.rwy} · ${d.toFixed(1)} NM`;
+  }
+};
 
 // grobe Restdistanz zur Schwelle im Endanflug (Kacheln), aus der Höhe abgeleitet (3°-Gleitpfad ≈ 1 Kachel je 0,05 z)
 function distLeft(ac) {
