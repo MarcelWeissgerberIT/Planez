@@ -12,6 +12,7 @@ import { toast } from './dom.js';
 import { sfx } from '../audio.js';
 import { soundscape } from '../soundscape.js';
 import { SpotterUi } from './spotter.js';
+import { listeners } from '../sim/messages.js';
 import * as AS from '../sim/airspace.js';
 import * as LY from '../layout.js';
 
@@ -44,7 +45,7 @@ export class Ride {
       <div class="rd-cockpit"><canvas class="rd-rain"></canvas><div class="rd-pillar l"></div><div class="rd-pillar r"></div><div class="rd-pillar c"></div>
         <div class="rd-glare"><div class="rd-pfd"><div class="rd-tape spd"><small>KT</small><b data-r="spd">0</b></div><div class="rd-ai"><div class="rd-hor"></div><i></i><span data-r="fma">TAXI</span></div><div class="rd-tape alt"><small>FT</small><b data-r="alt">0</b><em data-r="vs"></em></div></div>
         <div class="rd-nd"><div class="rd-rose" data-r="rose"></div><b data-r="hdg">000</b><small data-r="nd"></small></div></div></div>
-      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button><button data-rd="drone" title="Drohne: frei über den Flughafen fliegen (WASD, Q/E, Umschalt = schnell)">${icon('drone')} Drohne</button></span><span class="rd-dr"><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-photo" data-rd="photo" title="Foto fürs Spotterbuch (F) – fotografiert das Flugzeug in der Bildmitte">${icon('photo')}</button><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-load"><i></i><span>3D-Ansicht wird geladen …</span></div><div class="rd-bino"></div><div class="rd-labels"></div><div class="rd-cap"></div><div class="rd-pad"><button data-k="up" title="vor">▲</button><button data-k="left" title="links">◀</button><button data-k="down" title="zurück">▼</button><button data-k="right" title="rechts">▶</button><button data-k="rise" title="steigen">⤒</button><button data-k="sink" title="sinken">⤓</button></div><div class="rd-marshal"><div class="rd-wand l"></div><div class="rd-wand r"></div><div class="rd-mres"></div><button class="rd-stop" data-rd="mstop">STOPP <small>Leertaste</small></button></div>`;
+      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button><button data-rd="drone" title="Drohne: frei über den Flughafen fliegen (WASD, Q/E, Umschalt = schnell)">${icon('drone')} Drohne</button></span><span class="rd-dr"><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-photo" data-rd="photo" title="Foto fürs Spotterbuch (F) – fotografiert das Flugzeug in der Bildmitte">${icon('photo')}</button><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-load"><i></i><span>3D-Ansicht wird geladen …</span></div><div class="rd-bino"></div><div class="rd-sub"></div><div class="rd-labels"></div><div class="rd-cap"></div><div class="rd-pad"><button data-k="up" title="vor">▲</button><button data-k="left" title="links">◀</button><button data-k="down" title="zurück">▼</button><button data-k="right" title="rechts">▶</button><button data-k="rise" title="steigen">⤒</button><button data-k="sink" title="sinken">⤓</button></div><div class="rd-marshal"><div class="rd-wand l"></div><div class="rd-wand r"></div><div class="rd-mres"></div><button class="rd-stop" data-rd="mstop">STOPP <small>Leertaste</small></button></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
     this.tEl = el.querySelector('.rd-t');
@@ -170,6 +171,8 @@ export class Ride {
       if (e.key === 'Shift') this.keys.delete('fast');
     }, true);
     window.addEventListener('blur', () => this.keys && this.keys.clear());
+    // Funk-Untertitel: im Cockpit die Funksprüche zum eigenen Flug, im Kino 3D den laufenden Funkverkehr
+    listeners.radio.push((m) => this.onRadio(m));
     // Steuerkreuz für Touch (gedrückt halten)
     const pad = el.querySelector('.rd-pad');
     const press = (e, on) => {
@@ -402,6 +405,7 @@ export class Ride {
   stop() {
     if (!this.on) return;
     this.on = false;
+    this.el.querySelector('.rd-sub').innerHTML = '';
     this.el.classList.remove('loading3d');
     clearTimeout(this.loadT);
     soundscape.cabin = null;
@@ -1184,4 +1188,34 @@ Ride.prototype.updateDrone = function (dt) {
   this.hearAt(Math.max(0.5, 2.2 - d.y * 0.08));
   const txt = `Drohne · Höhe ${Math.round(d.y * 20)} m${K.has('fast') ? ' · schnell' : ''}`;
   if (this.tEl.textContent !== txt) this.tEl.textContent = txt;
+};
+
+Ride.prototype.onRadio = function (m) {
+  if (!this.on || !m || !m.text || (m.kind !== 'atc' && m.kind !== 'pilot')) return;
+  const s = this.game.state;
+  let show = false;
+  if (this.mode === 'cine3d') show = true;
+  else if (this.mode === 'cockpit' && this.id) {
+    const ac = s && s.acs.find((a) => a.id === this.id);
+    if (ac) {
+      const al = AIRLINES[ac.airline];
+      const tel = al ? `${al.tel} ${ac.cs.replace(/^[A-Z]+/, '')}` : ac.cs;
+      show = m.from === ac.cs || m.text.includes(ac.cs) || m.text.toLowerCase().includes(tel.toLowerCase());
+    }
+  }
+  if (!show) return;
+  const box = this.el.querySelector('.rd-sub');
+  const line = document.createElement('div');
+  line.className = `rs ${m.kind}`;
+  const who = document.createElement('b');
+  who.textContent = m.kind === 'atc' ? 'TOWER' : m.from || '';
+  const txt = document.createElement('span');
+  txt.textContent = m.text;
+  line.append(who, txt);
+  box.appendChild(line);
+  while (box.children.length > 2) box.firstChild.remove();
+  setTimeout(() => {
+    line.classList.add('out');
+    setTimeout(() => line.remove(), 500);
+  }, 5500);
 };

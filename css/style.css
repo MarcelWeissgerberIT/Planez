@@ -2062,3 +2062,13 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 /* Turmblick: Meldungen unter der Turmblick-Leiste */
 #game.towerview #toasts { top: calc(var(--hud-h) + 108px); }
 #game.towerview.ach-on #toasts { top: calc(var(--hud-h) + 200px); }
+
+/* Funk-Untertitel in Cockpit und Kino 3D */
+#ride .rd-sub { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(27% + 54px); width: min(760px, 90vw); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; z-index: 3; }
+#ride.cine3d .rd-sub { bottom: calc(9vh + 20px); }
+#ride .rs { background: rgba(4, 8, 16, 0.72); color: #f1f5f9; border-radius: 8px; padding: 6px 12px; font-size: 15px; line-height: 1.35; text-align: center; text-shadow: 0 1px 2px #000; animation: rsIn .25s ease-out; transition: opacity .5s; box-shadow: 0 0 0 1px rgba(148,178,214,.16); }
+#ride .rs b { font: 700 11px var(--ui-font, inherit); letter-spacing: .14em; margin-right: 8px; color: #67e8f9; }
+#ride .rs.atc b { color: #6ee7b7; }
+#ride .rs.out { opacity: 0; }
+@keyframes rsIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (max-width: 700px) { #ride .rs { font-size: 13px; } }
