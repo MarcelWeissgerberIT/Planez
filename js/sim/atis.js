@@ -18,11 +18,16 @@ export function atisText(state) {
   const w = state.wind;
   const rwy = hasRwy2(state) && segregated(state) ? `runways ${rwyName(state, 'S')} for landing and ${rwyName(state, 'N')} for departure` : `runway ${rwyName(state, 'N')} in use`;
   const vis = state.weather.kind === 'fog' ? `runway visual range ${state.weather.rvr ?? 600} meters, low visibility procedures in force` : VIS[state.weather.kind] || '';
-  return `${AIRPORT.name.split(' ')[0]} information ${atis(state)}, time ${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}, ${rwy}, wind ${String(Math.round(w.dir / 10) * 10).padStart(3, '0')} degrees ${Math.round(w.spd)} knots, ${vis}, temperature ${Math.round(temperature(state))}, QNH ${qnh(state)}. Advise on initial contact you have information ${atis(state)}.`;
+  // Hinweise: Platzrunden-Verkehr, Vogelschlag-Gefahr, Pistenzustand bei Schnee
+  const notes = [];
+  if (state.vfr && state.vfr.p) notes.push('caution, VFR traffic in the circuit north of the runway');
+  if (state.birdRisk && state.time < state.birdRisk) notes.push('caution, bird activity in the vicinity of the airport');
+  if (state.rwySnow && state.rwySnow.N > 0.15) notes.push('runway contaminated with snow');
+  return `${AIRPORT.name.split(' ')[0]} information ${atis(state)}, time ${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}, ${rwy}, wind ${String(Math.round(w.dir / 10) * 10).padStart(3, '0')} degrees ${Math.round(w.spd)} knots, ${vis}, temperature ${Math.round(temperature(state))}, QNH ${qnh(state)}${notes.length ? `, ${notes.join(', ')}` : ''}. Advise on initial contact you have information ${atis(state)}.`;
 }
 
 export function updateAtis(state) {
-  const key = `${state.rwy}|${state.weather.kind}|${Math.round(state.wind.dir / 30)}|${state.rwyMode || ''}|${Math.floor(state.time / 3600)}`;
+  const key = `${state.rwy}|${state.weather.kind}|${Math.round(state.wind.dir / 30)}|${state.rwyMode || ''}|${Math.floor(state.time / 3600)}|${state.vfr && state.vfr.p ? 'v' : ''}`;
   if (state.atisKey === key) return;
   const first = state.atisKey === undefined;
   state.atisKey = key;
