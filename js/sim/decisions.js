@@ -12,6 +12,7 @@ import { birdstrikeOn } from './events.js';
 import { fuelState, FUEL, maxOrder } from './fuel.js';
 import { CMDS, command } from './atc.js';
 import { RIVAL_NAME, rivalState, acceptDiversions } from './rival.js';
+import { temperature } from './winter.js';
 import { pushNews } from './news.js';
 
 const MIN = 60, H = 3600;
@@ -100,6 +101,45 @@ export const CATALOG = {
         options: [
           { label: 'Reparieren', detail: '6.000 € · Abfertigung 15 min angehalten', run: (st) => { const a = byId(st, p.ac); if (!a) return; a.aogDone = true; spend(st, 'other', 6000); for (const t of Object.values(a.ta?.tasks || {})) if (t.st !== 'done') t.pausedUntil = st.time + 15 * MIN; log(st, 'gnd', `🔧 ${a.cs}: Positionsleuchte wird getauscht – Abfertigung ruht 15 Minuten.`); } },
           { label: 'Mit MEL-Freigabe fliegen', detail: '30 %: Airline verärgert, Ansehen −2', run: (st) => { const a = byId(st, p.ac); if (!a) return; a.aogDone = true; if (rand(st) < 0.3) { satDelta(contractOfAc(st, a), -6); repDelta(st, -2); log(st, 'gnd', `🔧 ${a.cs} fliegt mit MEL-Freigabe – die Airline beschwert sich über die Wartungsqualität.`); } else log(st, 'gnd', `🔧 ${a.cs} fliegt mit MEL-Freigabe, Reparatur am Zielflughafen.`); } },
+        ],
+      };
+    },
+  },
+  loadsheet: {
+    role: 'ground', weight: (s) => (s.scenario ? 0 : 0.5), // in Herausforderungen nicht – deren Balance bleibt unverändert timeout: 5 * MIN,
+    crew: (s, p) => { const a = byId(s, p.ac); return a && ['Ladeplanung', `Vorfeld, Ladeplanung, das Loadsheet von ${a.cs} passt nicht, rund ${p.kg} Kilo zu viel im hinteren Frachtraum.`]; },
+    cond: (s) => {
+      const c = s.acs.filter((a) => a.phase === PH.STAND && AC_TYPES[a.type].size !== 'S' && task(a, 'load') && ['active', 'done'].includes(task(a, 'load').st) && task(a, 'board') && task(a, 'board').st !== 'done' && !a.lsDone);
+      return c.length ? { ac: pick(s, c).id, kg: randInt(s, 4, 9) * 100 } : null;
+    },
+    card: (s, p) => {
+      const ac = byId(s, p.ac);
+      return {
+        icon: '📋', title: `Loadsheet-Abweichung bei ${ac?.cs}`,
+        text: `Die Schlussladeliste weicht ab: ${p.kg} kg mehr im hinteren Frachtraum als geplant. Umladen kostet ein paar Minuten. Ohne Umladen rechnet die Ladeplanung ein neues Loadsheet – manche Kapitäne bestehen trotzdem aufs Umladen.`,
+        options: [
+          { label: 'Neues Loadsheet rechnen', detail: '+2 min · 25 %: Kapitän verlangt doch Umladen (+12 min)', run: (st) => { const a = byId(st, p.ac); if (!a) return; a.lsDone = true; const t = task(a, 'board'); const no = rand(st) < 0.25; if (t) t.dur += (no ? 12 : 2) * MIN; if (no) log(st, 'gnd', `📋 Der Kapitän von ${a.cs} akzeptiert das neue Loadsheet nicht – es wird doch umgeladen.`); } },
+          { label: 'Umladen', detail: 'Beladen +7 min', run: (st) => { const a = byId(st, p.ac); if (!a) return; a.lsDone = true; const t = task(a, 'load'); if (t) { t.dur += 7 * MIN; if (t.st === 'done') { t.st = 'ready'; t.prog = 0.75; t.readyT = st.time; } } } },
+        ],
+      };
+    },
+  },
+  heat: {
+    role: 'ground', weight: (s) => (s.scenario ? 0 : 0.6), timeout: 5 * MIN,
+    crew: (s, p) => { const a = byId(s, p.ac); return a && [`Gate ${a.stand}`, `Vorfeld, Gate an Position ${a.stand}, in der Kabine von ${a.cs} sind es über dreißig Grad, die Passagiere beschweren sich.`]; },
+    cond: (s) => {
+      if (temperature(s) < 25) return null;
+      const c = s.acs.filter((a) => a.phase === PH.STAND && task(a, 'board') && ['ready', 'active', 'wait'].includes(task(a, 'board').st) && !a.pcaDone);
+      return c.length ? { ac: pick(s, c).id } : null;
+    },
+    card: (s, p) => {
+      const ac = byId(s, p.ac);
+      return {
+        icon: '🌡️', title: `Kabine überhitzt bei ${ac?.cs}`,
+        text: `${Math.round(temperature(s))} °C auf dem Vorfeld, die Klimaanlage läuft am Boden nur mit Hilfsturbine. Ein Klimagerät (PCA) kühlt die Kabine schnell – oder das Boarding wartet, bis es erträglich ist.`,
+        options: [
+          { label: 'Klimagerät anschließen', detail: '2.500 € · Boarding normal', run: (st) => { const a = byId(st, p.ac); if (a) a.pcaDone = true; spend(st, 'other', 2500); } },
+          { label: 'Türen auf und warten', detail: 'Boarding +6 min · Airline etwas unzufrieden', run: (st) => { const a = byId(st, p.ac); if (!a) return; a.pcaDone = true; const t = task(a, 'board'); if (t) t.dur += 6 * MIN; satDelta(contractOfAc(st, a), -2); } },
         ],
       };
     },
@@ -606,7 +646,7 @@ export function updateDecisions(state, dt) {
   const cands = Object.entries(CATALOG).filter(([, c]) => c.role === role);
   const tried = [];
   for (let i = 0; i < cands.length; i++) {
-    const pickd = pickWeighted(state, cands.filter((x) => !tried.includes(x[0])), (x) => x[1].weight);
+    const pickd = pickWeighted(state, cands.filter((x) => !tried.includes(x[0])), (x) => (typeof x[1].weight === 'function' ? x[1].weight(state) : x[1].weight));
     if (!pickd) break;
     const [key, c] = pickd;
     tried.push(key);
