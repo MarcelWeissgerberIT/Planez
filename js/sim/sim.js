@@ -25,6 +25,7 @@ import { updateInspection } from './inspect.js';
 import { updateStateVisit } from './statevisit.js';
 import { updateFirstFlight } from './firstflight.js';
 import { updateHeli } from './heli.js';
+import { updateVfr } from './vfr.js';
 import { updateFuel } from './fuel.js';
 import { dailyLoans } from './finance.js';
 import { spend } from './economy.js';
@@ -68,6 +69,7 @@ export function step(state, dt) {
   updateStateVisit(state, dt);
   updateFirstFlight(state);
   updateHeli(state, dt);
+  updateVfr(state, dt);
   updateGround(state, dt);
   updateConflicts(state, dt);
   updateAcdm(state, dt);

@@ -338,6 +338,18 @@ export class Radar {
       ctx.fillText('RESCUE7', p.x + 6, p.y - 4);
       ctx.fillText(HH.st === 'req' ? 'HELI X?' : 'HELI X', p.x + 6, p.y + 8);
     }
+    const VV = state.vfr && state.vfr.p;
+    if (VV) {
+      const q = LY.tileToNm(VV.x, VV.y);
+      const p = this.toScreen(q.x, q.y);
+      ctx.fillStyle = VV.req && blink ? 'rgba(251,191,36,0.95)' : 'rgba(186,230,253,0.9)';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.textAlign = 'left';
+      ctx.fillText(VV.cs, p.x + 6, p.y - 4);
+      ctx.fillText(VV.req ? 'C172 VFR T&G?' : VV.clr ? 'C172 VFR T&G' : 'C172 VFR', p.x + 6, p.y + 8);
+    }
     for (const ac of state.acs) {
       let pos, alt;
       if (ac.mode === 'air') {

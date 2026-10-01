@@ -95,6 +95,13 @@ export function scoreHeli(state, clean) {
   else fail(state, null, 100, 'Querung zur Unzeit');
 }
 
+// Platzrunden: Touch-and-Go in eine echte Lücke gesetzt = Punkte, mit Linienverkehr im Weg = Kombo weg
+export function scoreVfr(state, clean) {
+  if (!active(state, 'tower')) return;
+  if (clean) add(state, null, 70, 'Touch and Go');
+  else fail(state, null, 100, 'VFR in den Linienverkehr');
+}
+
 // ---------- Vorfeld ----------
 export function scoreOffBlock(state, ac, delay, quick) {
   if (!active(state, 'ground')) return;

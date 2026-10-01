@@ -9,6 +9,7 @@ import { fuelState, FUEL } from '../sim/fuel.js';
 import { forecastInfo } from '../sim/events.js';
 import { inspConflict } from '../sim/inspect.js';
 import { heliConflict } from '../sim/heli.js';
+import { vfrConflict } from '../sim/vfr.js';
 
 function towerHint(s) {
   const conf = s.acs.find((a) => a.conflict);
@@ -36,6 +37,7 @@ function towerHint(s) {
   if (slotPush) return `<b>${esc(slotPush.cs)}</b> möchte schieben, TSAT ist aber erst ${fmtClock(s.rots[slotPush.rot].tsat)} – „Warten bis TSAT“ (E), sonst wartet er mit laufenden Triebwerken am Rollhalt.`;
   const closing = s.acs.find((a) => a.phase === PH.HOLDING && s.rots[a.rot] && s.rots[a.rot].ctot && s.rots[a.rot].ctot + 600 - s.time < 300 && s.time > s.rots[a.rot].ctot - 300 && !a.clr.takeoff);
   if (closing) return `⏱️ Slot-Fenster von <b>${esc(closing.cs)}</b> schließt um ${fmtClock(s.rots[closing.rot].ctot + 600)} – jetzt Startfreigabe (T), sonst gibt es einen neuen Slot.`;
+  if (s.vfr && s.vfr.p && s.vfr.p.req && !s.vfr.p.clr && !vfrConflict(s) && !s.auto.atc && !s.settings.inspAuto) return `🛩️ Die Cessna <b>${s.vfr.p.cs}</b> im Gegenanflug möchte Touch and Go – gerade ist Platz zwischen den Linienflügen: rechts im Pistenblock <b>Touch &amp; Go</b>. Ohne Freigabe fliegt sie am Ende des Gegenanflugs einen Vollkreis.`;
   if (s.heli && s.heli.h && s.heli.h.st === 'req' && !heliConflict(s) && !s.auto.atc && !s.settings.inspAuto) return `🚁 <b>Rescue 7</b> schwebt südlich der Bahnen und wartet – gerade ist niemand im Endanflug oder auf der Bahn: rechts im Pistenblock <b>Querung frei</b>.`;
   if (s.insp && s.insp.req && !inspConflict(s) && !s.auto.atc) return `🚙 Die <b>Pistenkontrolle</b> wartet am Rollhalt – gerade ist eine Lücke im Verkehr: rechts im Pistenblock <b>Freigeben</b>. Die Bahn ist dann ${3} Minuten gesperrt.`;
   const land = s.acs.find((a) => a.req === 'land');

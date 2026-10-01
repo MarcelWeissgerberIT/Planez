@@ -134,6 +134,17 @@ export class Stream {
       if (h < 5.5 || h > 21) I += 0.8;
     }
     if (s.fire) I += 3;
+    const vv = s.vfr && s.vfr.p;
+    if (vv) {
+      const p = cam.toScreen(vv.x, vv.y, vv.z);
+      if (p.x > 0 && p.y > 0 && p.x < W && p.y < H) {
+        I += vv.z < 0.5 ? 1.6 : 0.7;
+        if (this.vfrSeen !== vv.cs) {
+          this.vfrSeen = vv.cs;
+          this.say(r(['Kleine Cessna 😍', 'Flugschüler unterwegs, viel Erfolg!', 'Touch and Go, love it', 'Die kleine zwischen den Großen 😄']), 1);
+        }
+      }
+    }
     const hh = s.heli && s.heli.h;
     if (hh) {
       const p = cam.toScreen(hh.x, hh.y, hh.z);

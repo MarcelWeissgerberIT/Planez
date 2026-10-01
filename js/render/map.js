@@ -384,6 +384,7 @@ export class MapRenderer {
     this.drawFireSpray(state);
     if (sal && sal.spray) this.drawSalute(sal);
     if (state.heli && state.heli.h) this.drawHeli(state.heli.h, lights);
+    if (state.vfr && state.vfr.p) this.drawCessna(state.vfr.p, lights);
     flying.sort((a, b) => a.x + a.y - (b.x + b.y));
     for (const ac of flying) this.drawAircraft(state, ac, lights, night, ui);
     this.drawLightBeam(state);
@@ -1356,6 +1357,50 @@ export class MapRenderer {
       ctx.fillStyle = g;
       ctx.fillRect(p.x - 22 * cam.zoom, p.y - 22 * cam.zoom, 44 * cam.zoom, 44 * cam.zoom);
     }
+  }
+
+  // Cessna der Platzrunden: Hochdecker mit Streifen, Propellerkreis und Positionslichtern
+  drawCessna(c, lights) {
+    const { ctx, cam } = this;
+    const z0 = cam.zoom;
+    const fx = Math.cos(c.hdg), fy = Math.sin(c.hdg);
+    const P = (a, s = 0, dz = 0) => cam.toScreen(c.x + fx * a - fy * s, c.y + fy * a + fx * s, c.z + dz);
+    cam.setScreen(ctx);
+    const sh = cam.toScreen(c.x + c.z * 0.35, c.y + c.z * 0.15, 0);
+    ctx.fillStyle = `rgba(0,0,0,${c.z > 0.1 ? 0.16 : 0.26})`;
+    ctx.beginPath();
+    ctx.ellipse(sh.x, sh.y, 13 * z0, 5 * z0, 0, 0, Math.PI * 2);
+    ctx.fill();
+    const line = (a, b, col, w) => {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = Math.max(1, w * z0);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    };
+    ctx.lineCap = 'round';
+    // Rumpf, Leitwerk, Tragfläche (oben)
+    line(P(0.32), P(-0.34), '#f8fafc', 4.2);
+    line(P(0.2), P(-0.3), '#1d4ed8', 1.2);
+    line(P(-0.32, -0.15), P(-0.32, 0.15), '#e2e8f0', 2.4);
+    line(P(-0.33, 0, 0), P(-0.36, 0, 0.12), '#dc2626', 2.2);
+    line(P(0.06, -0.42, 0.05), P(0.06, 0.42, 0.05), '#f1f5f9', 3.4);
+    line(P(0.06, -0.42, 0.05), P(0.06, -0.3, 0.05), '#dc2626', 3.4);
+    line(P(0.06, 0.3, 0.05), P(0.06, 0.42, 0.05), '#dc2626', 3.4);
+    ctx.lineCap = 'butt';
+    // Propellerkreis
+    const pr = P(0.35);
+    ctx.fillStyle = 'rgba(60,60,60,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(pr.x, pr.y, 3.6 * z0, 3.6 * z0, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Positionslichter: links rot, rechts grün, Blitz
+    const L = (a, s) => ({ x: c.x + fx * a - fy * s, y: c.y + fy * a + fx * s });
+    const l = L(0.06, -0.42), r = L(0.06, 0.42);
+    lights.push({ x: l.x, y: l.y, z: c.z + 0.05, c: '#ff3030', s: 6, a: 0.8 });
+    lights.push({ x: r.x, y: r.y, z: c.z + 0.05, c: '#30ff60', s: 6, a: 0.8 });
+    if ((this.time * 1.1) % 1 < 0.1) lights.push({ x: c.x, y: c.y, z: c.z + 0.1, c: '#ffffff', s: 10, a: 0.9, day: true });
   }
 
   // Rettungshubschrauber: Schatten, Rumpf mit Kanzel, Heckausleger, Kufen, Rotorkreis mit Blättern, Blitzlicht

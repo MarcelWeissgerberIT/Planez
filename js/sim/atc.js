@@ -540,7 +540,7 @@ function autoDepartures(state) {
   const rwy = state.rwy;
   const occupants = runwayOccupants(state, 'N');
   const arrivals = state.acs.filter((a) => (a.phase === PH.APPROACH || a.phase === PH.FINAL) && a.rwy === rwy && (a.strip || 'N') === 'N');
-  const nextArr = arrivals.reduce((m, a) => Math.min(m, distToLand(a)), 99);
+  const nextArr = Math.min(arrivals.reduce((m, a) => Math.min(m, distToLand(a)), 99), state.vfrFinal ?? 99);
   const lined = state.acs.find((a) => a.phase === PH.LINED || a.phase === PH.LINEUP);
   const sinceTo = state.time - (state.lastTakeoff || -999);
   if (runwayClosed(state)) return;

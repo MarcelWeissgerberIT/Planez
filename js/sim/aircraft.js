@@ -796,13 +796,17 @@ export function runwayBlocker(state, ac) {
     if (o.phase === PH.TAKEOFF && o.z < 0.4) return o;
     if (o.crossing) return o;
   }
+  // Cessna beim Touch-and-Go (Platzrunden)
+  if (strip === 'N' && state.vfrOcc && state.vfrOcc.block && !ac.vfr) return state.vfrOcc;
   return null;
 }
 export function runwayOccupants(state, strip = 'N') {
-  return state.acs.filter((o) => o.mode === 'map' && ((o.phase === PH.ROLLOUT && !o.vacated && (o.strip || 'N') === strip) || (strip === 'N' && (o.phase === PH.LINEUP || o.phase === PH.LINED || (o.phase === PH.TAKEOFF && o.z < 0.6) || o.crossing)) || (o.phase === PH.FINAL && o.z < 1.0 && (o.strip || 'N') === strip) || (o.phase === PH.MISSED && o.z < 0.6 && (o.strip || 'N') === strip)));
+  const vfr = strip === 'N' && state.vfrOcc ? [state.vfrOcc] : [];
+  return vfr.concat(state.acs.filter((o) => o.mode === 'map' && ((o.phase === PH.ROLLOUT && !o.vacated && (o.strip || 'N') === strip) || (strip === 'N' && (o.phase === PH.LINEUP || o.phase === PH.LINED || (o.phase === PH.TAKEOFF && o.z < 0.6) || o.crossing)) || (o.phase === PH.FINAL && o.z < 1.0 && (o.strip || 'N') === strip) || (o.phase === PH.MISSED && o.z < 0.6 && (o.strip || 'N') === strip))));
 }
 // Kann ein Flugzeug jetzt die Nordbahn kreuzen?
 export function crossingSafe(state) {
+  if (state.vfrOcc) return false;
   for (const o of state.acs) {
     if (o.mode === 'map' && (o.phase === PH.LINEUP || o.phase === PH.LINED || (o.phase === PH.TAKEOFF && o.z < 0.3))) return false;
     if (o.mode === 'map' && (o.strip || 'N') === 'N' && ((o.phase === PH.ROLLOUT && !o.vacated) || o.phase === PH.FINAL)) return false;
