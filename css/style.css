@@ -1625,3 +1625,7 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 #photo.tilt .ph-tilt { display: block; }
 #photo .ph-tilt.top { top: 0; mask-image: linear-gradient(180deg, #000, transparent); -webkit-mask-image: linear-gradient(180deg, #000, transparent); }
 #photo .ph-tilt.bot { bottom: 0; height: 38%; mask-image: linear-gradient(0deg, #000, transparent); -webkit-mask-image: linear-gradient(0deg, #000, transparent); }
+.st-wish { background: rgba(30,27,75,.88); color: #e0e7ff; font-size: 12px; position: relative; overflow: hidden; }
+.st-wish:not(:empty) { padding: 5px 9px 7px; border-top: 1px solid rgba(129,140,248,.4); }
+.st-wish b { color: #a5b4fc; margin-right: 4px; }
+.st-wish i { position: absolute; left: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #818cf8, #c084fc); transition: width .3s linear; }

@@ -6,6 +6,7 @@ import { AC_TYPES, CITIES } from '../config.js';
 import { PH } from '../sim/aircraft.js';
 import { clamp, esc, hourOf } from '../util.js';
 import { listeners } from '../sim/messages.js';
+import * as LY from '../layout.js';
 
 const USERS = ['spotter_kai', 'A380fan', 'ILS_Ina', 'Rollweg_Rudi', 'flugfeldfoto', 'PlaneSpotterHH', 'reverse_thrust', 'Maike_fliegt', 'TowerTom', 'jetlag_jonas',
   'Nordhafenhasser', 'kerosinkeks', 'MetarMia', 'butterlandung', 'Fensterplatz_Fred', 'Squawk7000', 'gate_gabi', 'propeller_paul', 'Heavy_Hanna', 'Taxiway_Tim'];
@@ -49,13 +50,15 @@ export class Stream {
     el.id = 'stream';
     el.className = 'hidden';
     el.innerHTML = `<div class="st-head"><span class="st-live">LIVE</span><b class="st-v">0</b><small>Zuschauer</small><span class="st-pk"></span><button class="st-x" title="Livestream beenden (L)">✕</button></div>
-      <div class="st-meter"><i></i></div><div class="st-hint"></div><div class="st-chat"></div>`;
+      <div class="st-meter"><i></i></div><div class="st-wish"></div><div class="st-hint"></div><div class="st-chat"></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
     this.vEl = el.querySelector('.st-v');
     this.pkEl = el.querySelector('.st-pk');
     this.mEl = el.querySelector('.st-meter i');
     this.hEl = el.querySelector('.st-hint');
+    this.wEl = el.querySelector('.st-wish');
+    this.wishT = 25;
     this.chatEl = el.querySelector('.st-chat');
     el.querySelector('.st-x').addEventListener('click', () => this.stop());
     // Ereignisse aus dem Funk/Log, die nicht im Bild sein müssen
@@ -101,6 +104,70 @@ export class Stream {
     d.innerHTML = m.sub ? esc(m.text) : `<b style="color:${col}">${esc(m.user)}</b> ${esc(m.text)}`;
     this.chatEl.appendChild(d);
     while (this.chatEl.children.length > 7) this.chatEl.firstChild.remove();
+  }
+
+  // Zuschauerwunsch: der Chat will etwas Bestimmtes sehen – wer es rechtzeitig ins Bild holt, gewinnt Zuschauer
+  pickWish(s) {
+    const map = s.acs.filter((a) => a.mode === 'map');
+    const W = [];
+    if (s.acs.some((a) => a.arr && (a.phase === PH.APPROACH || a.phase === PH.FINAL))) W.push({ k: 'land', t: 'Zeig mal eine Landung!', ok: (a) => a.phase === PH.ROLLOUT || (a.phase === PH.FINAL && a.z < 1) });
+    if (s.acs.some((a) => [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(a.phase))) W.push({ k: 'dep', t: 'Ich will einen Start sehen! 🛫', ok: (a) => a.phase === PH.TAKEOFF });
+    if (map.some((a) => a.phase === PH.STAND && a.ta && a.ta.tasks.push)) W.push({ k: 'push', t: 'Zeigt mal einen Pushback', ok: (a) => a.phase === PH.PUSH });
+    const big = map.find((a) => a.type === 'A388' || a.protocol || a.special || AC_TYPES[a.type].size === 'L');
+    if (big) W.push({ k: 'ac', id: big.id, t: big.type === 'A388' ? 'Wo ist der A380?? Zeig her! 🐋' : big.protocol ? 'Kamera auf die Regierungsmaschine!' : `Zoom mal auf ${big.cs}, den ${AC_TYPES[big.type].name}!`, ok: (a) => a.id === big.id, zoom: 1.1 });
+    W.push({ k: 'tower', t: 'Zeig mal den Tower von nah', pt: (() => { const b = LY.BUILDINGS.find((x) => x.id === 'tower'); return { x: b.fx - b.w / 2, y: b.fy - b.d / 2 }; })(), zoom: 1.4 });
+    if (s.heli && s.heli.h) W.push({ k: 'heli', t: 'Wo ist der Heli? 🚁', obj: () => s.heli.h, zoom: 1 });
+    if (s.vfr && s.vfr.p) W.push({ k: 'vfr', t: 'Zeig die kleine Cessna! 🛩️', obj: () => s.vfr.p, zoom: 1 });
+    if (!W.length) return null;
+    const w = W[Math.floor(Math.random() * W.length)];
+    return { ...w, left: 60, user: r(USERS), hold: 0 };
+  }
+  wishMet(s, w) {
+    const cam = this.game.cam;
+    const center = (x, y, z = 0) => {
+      const p = cam.toScreen(x, y, z);
+      return Math.abs(p.x - cam.w / 2) < cam.w * 0.3 && Math.abs(p.y - cam.h / 2) < cam.h * 0.3;
+    };
+    if (w.zoom && cam.zoom < w.zoom) return false;
+    if (w.pt) return center(w.pt.x, w.pt.y, 1);
+    if (w.obj) {
+      const o = w.obj();
+      return !!o && center(o.x, o.y, o.z);
+    }
+    return s.acs.some((a) => a.mode === 'map' && w.ok(a) && center(a.x, a.y, a.z || 0));
+  }
+  updateWish(s, dt) {
+    if (!this.wish) {
+      this.wishT -= dt;
+      if (this.wishT <= 0) {
+        this.wish = this.pickWish(s);
+        this.wishT = 45 + Math.random() * 45;
+        if (this.wish) this.say(this.wish.t, 3, this.wish.user);
+      }
+      this.wEl.innerHTML = '';
+      return;
+    }
+    const w = this.wish;
+    w.left -= dt;
+    w.hold = this.wishMet(s, w) ? w.hold + dt : 0;
+    if (w.hold > 1.5) {
+      this.viewers *= 1.18;
+      const L = s.life || (s.life = {});
+      L.streamWishes = (L.streamWishes || 0) + 1;
+      this.post({ sub: true, text: `✅ Wunsch von ${w.user} erfüllt – die Zuschauerzahl springt hoch!` });
+      this.say(r(['Danke!! 🙏', 'Genau das wollte ich sehen 😍', 'Bester Kameramann', 'Wunsch erfüllt, Abo dagelassen ⭐']), 3);
+      this.wish = null;
+      this.wEl.innerHTML = '';
+      return;
+    }
+    if (w.left <= 0) {
+      this.viewers *= 0.95;
+      this.say(r(['Schade 😕', 'Naja, dann halt nicht', 'Hallo? Kamera?']), 2);
+      this.wish = null;
+      this.wEl.innerHTML = '';
+      return;
+    }
+    this.wEl.innerHTML = `<b>💬 Zuschauerwunsch</b> ${esc(w.t)}<i style="width:${Math.round((w.left / 60) * 100)}%"></i>`;
   }
 
   // Wie spannend ist das Bild gerade? Flugzeuge im Bild nach Phase, Seltenheit und Nähe zur Bildmitte
@@ -190,6 +257,7 @@ export class Stream {
     }
     this.pkEl.textContent = `Rekord ${this.peak.toLocaleString('de-DE')}`;
     if (paused) return;
+    this.updateWish(s, dt);
     // neue Szenen im Bild
     for (const ac of inView) {
       const prev = this.seen.get(ac.id);
