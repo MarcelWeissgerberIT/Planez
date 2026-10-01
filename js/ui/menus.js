@@ -1,9 +1,10 @@
 // Hauptmenü und Pausenmenü: großer Titel, nummerierte Einträge, Status-Panel, Szenen-Video im Hintergrund
 import { VERSION } from '../version.js';
 import { IS_DEMO } from '../edition.js';
-import { ROLES, slotInfo, loadGame, deleteSave, freeSlot } from '../state.js';
+import { ROLES, slotInfo, loadGame, deleteSave, freeSlot, exportSave, importSave } from '../state.js';
+import { toast } from './dom.js';
 import { esc, fmtMoney, fmtClock, dayOf } from '../util.js';
-import { RANKS, goalsState, activeGoals, goalText, goalFraction } from '../sim/goals.js';
+import { RANKS, goalsState, activeGoals, goalText, goalFraction, rankName } from '../sim/goals.js';
 import { glossify } from './glossary.js';
 import { sfx } from '../audio.js';
 import { scenarioListHtml, scenarioSide } from './scenarioUi.js';
@@ -82,7 +83,8 @@ export function statusPanel(s, title = T('Status')) {
   const deps = (t.onTime || 0) + (t.delayed || 0);
   const tile = (k, v, cls = '') => `<div class="ms-tile ${cls}"><span>${k}</span><b>${v}</b></div>`;
   const row = (icon, v, k) => `<div class="ms-row"><i>${icon}</i><b>${v}</b><small>${k}</small></div>`;
-  const rank = RANKS[G.rank || 0];
+  // Aufbau-Modus: Rang nach der Person (Neu am Platz …), sonst nach dem Flughafen
+  const rank = { ...RANKS[G.rank || 0], name: rankName(s, G.rank || 0) };
   let goals = '';
   try {
     if (s.goals) goals = activeGoals(s).map((g) => `<div class="ms-goal"><small>${esc(goalText(g))}</small><span class="ms-bar"><i style="width:${Math.round(goalFraction(s, g) * 100)}%"></i></span></div>`).join('');
@@ -155,7 +157,7 @@ const SIDE = {
       <li>🐦 Vogelschwärme, 🚁 Rettungshubschrauber, 🚨 Martinshorn</li>
       <li>🎥 <b>Folgen</b>-Kamera · 🎬 Kino-Modus als Live-Übertragung · <kbd>?</kbd> Tastenkürzel</li>
       <li>🪧 <b>Anzeigetafel</b> im Fallblatt-Stil (<kbd>I</kbd>)</li>
-    </ul></div></div>`.replace('<ul>', `<ul>${T('<li>🌐 <b>English version</b> – das ganze Spiel jetzt auch auf Englisch: Menüs, Hilfe, Glossar, Zeitung, Livestream, Betriebsfunk und Kommentator; umschaltbar unter Einstellungen › Sprache</li>')}${T('<li>🌨️ <b>Sichtflug-Wetter</b>: Sportflieger bleiben bei Schnee, Nebel und Gewitter am Boden – keine Kette von Treibstoff-Notlagen mehr am kleinen Platz; Partner melden ihren ersten Flug in der Lokalzeitung</li>')}${T('<li>🖼️ <b>Shop-Material</b>: Titelbild und Grafiken in allen Steam- und itch.io-Formaten (Deutsch und Englisch), erzeugt mit <code>node tools/capsules.mjs</code></li>')}`),
+    </ul></div></div>`.replace('<ul>', `<ul>${T('<li>🌐 <b>English version</b> – das ganze Spiel jetzt auch auf Englisch: Menüs, Hilfe, Glossar, Zeitung, Livestream, Betriebsfunk und Kommentator; umschaltbar unter Einstellungen › Sprache</li>')}${T('<li>💾 <b>Spielstände sicher</b>: automatische Sicherungskopie je Platz (springt ein, wenn ein Stand beschädigt ist), Export als Datei und Import – der Flughafen überlebt das Löschen der Browserdaten und zieht mit auf einen anderen Rechner</li>')}${T('<li>🌨️ <b>Sichtflug-Wetter</b>: Sportflieger bleiben bei Schnee, Nebel und Gewitter am Boden – keine Kette von Treibstoff-Notlagen mehr am kleinen Platz; Partner melden ihren ersten Flug in der Lokalzeitung</li>')}${T('<li>🖼️ <b>Shop-Material</b>: Titelbild und Grafiken in allen Steam- und itch.io-Formaten (Deutsch und Englisch), erzeugt mit <code>node tools/capsules.mjs</code></li>')}`),
   career: () => {
     const S = careerSummary();
     const R = careerRank();
@@ -191,7 +193,8 @@ const fmtSaved = (t) => {
 function slotListHtml() {
   return T`<button class="mm-back" data-mm="back">← Zurück</button>` + slotInfo().map((x) => x.empty
     ? T`<button class="mm-item slot-item locked" data-slot-load="${x.n}" data-side="slot:${x.n}"><span class="n"></span><span class="l"><b>Platz ${x.n} · leer</b><small>Über „Neues Spiel“ belegen</small></span></button>`
-    : T`<div class="slot-row"><button class="mm-item slot-item" data-slot-load="${x.n}" data-side="slot:${x.n}"><span class="n"></span><span class="l"><b>${esc(x.name)}</b><small>Platz ${x.n} · Tag ${dayOf(x.time)} · ${fmtClock(x.time)} · ${esc(ROLES[x.role]?.short || '')} · ${fmtMoney(x.cash)}${x.saved ? T` · gespeichert ${fmtSaved(x.saved)}` : ''}${x.last ? T(' · zuletzt gespielt') : ''}</small></span></button><button class="mini slot-del" data-slot-del="${x.n}" title="Spielstand löschen">🗑</button></div>`).join('');
+    : T`<div class="slot-row"><button class="mm-item slot-item" data-slot-load="${x.n}" data-side="slot:${x.n}"><span class="n"></span><span class="l"><b>${esc(x.name)}</b><small>Platz ${x.n} · Tag ${dayOf(x.time)} · ${fmtClock(x.time)} · ${esc(ROLES[x.role]?.short || '')} · ${fmtMoney(x.cash)}${x.saved ? T` · gespeichert ${fmtSaved(x.saved)}` : ''}${x.last ? T(' · zuletzt gespielt') : ''}</small></span></button><button class="mini slot-exp" data-slot-exp="${x.n}" title="Als Datei sichern (Export)">⬇</button><button class="mini slot-del" data-slot-del="${x.n}" title="Spielstand löschen">🗑</button></div>`).join('') +
+    T`<button class="mm-item slot-imp" data-slot-imp><span class="n"></span><span class="l"><b>⬆ Spielstand importieren</b><small>Gesicherte Datei (.json) auf einen freien Platz laden</small></span></button><input type="file" id="slot-file" accept=".json,application/json" hidden>`;
 }
 function renderSlotSelect(root) {
   const sel = root.querySelector('#inp-slot');
@@ -317,6 +320,41 @@ export function initMainMenu(api) {
       else if (a === 'about') showSide('about');
       else if (a === 'whatsnew') showSide('whatsnew');
       else if (a === 'career') showSide('career');
+      return;
+    }
+    const ex = e.target.closest('[data-slot-exp]');
+    if (ex) {
+      const f = exportSave(Number(ex.dataset.slotExp));
+      if (!f) return toast(T('Export nicht möglich – der Spielstand ist leer oder beschädigt'), 'bad');
+      const url = URL.createObjectURL(new Blob([f.text], { type: 'application/json' }));
+      const a = Object.assign(document.createElement('a'), { href: url, download: f.file });
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast(T`💾 Gesichert als ${f.file}`, 'good');
+      return;
+    }
+    if (e.target.closest('[data-slot-imp]')) {
+      const free = slotInfo().find((x) => x.empty);
+      if (!free) return toast(T('Alle drei Plätze sind belegt – erst einen Spielstand löschen'), 'warn');
+      const inp = root.querySelector('#slot-file');
+      inp.onchange = () => {
+        const file = inp.files && inp.files[0];
+        if (!file) return;
+        file.text().then((text) => {
+          const r = importSave(text, free.n);
+          inp.value = '';
+          if (!r.ok) return toast(r.why === 'full' ? T('Import fehlgeschlagen – der Browser-Speicher ist voll') : T('Diese Datei ist kein gültiger Planez-Spielstand'), 'bad');
+          mm.slotCache = {};
+          lists.slots.innerHTML = slotListHtml();
+          renumber(lists.slots);
+          showSide(`slot:${free.n}`);
+          refreshContinue();
+          toast(T`✅ „${r.name}“ auf Platz ${free.n} importiert`, 'good');
+        });
+      };
+      inp.click();
       return;
     }
     const del = e.target.closest('[data-slot-del]');

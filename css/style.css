@@ -1035,6 +1035,8 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .slot-row { display: flex; align-items: center; }
 .slot-row .mm-item { flex: 1; min-width: 0; }
 .slot-del { margin-right: 14px; flex: none; }
+.slot-exp { margin-right: 6px; flex: none; }
+.slot-imp b { color: var(--mm-cyan); }
 .slot-del.armed { background: rgba(248,113,113,.25); border-color: var(--bad); color: #fff; }
 .slot-item.locked b { color: rgba(203,213,225,.55); }
 #mm-slots .mm-item small { white-space: normal; }

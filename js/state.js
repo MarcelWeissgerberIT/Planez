@@ -192,19 +192,57 @@ function readMeta() {
     return {};
   }
 }
+// Sicherungskopie je Platz: höchstens alle 10 Minuten wird der vorige Stand weggesichert. Ist ein Stand später
+// beschädigt (oder passt nicht mehr zur Spielversion), lädt loadGame die Sicherung.
+const bakKey = (n) => slotKey(n) + '_bak';
+const BAK_EVERY = 10 * 60 * 1000;
+function writeSlot(n, text, meta) {
+  localStorage.setItem(slotKey(n), text);
+  localStorage.setItem(META_KEY, JSON.stringify(meta));
+}
 export function saveGame(state) {
   if (state.scenario) return false; // Herausforderungen werden nicht als Spielstand gespeichert
   const n = state.slot || 1;
   try {
-    localStorage.setItem(slotKey(n), JSON.stringify(state, saveReplacer));
+    const text = JSON.stringify(state, saveReplacer);
     const meta = readMeta();
+    const bak = (meta.bak = meta.bak || {});
+    // vorigen Stand als Sicherung behalten (nur wenn er sich laden lässt)
+    if (!bak[n] || Date.now() - bak[n] > BAK_EVERY) {
+      const old = localStorage.getItem(slotKey(n));
+      if (old && parseSave(old)) {
+        try {
+          localStorage.setItem(bakKey(n), old);
+          bak[n] = Date.now();
+        } catch (e) {}
+      }
+    }
     meta[n] = { name: state.name, role: state.role, time: state.time, cash: state.cash, rep: state.reputation, rank: state.goals ? state.goals.rank : 0, stage: state.career ? state.stage : null, saved: Date.now() };
     meta.last = n;
-    localStorage.setItem(META_KEY, JSON.stringify(meta));
+    try {
+      writeSlot(n, text, meta);
+    } catch (e) {
+      // Speicher voll: zuerst die Sicherungen der anderen Plätze opfern, dann noch einmal versuchen
+      for (const k of SLOTS) if (k !== n) {
+        localStorage.removeItem(bakKey(k));
+        delete bak[k];
+      }
+      writeSlot(n, text, meta);
+    }
     return true;
   } catch (e) {
     console.warn(T('Speichern fehlgeschlagen'), e);
     return false;
+  }
+}
+// Text eines Spielstands prüfen und einlesen (null, wenn er beschädigt ist oder nicht passt)
+function parseSave(raw) {
+  try {
+    const s = JSON.parse(raw);
+    if (!s || s.version !== 1 || !Array.isArray(s.acs) || typeof s.time !== 'number') return null;
+    return s;
+  } catch (e) {
+    return null;
   }
 }
 // Fahrzeugwege kürzen: bereits gefahrene Wegpunkte (und die Wege geparkter Fahrzeuge) nicht mitspeichern
@@ -220,16 +258,53 @@ export function lastSlot() {
   return SLOTS.find((n) => hasSave(n)) || 1;
 }
 export function loadGame(n = lastSlot()) {
+  const open = (raw) => {
+    const s = raw && parseSave(raw);
+    if (!s) return null;
+    try {
+      s.slot = n;
+      applyStage(s);
+      return s;
+    } catch (e) {
+      return null;
+    }
+  };
   try {
-    const raw = localStorage.getItem(slotKey(n));
-    if (!raw) return null;
-    const s = JSON.parse(raw);
-    if (!s || s.version !== 1) return null;
-    s.slot = n;
-    applyStage(s);
-    return s;
+    const s = open(localStorage.getItem(slotKey(n)));
+    if (s) return s;
+    // beschädigt: Sicherungskopie versuchen
+    const b = open(localStorage.getItem(bakKey(n)));
+    if (b) b.restoredFrom = readMeta().bak?.[n] || 1;
+    return b;
   } catch (e) {
     return null;
+  }
+}
+// Spielstand als Datei (Export) und aus einer Datei (Import)
+export function exportSave(n) {
+  try {
+    const raw = localStorage.getItem(slotKey(n));
+    const s = raw && parseSave(raw);
+    if (!s) return null;
+    const day = new Date().toISOString().slice(0, 10);
+    const name = String(s.name || 'Planez').replace(/[^\w\-]+/g, '_').slice(0, 40);
+    return { file: `planez_${name}_${day}.json`, text: raw };
+  } catch (e) {
+    return null;
+  }
+}
+export function importSave(text, n) {
+  const s = parseSave(text);
+  if (!s) return { ok: false, why: 'invalid' };
+  if (s.scenario) return { ok: false, why: 'scenario' };
+  try {
+    s.slot = n;
+    const meta = readMeta();
+    meta[n] = { name: s.name, role: s.role, time: s.time, cash: s.cash, rep: s.reputation, rank: s.goals ? s.goals.rank : 0, stage: s.career ? s.stage : null, saved: Date.now() };
+    writeSlot(n, JSON.stringify(s), meta);
+    return { ok: true, name: s.name };
+  } catch (e) {
+    return { ok: false, why: 'full' };
   }
 }
 export function hasSave(n) {
@@ -243,8 +318,10 @@ export function hasSave(n) {
 export function deleteSave(n = 1) {
   try {
     localStorage.removeItem(slotKey(n));
+    localStorage.removeItem(bakKey(n));
     const meta = readMeta();
     delete meta[n];
+    if (meta.bak) delete meta.bak[n];
     if (meta.last === n) delete meta.last;
     localStorage.setItem(META_KEY, JSON.stringify(meta));
   } catch (e) {}
