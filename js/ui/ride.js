@@ -23,6 +23,16 @@ const CALLS = [500, 100, 50, 40, 30, 20, 10];
 // Phasen eines ankommenden Flugs (ac.arr bleibt über den ganzen Umlauf gesetzt)
 const ARR_PH = new Set([PH.INBOUND, PH.HOLD, PH.APPROACH, PH.GOAROUND, PH.FINAL, PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN]);
 
+// 3D-Modul (three.js ≈ 0,7 MB) nur einmal laden – auch schon vorab im Hintergrund (Hover, Leerlauf)
+let v3dMod = null;
+export function preload3d() {
+  if (!v3dMod) v3dMod = import('../render/view3d.js').catch((e) => {
+    v3dMod = null;
+    throw e;
+  });
+  return v3dMod;
+}
+
 export class Ride {
   constructor(game) {
     this.game = game;
@@ -34,7 +44,7 @@ export class Ride {
       <div class="rd-cockpit"><canvas class="rd-rain"></canvas><div class="rd-pillar l"></div><div class="rd-pillar r"></div><div class="rd-pillar c"></div>
         <div class="rd-glare"><div class="rd-pfd"><div class="rd-tape spd"><small>KT</small><b data-r="spd">0</b></div><div class="rd-ai"><div class="rd-hor"></div><i></i><span data-r="fma">TAXI</span></div><div class="rd-tape alt"><small>FT</small><b data-r="alt">0</b><em data-r="vs"></em></div></div>
         <div class="rd-nd"><div class="rd-rose" data-r="rose"></div><b data-r="hdg">000</b><small data-r="nd"></small></div></div></div>
-      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button><button data-rd="drone" title="Drohne: frei über den Flughafen fliegen (WASD, Q/E, Umschalt = schnell)">${icon('drone')} Drohne</button></span><span class="rd-dr"><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-photo" data-rd="photo" title="Foto fürs Spotterbuch (F) – fotografiert das Flugzeug in der Bildmitte">${icon('photo')}</button><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-bino"></div><div class="rd-labels"></div><div class="rd-cap"></div><div class="rd-pad"><button data-k="up" title="vor">▲</button><button data-k="left" title="links">◀</button><button data-k="down" title="zurück">▼</button><button data-k="right" title="rechts">▶</button><button data-k="rise" title="steigen">⤒</button><button data-k="sink" title="sinken">⤓</button></div><div class="rd-marshal"><div class="rd-wand l"></div><div class="rd-wand r"></div><div class="rd-mres"></div><button class="rd-stop" data-rd="mstop">STOPP <small>Leertaste</small></button></div>`;
+      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button><button data-rd="drone" title="Drohne: frei über den Flughafen fliegen (WASD, Q/E, Umschalt = schnell)">${icon('drone')} Drohne</button></span><span class="rd-dr"><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-photo" data-rd="photo" title="Foto fürs Spotterbuch (F) – fotografiert das Flugzeug in der Bildmitte">${icon('photo')}</button><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-load"><i></i><span>3D-Ansicht wird geladen …</span></div><div class="rd-bino"></div><div class="rd-labels"></div><div class="rd-cap"></div><div class="rd-pad"><button data-k="up" title="vor">▲</button><button data-k="left" title="links">◀</button><button data-k="down" title="zurück">▼</button><button data-k="right" title="rechts">▶</button><button data-k="rise" title="steigen">⤒</button><button data-k="sink" title="sinken">⤓</button></div><div class="rd-marshal"><div class="rd-wand l"></div><div class="rd-wand r"></div><div class="rd-mres"></div><button class="rd-stop" data-rd="mstop">STOPP <small>Leertaste</small></button></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
     this.tEl = el.querySelector('.rd-t');
@@ -198,22 +208,39 @@ export class Ride {
 
   // echte 3D-Ansicht (WebGL) nachladen; bis dahin bzw. ohne WebGL die gekippte Karte
   load3d(onFail) {
-    import('../render/view3d.js').then((m) => {
+    // bis die 3D-Ansicht bereit ist: Ladeanzeige, die 2D-Karte bleibt sichtbar
+    if (!this.v3d) {
+      this.el.classList.add('loading3d');
+      clearTimeout(this.loadT);
+      this.loadT = setTimeout(() => this.on && !this.use3d && toast('3D-Ansicht lädt noch (≈ 0,7 MB beim ersten Mal) …', 'info', 4000), 6000);
+    }
+    const fail = (e) => {
+      this.el.classList.remove('loading3d');
+      clearTimeout(this.loadT);
+      if (e) console.error('3D-Ansicht', e);
+      if (e && this.on) toast(`3D-Ansicht konnte nicht starten (${e.message || e}) – bitte die Seite neu laden (Strg+Umschalt+R)`, 'bad', 8000);
+      else if (onFail) onFail();
+      if (this.on) this.stop();
+    };
+    preload3d().then((m) => {
       if (!this.on) return;
-      if (!m.View3D.supported()) return onFail && onFail();
+      if (!m.View3D.supported()) return fail(null);
       try {
         this.v3d = this.v3d || new m.View3D(this.game);
       } catch (e) {
-        return onFail && onFail();
+        return fail(e);
       }
+      this.el.classList.remove('loading3d');
+      clearTimeout(this.loadT);
       this.use3d = true;
       this.v3d.show();
       this.el.classList.add('v3d');
+      if (this.mode === 'tower') document.getElementById('game').classList.add('towerview');
       const map = document.getElementById('map');
       map.style.transform = '';
       // nur die Mitflug-Kameras neu einstellen (Turm, Kino, Drohne, Einwinken behalten ihre Blickrichtung)
       if (['cockpit', 'window', 'chase'].includes(this.mode)) this.setMode(this.mode);
-    }).catch(() => onFail && onFail());
+    }).catch((e) => fail(e));
   }
 
   greet(s, ac, mode) {
@@ -260,7 +287,6 @@ export class Ride {
     clearTimeout(this.helpT);
     this.el.classList.remove('nohelp');
     this.helpT = setTimeout(() => this.el.classList.add('nohelp'), 7000);
-    document.getElementById('game').classList.add('towerview');
     document.getElementById('t-tower3d')?.classList.add('on');
     this.setTrack(!!this.game.ui.selected);
     this.load3d(() => {
@@ -376,6 +402,8 @@ export class Ride {
   stop() {
     if (!this.on) return;
     this.on = false;
+    this.el.classList.remove('loading3d');
+    clearTimeout(this.loadT);
     soundscape.cabin = null;
     this.ga = null;
     if (this.cam0) {
@@ -471,6 +499,20 @@ export class Ride {
 
   update(dt) {
     if (!this.on) return;
+    try {
+      this.update0(dt);
+    } catch (e) {
+      console.error('3D-Ansicht', e);
+      this.errN = (this.errN || 0) + 1;
+      if (this.errN >= 3) {
+        this.errN = 0;
+        toast(`3D-Ansicht: Fehler „${e.message}“ – bitte die Seite neu laden (Strg+Umschalt+R)`, 'bad', 8000);
+        this.stop();
+      }
+    }
+  }
+
+  update0(dt) {
     const g = this.game, s = g.state, cam = g.cam;
     if (g.cinema && g.cinema.on) return this.stop();
     if (this.ga) return this.updateGA(dt);

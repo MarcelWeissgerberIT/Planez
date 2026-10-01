@@ -1,5 +1,5 @@
 // Planez – Airport Simulator: Start, Spielschleife, Eingabe
-import { Ride } from './ui/ride.js';
+import { Ride, preload3d } from './ui/ride.js';
 import { icon, hydrateIcons } from './ui/icons.js';
 import { loadAssets } from './assets.js';
 import { Camera } from './render/camera.js';
@@ -308,6 +308,8 @@ function spotter() {
 
 function startGame(state) {
   soundscape.unlock();
+  // 3D-Ansicht im Leerlauf vorladen, damit Turmblick und Mitfliegen sofort starten
+  setTimeout(() => (window.requestIdleCallback || ((f) => setTimeout(f, 1)))(() => preload3d().catch(() => {})), 20000);
   Q.perf = !!loadPrefs().perf;
   game.fpsProbe = { t: 0, n: 0, sum: 0 };
   game.state = state;
@@ -1014,6 +1016,9 @@ function wireGame() {
     if (!game.photo) game.photo = new PhotoMode(game);
     game.photo.toggle();
   });
+  // 3D-Modul vorladen, sobald man in die Nähe kommt (und im Leerlauf nach dem Spielstart)
+  for (const ev of ['pointerenter', 'focus']) $('#t-tower3d').addEventListener(ev, () => preload3d().catch(() => {}));
+  $('#info').addEventListener('pointerover', (e) => e.target.closest('[data-ride],[data-marshal]') && preload3d().catch(() => {}));
   $('#t-tower3d').addEventListener('click', () => {
     if (!game.state) return;
     if (!game.ride) game.ride = new Ride(game);
