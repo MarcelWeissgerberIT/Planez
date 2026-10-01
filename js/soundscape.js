@@ -104,6 +104,15 @@ function init() {
   lfo.connect(lg).connect(L.crickets.g.gain);
   lfo.start();
   L.cricketLfo = lg;
+  // Hubschrauber-Rotor: tiefes Rauschen, mit der Blattfrequenz „gehackt“ (wop-wop)
+  L.rotor = loop(A, brown, [filt(A, 'lowpass', 420), filt(A, 'peaking', 95, 1.2)]);
+  const rl = A.createOscillator();
+  rl.frequency.value = 11;
+  const rlg = A.createGain();
+  rlg.gain.value = 0;
+  rl.connect(rlg).connect(L.rotor.g.gain);
+  rl.start();
+  L.rotorLfo = rlg;
   // Martinshorn der Flughafenfeuerwehr (Quarte, „Tatü-tata“)
   const so = A.createOscillator();
   so.type = 'square';
@@ -216,6 +225,15 @@ export const soundscape = {
         wsum += near;
       }
     }
+    // Cessna der Platzrunden und Rettungshubschrauber
+    const near = (x, y) => clamp(1 - Math.hypot(x - cam.x, y - cam.y) / (16 / Math.max(0.4, cam.zoom)), 0, 1);
+    const vp = state.vfr && state.vfr.p;
+    if (vp) prop += near(vp.x, vp.y) * (vp.z < 0.6 ? 1.1 : 0.7);
+    const hh = state.heli && state.heli.h;
+    const rotor = hh ? clamp(near(hh.x, hh.y) * 1.3 * zoomF, 0, 1) : 0;
+    set(L.rotor.g.gain, 0.09 * rotor, 0.4);
+    set(L.rotorLfo.gain, 0.085 * rotor, 0.4);
+    if (L.rotor.pan && hh) set(L.rotor.pan.pan, clamp((hh.x - hh.y - (cam.x - cam.y)) * 0.06, -0.8, 0.8));
     jet = clamp(jet * zoomF, 0, 1.4);
     roar = clamp(roar * zoomF, 0, 1.6);
     this.levels = { jet, roar, ctx: A.state };
