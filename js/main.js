@@ -1,5 +1,6 @@
 // Planez – Airport Simulator: Start, Spielschleife, Eingabe
 import { Ride, preload3d } from './ui/ride.js';
+import { setAiPlay, aiAvailable, MANUAL_HOLD } from './sim/aiplay.js';
 import { icon, hydrateIcons } from './ui/icons.js';
 import { loadAssets } from './assets.js';
 import { Camera } from './render/camera.js';
@@ -565,6 +566,7 @@ function updateHUD(force) {
   const t = s.stats.today;
   const deps = t.onTime + t.delayed;
   setHTML($('#hud-ontime'), deps ? `${Math.round((t.onTime / deps) * 100)} %` : '—');
+  updateAiBox(s);
   const sc = $('#hud-score');
   const showSc = (s.role === 'tower' || s.role === 'ground') && !s.auto[s.role === 'tower' ? 'atc' : 'ground'];
   sc.classList.toggle('hidden', !showSc);
@@ -1019,6 +1021,12 @@ function wireGame() {
   // 3D-Modul vorladen, sobald man in die Nähe kommt (und im Leerlauf nach dem Spielstart)
   for (const ev of ['pointerenter', 'focus']) $('#t-tower3d').addEventListener(ev, () => preload3d().catch(() => {}));
   $('#info').addEventListener('pointerover', (e) => e.target.closest('[data-ride],[data-marshal]') && preload3d().catch(() => {}));
+  $('#btn-ai').addEventListener('click', () => toggleAi());
+  $('#ai-box').addEventListener('click', (e) => {
+    if (e.target.closest('[data-ai-off]')) return toggleAi(false);
+    const l = e.target.closest('[data-ai-ac]');
+    if (l && game.state && game.state.acs.some((a) => a.id === l.dataset.aiAc)) game.select(l.dataset.aiAc, true);
+  });
   $('#t-tower3d').addEventListener('click', () => {
     if (!game.state) return;
     if (!game.ride) game.ride = new Ride(game);
@@ -1290,6 +1298,7 @@ function onKey(e) {
     return game.fids.toggle();
   }
   if ((e.key === 'j' || e.key === 'J') && !e.ctrlKey && !e.metaKey) return spotter().toggle();
+  if ((e.key === 'z' || e.key === 'Z') && !e.ctrlKey && !e.metaKey) return toggleAi();
   if ((e.key === 'l' || e.key === 'L') && s.role !== 'tower' && !e.ctrlKey && !e.metaKey) return toggleStream();
   if ((e.key === 'f' || e.key === 'F') && s.role !== 'tower' && !e.ctrlKey && !e.metaKey) {
     const ac = game.ui.selected && s.acs.find((a) => a.id === game.ui.selected);
@@ -1459,6 +1468,36 @@ function toggleRadar(on) {
   $('#t-radar').classList.toggle('on', on);
   resize();
 }
+// ---------------- KI-Pilot ----------------
+const ROLE_NAME = { tower: 'Tower', ground: 'Vorfeld', manager: 'Management' };
+function toggleAi(on) {
+  const s = game.state;
+  if (!s) return;
+  if (!aiAvailable(s)) return toast(s.scenario ? 'In Herausforderungen spielst du selbst' : 'Als Beobachter läuft ohnehin alles automatisch', 'info', 2600);
+  const want = on ?? !s.aiPlay;
+  setAiPlay(s, want);
+  toast(want ? `🤖 Die KI übernimmt ${ROLE_NAME[s.role]} – lehn dich zurück. Eigene Befehle haben jederzeit Vorrang.` : '🧑‍✈️ Du hast wieder übernommen', want ? 'good' : 'info', 3400);
+  sfx.click && sfx.click();
+  game.panel && game.panel.update && game.panel.update(s);
+  updateAiBox(s);
+}
+function updateAiBox(s) {
+  const btn = $('#btn-ai'), box = $('#ai-box');
+  if (!btn || !box) return;
+  const avail = aiAvailable(s);
+  btn.classList.toggle('hidden', !avail);
+  btn.classList.toggle('on', !!s.aiPlay);
+  const lbl = s.aiPlay ? 'KI spielt' : 'KI';
+  if (btn.lastChild.textContent !== lbl) btn.lastChild.textContent = lbl;
+  box.classList.toggle('hidden', !s.aiPlay);
+  if (!s.aiPlay) return;
+  const feed = (s.aiFeed || []).slice(-5).reverse();
+  const own = s.acs.filter((a) => a.manualUntil > s.time);
+  setHTML(box, `<div class="ai-h">${icon('robot')}<b>KI spielt ${ROLE_NAME[s.role]}</b><button class="mini" data-ai-off title="Selbst übernehmen (Z)">Selbst übernehmen</button></div>
+    <div class="ai-sub">${s.role === 'tower' ? 'Eigene Befehle haben Vorrang – das Flugzeug gehört dann ' + Math.round(MANUAL_HOLD / 60) + ' min dir.' : s.role === 'ground' ? 'Du kannst jederzeit selbst Fahrzeuge schicken oder Positionen ändern.' : 'Offene Entscheidungen trifft die KI nach kurzer Bedenkzeit – entscheide gern vorher selbst.'}${own.length ? `<br><span class="ai-own">Du führst: ${own.map((a) => esc(a.cs)).join(', ')}</span>` : ''}</div>
+    <div class="ai-feed">${feed.length ? feed.map((f) => `<div class="ai-l ${f.kind}"${f.ac ? ` data-ai-ac="${f.ac}"` : ''}><span>${fmtClock(f.t)}</span>${esc(f.text)}</div>`).join('') : '<div class="ai-l idle">Die KI beobachtet die Lage …</div>'}</div>`);
+}
+
 function togglePanel() {
   const p = $('#panel');
   p.classList.toggle('collapsed');
@@ -1628,6 +1667,8 @@ function helpGuide(first) {
     <p>Das Spiel schneidet die letzten Sekunden am Platz mit. Nach einem besonderen Moment – Durchstarten, Notlandung, harte oder butterweiche Landung, A380 oder Regierungsmaschine – erscheint unten ein Knopf <b>Wiederholung</b>; <kbd>Umschalt</kbd>+<kbd>R</kbd> spielt sie jederzeit ab. In Zeitlupe, ohne Oberfläche, die Kamera folgt dem Flugzeug; die Simulation wartet so lange. Esc oder ein Klick beendet die Wiederholung.</p>
     <h3>🛬 Aufsetzrate</h3>
     <p>Jede Landung zeigt ihre Sinkrate beim Aufsetzen (ft/min): unter 110 ist 🧈 Butter, ab 600 eine harte Landung. Seitenwind, Böen, Regen, Schnee, Gewitter und Wirbelschleppen machen Landungen fester – und eine <b>späte Landefreigabe</b>: Kommt sie weniger als eine Minute vor dem Aufsetzen, ist der Endanflug unruhig. Nach einer harten Landung prüft die Technik das Fahrwerk an der Position (Abfertigung ruht 20 Minuten).</p>
+    <h3>🤖 KI-Pilot</h3>
+    <p>Der Knopf <b>KI</b> oben rechts (oder <kbd>Z</kbd>) lässt die KI deine Station übernehmen – Tower, Vorfeld oder Management. Unten links im <b>KI-Protokoll</b> siehst du, was sie gerade tut; ein Klick auf einen Eintrag zeigt das Flugzeug. Du kannst jederzeit eingreifen: Gibst du selbst einen Befehl, gehört das Flugzeug 5 Minuten dir und die KI lässt es in Ruhe. Im Vorfeld kannst du selbst Fahrzeuge schicken, im Management offene Entscheidungen vor der KI treffen. <b>Selbst übernehmen</b> oder <kbd>Z</kbd> schaltet die KI wieder ab. Solange sie spielt, gibt es keine Schichtpunkte und keine neuen Erfolge.</p>
     <h3>🗼 Turmblick 3D</h3>
     <p>Der Tower-Knopf rechts an der Karte schaltet in die echte 3D-Sicht aus der Tower-Kanzel – in jeder Rolle, das Spiel läuft weiter und Panel, Funk, Radar und Flugstreifen bleiben bedienbar. <b>Ziehen</b> schaut dich um, das <b>Mausrad</b> ist das Fernglas, Doppelklick blickt wieder auf die Bahnmitte. Über jedem Flugzeug hängt ein Schild mit Rufzeichen, Typ und Höhe; ein Klick auf Flugzeug oder Schild wählt es aus. Mit <b>Verfolgen</b> schwenkt der Blick auf das ausgewählte Flugzeug und das Fernglas zoomt automatisch mit – so siehst du den Start vom Aufrollen bis zum Abheben. Flugzeuge im nahen Anflug erscheinen schon in der Luft, Rettungshubschrauber und Cessna in der Platzrunde ebenfalls mit Schild – ein Klick auf deren Schild startet einen <b>Rundflug</b>: im Cockpit, am Fenster oder von außen mitfliegen, bis gelandet ist. Nochmal auf den Tower-Knopf, ✕ oder <kbd>Esc</kbd> zurück zur Karte.</p>
     <p>🦺 <b>Einwinken</b>: Rollt ein Flugzeug zu seiner Position, steht in der Info-Karte „Einwinken“. Du stehst als Einwinker vor der Position, auf den letzten Metern läuft die Zeit in Zeitlupe – drück <b>STOPP</b> (<kbd>Leertaste</kbd>) genau dann, wenn die Bugnase die gelbe Haltemarke erreicht. Punktgenau (höchstens 1,5 m) gibt die meisten Punkte; fünfmal punktgenau bringt den Erfolg „Einwinker“.</p>

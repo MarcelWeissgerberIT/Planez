@@ -33,7 +33,7 @@ export function taskChips(state, ac, interactive = true) {
       if (st === 'assigned') lbl = 'unterwegs';
       if (st === 'ready' && !t.need) lbl = 'Brücke';
       const title = `${def.name}${t.need ? ' · ' + VEH_TYPES[t.need].name : ' · Fluggastbrücke'}${k === 'fuel' && t.uplift ? ` · ${Math.round(t.uplift)} t Kerosin` : ''}`;
-      const clickable = interactive && st === 'ready' && t.need && !isAuto;
+      const clickable = interactive && st === 'ready' && t.need && (!isAuto || state.aiPlay); // bei KI-Pilot darf man selbst eingreifen
       return `<div class="task ${st}${isAuto ? ' auto' : ''}" title="${title}" ${clickable ? `data-disp="${k}" data-ac="${ac.id}"` : ''}><span class="ti">${icon(TASK_ICO[k] || 'tug')}</span><span class="tl">${lbl}</span>${st === 'active' && k !== 'push' ? `<i class="pb" style="width:${Math.round(t.prog * 100)}%"></i>` : ''}</div>`;
     })
     .join('');

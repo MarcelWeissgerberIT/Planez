@@ -1,6 +1,7 @@
 // Ereigniskarten mit Entscheidungen für die gespielte Rolle (Tower, Vorfeld, Manager).
 // Jede Karte hat 2–3 Optionen mit echten Auswirkungen; ohne Antwort gilt nach Ablauf die erste Option.
 // Rollen, die die KI spielt, entscheiden still selbst.
+import { aiNote, AI_DECIDE_AFTER } from './aiplay.js';
 import { AIRLINES, CITIES, AC_TYPES, SIZE_RANK } from '../config.js';
 import { rand, randRange, randInt, pick, pickWeighted, clamp, fmtMoney } from '../util.js';
 import { log, notify, fx } from './messages.js';
@@ -654,6 +655,13 @@ export function updateDecisions(state, dt) {
     if (!Number.isFinite(d.expires)) d.expires = d.t + 5 * MIN;
     if (d.p && d.p.ac && !state.acs.some((a) => a.id === d.p.ac)) {
       D.active = D.active.filter((x) => x !== d);
+      continue;
+    }
+    // KI-Pilot: nach kurzer Bedenkzeit die empfohlene Option wählen (der Spieler kann vorher selbst entscheiden)
+    if (state.aiPlay && d.role === state.role && state.time - d.t >= AI_DECIDE_AFTER && state.time < d.expires) {
+      const card = describe(state, d);
+      choose(state, d.id, 0);
+      if (card) aiNote(state, `Entscheidung „${card.title}“: ${card.options[0].label}`, null, 'dec');
       continue;
     }
     if (state.time >= d.expires) {

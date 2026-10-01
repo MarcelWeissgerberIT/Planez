@@ -1,10 +1,11 @@
 // Flugsicherung: Befehle, automatischer Lotse, Konfliktwarnung, Pistenwechsel
+import { aiNote, markManual, manualLocked } from './aiplay.js';
 import { AC_TYPES } from '../config.js';
 import { dist, degNorm } from '../util.js';
 import * as AS from './airspace.js';
 import * as LY from '../layout.js';
 import { PH, tel, windStr, goAround, startTaxiIn, startPushback, startTaxiOut, startLineUp, runwayBlocker, runwayOccupants, setReq, fmtAlt, crossingSafe } from './aircraft.js';
-import { radio, log, notify } from './messages.js';
+import { radio, log, notify, fx } from './messages.js';
 import { penalize } from './economy.js';
 import { updateSequence, seqNumber, updateArrQueue, isSeqArrival, isSeqDeparture, sepSec, seqStrip } from './sequence.js';
 import { wakeNm, wakeDepSec } from './wake.js';
@@ -240,6 +241,8 @@ export function command(state, ac, key) {
     callNordo(state, ac);
     return { ok: false, msg: `📻✖ ${ac.cs} antwortet nicht (Funkausfall, 7600) – Lichtsignal benutzen` };
   }
+  // KI-Pilot: Flugzeuge, die der Spieler gerade selbst führt, lässt die KI in Ruhe
+  if (state._autoCmd && state.aiPlay && state.role === 'tower' && manualLocked(state, ac)) return { ok: false, msg: '' };
   if (!c || !c.valid(state, ac)) {
     const rc = runwayClosed(state, key === 'land' ? ac.strip || 'N' : 'N');
     if (key === 'cross' && ac.crossX && !crossingSafe(state)) return { ok: false, msg: `Bahn ${rwyName(state, 'N')} nicht frei – Kreuzen noch nicht möglich` };
@@ -247,6 +250,12 @@ export function command(state, ac, key) {
     return { ok: false, msg: rc && ['land', 'takeoff', 'lineup'].includes(key) ? `Piste gesperrt: ${rc}` : 'Befehl gerade nicht möglich' };
   }
   const r = c.run(state, ac);
+  if (state.aiPlay && state.role === 'tower' && ac && (!r || r.ok !== false)) {
+    if (state._autoCmd) {
+      aiNote(state, `${c.label} – ${ac.cs}`, ac);
+      if (ac.mode === 'map') fx(state, ac.x, ac.y, `🤖 ${c.label}`, 'info');
+    } else markManual(state, ac);
+  }
   return r || { ok: true };
 }
 export function validCommands(state, ac) {

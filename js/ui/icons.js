@@ -5,6 +5,7 @@
 
 const P = {
   plus: '<path d="M12 5v14M5 12h14"/>',
+  robot: '<rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 4.5V8M9 19v1.5M15 19v1.5M3 12.5v3M21 12.5v3"/><circle class="a" cx="9.5" cy="13" r="1.4"/><circle class="a" cx="14.5" cy="13" r="1.4"/><circle cx="12" cy="4" r="1"/>',
   minus: '<path d="M5 12h14"/>',
   labels: '<path d="M3.5 11.2V4.5a1 1 0 0 1 1-1h6.7l9.3 9.3-7.7 7.7z"/><circle class="a" cx="8" cy="8" r="1.6"/>',
   radar: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5" opacity=".55"/><path d="M12 12l6-6"/><circle class="a" cx="15.6" cy="14.6" r="1.4"/>',

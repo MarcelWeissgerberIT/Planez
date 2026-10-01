@@ -1,4 +1,5 @@
 // Wirtschaft: Erlöse, Kosten, Ausbau, Management-KI
+import { withManagerNotes } from './aiplay.js';
 import { gradeOf } from './touchdown.js';
 import { AC_TYPES, AIRLINES, COSTS, VEH_TYPES, UPGRADES, STAND_COSTS, MARKETING, FEE_LIMITS, CITIES } from '../config.js';
 import { clamp, fmtMoney, rand, dayOf } from '../util.js';
@@ -214,7 +215,7 @@ function hourly(state) {
   }
   rep(state, (1 - fi) * 0.08 + state.upgrades.security * 0.01 + state.upgrades.hotel * 0.01 + (state.settings.curfew ? 0.015 : 0));
   state.hourTick = (state.hourTick || 0) + 1;
-  if (state.auto.manager) autoManager(state);
+  if (state.auto.manager) withManagerNotes(state, () => autoManager(state));
   // Insolvenz-Warnung
   if (state.cash < 0 && state.hourTick % 6 === 0) notify(state, '⚠️ Kontostand negativ – Kosten senken oder Einnahmen steigern!', 'bad');
 }

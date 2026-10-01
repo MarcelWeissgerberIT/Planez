@@ -61,6 +61,7 @@ export function achState(state) {
 
 // neue Erfolge prüfen (alle paar Sekunden Spielzeit)
 export function updateAchievements(state, dt) {
+  if (state.aiPlay) return; // Erfolge nur für eigene Arbeit, nicht während der KI-Pilot spielt
   state.achTimer = (state.achTimer || 0) - dt;
   if (state.achTimer > 0) return;
   state.achTimer = 20;

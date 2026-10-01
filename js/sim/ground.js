@@ -1,4 +1,5 @@
 // Bodenabfertigung: Parkpositionen, Turnaround, Fahrzeuge
+import { aiNote } from './aiplay.js';
 import { AC_TYPES, TASKS, TASK_ORDER, VEH_TYPES, SIZE_RANK, AIRLINES } from '../config.js';
 import { nordoOnBlock } from './nordo.js';
 import { sidOf } from './sid.js';
@@ -53,7 +54,9 @@ export function releaseReservation(state, ac) {
 export function assignStandAuto(state, ac) {
   const cands = state.stands.filter((s) => standFits(s, ac) && standFree(s)).sort((a, b) => standScore(a, ac) - standScore(b, ac));
   if (!cands.length) return false;
-  return assignStand(state, ac, cands[0].id, true);
+  const ok = assignStand(state, ac, cands[0].id, true);
+  if (ok && state.aiPlay && state.role === 'ground') aiNote(state, `Position ${cands[0].id} für ${ac.cs}`, ac);
+  return ok;
 }
 
 // ---------- Turnaround ----------
@@ -483,7 +486,11 @@ export function autoDispatch(state, allAuto) {
     }
   }
   ready.sort((a, b) => a.std - b.std);
-  for (const r of ready) dispatch(state, r.ac, r.k);
+  const note = allAuto && state.aiPlay && state.role === 'ground';
+  for (const r of ready) {
+    const res = dispatch(state, r.ac, r.k);
+    if (note && res && res.ok !== false) aiNote(state, `${TASKS[r.k] ? TASKS[r.k].name : r.k} – ${r.ac.cs} (P${r.ac.stand})`, r.ac);
+  }
 }
 
 // Summen für UI / Management

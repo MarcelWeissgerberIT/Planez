@@ -140,6 +140,7 @@ function warmStart(state) {
 export function setRole(state, role) {
   state.role = role;
   state.auto = autoFor(role);
+  state.aiPlay = false;
 }
 
 // Speicherplätze: Platz 1 ist der bisherige Spielstand, dazu Platz 2 und 3
