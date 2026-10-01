@@ -88,12 +88,29 @@ let toastHost = null;
 export function toast(text, level = 'info', ms = 4200) {
   toastHost = toastHost || document.getElementById('toasts');
   if (!toastHost) return;
+  // gleiche Meldung schon sichtbar: nicht doppelt stapeln, nur kurz aufleuchten lassen
+  for (const old of toastHost.children) if (old._txt === text && !old.classList.contains('out')) {
+    old.classList.remove('bump');
+    void old.offsetWidth;
+    old.classList.add('bump');
+    return;
+  }
   const t = document.createElement('div');
+  t._txt = text;
   t.className = `toast ${level}`;
-  t.textContent = text;
-  glossify(t);
+  // führendes Emoji als Symbol links absetzen, sonst ein Symbol je Stufe
+  const m = /^\s*(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}])*)\s*/u.exec(text);
+  const ico = document.createElement('span');
+  ico.className = 'tst-i';
+  ico.textContent = m ? m[1] : { good: '✓', warn: '!', bad: '!!', info: 'i' }[level] || 'i';
+  if (!m) ico.classList.add('sym');
+  const body = document.createElement('span');
+  body.className = 'tst-t';
+  body.textContent = m ? text.slice(m[0].length) : text;
+  t.append(ico, body);
+  glossify(body);
   toastHost.appendChild(t);
-  while (toastHost.children.length > 5) toastHost.firstChild.remove();
+  while (toastHost.children.length > 3) toastHost.firstChild.remove();
   setTimeout(() => {
     t.classList.add('out');
     setTimeout(() => t.remove(), 450);

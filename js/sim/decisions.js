@@ -106,7 +106,7 @@ export const CATALOG = {
     },
   },
   loadsheet: {
-    role: 'ground', weight: (s) => (s.scenario ? 0 : 0.5), // in Herausforderungen nicht – deren Balance bleibt unverändert timeout: 5 * MIN,
+    role: 'ground', weight: (s) => (s.scenario ? 0 : 0.5), timeout: 5 * MIN, // in Herausforderungen nicht – deren Balance bleibt unverändert
     crew: (s, p) => { const a = byId(s, p.ac); return a && ['Ladeplanung', `Vorfeld, Ladeplanung, das Loadsheet von ${a.cs} passt nicht, rund ${p.kg} Kilo zu viel im hinteren Frachtraum.`]; },
     cond: (s) => {
       const c = s.acs.filter((a) => a.phase === PH.STAND && AC_TYPES[a.type].size !== 'S' && task(a, 'load') && ['active', 'done'].includes(task(a, 'load').st) && task(a, 'board') && task(a, 'board').st !== 'done' && !a.lsDone);
@@ -649,8 +649,13 @@ export function updateDecisions(state, dt) {
     for (const x of state.pendingSpecials.filter((q) => state.time >= q.at)) spawnSpecial(state, x.opts);
     state.pendingSpecials = state.pendingSpecials.filter((q) => state.time < q.at);
   }
-  // Ablauf: Standardoption
+  // Ablauf: Standardoption; Karten zu Flugzeugen, die schon weg sind, still schließen (alte Stände: fehlender Ablauf)
   for (const d of [...D.active]) {
+    if (!Number.isFinite(d.expires)) d.expires = d.t + 5 * MIN;
+    if (d.p && d.p.ac && !state.acs.some((a) => a.id === d.p.ac)) {
+      D.active = D.active.filter((x) => x !== d);
+      continue;
+    }
     if (state.time >= d.expires) {
       choose(state, d.id, 0);
       if (d.role === state.role) notify(state, `⏱️ Keine Entscheidung – automatisch: ${describe(state, d)?.options[0]?.label || ''}`, 'warn');

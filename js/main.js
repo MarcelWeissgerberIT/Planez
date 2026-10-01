@@ -1428,7 +1428,16 @@ function clickMap(x, y) {
 }
 
 // ---------------- Layout ----------------
+// auf schmalen Bildschirmen bricht die Kopfleiste um – dann ihre echte Höhe für alles darunter übernehmen
+function syncHudHeight() {
+  const g = document.getElementById('game'), h = document.getElementById('hud');
+  if (!g || !h) return;
+  if (window.innerWidth <= 1000 && h.offsetHeight > 0) g.style.setProperty('--hud-h', `${h.offsetHeight}px`);
+  else g.style.removeProperty('--hud-h');
+}
+if (window.ResizeObserver) new ResizeObserver(syncHudHeight).observe(document.getElementById('hud'));
 function resize() {
+  syncHudHeight();
   const dpr = Math.min(Q.dprCap, window.devicePixelRatio || 1);
   if (game.map) game.map.resize(window.innerWidth, window.innerHeight, dpr);
   if (game.radar) {
@@ -1452,6 +1461,7 @@ function togglePanel() {
   $('#panel-toggle').classList.toggle('collapsed', c);
   $('#panel-toggle').textContent = c ? '⟨' : '⟩';
   $('#map-ctrls').classList.toggle('full', c);
+  $('#game').classList.toggle('no-panel', c);
 }
 
 // ---------------- Modals ----------------

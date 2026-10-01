@@ -107,6 +107,7 @@ const SIDE = {
     <ul><li>Kurze Einsätze mit festem Start: Morgenwelle, Nebel, Gewitterfront, Notfälle, Streik, Winterchaos, Sanierungsfall …</li><li>Jedes Ziel bringt 1–3 Sterne – der Bestwert bleibt gespeichert</li><li>Mit einem Stern schaltest du die nächste Stufe deiner Station frei</li></ul></div></div>`,
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
+      <li>✨ <b>Neue Oberfläche im Spiel</b>: aufgeräumte Kopfleiste, einheitliche Glas-Panels, Kartensteuerung als Dock, Meldungen ohne Überlappung, übersichtlichere Info-Karte</li>
       <li>🗼 <b>Turmblick 3D</b>: echte Sicht aus der Tower-Kanzel mit Fernglas, Rufzeichen-Schildern und Verfolgen – Funk, Radar und Streifen bleiben bedienbar · 🎬 <b>Kino 3D</b> mit automatischen Kamerafahrten · 🛩️ <b>Rundflug</b> in Cessna oder Rettungshubschrauber · 📷 <b>Fotos in 3D</b> fürs Spotterbuch · 🦺 <b>Einwink-Minispiel</b></li>
       <li>✈️ <b>3D in neuer Qualität</b>: detaillierte Flugzeuge mit Airline-Lackierung, Schatten, Himmel mit Sonnenstand und Sternen, Pisten- und Anflugbefeuerung mit <b>PAPI</b>, Landelichter, Regen, Schnee, Gewitterblitze, Reifenrauch</li>
       <li>🎵 <b>Neue Musik</b>: Menü-Thema sowie Tag- und Nachtmusik als echte Musikstücke, nahtlos geloopt und weich überblendet</li>

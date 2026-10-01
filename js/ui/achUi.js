@@ -20,10 +20,12 @@ function pump() {
   el.className = 'ach-pop';
   el.innerHTML = `<div class="ach-i">${a.icon}</div><div><div class="ach-k">Erfolg freigeschaltet${a.xp ? ` · +${Math.round(a.xp / 2)} XP` : ''}</div><div class="ach-n">${esc(a.name)}</div><div class="ach-d">${esc(a.desc)}</div></div>`;
   host.appendChild(el);
+  host.classList.add('ach-on');
   sfx.cash();
   setTimeout(() => el.classList.add('out'), 4200);
   setTimeout(() => {
     el.remove();
+    if (!queue.length) host.classList.remove('ach-on');
     busy = false;
     pump();
   }, 4700);

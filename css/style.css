@@ -1824,3 +1824,155 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 #ride .rd-mres b.mid { color: #fde047; }
 #ride .rd-mres b.bad { color: #f87171; }
 #ride .rd-mres span { font-size: 14px; opacity: .9; }
+
+/* ======================================================================================================
+   OBERFLÄCHE 2.0 – einheitlicher Look im Spiel: Glasflächen mit Verlauf und Lichtkante, Überschriften in der
+   Menüschrift (Chakra Petch), Zahlen in Mono, Rollenfarbe als Akzent. Überschreibt die älteren Regeln oben.
+   ====================================================================================================== */
+:root {
+  --ui-bg: linear-gradient(180deg, rgba(20, 30, 50, 0.9), rgba(9, 14, 26, 0.92));
+  --ui-bg-2: linear-gradient(180deg, rgba(28, 40, 64, 0.94), rgba(13, 20, 36, 0.95));
+  --ui-edge: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 0 1px rgba(148, 178, 214, 0.16);
+  --ui-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+  --ui-font: 'Chakra Petch', var(--sans);
+  --ui-r: 14px;
+}
+
+/* ---------- Kopfleiste ---------- */
+#hud { padding: 0 10px 0 8px; gap: 8px; background: linear-gradient(180deg, rgba(10, 16, 30, 0.97), rgba(8, 13, 24, 0.9)); border-bottom: 0; box-shadow: 0 1px 0 rgba(148, 178, 214, 0.14), 0 8px 24px rgba(0, 0, 0, 0.35); }
+#hud::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--role) 85%, transparent) 30%, color-mix(in srgb, var(--role) 85%, transparent) 70%, transparent 100%); opacity: 0.55; pointer-events: none; }
+.hud-l, .hud-c, .hud-r { gap: 8px; }
+.hud-c { flex-shrink: 1; }
+.hud-r { flex-shrink: 0; }
+.hud-logo { height: 26px; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5)); }
+.hud-name { font-family: var(--ui-font); font-weight: 600; font-size: 13px; letter-spacing: 0.04em; color: #dbe4ef; max-width: 170px; padding-left: 10px; border-left: 1px solid rgba(148, 178, 214, 0.2); }
+#btn-menu { width: 34px; height: 34px; }
+.clock { min-width: 58px; padding: 0 4px; }
+.clock span { font-family: var(--ui-font); font-size: 10px; letter-spacing: 0.18em; color: #8ea3bd; }
+.clock b { font-size: 21px; letter-spacing: 0.02em; color: #f8fafc; text-shadow: 0 0 14px color-mix(in srgb, var(--role) 35%, transparent); }
+.speeds { border-radius: 9px; background: rgba(4, 8, 16, 0.6); border: 1px solid rgba(148, 178, 214, 0.18); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4); padding: 2px; gap: 2px; }
+.speeds button { border-radius: 7px; padding: 5px 8px; font-size: 11.5px; }
+.speeds button.on { box-shadow: 0 0 12px color-mix(in srgb, var(--role) 55%, transparent); }
+.wx, .rwy { font-size: 12px; color: #d5deea; background: rgba(4, 8, 16, 0.45); border: 1px solid rgba(148, 178, 214, 0.16); border-radius: 9px; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px; }
+.wx .ico, .rwy .ico { width: 15px; height: 15px; }
+.rwy { font-family: var(--ui-font); font-weight: 600; letter-spacing: 0.06em; }
+.kpi { padding: 0 8px; border-left: 1px solid rgba(148, 178, 214, 0.14); }
+.kpi:first-child { border-left: 0; }
+.kpi span { font-family: var(--ui-font); font-size: 9.5px; letter-spacing: 0.16em; color: #8ea3bd; }
+.kpi b { font-size: 15px; color: #f1f5f9; }
+.rank-btn { max-width: 190px; }
+.role-btn { font-family: var(--ui-font); letter-spacing: 0.06em; border-radius: 9px; padding: 6px 11px; background: linear-gradient(180deg, color-mix(in srgb, var(--role) 26%, transparent), color-mix(in srgb, var(--role) 10%, transparent)); box-shadow: 0 0 14px color-mix(in srgb, var(--role) 22%, transparent); display: inline-flex; align-items: center; gap: 6px; }
+.role-btn .ico { width: 16px; height: 16px; }
+@media (max-width: 1680px) { .hud-name { display: none; } }
+@media (max-width: 1540px) { .wx-next { display: none; } }
+@media (max-width: 1400px) { .kpi.hide-sm { display: none; } }
+@media (max-width: 1360px) { .rank-btn .rk-t { display: none; } .speeds button { padding: 5px 6px; } }
+
+/* ---------- Glasflächen: Panel, Funk, Radar, Streifenleiste, Info-Karte ---------- */
+#panel, #log-wrap, #radar-wrap, #rail, #info, #decision, .markpop { border: 0; box-shadow: var(--ui-edge), var(--ui-shadow); }
+#panel, #log-wrap, #rail { background: var(--ui-bg); border-radius: var(--ui-r); }
+#panel { overflow: hidden; }
+#panel::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: linear-gradient(90deg, var(--role), transparent 80%); opacity: 0.9; z-index: 2; pointer-events: none; }
+.p-head { padding: 12px 14px 10px; border-bottom: 1px solid rgba(148, 178, 214, 0.12); background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent); }
+.p-title { font-family: var(--ui-font); font-weight: 700; font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; flex-wrap: wrap; row-gap: 0; }
+.p-title small { white-space: nowrap; }
+.p-title .ico { color: var(--role); }
+.p-title small { font-family: var(--sans); text-transform: none; letter-spacing: 0; font-weight: 500; }
+.p-sec { font-family: var(--ui-font); font-weight: 600; font-size: 11px; letter-spacing: 0.16em; color: #8ea3bd; margin: 14px 2px 7px; justify-content: flex-start; gap: 0; }
+.p-sec::before { content: ''; flex: 0 0 3px; height: 11px; border-radius: 2px; background: var(--role); margin-right: 8px; opacity: 0.85; }
+.p-sec > :last-child:not(:first-child), .p-sec > .cnt { margin-left: auto; }
+.p-sec > span:first-child { display: inline-flex; align-items: center; gap: 4px; }
+.p-sec .cnt { font-family: var(--mono); font-size: 11px; background: rgba(148, 178, 214, 0.12); }
+.p-body { scrollbar-color: rgba(148, 178, 214, 0.28) transparent; }
+.p-body::-webkit-scrollbar, #log::-webkit-scrollbar { width: 6px; }
+.p-body::-webkit-scrollbar-thumb, #log::-webkit-scrollbar-thumb { background: rgba(148, 178, 214, 0.25); border-radius: 4px; }
+
+/* Funk & Meldungen */
+#log-wrap { width: 372px; }
+.log-head { padding: 7px 10px; font-family: var(--ui-font); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #dbe4ef; border-bottom: 1px solid rgba(148, 178, 214, 0.12); background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent); }
+.log-head .ico { color: var(--role); }
+#log { font-size: 12px; line-height: 1.45; }
+.lg { padding: 2px 0 2px 8px; border-left: 2px solid transparent; }
+.lg + .lg { border-top: 1px solid rgba(148, 178, 214, 0.05); }
+.lg.atc { border-left-color: rgba(52, 211, 153, 0.55); }
+.lg.pilot { border-left-color: rgba(56, 189, 248, 0.45); }
+.lg.crew { border-left-color: rgba(251, 146, 60, 0.45); }
+.lg.mgr { border-left-color: rgba(253, 230, 138, 0.5); }
+.lg.sys { border-left-color: rgba(252, 211, 77, 0.55); }
+.lg.gnd { border-left-color: rgba(253, 186, 116, 0.55); }
+
+/* Kartensteuerung als Dock */
+#map-ctrls { gap: 4px; padding: 5px; border-radius: 14px; background: linear-gradient(180deg, rgba(20, 30, 50, 0.82), rgba(9, 14, 26, 0.86)); box-shadow: var(--ui-edge), 0 10px 26px rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px); }
+#map-ctrls .icon-btn { width: 34px; height: 34px; border: 0; background: transparent; border-radius: 9px; backdrop-filter: none; color: #cbd5e1; transition: background 0.15s, color 0.15s; }
+#map-ctrls .icon-btn:hover { background: rgba(148, 178, 214, 0.14); color: #fff; }
+#map-ctrls .icon-btn.on { background: color-mix(in srgb, var(--role) 22%, transparent); color: #fff; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--role) 70%, transparent); }
+#map-ctrls #z-out { margin-bottom: 5px; }
+#map-ctrls #z-out::after, #map-ctrls #t-noise::after { content: ''; position: absolute; left: 6px; right: 6px; bottom: -5px; height: 1px; background: rgba(148, 178, 214, 0.18); }
+#map-ctrls #t-noise { margin-bottom: 5px; position: relative; }
+#map-ctrls #z-out { position: relative; }
+#panel-toggle { border: 0; box-shadow: var(--ui-edge); background: linear-gradient(180deg, rgba(20, 30, 50, 0.9), rgba(9, 14, 26, 0.9)); }
+
+/* Knöpfe */
+.icon-btn { border: 0; box-shadow: var(--ui-edge); background: linear-gradient(180deg, rgba(24, 34, 56, 0.9), rgba(12, 18, 32, 0.92)); }
+.mini { border-color: rgba(148, 178, 214, 0.22); background: rgba(148, 178, 214, 0.07); border-radius: 7px; color: #b8c6d8; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+.mini:hover { background: rgba(148, 178, 214, 0.16); color: #fff; border-color: rgba(148, 178, 214, 0.4); }
+.btn { border-color: rgba(148, 178, 214, 0.28); background: linear-gradient(180deg, rgba(148, 178, 214, 0.12), rgba(148, 178, 214, 0.05)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+.btn:hover { background: linear-gradient(180deg, rgba(148, 178, 214, 0.2), rgba(148, 178, 214, 0.08)); }
+.btn-primary { background: linear-gradient(180deg, #22b8f0, #0369a1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 14px rgba(14, 165, 233, 0.3); }
+
+/* ---------- Info-Karte ---------- */
+#info { background: var(--ui-bg-2); border-radius: 16px; padding: 12px 14px 12px; overflow: hidden; }
+/* Desktop: rechts an der Kartensteuerung ausgerichtet, damit links Funk und Entscheidungen frei bleiben */
+@media (min-width: 1001px) {
+  #info { left: auto; right: calc(var(--panel-w) + 76px); transform: none; bottom: 14px; min-width: 340px; width: min(560px, calc(100vw - var(--panel-w) - 130px)); max-width: none; }
+  #game.no-panel #info { right: 76px; }
+}
+#info .i-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.i-head { flex-wrap: wrap; align-items: flex-start; gap: 6px 8px; }
+.i-head > div:first-child { flex: 1 1 170px; min-width: 0; }
+.i-cs { font-size: 19px; letter-spacing: 0.02em; display: flex; align-items: center; gap: 7px; }
+.i-cs .al-dot { width: 10px; height: 10px; border-radius: 3px; box-shadow: 0 0 10px currentColor; }
+.i-sub { font-size: 12px; line-height: 1.35; margin-top: 2px; }
+.i-reg { margin: 6px 0 4px; }
+.i-head .mini { padding: 3px 7px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
+.i-btns { gap: 4px; }
+.i-head .mini .ico { width: 14px; height: 14px; }
+.i-spot, .i-follow { margin-left: 0; }
+.i-close { width: 30px; height: 30px; }
+.i-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 14px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(148, 178, 214, 0.12); }
+.i-grid span { font-family: var(--ui-font); font-size: 9.5px; letter-spacing: 0.14em; color: #8ea3bd; }
+.i-grid b { font-size: 13px; color: #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+
+/* ---------- Meldungen (Toasts) ---------- */
+#toasts { width: min(440px, 90vw); align-items: stretch; gap: 6px; transition: top 0.3s; z-index: 6; }
+.toast.bump { animation: tbump 0.45s ease-out; }
+@keyframes tbump { 0% { transform: scale(1); } 40% { transform: scale(1.03); box-shadow: var(--ui-edge), 0 0 0 2px rgba(56, 189, 248, 0.5), 0 10px 26px rgba(0, 0, 0, 0.45); } 100% { transform: scale(1); } }
+#game.ach-on #toasts { top: calc(var(--hud-h) + 160px); }
+.toast { display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px 8px 9px; border: 0; border-radius: 11px; background: linear-gradient(180deg, rgba(26, 38, 62, 0.95), rgba(12, 19, 34, 0.96)); box-shadow: var(--ui-edge), 0 10px 26px rgba(0, 0, 0, 0.45); font-size: 13px; line-height: 1.4; color: #e8eef6; position: relative; overflow: hidden; }
+.toast::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+.toast.good::before { background: var(--good); }
+.toast.warn::before { background: var(--warn); }
+.toast.bad::before { background: var(--bad); }
+.tst-i { flex: 0 0 24px; height: 24px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; background: rgba(148, 178, 214, 0.1); }
+.tst-i.sym { font: 700 12px var(--ui-font); color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.toast.good .tst-i.sym { color: var(--good); background: color-mix(in srgb, var(--good) 16%, transparent); }
+.toast.warn .tst-i.sym { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.toast.bad .tst-i.sym { color: var(--bad); background: color-mix(in srgb, var(--bad) 16%, transparent); }
+.tst-t { padding-top: 2px; min-width: 0; }
+.toast.bad { box-shadow: var(--ui-edge), 0 0 0 1px rgba(248, 113, 113, 0.35), 0 10px 26px rgba(0, 0, 0, 0.45); }
+
+/* ---------- Erfolgs-Popup, Entscheidung ---------- */
+.ach-pop { border: 0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(253, 224, 71, 0.6), 0 0 40px rgba(253, 224, 71, 0.22), 0 18px 40px rgba(0, 0, 0, 0.55); }
+#decision { border: 0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(251, 191, 36, 0.55), 0 16px 40px rgba(0, 0, 0, 0.5); }
+.dc-t { font-family: var(--ui-font); font-size: 16px; letter-spacing: 0.02em; }
+
+/* ---------- Kleinkram ---------- */
+.switch { background: rgba(4, 8, 16, 0.6); border-color: rgba(148, 178, 214, 0.28); }
+.switch.on { box-shadow: 0 0 10px color-mix(in srgb, var(--role) 40%, transparent); }
+.tabs button { font-family: var(--ui-font); letter-spacing: 0.06em; }
+.i-btns { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+
+/* dezente Vignette über der Karte – gibt dem Bild Tiefe (unter allen Bedienelementen) */
+#game::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 52%, transparent 55%, rgba(2, 6, 14, 0.38) 100%); }
+#game.riding::before, #game.photo::before, #game.cinema::before { display: none; }
+@media (max-width: 1000px) { #hud { padding: 6px 8px; gap: 6px; height: auto; min-height: 58px; } #info .i-btns { justify-content: flex-start; margin-left: 0; } }
