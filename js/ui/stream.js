@@ -264,6 +264,10 @@ export class Stream {
         this.evacSeen = ac.id;
         this.say(r(['NOTRUTSCHEN!! 😱', 'Evakuierung, alle raus 🛟', 'Hoffentlich sind alle okay 🙏', 'Die Feuerwehr ist schon da 🚒']), 3);
       }
+      if ((ac.emgKind === 'medical' || ac.medical) && ac.phase === PH.STAND && this.medSeen !== ac.id) {
+        this.medSeen = ac.id;
+        this.say(r(['Rettungswagen am Gate 🚑', 'Gute Besserung an den Passagier 🙏', 'Sanitäter mit Trage, hoffentlich ist es nichts Schlimmes', 'Respekt an die Crew 👏🚑']), 2);
+      }
       const prev = this.seen.get(ac.id);
       if (prev === ac.phase) continue;
       this.seen.set(ac.id, ac.phase);
