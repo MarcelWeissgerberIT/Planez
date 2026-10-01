@@ -1,7 +1,7 @@
 // Aufbau-Modus in der Oberfläche: Bildkarten in der rechten Leiste (Leitstand) und die Seite „Aufbau“ in der
 // Management-Zentrale – aktuelle Ausbaustufe als großes, langsam bewegtes Luftbild, die nächste Stufe mit Bedingungen
 // und Bau-Knopf, Marketing-Aktionen (Fest, Anzeige, Fly-In) und Partner als Bildkacheln.
-import { STAGES, STAGE_UP, MAX_STAGE, stageOf, stageUpStatus, ACTIONS, actionCost, actionReady, runAction, startStageUp, PARTNERS, partnerContracts, partnerOf, careerState, rotCap, airlineRotations } from '../sim/career.js';
+import { demoLocked, STAGES, STAGE_UP, MAX_STAGE, stageOf, stageUpStatus, ACTIONS, actionCost, actionReady, runAction, startStageUp, PARTNERS, partnerContracts, partnerOf, careerState, rotCap, airlineRotations } from '../sim/career.js';
 import { AIRLINES } from '../config.js';
 import { fmtMoney, esc, fmtClock, dayOf } from '../util.js';
 import { remainingHours } from '../sim/construction.js';
@@ -20,6 +20,7 @@ function reqList(S) {
 
 function stageBtn(s, S) {
   if (S.building) return `<div class="cr-build"><div class="bar"><i style="width:${S.building.prog * 100}%"></i></div><small>🏗️ Ausbau läuft · ${Math.floor(S.building.prog * 100)} % · noch ${fmtHours(remainingHours(S.building))} (${realMinutes(s, remainingHours(S.building))})</small></div>`;
+  if (S.ready && demoLocked(S.to)) return `<button class="btn btn-good cr-go" data-demo-end="career">🔒 Ausbau in der Vollversion</button>`;
   return `<button class="btn btn-good cr-go" data-cstage ${S.ready ? '' : 'disabled'}>${S.ready ? `Ausbau starten · ${fmtShort(S.def.own)}` : 'Bedingungen noch offen'}</button>`;
 }
 
@@ -111,6 +112,10 @@ export function careerPageHtml(s) {
 // Klicks aus Leiste und Zentrale
 export function careerClick(game, e) {
   const s = game.state;
+  if (e.target.closest('[data-demo-end]')) {
+    import('./demo.js').then((m) => m.showDemoEnd('career', { onStay: () => {}, onMenu: () => game.quitToMenu && game.quitToMenu() }));
+    return true;
+  }
   const a = e.target.closest('[data-cact]');
   if (a && !a.disabled) {
     runAction(s, a.dataset.cact);

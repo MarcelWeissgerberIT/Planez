@@ -1,5 +1,6 @@
 // Hauptmenü und Pausenmenü: großer Titel, nummerierte Einträge, Status-Panel, Szenen-Video im Hintergrund
 import { VERSION } from '../version.js';
+import { IS_DEMO } from '../edition.js';
 import { ROLES, slotInfo, loadGame, deleteSave, freeSlot } from '../state.js';
 import { esc, fmtMoney, fmtClock, dayOf } from '../util.js';
 import { RANKS, goalsState, activeGoals, goalText, goalFraction } from '../sim/goals.js';
@@ -109,6 +110,7 @@ const SIDE = {
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
       <li>🌾 <b>Aufbau-Modus: vom Grasplatz zum Drehkreuz</b> – neues Spiel mit 560-m-Graspiste, Vereinsheim, ein paar Sportfliegern und 40.000 € in der Kasse. Partner (Flugschule, Rundflüge, Fallschirmclub, Lufttaxi), Flugplatzfest, Anzeigen und Fly-Ins machen den Platz bekannt; erfüllst du die Bedingungen, bauen Land und Investoren aus: Verkehrslandeplatz → Regionalflughafen → International → Drehkreuz</li>
+      <li>🎟️ <b>Demo-Version</b> zum Anspielen (Aufbau bis Verkehrslandeplatz, freies Spiel 3 Tage, zwei Herausforderungen) und Build-Skript für Vollversion und Demo</li>
       <li>✈️ <b>Eigene Flugzeugwelt</b>: alle Hersteller und Typen sind jetzt frei erfunden – Aviora AV-32 bis zum Superjumbo AV-38, Halvard H-38 bis H-48F, Ventis VT-70, Borealis BR-40, Alcedo AL-4 und mehr – mit eigenen Typkürzeln auf Karte, Radar und Streifen</li>
       <li>🔒 <b>Datenschutz & offline</b>: Schriften sind jetzt lokal eingebunden – keine Verbindung zu Google Fonts mehr; Versionsnummer und Lizenzhinweise unter „Über das Spiel“; Esc schließt Fenster auch aus dem Suchfeld</li>
       <li>🔴 <b>Live am Platz</b> im Leitstand: Fotokarte zum aktuellen Verkehr (nächste Landung mit Countdown, Abfertigung mit Fortschritt, Start – weich überblendet, anklickbar), Mini-Radar „Luftlage“ mit umlaufendem Strahl und Spuren, Kennzahlen mit Verlaufslinie, Aufgaben und Baustellen mit Bildern</li>
@@ -174,7 +176,7 @@ const SIDE = {
       <table class="cr-tab"><tr><th></th><th>Tage</th><th>Bestwert ⭐</th><th>Pünktl.</th><th>Perfekt</th></tr>${['tower', 'ground', 'manager', 'observer'].map(role).join('')}</table>
       <div class="ms-auto">Punkte gibt es für gespielte Tage, Verkehr, Sterne, Erfolge, Tagesherausforderungen, perfekte Tage und das Spotterbuch.</div></div></div>`;
   },
-  about: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Über Planez</div><div class="ms-subt">Version ${VERSION}</div><ul><li>Airport-Simulation mit isometrischer Karte, 3D-Ansicht, Radar, Funk und Wirtschaft – vom Grasplatz zum Drehkreuz</li><li>Grafiken, Fotos und Hintergrundvideos: Higgsfield AI (GPT Image, Kling) · Musik: OpenArt</li><li>3D: three.js (MIT-Lizenz) · Schriften: Inter, JetBrains Mono, Chakra Petch, Orbitron (SIL Open Font License, lokal eingebunden)</li><li>Alle Airlines, Flugzeughersteller und -typen, Rufzeichen, Personen und Flüge sind frei erfunden</li><li>Spielstände bleiben auf diesem Gerät (Browser-Speicher); es werden keine Daten an Server gesendet</li><li>Lizenztexte: <a href="LIZENZEN.md" target="_blank" rel="noopener">LIZENZEN.md</a></li></ul></div></div>`,
+  about: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Über Planez</div><div class="ms-subt">Version ${VERSION}${IS_DEMO ? ' · Demo-Version' : ''}</div><ul><li>Airport-Simulation mit isometrischer Karte, 3D-Ansicht, Radar, Funk und Wirtschaft – vom Grasplatz zum Drehkreuz</li><li>Grafiken, Fotos und Hintergrundvideos: Higgsfield AI (GPT Image, Kling) · Musik: OpenArt</li><li>3D: three.js (MIT-Lizenz) · Schriften: Inter, JetBrains Mono, Chakra Petch, Orbitron (SIL Open Font License, lokal eingebunden)</li><li>Alle Airlines, Flugzeughersteller und -typen, Rufzeichen, Personen und Flüge sind frei erfunden</li><li>Spielstände bleiben auf diesem Gerät (Browser-Speicher); es werden keine Daten an Server gesendet</li><li>Lizenztexte: <a href="LIZENZEN.md" target="_blank" rel="noopener">LIZENZEN.md</a></li></ul></div></div>`,
 };
 
 // ---------- Speicherplätze ----------

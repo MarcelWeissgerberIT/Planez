@@ -1,5 +1,6 @@
 // Herausforderungen: kurze Szenarien je Station mit festem Start (Uhrzeit, Wetter, Jahreszeit, Kasse),
 // Drehbuch-Ereignissen, Zeitlimit und Zielen mit 1–3 Sternen. Bestwerte bleiben im Browser gespeichert.
+import { IS_DEMO, DEMO } from '../edition.js';
 import { vfrState } from './vfr.js';
 import { heliState } from './heli.js';
 import { notify, log, radio } from './messages.js';
@@ -442,6 +443,7 @@ function recordBest(id, stars, rows, pts = 0) {
 export const totalStars = () => Object.entries(loadBest()).reduce((a, [k, b]) => a + (k.startsWith('daily-') ? 0 : b.stars || 0), 0);
 // Freischaltung: die erste Herausforderung je Station ist offen, weitere nach mindestens einem Stern
 export function unlocked(def) {
+  if (IS_DEMO && !DEMO.scenarios.includes(def.id)) return false;
   const same = SCENARIOS.filter((x) => x.role === def.role);
   const i = same.indexOf(def);
   if (i <= 0) return true;

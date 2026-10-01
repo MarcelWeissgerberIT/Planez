@@ -2268,3 +2268,16 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .bar.stripes i { background: repeating-linear-gradient(-45deg, #fbbf24 0 6px, #f59e0b 6px 12px); background-size: 17px 17px; animation: stripes 1.2s linear infinite; }
 @keyframes stripes { to { background-position: 17px 0; } }
 @media (prefers-reduced-motion: reduce) { .sl-img, .live-dot, .bar.stripes i, .sl-run i { animation: none !important; } }
+
+/* Demo-Ende */
+.demo-end { max-width: 640px; }
+.demo-end .de-pic { position: relative; height: 170px; margin: -6px -6px 14px; border-radius: 12px; background: #0b1220 center / cover no-repeat; box-shadow: inset 0 -60px 60px -20px rgba(4,8,16,.85); animation: kb0 30s ease-in-out infinite; }
+.demo-end .de-pic span { position: absolute; top: 12px; left: 12px; font: 800 12px var(--mm-title, sans-serif); letter-spacing: .3em; color: #0b1220; background: #fbbf24; border-radius: 6px; padding: 4px 9px; }
+.demo-end h2 { margin: 0 0 6px; }
+.demo-end .de-sub { margin: 0 0 14px; color: var(--muted); }
+.de-feat { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+.de-feat > div { display: grid; grid-template-columns: 28px 1fr; grid-template-rows: auto auto; column-gap: 8px; padding: 10px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid rgba(148,163,184,.18); }
+.de-feat span { grid-row: 1 / span 2; font-size: 20px; }
+.de-feat small { color: var(--muted); font-size: 12px; }
+@media (max-width: 640px) { .de-feat { grid-template-columns: 1fr; } }
+.mm-demo { display: inline-block; margin: 10px 0 4px; align-self: flex-start; font: 800 13px var(--mm-title, sans-serif); letter-spacing: .3em; color: #0b1220; background: #fbbf24; border-radius: 6px; padding: 4px 10px; box-shadow: 0 4px 14px rgba(251,191,36,.35); }

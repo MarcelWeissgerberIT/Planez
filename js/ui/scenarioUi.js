@@ -1,4 +1,5 @@
 // Herausforderungen: Menüliste, Seitenkarte, Einsatzbesprechung, Ziel-Leiste im Spiel und Ergebnisbildschirm
+import { IS_DEMO, DEMO } from '../edition.js';
 import { SCENARIOS, scenarioById, scenarioLive, loadBest, unlocked, goalValue, goalNeed, totalStars, dailyKey, dailyDef, dailyInfo, dailyLabel, MUTATORS } from '../sim/scenarios.js';
 import { ROLES } from '../state.js';
 import { esc } from '../util.js';
@@ -33,7 +34,7 @@ export function scenarioListHtml() {
     if (i > showTo) return;
     const d = scenarioById(c.scn);
     const open = chapterOpen(i, best), done = chapterDone(i, best);
-    html += `<button class="mm-item scn-item camp ${open ? '' : 'locked'}${done ? ' done' : ''}${i === cp.next ? ' cur' : ''}" data-scn="camp-${i}" data-side="scn:camp-${i}"><span class="n"></span><span class="l"><b>${i + 1}. ${esc(c.title)}</b><small>${ROLES[d.role].icon} ${esc(ROLES[d.role].short)} · ${d.icon} ${esc(d.title)}${open ? '' : ' · 🔒 erst Kapitel ' + i}</small></span><span class="scn-st ${done ? 'got' : ''}">${done ? '✓' : open ? '▶' : ''}</span></button>`;
+    html += `<button class="mm-item scn-item camp ${open ? '' : 'locked'}${done ? ' done' : ''}${i === cp.next ? ' cur' : ''}" data-scn="camp-${i}" data-side="scn:camp-${i}"><span class="n"></span><span class="l"><b>${i + 1}. ${esc(c.title)}</b><small>${ROLES[d.role].icon} ${esc(ROLES[d.role].short)} · ${d.icon} ${esc(d.title)}${open ? '' : IS_DEMO && i >= DEMO.chapters ? ' · 🔒 Vollversion' : ' · 🔒 erst Kapitel ' + i}</small></span><span class="scn-st ${done ? 'got' : ''}">${done ? '✓' : open ? '▶' : ''}</span></button>`;
   });
   html += `<div class="mm-sub">📅 Heute · ${dailyLabel(dd.daily)}</div><button class="mm-item scn-item daily" data-scn="${dd.id}" data-side="scn:${dd.id}"><span class="n"></span><span class="l"><b>📅 ${esc(dd.sub)} ${dd.muts.map((m) => MUTATORS[m].icon).join('')}</b><small>${ROLES[dd.role].icon} ${esc(ROLES[dd.role].short)} · jeden Tag neu${streak ? ` · 🔥 Serie ${streak} Tag${streak > 1 ? 'e' : ''}` : ''}</small></span><span class="scn-st ${db && db.stars ? 'got' : ''}">${starStr(db ? db.stars : 0)}</span></button>`;
   for (const role of ['tower', 'ground', 'manager']) {
@@ -41,7 +42,7 @@ export function scenarioListHtml() {
     for (const def of SCENARIOS.filter((d) => d.role === role)) {
       const open = unlocked(def);
       const b = best[def.id];
-      html += `<button class="mm-item scn-item ${open ? '' : 'locked'}" data-scn="${def.id}" data-side="scn:${def.id}"><span class="n"></span><span class="l"><b>${def.icon} ${esc(def.title)}</b><small>${DIFF[def.diff]} · ${durText(def)}${open ? '' : ' · 🔒 gesperrt'}</small></span><span class="scn-st ${b && b.stars ? 'got' : ''}">${starStr(b ? b.stars : 0)}</span></button>`;
+      html += `<button class="mm-item scn-item ${open ? '' : 'locked'}" data-scn="${def.id}" data-side="scn:${def.id}"><span class="n"></span><span class="l"><b>${def.icon} ${esc(def.title)}</b><small>${DIFF[def.diff]} · ${durText(def)}${open ? '' : IS_DEMO && !DEMO.scenarios.includes(def.id) ? ' · 🔒 Vollversion' : ' · 🔒 gesperrt'}</small></span><span class="scn-st ${b && b.stars ? 'got' : ''}">${starStr(b ? b.stars : 0)}</span></button>`;
     }
   }
   return html;
@@ -62,7 +63,7 @@ export function scenarioSide(id) {
     <div class="ms-sec">Ziele</div>
     <table class="scn-goals">${def.goals.map((g) => `<tr><td>${esc(g.text)}</td>${[0, 1, 2].map((i) => `<td><span class="st">${'★'.repeat(i + 1)}</span> ${goalNeed(g, i)}</td>`).join('')}</tr>`).join('')}</table>
     ${def.daily ? `<div class="ms-sec">Serie</div><div class="scn-streak">${(() => { const di = dailyInfo(); const days = []; for (let i = 6; i >= 0; i--) { const k = dailyKey(new Date(Date.now() - i * 864e5)); const st = (di.days || {})[k] || 0; days.push(`<i class="${st ? 'on' : ''}" title="${dailyLabel(k)}: ${st}★">${st ? '★' : '·'}</i>`); } return days.join('') + ` <small>🔥 ${di.last === dailyKey() || di.last === dailyKey(new Date(Date.now() - 864e5)) ? di.streak || 0 : 0} Tage in Folge · Rekord ${di.best || 0}</small>`; })()}</div>` : ''}
-    <div class="ms-auto">${b ? `🏆 Bestwert: <b class="scn-gold">${starStr(b.stars)}</b>${b.pts ? ` · ⭐ ${b.pts.toLocaleString('de-DE')} Punkte` : ''}` : open ? '▶ Klicken zum Starten' : '🔒 Gesperrt – hol erst einen Stern in der vorigen Herausforderung dieser Station'}</div></div></div>`;
+    <div class="ms-auto">${b ? `🏆 Bestwert: <b class="scn-gold">${starStr(b.stars)}</b>${b.pts ? ` · ⭐ ${b.pts.toLocaleString('de-DE')} Punkte` : ''}` : open ? '▶ Klicken zum Starten' : (IS_DEMO && !DEMO.scenarios.includes(def.id) ? '🔒 In der Vollversion – die Demo enthält „Morgenwelle“ und „Ferienstart“' : '🔒 Gesperrt – hol erst einen Stern in der vorigen Herausforderung dieser Station')}</div></div></div>`;
 }
 
 function storyBox(ch, text, kick) {
@@ -76,10 +77,10 @@ function chapterSide(ch) {
   return `<div class="ms-card scn-card"><div class="ms-img" style="background-image:url(${def.img})"></div>
     <div class="ms-body"><div class="ms-h">📖 Kapitel ${ch + 1}: ${esc(c.title)}</div>
     <div class="ms-subt">${ROLES[def.role].icon} ${esc(ROLES[def.role].short)} · ${def.icon} ${esc(def.title)} · ${DIFF[def.diff]} · ${durText(def)}</div>
-    ${open ? storyBox(ch, c.intro) : '<p class="scn-brief">🔒 Dieses Kapitel öffnet sich, sobald das vorige mit mindestens einem Stern geschafft ist.</p>'}
+    ${open ? storyBox(ch, c.intro) : (IS_DEMO && ch >= DEMO.chapters ? '<p class="scn-brief">🔒 Die weiteren Kapitel der Kampagne gibt es in der Vollversion.</p>' : '<p class="scn-brief">🔒 Dieses Kapitel öffnet sich, sobald das vorige mit mindestens einem Stern geschafft ist.</p>')}
     <div class="ms-sec">Ziele</div>
     <table class="scn-goals">${def.goals.map((g) => `<tr><td>${esc(g.text)}</td>${[0, 1, 2].map((i) => `<td><span class="st">${'★'.repeat(i + 1)}</span> ${goalNeed(g, i)}</td>`).join('')}</tr>`).join('')}</table>
-    <div class="ms-auto">${done ? `✓ Geschafft · Bestwert <b class="scn-gold">${starStr(b.stars)}</b>` : open ? '▶ Klicken zum Starten – ein Stern genügt für das nächste Kapitel' : '🔒 Gesperrt'}</div></div></div>`;
+    <div class="ms-auto">${done ? `✓ Geschafft · Bestwert <b class="scn-gold">${starStr(b.stars)}</b>` : open ? '▶ Klicken zum Starten – ein Stern genügt für das nächste Kapitel' : (IS_DEMO && ch >= DEMO.chapters ? '🔒 Vollversion' : '🔒 Gesperrt')}</div></div></div>`;
 }
 
 // ---------- Im Spiel ----------

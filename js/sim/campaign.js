@@ -1,6 +1,7 @@
 // Kampagne „Planez – Vom Regionalflughafen zum Drehkreuz“: zehn Kapitel in fester Reihenfolge über alle Stationen.
 // Jedes Kapitel spielt eine Herausforderung; die Aufsichtsratsvorsitzende erzählt vorher, worum es geht, und
 // nachher, was es bewirkt hat. Ein Kapitel gilt mit mindestens einem Stern als geschafft und öffnet das nächste.
+import { IS_DEMO, DEMO } from '../edition.js';
 import { loadBest } from './scenarios.js';
 
 export const CHAPTERS = [
@@ -58,7 +59,7 @@ export const CHAPTERS = [
 
 export const chapterOf = (id) => (id && id.startsWith('camp-') ? Number(id.slice(5)) : null);
 export const chapterDone = (i, best = loadBest()) => (best[CHAPTERS[i].scn]?.stars || 0) >= 1;
-export const chapterOpen = (i, best = loadBest()) => i === 0 || chapterDone(i - 1, best);
+export const chapterOpen = (i, best = loadBest()) => !(IS_DEMO && i >= DEMO.chapters) && (i === 0 || chapterDone(i - 1, best));
 export function campaignProgress() {
   const best = loadBest();
   const done = CHAPTERS.filter((_, i) => chapterDone(i, best)).length;

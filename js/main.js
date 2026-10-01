@@ -73,17 +73,22 @@ import { careerDayEnd, careerAch, careerTick, careerRank } from './career.js';
 import { RankUp } from './ui/rankUp.js';
 import { isCareer, stageOf, STAGES, stageUpStatus, applyStage } from './sim/career.js';
 import { VERSION } from './version.js';
+import { IS_DEMO, DEMO } from './edition.js';
+import { showDemoEnd, demoFreeOver } from './ui/demo.js';
 
 // eigene SVG-Icons in die statischen Knöpfe (Kartenleiste, Menü, Radar/Funk-Köpfe) einsetzen
 hydrateIcons(document);
 
 {
   const mv = document.getElementById('mm-ver');
-  if (mv) mv.textContent = 'v' + VERSION;
+  if (mv) mv.textContent = 'v' + VERSION + (IS_DEMO ? ' · Demo' : '');
+  const tag = document.querySelector('.mm-tag');
+  if (IS_DEMO && tag) tag.insertAdjacentHTML('beforebegin', '<div class="mm-demo">DEMO-VERSION</div>');
 }
 
 const game = {
   state: null,
+  quitToMenu: () => quitToMenu(),
   cam: new Camera(),
   map: null,
   radar: null,
@@ -326,6 +331,8 @@ function spotter() {
 }
 
 function startGame(state) {
+  if (IS_DEMO && !state.career && !state.scenario && dayOf(state.time) > DEMO.freeDays) state.demoOver = true;
+  if (!IS_DEMO) delete state.demoOver; // Vollversion: Demo-Spielstände laufen einfach weiter
   applyStage(state); // Pisten-/Rollweg-Geometrie der Ausbaustufe (Aufbau-Modus) bzw. voller Flughafen
   soundscape.unlock();
   // 3D-Ansicht im Leerlauf vorladen, damit Turmblick und Mitfliegen sofort starten
@@ -468,6 +475,10 @@ function loop(ts) {
   game.lastTs = ts;
   if (!game.running || !game.state) return;
   const s = game.state;
+  if (IS_DEMO && s.demoOver) {
+    s.speed = 0;
+    if (!modalOpen()) showDemoEnd('free', { onMenu: quitToMenu });
+  }
   if (!modalOpen() || s.speed === 0) run(s, dt);
   // Leistung prüfen: nach dem Start 8 s messen, bei unter ~22 fps einmalig den Leistungsmodus einschalten
   const fp = game.fpsProbe;
@@ -826,6 +837,11 @@ function showReport(rec) {
     <div class="modal-acts"><button class="btn btn-primary" data-close-modal>Weiter</button></div>`,
     (box) => box.querySelector('[data-close-modal]').addEventListener('click', () => {
       closeModal();
+      if (demoFreeOver(game.state, rec)) {
+        game.state.speed = 0;
+        game.state.demoOver = true;
+        return showDemoEnd('free', { onMenu: quitToMenu });
+      }
       game.state.speed = prevSpeed;
       if (game.state.board && game.state.board.pending) return showBoard(prevSpeed);
       showBriefing(prevSpeed);

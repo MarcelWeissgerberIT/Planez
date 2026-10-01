@@ -151,3 +151,14 @@ Lokal starten: `npx http-server .` und `http://localhost:8080` öffnen. Headless
 ## Credits
 Alle Grafiken (Gebäude-, Flugzeug- und Fahrzeug-Sprites, Baumaschinen, Rohbau, Texturen, Rollen-Porträts, Logo) sowie die Menü-Hintergrundvideos wurden mit **Higgsfield AI** generiert (GPT Image 2.5, Kling 3.0 – Clips mit Start- und Endbild verkettet, dadurch nahtlose Übergänge).
 Alle Airlines und Flugnummern sind fiktiv.
+
+## Vollversion und Demo bauen
+
+```
+node tools/build.mjs          # beide Ausgaben
+node tools/build.mjs demo     # nur die Demo
+```
+
+Erzeugt `dist/planez-full/` und `dist/planez-demo/` (je ein spielfertiger Ordner) sowie ZIP-Dateien zum Hochladen, z. B. bei itch.io als HTML-Spiel. Die Ausgabe steht fest in `js/edition.js`; im Quellstand lässt sich die Demo mit `?demo` in der Adresse ausprobieren.
+
+**Demo-Umfang** (`DEMO` in `js/edition.js`): Aufbau-Modus bis zum Verkehrslandeplatz, freies Spiel drei Tage, die Herausforderungen „Morgenwelle“ und „Ferienstart“, das erste Kapitel der Kampagne und die Tagesherausforderung. Danach erscheint ein Hinweis auf die Vollversion; Spielstände aus der Demo laufen in der Vollversion weiter. Den Link zur Shopseite trägt man in `SHOP_URL` ein (leer = Knopf ausgeblendet).

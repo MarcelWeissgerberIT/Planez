@@ -4,6 +4,7 @@
 // sind die Bedingungen einer Ausbaustufe erfüllt, bauen Land, Kreis und Investoren – man trägt nur den Eigenanteil.
 // Stufen: 0 Grasplatz · 1 Verkehrslandeplatz · 2 Regionalflughafen · 3 Internationaler Flughafen · 4 Drehkreuz.
 // Die Geometrie (Pistenlänge, Abrollwege, Rollwege) folgt der Stufe über LY.setGeometry; Gebäude über buildingOn.
+import { IS_DEMO, DEMO } from '../edition.js';
 import * as LY from '../layout.js';
 import { syncThr } from './airspace.js';
 import { AC_TYPES, AIRLINES, CITIES, VEH_TYPES } from '../config.js';
@@ -400,9 +401,12 @@ export function stageUpStatus(state) {
   const building = stageProject(state);
   return { to: st + 1, def: next, reqs, cash, building, ready: !building && cash && reqs.every((r) => r.ok) };
 }
+// Demo: höhere Ausbaustufen gesperrt
+export const demoLocked = (to) => IS_DEMO && to > DEMO.careerMaxStage;
 export function startStageUp(state) {
   const S = stageUpStatus(state);
   if (!S) return false;
+  if (demoLocked(S.to)) return notify(state, `🔒 Der Ausbau zum ${STAGES[S.to].name} ist Teil der Vollversion`, 'info'), false;
   if (!S.ready) return notify(state, S.building ? 'Der Ausbau läuft bereits' : 'Bedingungen für den Ausbau noch nicht erfüllt', 'warn'), false;
   capex(state, S.def.own, `Eigenanteil Ausbau zum ${STAGES[S.to].name}`);
   startProject(state, 'stage', S.to, { name: `Ausbau zum ${STAGES[S.to].name}`, cost: S.def.own, hours: S.def.hours });
