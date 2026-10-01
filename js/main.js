@@ -128,6 +128,7 @@ const LOAD_TIPS = [
   'Tipp: <kbd>?</kbd> zeigt im Spiel alle Tastenkürzel deiner Station.',
   'Tipp: Unter Wettbewerb siehst du deinen Marktanteil gegen Nordhafen – Ansehen und Pünktlichkeit zählen am meisten.',
   'Tipp: Im Tower lohnt sich Hinhören – ein falscher Readback lässt sich mit Q korrigieren.',
+  'Tipp: Bittet ein Pilot bei Gewitter um einen Umweg, genehmige ihn mit Y – sonst geht es durch die Turbulenz.',
   'Tipp: Etwa jede 18. Maschine trägt eine Sonderlackierung – fotografiere sie fürs 📒 Spotterbuch.',
   'Tipp: Eine Landung im Gewitter oder ein Nachtstart bringt im Spotterbuch Extrapunkte für den Moment.',
 ];
@@ -1170,6 +1171,19 @@ function onKey(e) {
     if (!game.splan) game.splan = new StandPlan(game);
     return game.splan.toggle();
   }
+  // Y: offenen Wetter-Umweg genehmigen (ausgewähltes Flugzeug zuerst, sonst die älteste Anfrage)
+  if ((e.key === 'y' || e.key === 'Y') && s.role === 'tower' && !s.auto.atc && !e.ctrlKey && !e.metaKey) {
+    const selAc = game.ui.selected && s.acs.find((a) => a.id === game.ui.selected);
+    const t = selAc && selAc.wxReq ? selAc : s.acs.filter((a) => a.wxReq).sort((a, b) => a.wxReq.t - b.wxReq.t)[0];
+    if (!t) return toast('⛈️ Keine Umweg-Anfrage offen', 'info', 1800);
+    const r = command(s, t, 'wxOk');
+    if (r.ok) {
+      sfx.click();
+      toast(`⛈️ ${t.cs}: Umweg genehmigt`, 'good', 2000);
+    }
+    game.refreshUi && game.refreshUi();
+    return;
+  }
   if ((e.key === 'q' || e.key === 'Q') && s.role === 'tower' && !e.ctrlKey && !e.metaKey) {
     fixReadback(game, game.ui.selected && s.acs.find((a) => a.id === game.ui.selected));
     game.refreshUi && game.refreshUi();
@@ -1192,7 +1206,7 @@ function onKey(e) {
 // Nächstes Flugzeug mit offener Anfrage auswählen
 function nextRequest() {
   const s = game.state;
-  const list = s.acs.filter((a) => a.req || a.emergency).sort((a, b) => (a.reqT || 0) - (b.reqT || 0));
+  const list = s.acs.filter((a) => a.req || a.wxReq || a.emergency).sort((a, b) => (a.reqT || 0) - (b.reqT || 0));
   if (!list.length) return toast('Keine offenen Anfragen', 'info', 1500);
   const i = list.findIndex((a) => a.id === game.ui.selected);
   game.select(list[(i + 1) % list.length].id, true);
@@ -1375,6 +1389,7 @@ function helpGuide(first) {
       <li><b>Markieren:</b> ⚑ auf dem Streifen, Rechtsklick/langes Drücken auf ein Flugzeug oder <kbd>M</kbd>. <kbd>N</kbd>/<kbd>Tab</kbd> springt zur nächsten Anfrage, <kbd>F</kbd> vergrößert das Radar, ⓘ im Radar erklärt die Anzeige.</li>
       <li><b>↗ Abflugrouten (SID):</b> Jeder Start fliegt je nach Ziel über NOLTA, SUDEN, RIMOS oder WELDA (farbig auf dem Streifen). Zwei Starts auf <b>derselben</b> Route brauchen 100 s statt 75 s Abstand – wechsle die Routen in der Pistenfolge ab, dann gehen die Starts schneller raus.</li>
       <li><b>📻✖ Funkausfall (7600, NORDO):</b> Manchmal fällt an Bord der Funk aus. Das Flugzeug fliegt den Anflug nach Flugplan und reagiert nur auf <b>Lichtsignale</b> aus dem Tower: grünes Dauerlicht (<kbd>L</kbd>) = Landung frei, rotes Dauerlicht (<kbd>G</kbd>) = nicht landen, grünes Blinklicht (<kbd>R</kbd>) am Boden = Rollen frei. Ohne grünes Licht startet es bei 1 NM durch und setzt erneut an. Auf der Karte siehst du den Lichtstrahl aus der Kanzel.</li>
+      <li><b>⛈️ Wetterumflüge:</b> Bei Gewitter (und manchmal bei Regenschauern) ziehen Zellen über das Radar. Führt der Kurs eines Anflugs durch eine Zelle, fragt die Besatzung: „request deviation 20 degrees left due weather“. Der Streifen leuchtet gelb – <b>Umweg genehmigen</b> mit dem Knopf oder <kbd>Y</kbd>: Das Flugzeug fliegt über einen Umweg-Punkt (gestrichelt, „WX“ im Radar) und danach weiter nach Plan. <b>Ablehnen</b> (wenn der Umweg in anderen Verkehr führen würde) heißt: mitten durch – Turbulenz, durchgeschüttelte Fluggäste, Ansehen und Kombo weg. Ohne Antwort weicht der Pilot nach ein paar Sekunden selbst aus (Kombo weg). Die Zellen ziehen mit dem Wind, Umwege werden laufend angepasst. Abflüge sind dann schon bei Langen Radar und umfliegen selbstständig.</li>
       <li><b>👂 Readback-Fehler:</b> Hör auf die Rücklesungen! Ab und zu versteht ein Pilot „cleared for take-off“ statt „line up and wait“ oder nennt die falsche Landebahn. Korrigiere mit <kbd>Q</kbd>, dem roten Knopf auf dem Streifen oder per Sprechtaste („negative …“). Wer es sofort hört, bekommt mehr Punkte; nach ein paar Sekunden blendet der Streifen einen Hinweis ein. Unkorrigiert rollt der Pilot ohne Freigabe los bzw. fliegt die falsche Bahn an und startet durch.</li>
     </ul>
     <h3>🦺 Vorfeld &amp; Abfertigung</h3>

@@ -14,6 +14,7 @@ import { fmtClock } from '../util.js';
 import { readbackText } from './readback.js';
 import { depGap } from './sid.js';
 import { lightSignal, callNordo } from './nordo.js';
+import { approveWx, denyWx } from './wxdev.js';
 
 const numTxt = (s, ac, suffix = '') => {
   updateSequence(s);
@@ -188,6 +189,17 @@ export const CMDS = {
       say(s, ac, `${tel(ac)}, continue taxi.`, `Continue, ${tel(ac)}.`);
     },
   },
+  // Wetterumflug um eine Gewitterzelle
+  wxOk: {
+    label: '⛈️ Umweg genehmigen', key: 'Y', air: true, big: true,
+    valid: (s, ac) => !!ac.wxReq,
+    run: (s, ac) => approveWx(s, ac),
+  },
+  wxNo: {
+    label: 'Ablehnen (Verkehr)', air: true, danger: true,
+    valid: (s, ac) => !!ac.wxReq,
+    run: (s, ac) => denyWx(s, ac),
+  },
   // Lichtsignale bei Funkausfall (Squawk 7600)
   lightGreen: {
     label: '💡 Grün: Landung frei', key: 'L', big: true, air: true, nordo: true,
@@ -294,7 +306,7 @@ export function requestRunwayChange(state, to) {
   state.rwyPendingSince = state.time;
   log(state, 'sys', `Pistenwechsel auf ${to} angeordnet – laufende Bewegungen werden abgewickelt.`);
 }
-const DRAIN = new Set([PH.APPROACH, PH.FINAL, PH.ROLLOUT, PH.TAXI_IN, PH.PUSH, PH.STARTUP, PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAKEOFF, PH.MISSED]);
+const DRAIN = new Set([PH.APPROACH, PH.FINAL, PH.ROLLOUT, PH.PUSH, PH.STARTUP, PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAKEOFF, PH.MISSED]);
 export function drainCount(state) {
   return state.acs.filter((a) => DRAIN.has(a.phase) && a.rwy === state.rwy && !(a.phase === PH.TAKEOFF && a.z > 1)).length;
 }

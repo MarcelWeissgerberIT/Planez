@@ -16,6 +16,8 @@ function towerHint(s) {
   }
   const fc = forecastInfo(s);
   if (!conf && fc.change && (fc.kind === 'fog' || fc.kind === 'storm') && fc.at - s.time < 900 && fc.at > s.time) return fc.kind === 'fog' ? `🌫️ Nebel ab ${fmtClock(fc.at)} (RVR ${fc.rvr} m) – dann gelten größere Abstände${(fc.rvr || 999) < 550 && !s.upgrades.ils3 ? ', unter CAT-I-Minimum müssen Anflüge sogar ausweichen. Jetzt noch möglichst viele landen lassen' : ''}.` : `⛈️ Gewitter ab ${fmtClock(fc.at)} – mit Böen und Windsprüngen rechnen, Anflüge nicht zu dicht staffeln.`;
+  const wx = !conf && s.acs.find((a) => a.wxReq);
+  if (wx) return `⛈️ <b>${esc(wx.cs)}</b> bittet um einen Umweg ${wx.wxReq.deg}° ${wx.wxReq.side === 'left' ? 'links' : 'rechts'} um eine Gewitterzelle – mit <b>Y</b> genehmigen. Ablehnen nur, wenn der Umweg in anderen Verkehr führt: dann geht es mitten durch die Turbulenz.`;
   if (conf) return `⚠ Staffelung unterschritten bei <b>${esc(conf.cs)}</b>! Den Hinteren auf 160 kt bremsen oder in die Warteschleife (H) schicken.`;
   // Funkausfall: Lichtsignale statt Funk
   const nd = s.acs.find((a) => a.nordo && ((a.mode === 'air' && !a.clr.land) || (a.mode === 'map' && !a.clr.taxi && a.stand && [PH.VACATED, PH.TAXI_WAIT].includes(a.phase))));

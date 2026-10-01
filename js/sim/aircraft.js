@@ -271,7 +271,12 @@ function updateAir(state, ac, dt) {
       const w = ac.route[0];
       const d = dist(ac.pos.x, ac.pos.y, w.x, w.y);
       let lead = 0.4;
-      if (ac.route[1] && !ac.route[1].thr) {
+      if (w.wx) {
+        // Wetter-Umweg: kaum abkürzen (sonst geht es doch in die Zelle), aber nie um den Punkt kreisen
+        const R = ac.spd / 188.5;
+        lead = 0.6;
+        if (d < 2.2 * R && Math.abs(degDiff(ac.crs, AS.crsTo(ac.pos, w))) > 75) lead = d + 0.01;
+      } else if (ac.route[1] && !ac.route[1].thr) {
         const turn = Math.abs(degDiff(AS.crsTo(w, ac.route[1]), AS.crsTo(ac.pos, w)));
         const R = ac.spd / 188.5;
         lead = Math.min(3, R * Math.tan((Math.min(turn, 120) * DEG) / 2)) + 0.25;

@@ -59,7 +59,7 @@ export function updateEvents(state, dt) {
     wx.kind = kind;
     if (kind === 'fog') state.stats.today.hadFog = true;
     wx.until = state.time + dur * 3600;
-    wx.cells = kind === 'storm' ? makeCells(state) : [];
+    wx.cells = kind === 'storm' ? makeCells(state) : kind === 'rain' ? showerCells(state) : [];
     wx.next = null;
     forecast(state);
   }
@@ -144,6 +144,20 @@ export function forecastInfo(state) {
   const nx = forecast(state);
   const kind = winterWeather(state, nx.kind);
   return { kind, at: nx.at, until: nx.at + nx.dur * 3600, name: WEATHER[kind].name, icon: WEATHER[kind].icon, rvr: kind === 'fog' ? nx.rvr : null, change: kind !== state.weather.kind };
+}
+
+// Regen: manchmal einzelne Schauerzellen weiter draußen (ohne den Zufallsgenerator des Spiels zu verbrauchen)
+function showerCells(state) {
+  let h = (Math.floor(state.time / 60) * 2654435761) >>> 0;
+  const r01 = () => ((h = (Math.imul(h ^ (h >>> 15), 2246822507) + 0x9e3779b9) >>> 0) / 4294967296);
+  if (r01() < 0.45) return [];
+  const cells = [];
+  const n = r01() < 0.6 ? 1 : 2;
+  for (let i = 0; i < n; i++) {
+    const a = r01() * Math.PI * 2, d = 16 + r01() * 18;
+    cells.push({ x: Math.cos(a) * d, y: Math.sin(a) * d, r: 2.5 + r01() * 1.5, shower: true });
+  }
+  return cells;
 }
 
 function makeCells(state) {

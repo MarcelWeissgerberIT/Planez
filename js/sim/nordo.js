@@ -14,6 +14,8 @@ export const LIGHTS = {
 
 // ohne Funk fliegt die Besatzung nach Flugplan: direkt in den Anflug (auch nach einem Fehlanflug erneut)
 function selfApproach(state, ac) {
+  // während eines Pistenwechsels erst in der Warteschleife bleiben (sonst zieht sich der Wechsel hin)
+  if (state.rwyPending && [PH.INBOUND, PH.HOLD].includes(ac.phase)) return;
   if ([PH.INBOUND, PH.HOLD].includes(ac.phase)) {
     ac.rwy = state.rwy;
     ac.strip = stripForArrival(state);

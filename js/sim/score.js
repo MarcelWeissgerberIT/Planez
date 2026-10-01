@@ -65,6 +65,14 @@ export function scoreReadback(state, ac, ok, quick) {
   else fail(state, ac, 120, 'Readback überhört');
 }
 
+// Wetterumflug: schnell genehmigt = Punkte; überhört oder abgelehnt mit Turbulenz = Kombo weg
+export function scoreWx(state, ac, kind) {
+  if (!active(state, 'tower')) return;
+  if (kind === 'ok') add(state, ac, 60, 'Wetterumflug');
+  else if (kind === 'late') fail(state, ac, 60, 'Anfrage überhört');
+  else fail(state, ac, 150, 'Turbulenz');
+}
+
 // ---------- Vorfeld ----------
 export function scoreOffBlock(state, ac, delay, quick) {
   if (!active(state, 'ground')) return;

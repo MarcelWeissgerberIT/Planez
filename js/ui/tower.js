@@ -2,6 +2,7 @@
 import { CMDS, command, validCommands, tailwind, preferredRunway, requestRunwayChange, drainCount, primaryCommand, departureWait } from '../sim/atc.js';
 import { correctReadback, RB_WINDOW, RB_HINT } from '../sim/readback.js';
 import { SIDS } from '../sim/sid.js';
+import { WX_WINDOW } from '../sim/wxdev.js';
 import { PH, PHASE_DE, runwayOccupants, fmtAlt } from '../sim/aircraft.js';
 import * as AS from '../sim/airspace.js';
 import { AC_TYPES, CITIES, AIRPORT } from '../config.js';
@@ -406,7 +407,7 @@ export class TowerPanel {
     if (inSeq) st = land ? (ac.clr.land ? '🛬 Landung frei' : '🛬 Landung') : ac.clr.takeoff ? '🛫 Start frei' : ac.clr.lineup ? '🛫 Line up' : '🛫 Start';
     else st = PHASE_DE[ac.phase] || '';
     if (ac.holdPos) st += ' · HALT';
-    const rq = ac.nordo ? `<span class="rq nordo">📻✖ Funkausfall – ${ac.clr.land ? 'Landung per Licht frei' : ac.mode === 'air' ? 'grünes Licht zum Landen' : 'Lichtsignal zum Rollen'}</span>` : ac.req ? `<span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
+    const rq = ac.wxReq ? `<span class="rq wx">⛈️ bittet um Umweg ${ac.wxReq.deg}° ${ac.wxReq.side === 'left' ? 'links' : 'rechts'} (Gewitter)</span>` : ac.nordo ? `<span class="rq nordo">📻✖ Funkausfall – ${ac.clr.land ? 'Landung per Licht frei' : ac.mode === 'air' ? 'grünes Licht zum Landen' : 'Lichtsignal zum Rollen'}</span>` : ac.req ? `<span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
     let sp = '';
     if (plan && inSeq) {
       if (land && ac.mode === 'air' && ac.autoSpd && ac.spdOverride) sp = `<span class="spc">Staffelung ${ac.spdOverride} kt${plan.delay > 20 ? ` · +${mmss(plan.delay)}` : ''}</span>`;
@@ -430,6 +431,11 @@ export class TowerPanel {
         btns = `<span class="cmd big wait" title="Startfreigabe erst, wenn die Piste sicher frei bleibt – über die aktive Karte oder T geht es trotzdem">⏳ ${esc(w.why)} · ~${mmss(w.sec)}</span>`;
       }
     }
+    // Wetter-Umweg: genehmigen (Y) oder wegen Verkehr ablehnen – ohne Antwort weicht der Pilot selbst aus
+    if (ac.wxReq) {
+      const left = Math.max(0, 1 - ac.wxReq.age / WX_WINDOW);
+      btns = `<button class="cmd big wxok" data-cmd="wxOk" data-ac="${ac.id}" title="Ausweichkurs um die Gewitterzelle genehmigen">⛈️ Umweg ${ac.wxReq.deg}° ${ac.wxReq.side === 'left' ? 'links' : 'rechts'} genehmigen <kbd>Y</kbd><i style="--p:${left}"></i></button><button class="cmd wxno" data-cmd="wxNo" data-ac="${ac.id}" title="Ablehnen (Verkehr): das Flugzeug fliegt durch die Zelle – Turbulenz">Ablehnen</button>` + (sel ? btns : '');
+    }
     // falscher Readback: nach kurzer Zeit (Zeit zum Hinhören) Hinweis mit Korrektur-Knopf
     if (ac.rbErr && ac.rbErr.age >= rbHintDelay(state)) btns = `<button class="cmd big rbfix" data-rbfix="${ac.id}" title="Pilot hat falsch zurückgelesen: „${esc(ac.rbErr.wrong)}“">⚠ Readback falsch – korrigieren <kbd>Q</kbd><i style="--p:${Math.max(0, ac.rbErr.left / RB_WINDOW)}"></i></button>` + (sel ? btns : '');
     let extra = '';
@@ -445,7 +451,7 @@ export class TowerPanel {
     }
     const kind = inSeq ? (land ? (ac.clr.land ? 'k-landclr' : 'k-land') : ac.clr.takeoff ? 'k-depclr' : 'k-dep') : `k-${g}`;
     return {
-      cls: `fcard ${kind}${sel ? ' active' : ''}${ac.req ? ' req' : ''}${ac.emergency || ac.nordo ? ' emg' : ''}${ac.conflict ? ' conf' : ''}${ac.wakeWarn ? ' conf' : ''}${ac.rbErr && ac.rbErr.age >= rbHintDelay(state) ? ' rberr' : ''}`,
+      cls: `fcard ${kind}${sel ? ' active' : ''}${ac.req || ac.wxReq ? ' req' : ''}${ac.wxReq ? ' wxreq' : ''}${ac.emergency || ac.nordo ? ' emg' : ''}${ac.conflict ? ' conf' : ''}${ac.wakeWarn ? ' conf' : ''}${ac.rbErr && ac.rbErr.age >= rbHintDelay(state) ? ' rberr' : ''}`,
       wrap: (inner) => `<div class="c-bar"></div><div class="c-body">${inner}</div>`,
       parts: { 'c-top': top, 'c-mid': mid, 'c-st': state2, 'c-extra': extra, 'c-btns': btns },
     };

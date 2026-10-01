@@ -152,6 +152,17 @@ export class Radar {
       ctx.beginPath();
       ctx.arc(q.x, q.y, c.r * k, 0, Math.PI * 2);
       ctx.fill();
+      // Umriss und Kennung (CB = Gewitterwolke, SHRA = Schauer)
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = 'rgba(255,140,60,0.55)';
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, c.r * k, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(255,180,120,0.8)';
+      ctx.font = '700 9px ui-monospace, Menlo, monospace';
+      ctx.fillText(c.shower ? 'SHRA' : 'CB', q.x - (c.shower ? 11 : 6), q.y + 3);
+      ctx.font = '10px ui-monospace, Menlo, monospace';
     }
 
     // Anflugachse der aktiven Piste
@@ -341,6 +352,7 @@ export class Radar {
       if (ac.conflict) col = blink ? [255, 70, 70] : [255, 160, 160];
       if (ac.emergency) col = blink ? [255, 80, 220] : [255, 200, 240];
       if (ac.nordo) col = blink ? [255, 150, 40] : [255, 215, 150];
+      if (ac.wxReq && !ac.emergency && !ac.conflict) col = blink ? [251, 191, 36] : [254, 240, 138];
       if (sel === ac.id) col = [255, 255, 255];
       const cs = (al) => `rgba(${col[0]},${col[1]},${col[2]},${al})`;
       // Spur
@@ -359,6 +371,25 @@ export class Radar {
         ctx.moveTo(p.x, p.y);
         ctx.lineTo(p.x + Math.sin((ac.crs * Math.PI) / 180) * v, p.y - Math.cos((ac.crs * Math.PI) / 180) * v);
         ctx.stroke();
+      }
+      // Wetter-Umweg: gestrichelt über den WX-Punkt zum nächsten Wegpunkt
+      if (ac.mode === 'air' && ac.route && ac.route[0] && ac.route[0].wx) {
+        const q1 = this.toScreen(ac.route[0].x, ac.route[0].y);
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(251,191,36,0.75)';
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(q1.x, q1.y);
+        if (ac.route[1]) {
+          const q2 = this.toScreen(ac.route[1].x, ac.route[1].y);
+          ctx.lineTo(q2.x, q2.y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(251,191,36,0.9)';
+        ctx.font = '700 9px ui-monospace, Menlo, monospace';
+        ctx.fillText('WX', q1.x + 4, q1.y - 3);
+        ctx.font = `600 ${this.R > 200 ? 11 : 10}px ui-monospace, Menlo, monospace`;
       }
       // Symbol
       ctx.fillStyle = cs(glow);
@@ -420,11 +451,11 @@ export class Radar {
       const t = AC_TYPES[ac.type];
       const l1 = (ac.mode === 'map' && sp ? '#' + sp + ' ' : '') + ac.cs + (ac.req ? ' ●' : '');
       const l2 = `${fl}${trend} ${spd}`;
-      const l3 = ac.fuelEmergency ? '7700 FUEL' : ac.emergency ? '7700 EMERG' : ac.nordo ? `7600 NORDO${ac.clr.land ? ' LND' : ''}` : `${sp ? '#' + sp + ' ' : ''}${ac.type}/${t.wake}${ac.minFuel ? ' MINFUEL' : ac.wakeWarn ? ' WAKE!' : ac.clr.land ? ' LND' : ac.phase === PH.APPROACH ? ' APP' : ac.phase === PH.HOLD ? ' HLD' : ''}`;
+      const l3 = ac.fuelEmergency ? '7700 FUEL' : ac.emergency ? '7700 EMERG' : ac.nordo ? `7600 NORDO${ac.clr.land ? ' LND' : ''}` : `${sp ? '#' + sp + ' ' : ''}${ac.type}/${t.wake}${ac.wxReq ? ' WX?' : ac.route && ac.route[0] && ac.route[0].wx ? ' WX' : ac.minFuel ? ' MINFUEL' : ac.wakeWarn ? ' WAKE!' : ac.clr.land ? ' LND' : ac.phase === PH.APPROACH ? ' APP' : ac.phase === PH.HOLD ? ' HLD' : ''}`;
       // Datenblock-Position: freie Ecke suchen (Überlappungen vermeiden)
       const compact = ac.mode === 'map';
       const noteTxt = mk && ac.mark.note ? `⚑ ${ac.mark.note}` : '';
-      const bw = compact ? 48 : ac.minFuel || ac.wakeWarn ? 104 : 78, bh = (compact ? 12 : 38) + (noteTxt ? 12 : 0);
+      const bw = compact ? 48 : ac.minFuel || ac.wakeWarn || ac.wxReq ? 104 : 78, bh = (compact ? 12 : 38) + (noteTxt ? 12 : 0);
       const cands = [[12, -26], [12, 8], [-bw - 10, -26], [-bw - 10, 8], [14, -44], [-bw - 12, -44]];
       let best = cands[0], bestO = 1e9;
       for (const [ox, oy] of cands) {
