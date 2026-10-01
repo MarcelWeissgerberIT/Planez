@@ -160,7 +160,7 @@ export const SCENARIOS = [
     fail: (m) => (m.incidents >= 3 ? 'Drei Vorfälle – die Schicht wurde abgelöst.' : null),
   },
   {
-    id: 'flytag', role: 'tower', icon: '🛩️', diff: 3, title: 'Großer Flugtag', img: 'assets/scn/morning.webp', side: true,
+    id: 'flytag', role: 'tower', icon: '🛩️', diff: 3, title: 'Großer Flugtag', img: 'assets/scn/flytag.webp', side: true,
     brief: 'Sonnenschein und ein voller Himmel: Die Flugschule übt Platzrunden, der Rettungshubschrauber will mehrmals über die Bahnen, und am Vormittag landet ein Staatsgast. Dazwischen läuft der Linienverkehr ganz normal weiter.',
     tips: ['Touch and Go nur in echte Lücken – sonst kreist die Cessna', 'Rescue 7 schwebt südlich: Querung frei, wenn niemand im Endanflug ist', 'Die Regierungsmaschine 🎖️ ohne Warteschleife hereinholen'],
     hour: 9.5, dur: 2 * H, density: 1,
