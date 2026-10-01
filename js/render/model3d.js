@@ -177,22 +177,37 @@ function livery(type, al, L, k) {
   g.lineTo(0, 186);
   g.closePath();
   g.fill();
-  // Kabinenfenster (Abstand ≈ 0,5 m), Frachter ohne
+  // Kabinenfenster (Abstand ≈ 0,5 m), Frachter ohne; nachts leuchten sie warm (eigene Leuchttextur, manche Blenden zu)
   const ratio = (8 * Math.PI * k.r * k.kh) / 1; // Streckung der Textur entlang/rundherum
   const pitch = (1024 * 0.026) / L;
   const ww = Math.max(2, 4.2 / ratio * 1.4), wh = 5;
+  const ec = document.createElement('canvas');
+  ec.width = 1024;
+  ec.height = 256;
+  const e = ec.getContext('2d');
+  e.fillStyle = '#000';
+  e.fillRect(0, 0, 1024, 256);
+  let n = 7;
+  const lit = () => ((n = (n * 16807) % 2147483647) / 2147483647) > 0.18;
+  const win = (x, y, w, h) => {
+    g.fillRect(x, y, w, h);
+    if (lit()) (e.fillStyle = '#ffd59a', e.fillRect(x, y, w, h));
+  };
   g.fillStyle = '#1e293b';
   if (!cargo) {
     for (let x = 200; x < 850; x += pitch) {
       if (Math.abs(x - 470) < pitch * 1.2 && k.wx > 0) continue; // Notausgang über der Fläche
-      g.fillRect(x, 53, ww, wh);
-      g.fillRect(x, 198, ww, wh);
+      win(x, 53, ww, wh);
+      win(x, 198, ww, wh);
     }
     if (k.hump || k.kh > 1.2) for (let x = 600; x < (k.hump ? 860 : 830); x += pitch) {
-      g.fillRect(x, 30, ww, wh - 1);
-      g.fillRect(x, 222, ww, wh - 1);
+      win(x, 30, ww, wh - 1);
+      win(x, 222, ww, wh - 1);
     }
   }
+  // Cockpit nachts schwach beleuchtet
+  e.fillStyle = '#3b4a66';
+  for (const [v0, v1] of [[0, 21], [24, 44], [212, 232], [235, 256]]) e.fillRect(926, v0, 20, v1 - v0);
   // Türen
   g.strokeStyle = '#94a3b8';
   g.lineWidth = 1.5;
@@ -228,7 +243,17 @@ function livery(type, al, L, k) {
   t.flipY = false;
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
-  return t;
+  const et = new THREE.CanvasTexture(ec);
+  et.flipY = false;
+  et.colorSpace = THREE.SRGBColorSpace;
+  return { map: t, glow: et };
+}
+
+// Nachtbeleuchtung aller Modelle: Kabinenfenster und angestrahlte Leitwerke (0 = Tag, 1 = Nacht)
+const NIGHT = { fus: [], tail: [] };
+export function setNight(k) {
+  for (const m of NIGHT.fus) m.emissiveIntensity = k * 1.1;
+  for (const m of NIGHT.tail) m.emissiveIntensity = k * 0.35;
 }
 
 // Logo fürs Seitenleitwerk: Kreis in der Zweitfarbe mit dem Airline-Kürzel
@@ -291,7 +316,10 @@ function template(type, airline) {
     const r = Math.sqrt(Math.max(0, 1 - s * s));
     rings.push([0.3 * L + s * noseL, -0.18 * ry * s * s, Math.max(0.001, r * ry), Math.max(0.001, r * rz)]);
   }
-  const fus = new THREE.Mesh(tube(rings, 24), new THREE.MeshPhongMaterial({ map: livery(type, al, L, k), shininess: 55, specular: 0x666666 }));
+  const lv = livery(type, al, L, k);
+  const fusMat = new THREE.MeshPhongMaterial({ map: lv.map, emissiveMap: lv.glow, emissive: 0xffffff, emissiveIntensity: 0, shininess: 55, specular: 0x666666 });
+  NIGHT.fus.push(fusMat);
+  const fus = new THREE.Mesh(tube(rings, 24), fusMat);
   fus.castShadow = true;
   fus.receiveShadow = true;
   root.add(fus);
@@ -431,7 +459,10 @@ function template(type, airline) {
   add(flaps, phong(0xaeb7c1, 30));
   add(dark, lamb(0x111827));
   add(metal, phong(0xc0c7cf, 90));
-  add(tailc, phong(new THREE.Color(al.color || '#1d4ed8').getHex(), 45));
+  // Leitwerk: eigenes Material, nachts vom Logo-Scheinwerfer angestrahlt
+  const tm = new THREE.MeshPhongMaterial({ color: al.color || '#1d4ed8', shininess: 45, specular: 0x555555, side: THREE.DoubleSide, emissive: al.color || '#1d4ed8', emissiveIntensity: 0 });
+  NIGHT.tail.push(tm);
+  add(tailc, tm);
   for (const p of props) root.add(p);
 
   // Fahrwerk

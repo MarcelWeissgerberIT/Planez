@@ -12,7 +12,7 @@ import * as LY from '../layout.js';
 import { PH } from '../sim/aircraft.js';
 import { NM_PER_TILE } from '../config.js';
 import { Q } from './quality.js';
-import { buildAircraft, buildVehicle, buildCessna, buildHeli, glowTex, spriteMat } from './model3d.js';
+import { buildAircraft, buildVehicle, buildCessna, buildHeli, glowTex, spriteMat, setNight } from './model3d.js';
 
 const ALT_CLIMB = 2.0; // Spielhöhe z -> Kacheln für Steigflug/Durchstarten auf der Karte (≈ 12° statt 40° Bahnneigung)
 const FT = 0.3048 / 20; // Fuß -> Kacheln
@@ -896,12 +896,31 @@ export class View3D {
     this.bump = 0.35;
   }
 
+  // Ruckelt die 3D-Ansicht (schwaches Gerät), erst die Schatten, dann die Auflösung herunterfahren
+  autoQuality(raw) {
+    if (window.__noAutoQ || raw <= 0 || raw > 1) return;
+    this.ft = this.ft === undefined ? raw : this.ft * 0.95 + raw * 0.05;
+    this.ftN = (this.ftN || 0) + 1;
+    if (this.ftN < 90 || this.ft < 0.045) return;
+    this.ftN = 0;
+    if (!this.noShadow) {
+      this.noShadow = true;
+      this.sun.castShadow = false;
+    } else if (!this.lowRes) {
+      this.lowRes = true;
+      this.renderer.setPixelRatio(1);
+      this.resize();
+    }
+  }
+
   // ---------- jeden Frame ----------
   render(state, ride, follow) {
     if (!this.built || this.rwy2 !== !!(state.upgrades && state.upgrades.rwy2)) this.build(state);
     const now = performance.now() / 1000;
-    const dt = clamp(now - this.lastT, 0, 0.1);
+    const raw = now - this.lastT;
+    const dt = clamp(raw, 0, 0.1);
     this.lastT = now;
+    this.autoQuality(raw);
     // Tageszeit: Sonnenstand (Aufgang im Osten, mittags im Süden), Himmel, Licht, Nebel
     const hr = ((state.time / 3600) % 24 + 24) % 24;
     // wie die Karte: hell von 6 bis 21 Uhr (Dämmerung bis 22 Uhr), nachts unter dem Horizont im Norden
@@ -954,13 +973,14 @@ export class View3D {
     const ld = sunUp ? sunDir : moonDir;
     this.sun.color.copy(sunUp ? U.sunCol.value : C(0x9fb4e6));
     this.sun.intensity = sunUp ? (0.15 + 1.6 * dayK) * (1 - murk * 0.75) : 0.22 * (1 - murk);
-    this.sun.castShadow = !Q.perf && (sunUp ? dayK > 0.15 && murk < 0.7 : false);
+    this.sun.castShadow = !Q.perf && !this.noShadow && (sunUp ? dayK > 0.15 && murk < 0.7 : false);
     const lightsOn = dayK < 0.7 || murk >= 0.4;
     for (const p of this.nightLights) p.visible = lightsOn;
     this.clouds(wx);
     this.precip(wx, dt);
     if (this.termGlow) this.termGlow.material.opacity = clamp(0.8 - dayK * 1.1, 0, 0.8);
     if (this.townMat) this.townMat.emissiveIntensity = clamp(0.9 - dayK * 1.2, 0, 0.9);
+    setNight(clamp(1 - dayK * 1.4, 0, 1));
     if (this.poolMat) this.poolMat.opacity = lightsOn ? clamp(0.55 - dayK * 0.6, 0.08, 0.55) : 0;
     for (const p of this.pools) p.visible = lightsOn;
     this.traffic(dt, dayK < 0.6);
