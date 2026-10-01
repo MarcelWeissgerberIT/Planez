@@ -137,18 +137,18 @@ const forceShot = (page, want) =>
   }, want);
 
 // ---------- Szenen ----------
-// dur in s, speed = Spieltempo, cam = Kamerafahrt (Zoomfaktor Anfang/Ende, Verschiebung in Kacheln)
+// dur in s, speed = Spieltempo (1 = 15 Spielsekunden je Sekunde; 3D-Szenen in Zeitlupe), cam = Kamerafahrt (Zoomfaktor Anfang/Ende, Verschiebung in Kacheln)
 const CLIPS = [
   { id: 'title', dur: 3.6, card: 'title' },
   { id: 'grass', dur: 5, cap: TXT.grass, speed: 2, cam: { z: [1, 1.18] }, setup: async (p) => { await start(p, 'manager', 'grass'); await sim(p, 3 * 86400, { hour: 10.6, weather: 'clear' }); await photo(p); await p.evaluate(() => Object.assign(window.planez.cam, { x: 44, y: 16.5, zoom: 1.15, tx: null })); } },
   { id: 'hub', dur: 5, cap: TXT.hub, speed: 2, cam: { z: [0.78, 0.62] }, setup: async (p) => { await start(p, 'observer'); await sim(p, 2 * 3600, { hour: 8.2, weather: 'clear' }); await photo(p); } },
-  { id: 'land', dur: 5, cap: TXT.land, speed: 1, setup: async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 17.3, weather: 'clouds' }); await cine(p); }, after: (p) => forceShot(p, 'land') },
+  { id: 'land', dur: 5, cap: TXT.land, speed: 0.2, setup: async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 17.3, weather: 'clouds' }); await cine(p); }, after: (p) => forceShot(p, 'land') },
   { id: 'tower', dur: 5, cap: TXT.tower, speed: 2, setup: async (p) => { await start(p, 'tower'); await sim(p, 3 * 3600, { hour: 9.1 }); } },
   { id: 'ground', dur: 5, cap: TXT.ground, speed: 2, setup: async (p) => { await start(p, 'ground'); await sim(p, 3 * 3600, { hour: 8.4 }); } },
   { id: 'mgmt', dur: 4.5, cap: TXT.mgmt, speed: 1, setup: async (p) => { await start(p, 'manager'); await sim(p, 2 * 86400, { hour: 13 }); await p.keyboard.press('o'); await p.waitForTimeout(900); } },
   { id: 'storm', dur: 4, cap: TXT.storm, speed: 2, cam: { z: [0.85, 0.95] }, setup: async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 15.5, weather: 'storm' }); await photo(p); } },
   { id: 'night', dur: 4, cap: TXT.night, speed: 2, cam: { z: [0.9, 0.8] }, setup: async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 22.2, weather: 'clear' }); await photo(p); } },
-  { id: 'takeoff', dur: 4.5, speed: 1, setup: async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 18.4, weather: 'clear' }); await cine(p); }, after: (p) => forceShot(p, 'takeoff') },
+  { id: 'takeoff', dur: 4.5, speed: 0.35, setup: async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 18.4, weather: 'clear' }); await cine(p); }, after: (p) => forceShot(p, 'takeoff') },
   { id: 'end', dur: 4.8, card: 'end' },
 ];
 
