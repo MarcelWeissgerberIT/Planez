@@ -73,6 +73,13 @@ export function scoreWx(state, ac, kind) {
   else fail(state, ac, 150, 'Turbulenz');
 }
 
+// Pistenkontrolle: in einer echten Lücke freigegeben = Punkte; mit Anflug im Weg = Kombo weg (er muss durchstarten)
+export function scoreInspect(state, clean) {
+  if (!active(state, 'tower')) return;
+  if (clean) add(state, null, 80, 'Pistenkontrolle');
+  else fail(state, null, 60, 'Kontrolle zur Unzeit');
+}
+
 // ---------- Vorfeld ----------
 export function scoreOffBlock(state, ac, delay, quick) {
   if (!active(state, 'ground')) return;

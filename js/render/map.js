@@ -527,6 +527,15 @@ export class MapRenderer {
       const x = rw.x0 + 4 + (rw.x1 - rw.x0 - 8) * (p ? p.prog : 0);
       const types = p && p.target === 'resurface' ? ['catering', 'fuel', 'baggage', 'tug'] : ['cleaning', 'fuel', 'cleaning', 'tug'];
       types.forEach((ty, i) => mk(`rw${i}`, ty, x + (i - 1.5) * 1.5 + Math.sin(t * 0.4 + i) * 0.35, rw.y + (i % 2 ? 0.45 : -0.45), Math.PI));
+    } else if (state.rwyClosedUntil > state.time && state.rwyClosedWhy === 'Pistenkontrolle' && state.insp && state.insp.active) {
+      // Pistenkontrolle: einmal die Bahn entlang, von der aktiven Schwelle aus, im Schlangenlinien-Blick nach Fremdkörpern
+      const rw = stripGeom('N');
+      const A = state.insp.active;
+      const u = Math.max(0, Math.min(1, (state.time - A.start) / Math.max(1, A.until - A.start)));
+      const d = state.rwy === '27' ? -1 : 1;
+      const x0 = d > 0 ? rw.x0 + 1 : rw.x1 - 1;
+      const x = x0 + d * (rw.x1 - rw.x0 - 2) * u;
+      mk('insp', 'tug', x, rw.y + Math.sin(u * 40) * 0.35, d > 0 ? 0 : Math.PI);
     } else if (state.rwyClosedUntil > state.time && (state.rwyClosedWhy || '').startsWith('FOD')) {
       // Kontrollfahrzeug fährt die Piste ab
       const rw = stripGeom(state.rwyClosedStrip || 'N');

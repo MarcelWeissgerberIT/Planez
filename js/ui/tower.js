@@ -3,6 +3,7 @@ import { CMDS, command, validCommands, tailwind, preferredRunway, requestRunwayC
 import { correctReadback, RB_WINDOW, RB_HINT } from '../sim/readback.js';
 import { SIDS } from '../sim/sid.js';
 import { WX_WINDOW } from '../sim/wxdev.js';
+import { inspState, inspConflict, approveInspection, deferInspection, INSP_MIN } from '../sim/inspect.js';
 import { PH, PHASE_DE, runwayOccupants, fmtAlt } from '../sim/aircraft.js';
 import * as AS from '../sim/airspace.js';
 import { AC_TYPES, CITIES, AIRPORT } from '../config.js';
@@ -43,6 +44,16 @@ export function runwayStatusHtml(state) {
     const cond = Math.round(rwyCond(state, strip));
     const role = !hasRwy2(state) ? '' : segregated(state) ? (strip === 'N' ? ' · Starts' : ' · Landungen') : strip === 'N' ? ' · Starts & Landungen' : ' · Reserve';
     h += `<div class="rwy-line"><b class="rwy-id">${rwyName(state, strip)}</b>${role} · ${closed ? `<span class="state busy">⛔ ${esc(closed)}</span>` : occ.length ? `<span class="state busy">belegt · ${occ.map((a) => esc(a.cs)).join(', ')}</span>` : '<span class="state free">frei</span>'}<div class="rwy-cond">Zustand <b>${cond} %</b> · Bremswirkung <b class="ba-${ba}">${BRAKE_DE[ba]}</b>${isWet(state) ? ' (nass)' : ''}${state.rwySnow && state.rwySnow[strip] > 0.04 ? ` · ❄️ Schnee <b>${Math.round(state.rwySnow[strip] * 100)} %</b>${state.plow && state.plow.strip === strip ? ' – Räumdienst' : state.rwySnow[strip] > 0.25 ? ' – Räumung bald' : ''}` : ''}</div></div><div></div>`;
+  }
+  // Pistenkontrolle: Anfrage mit Lücken-Check, laufende Kontrolle
+  const I = state.insp;
+  if (I && I.req && !state.auto.atc) {
+    const c = inspConflict(state);
+    const wait = Math.max(0, Math.round((state.time - I.req.t) / 60));
+    h += `<div class="insp-rq${c ? (c.hard ? ' hard' : ' soft') : ' ok'}">🚙 <b>Pistenkontrolle</b> bittet, Bahn ${rwyName(state, 'N')} abzufahren (${INSP_MIN} min)${wait ? ` · wartet seit ${wait} min` : ''}<small>${c ? `⚠ ${esc(c.ac.cs)} ${esc(c.why)}` : '✓ Lücke – jetzt freigeben'}</small></div><div class="insp-b"><button class="cmd ${c ? '' : 'big'}" data-insp="ok">Freigeben</button><button class="cmd" data-insp="later">Später</button></div>`;
+  } else if (I && I.active) {
+    const left = Math.max(0, I.active.until - state.time);
+    h += `<div class="insp-rq act">🚙 Pistenkontrolle auf Bahn ${rwyName(state, 'N')} – noch ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}</div><div></div>`;
   }
   if (hasRwy2(state)) h += `<div class="rwy-cond">Betriebsart: <b>${segregated(state) ? 'getrennt (Landungen Süd, Starts Nord)' : 'eine Bahn (alles auf der Nordbahn)'}</b></div><button class="cmd" data-rwymode="${segregated(state) ? 'single' : 'seg'}">${segregated(state) ? '→ eine Bahn' : '→ getrennt'}</button>`;
   h += `<div class="rwy-cond">${temperature(state).toFixed(0)} °C · ${state.weather.kind === 'fog' ? `RVR <b>${state.weather.rvr ?? '—'} m</b> · LVP · ` : ''}${isNight(state) ? `🌙 Nacht${state.settings.curfew ? 'flugverbot' : ''}` : '☀️ Tagbetrieb'}</div>${qm('rwy')}`;
@@ -239,6 +250,16 @@ export class TowerPanel {
     }
     const rw = e.target.closest('[data-rwy]');
     if (rw) return requestRunwayChange(s, rw.dataset.rwy);
+    const ib = e.target.closest('[data-insp]');
+    if (ib) {
+      const r = ib.dataset.insp === 'ok' ? approveInspection(s) : deferInspection(s);
+      if (r.ok) sfx.click();
+      if (r.bad) toast('⚠ Pistenbetretung – Verkehr auf/vor der Bahn!', 'bad', 3500);
+      else if (r.soft) toast(`🚙 Kontrolle auf der Bahn – ${r.soft.ac.cs} wird durchstarten müssen`, 'warn', 3000);
+      else if (ib.dataset.insp === 'ok' && r.ok) toast('🚙 Pistenkontrolle freigegeben', 'good', 2000);
+      this.update(s);
+      return;
+    }
     const rm = e.target.closest('[data-rwymode]');
     if (rm) {
       s.rwyMode = rm.dataset.rwymode;

@@ -7,6 +7,7 @@ import { esc, fmtClock } from '../util.js';
 import { runwayClosed, rwyCond } from '../sim/runway.js';
 import { fuelState, FUEL } from '../sim/fuel.js';
 import { forecastInfo } from '../sim/events.js';
+import { inspConflict } from '../sim/inspect.js';
 
 function towerHint(s) {
   const conf = s.acs.find((a) => a.conflict);
@@ -34,6 +35,7 @@ function towerHint(s) {
   if (slotPush) return `<b>${esc(slotPush.cs)}</b> möchte schieben, TSAT ist aber erst ${fmtClock(s.rots[slotPush.rot].tsat)} – „Warten bis TSAT“ (E), sonst wartet er mit laufenden Triebwerken am Rollhalt.`;
   const closing = s.acs.find((a) => a.phase === PH.HOLDING && s.rots[a.rot] && s.rots[a.rot].ctot && s.rots[a.rot].ctot + 600 - s.time < 300 && s.time > s.rots[a.rot].ctot - 300 && !a.clr.takeoff);
   if (closing) return `⏱️ Slot-Fenster von <b>${esc(closing.cs)}</b> schließt um ${fmtClock(s.rots[closing.rot].ctot + 600)} – jetzt Startfreigabe (T), sonst gibt es einen neuen Slot.`;
+  if (s.insp && s.insp.req && !inspConflict(s) && !s.auto.atc) return `🚙 Die <b>Pistenkontrolle</b> wartet am Rollhalt – gerade ist eine Lücke im Verkehr: rechts im Pistenblock <b>Freigeben</b>. Die Bahn ist dann ${3} Minuten gesperrt.`;
   const land = s.acs.find((a) => a.req === 'land');
   if (land) return `<b>${esc(land.cs)}</b> ist auf dem Endanflug – Landefreigabe (L) geben, sobald die Piste frei ist. Ohne Freigabe startet er bei 1 NM durch.`;
   const vac = s.acs.find((a) => a.req === 'taxi_in' && a.stand);

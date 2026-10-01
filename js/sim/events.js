@@ -9,6 +9,7 @@ import { diff } from './difficulty.js';
 import { VEH_TYPES, AIRLINES } from '../config.js';
 import { command } from './atc.js';
 import { fodEvent } from './runway.js';
+import { fodRisk } from './inspect.js';
 import { winterWeather, isWinter } from './winter.js';
 
 export const WEATHER = {
@@ -177,7 +178,7 @@ function randomEvent(state) {
     ['strike', 0.6],
     ['birdstrike', 1],
     ['nordo', h > 6 && h < 22 && nordoCandidate(state) ? 0.9 : 0],
-    ['fod', 0.7],
+    ['fod', 0.7 * fodRisk(state)],
   ];
   triggerEvent(state, pickWeighted(state, opts, (o) => o[1])[0]);
 }

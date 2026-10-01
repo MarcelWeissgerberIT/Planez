@@ -21,6 +21,7 @@ import { updateReadback } from './readback.js';
 import { updateRival, rivalDayEnd } from './rival.js';
 import { updateNordo } from './nordo.js';
 import { updateWxDev } from './wxdev.js';
+import { updateInspection } from './inspect.js';
 import { updateFuel } from './fuel.js';
 import { dailyLoans } from './finance.js';
 import { spend } from './economy.js';
@@ -60,6 +61,7 @@ export function step(state, dt) {
   updateRival(state, dt);
   updateNordo(state);
   updateWxDev(state, dt);
+  updateInspection(state, dt);
   updateGround(state, dt);
   updateConflicts(state, dt);
   updateAcdm(state, dt);

@@ -1465,3 +1465,12 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 @media (max-width: 760px) { .bd-strats { grid-template-columns: 1fr 1fr; } .bd-conf { grid-template-columns: 1fr; } .bd-chair { flex-wrap: wrap; } }
 .bd-page { column-span: all; }
 .bd-head b, .bd-head small, .bd-st b, .bd-st small { display: block; }
+
+/* ---------- Pistenkontrolle ---------- */
+.insp-rq { font-size: 12.5px; padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(250,204,21,.45); background: rgba(250,204,21,.1); color: #fef9c3; }
+.insp-rq small { display: block; font-size: 11px; margin-top: 2px; }
+.insp-rq.ok small { color: #86efac; } .insp-rq.soft small { color: #fcd34d; } .insp-rq.hard small { color: #fca5a5; font-weight: 700; }
+.insp-rq.hard { border-color: rgba(248,113,113,.6); background: rgba(239,68,68,.1); }
+.insp-rq.act { border-color: rgba(250,204,21,.3); background: rgba(250,204,21,.06); animation: insp-blink 1.2s ease-in-out infinite; }
+@keyframes insp-blink { 50% { border-color: rgba(250,204,21,.7); } }
+.insp-b { display: flex; flex-direction: column; gap: 4px; }
