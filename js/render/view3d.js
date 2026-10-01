@@ -15,6 +15,7 @@ import { Q } from './quality.js';
 import { soundscape } from '../soundscape.js';
 import { buildAircraft, buildVehicle, buildCessna, buildHeli, glowTex, spriteMat, setNight } from './model3d.js';
 import { grassRunway3d, smallField3d, smallBuilding3d } from './field3d.js';
+import { countryside3d } from './land3d.js';
 
 const ALT_CLIMB = 2.0; // Spielhöhe z -> Kacheln für Steigflug/Durchstarten auf der Karte (≈ 12° statt 40° Bahnneigung)
 const FT = 0.3048 / 20; // Fuß -> Kacheln
@@ -494,6 +495,7 @@ export class View3D {
       this.static.add(m);
     }
     this.landscape();
+    countryside3d(this, state);
     this.snowMat = new THREE.MeshLambertMaterial({ color: 0xf4f7fb, transparent: true, opacity: 0, depthWrite: false });
     this.snowPlane = this.flat(LY.W / 2 - 3000, LY.W / 2 + 3000, LY.H / 2 - 3000, LY.H / 2 + 3000, this.snowMat, 0.0045);
     // Vorfeld und Rollwege
@@ -760,10 +762,12 @@ export class View3D {
     for (let i = 0; i < 700; i++) {
       const a = r() * Math.PI * 2, d = Math.pow(r(), 0.6) * 90;
       const x = TX + Math.cos(a) * d, y = TY + Math.sin(a) * d * 0.7;
-      const h = (1 + r() * 2) * (d < 25 ? 3 + r() * 5 : 1);
+      // Kleinstadt statt Hochhauskulisse: meist zwei, drei Geschosse, in der Mitte etwas höher, helle Fassaden
+      const h = (0.7 + r() * 1.1) * (d < 22 ? 1.6 + r() * 1.6 : 1);
       mx.makeScale(2 + r() * 3, h, 2 + r() * 3);
       mx.setPosition(x, h / 2, y);
       town.setMatrixAt(i, mx);
+      town.setColorAt(i, col.setHex([0xf1ece2, 0xe7dccb, 0xdfe3e6, 0xeadfd2, 0xd6dbe0, 0xf3e9da][Math.floor(r() * 6)]));
     }
     this.static.add(town);
     // Straßen zur Stadt und um den Platz, darauf Autos (nachts Scheinwerfer und Rücklichter)

@@ -108,6 +108,7 @@ const SIDE = {
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
       <li>🌾 <b>Aufbau-Modus: vom Grasplatz zum Drehkreuz</b> – neues Spiel mit 560-m-Graspiste, Vereinsheim, ein paar Sportfliegern und 40.000 € in der Kasse. Partner (Flugschule, Rundflüge, Fallschirmclub, Lufttaxi), Flugplatzfest, Anzeigen und Fly-Ins machen den Platz bekannt; erfüllst du die Bedingungen, bauen Land und Investoren aus: Verkehrslandeplatz → Regionalflughafen → International → Drehkreuz</li>
+      <li>🌻 <b>Schöneres Umland</b>: Felder im Flickenteppich (je Jahreszeit Raps, Weizen, Mais, Acker) mit Furchen und Hecken, ein Dorf mit Kirche, Bauernhöfe, ein Teich und Laubbäume – auf der Karte und in 3D, dazu Hügelketten am Horizont und eine ruhigere Kleinstadt</li>
       <li>🖼️ <b>Leitstand mit Bildern</b>: bewegtes Luftbild der Ausbaustufe, nächste Stufe mit Bedingungen, Aktionen und Partner als Bildkarten – und die neue Seite „Aufbau“ in der Management-Zentrale</li>
       <li>🛩️ <b>Sportflugzeuge</b> (Cessna 172, PA-28, DR400) und Lufttaxis (PC-12, King Air) – mit eigenen Grafiken, 3D-Modellen und Kennzeichen-Funk („Delta Lima Mike“)</li>
       <li>🤖 <b>KI-Pilot</b> für Tower, Vorfeld und Management: zusehen, was sie tut – und jederzeit selbst eingreifen (Taste Z)</li>

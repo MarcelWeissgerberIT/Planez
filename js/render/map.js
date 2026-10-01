@@ -23,6 +23,7 @@ import { runwayClosed, stripGeom } from '../sim/runway.js';
 import { motorcade } from '../sim/statevisit.js';
 import { saluteView } from '../sim/firstflight.js';
 import { drawSmallField } from './smallfield.js';
+import { drawTerrain, terrainItems, onField } from './terrain.js';
 import { standBuildable } from '../sim/career.js';
 const markOf = (ac) => (ac.mark && MARKS[ac.mark.c] ? MARKS[ac.mark.c] : null);
 
@@ -342,9 +343,10 @@ export class MapRenderer {
     for (const t of this.trees) {
       if (!inView(view, t.x, t.y, 2)) continue;
       if (sites.some((q) => q.g.fence && t.x > q.g.x0 - 0.4 && t.x < q.g.x1 + 0.4 && t.y > q.g.y0 - 0.4 && t.y < q.g.y1 + 0.4)) continue;
-      if (treeBlocked(state, t)) continue;
+      if (treeBlocked(state, t) || onField(t.x, t.y)) continue;
       items.push({ d: t.x + t.y, f: () => this.drawTree(t) });
     }
+    terrainItems(this, state, items, (x, y) => inView(view, x, y, 3));
     for (const car of this.cars) {
       const p = carPos(car, this.ambient.vt);
       items.push({ d: p.x + p.y, f: () => this.drawCar(p, car, night, lights) });
@@ -2381,6 +2383,8 @@ function drawGround(g, state, trees) {
     g.fill();
   }
 
+  // Umland: Felder, Hecken, Feldwege, Dorfstraße, Teich
+  drawTerrain(g, state, seasonOf(state).id);
   // Gebäudeschatten
   for (const b of LY.BUILDINGS) {
     if (!LY.buildingOn(state, b)) continue;

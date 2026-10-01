@@ -241,7 +241,7 @@ export const SCENARIOS = [
       for (const c of s.contracts) c.sat = Math.min(c.sat ?? 70, 55);
     },
     goals: [
-      { text: 'Kasse', key: 'cash', money: true, t: [0, 600000, 1500000] },
+      { text: 'Kasse', key: 'cash', money: true, t: [0, 480000, 1500000] },
       { text: 'Ansehen', key: 'rep', t: [42, 48, 55] },
     ],
     fail: (m, s) => (s.cash < -4000000 ? 'Die Bank hat den Kreditrahmen gekündigt.' : null),
