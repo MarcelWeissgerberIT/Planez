@@ -16,6 +16,7 @@ import { readbackText } from './readback.js';
 import { depGap } from './sid.js';
 import { lightSignal, callNordo } from './nordo.js';
 import { approveWx, denyWx } from './wxdev.js';
+import { qnh } from './atis.js';
 
 const numTxt = (s, ac, suffix = '') => {
   updateSequence(s);
@@ -129,7 +130,8 @@ export const CMDS = {
     valid: (s, ac) => ac.phase === PH.STAND && ac.req === 'push',
     run: (s, ac) => {
       const face = s.rwy === '27' ? 'east' : 'west';
-      say(s, ac, `${tel(ac)}, pushback and start-up approved, facing ${face}.`, `Pushback approved, ${tel(ac)}.`);
+      if (AC_TYPES[ac.type].selfTaxi) say(s, ac, `${tel(ac)}, start-up approved, runway ${s.rwy}, QNH ${qnh(s)}.`, `Start-up approved, ${tel(ac)}.`);
+      else say(s, ac, `${tel(ac)}, pushback and start-up approved, facing ${face}.`, `Pushback approved, ${tel(ac)}.`);
       startPushback(s, ac);
     },
   },
@@ -416,7 +418,10 @@ function clearNextApproach(state, cands, distCleared, departuresWaiting, order =
   for (const { a, d } of distCleared) {
     if ((a.strip || 'N') !== nextStrip) continue; // andere Bahn: unabhängig
     const lead = d < next.d ? a : c, foll = lead === a ? c : a;
-    const fast = AC_TYPES[foll.type].vapp > AC_TYPES[lead.type].vapp + 12 ? 1.5 : 0;
+    let fast = AC_TYPES[foll.type].vapp > AC_TYPES[lead.type].vapp + 12 ? 1.5 : 0;
+    // langsamer Vorgänger (Sportflieger): der Schnellere holt auf dem ganzen Anflug auf – Abstand entsprechend größer
+    const vL = AC_TYPES[lead.type].vmax, vF = AC_TYPES[foll.type].vmax || 180;
+    if (vL && vF > vL + 10) fast = Math.min(22, Math.max(fast, Math.min(d, next.d) * (vF / Math.min(vL, 140) - 1)));
     // Wirbelschleppen: Mehrabstand hinter schweren Flugzeugen
     let sep = 7 + fast + (wakeNm(lead.wake, foll.wake) - 3) * 1.3 + (state.weather.kind === 'fog' ? 2.5 : 0);
     if (departuresWaiting > 0) sep += 2.5;
@@ -564,6 +569,12 @@ function autoArrivals(state) {
     const f = seq[i].a;
     if (onFinal(f) || f.nordo) continue;
     const extra = wakeNm(seq[i - 1].a.wake, f.wake) - 3;
+    // hinter einem Sportflieger: Tempo des Vorgängers übernehmen
+    const lt = AC_TYPES[seq[i - 1].a.type];
+    if (lt.vmax && !AC_TYPES[f.type].vmax !== undefined && gap < 9 && (AC_TYPES[f.type].vmax || 999) > lt.vmax + 10) {
+      f.spdOverride = Math.max(AC_TYPES[f.type].vapp + 5, Math.round(seq[i - 1].a.spd + 10));
+      continue;
+    }
     if (gap < 6.2 + extra && f.spdOverride !== 160) f.spdOverride = 160;
     else if (gap > 8.5 + extra && f.spdOverride) f.spdOverride = null;
   }
@@ -574,7 +585,13 @@ function autoDepartures(state) {
   const rwy = state.rwy;
   const occupants = runwayOccupants(state, 'N');
   const arrivals = state.acs.filter((a) => (a.phase === PH.APPROACH || a.phase === PH.FINAL) && a.rwy === rwy && (a.strip || 'N') === 'N');
-  const nextArr = Math.min(arrivals.reduce((m, a) => Math.min(m, distToLand(a)), 99), state.vfrFinal ?? 99);
+  // langsame Anflüge (Sportflieger) zählen nach Zeit: Abstand umgerechnet auf ein Verkehrsflugzeug mit 140 kt
+  const eqNm = (a) => {
+    const d = distToLand(a);
+    const t = AC_TYPES[a.type];
+    return t.vmax ? (d * 140) / Math.max(55, a.mode === 'air' ? a.spd : t.vapp) : d;
+  };
+  const nextArr = Math.min(arrivals.reduce((m, a) => Math.min(m, eqNm(a)), 99), state.vfrFinal ?? 99);
   const lined = state.acs.find((a) => a.phase === PH.LINED || a.phase === PH.LINEUP);
   const sinceTo = state.time - (state.lastTakeoff || -999);
   if (runwayClosed(state)) return;
@@ -640,8 +657,10 @@ export function updateConflicts(state, dt) {
       // Abflug vor einer Landung in gleicher Richtung: divergierend, kein Konflikt
       const depAhead = (d, f) => d.phase === PH.DEPART && d.alt < 4000 && onFinal(f) && (d.pos.x - f.pos.x) * -AS.appSide(f.rwy) > 0;
       if (depAhead(a, b) || depAhead(b, a)) continue;
-      const hMin = bothFinal ? 2.5 : 3;
-      const inConflict = h < hMin && v < 900;
+      // Sichtflug am kleinen Platz (Sportflieger, Lufttaxis): kein Radarabstand, nur echte Annäherung zählt
+      const vfrA = !!AC_TYPES[a.type].vmax, vfrB = !!AC_TYPES[b.type].vmax;
+      const hMin = vfrA && vfrB ? 0.6 : vfrA || vfrB ? 1.5 : bothFinal ? 2.5 : 3;
+      const inConflict = h < hMin && v < (vfrA || vfrB ? 500 : 900);
       if (inConflict) {
         a.conflict = b.conflict = true;
         state.conflicts.push([a.id, b.id]);
@@ -659,7 +678,8 @@ export function updateConflicts(state, dt) {
       const pa = predict(a, 90), pb = predict(b, 90);
       const hp = dist(pa.x, pa.y, pb.x, pb.y);
       const vp = Math.abs(pa.alt - pb.alt);
-      if ((hp < 4 && vp < 1000) || (h < 5 && v < 1000 && !bothFinal)) {
+      const pf = vfrA && vfrB ? 0.3 : vfrA || vfrB ? 0.5 : 1;
+      if ((hp < 4 * pf && vp < 1000) || (h < 5 * pf && v < 1000 && !bothFinal)) {
         a.predConflict = b.predConflict = true;
         if (!bothFinal) resolve(state, a, b);
       }

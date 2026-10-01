@@ -3,6 +3,7 @@ import { UPGRADES, STAND_COSTS } from '../config.js';
 import { log, notify } from './messages.js';
 import { nextId } from './schedule.js';
 import { canWorkRunway, rwyCond } from './runway.js';
+import { completeStage } from './career.js';
 
 // Arbeiten an der Piste: nur nachts in Verkehrspausen, Piste dann gesperrt
 export const RWY_WORKS = {
@@ -120,6 +121,8 @@ function complete(state, p) {
       st.closed = false;
       st.closing = false;
     }
+  } else if (p.kind === 'stage') {
+    completeStage(state, p.target);
   } else if (p.kind === 'rwy') {
     const k = p.strip === 'S' ? 'rwyCondS' : 'rwyCond';
     const c = rwyCond(state, p.strip || 'N');

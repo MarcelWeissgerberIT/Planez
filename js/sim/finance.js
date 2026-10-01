@@ -2,6 +2,7 @@
 import { clamp, hourOf, fmtMoney } from '../util.js';
 import { log, notify } from './messages.js';
 import { nextId } from './schedule.js';
+import { isCareer, stageOf, LOAN_CAP } from './career.js';
 
 export const LOAN_DAYS = 30;
 export const NIGHT = { from: 23, to: 5 };
@@ -15,6 +16,7 @@ export function loanRate(state) {
 export const loans = (state) => state.loans || (state.loans = []);
 export const debt = (state) => loans(state).reduce((t, l) => t + l.rest, 0);
 export function loanLimit(state) {
+  if (isCareer(state)) return Math.max(0, Math.round((LOAN_CAP[stageOf(state)] * (0.6 + state.reputation / 125) - debt(state)) / 10000) * 10000);
   return Math.max(0, Math.round((2e6 + state.reputation * 150000 - debt(state)) / 100000) * 100000);
 }
 export function annuity(amount, r, n = LOAN_DAYS) {

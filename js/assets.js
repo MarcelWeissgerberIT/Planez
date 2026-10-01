@@ -1,6 +1,6 @@
 // Laden der (mit Higgsfield generierten) Grafiken + abgeleitete Hilfsgrafiken
 export const IMG = {};
-const SPRITES = ['tower', 'hangar', 'cargo', 'fire_station', 'fuel_farm', 'parking', 'hotel', 'gse_depot', 'radar', 'terminal_hall', 'tree1', 'tree2', 'plane_narrow', 'plane_wide', 'plane_prop', 'plane_cargo', 'plane_bizjet', 'plane_super', 'crane', 'excavator', 'mixer', 'site_office', 'skeleton'];
+const SPRITES = ['tower', 'hangar', 'cargo', 'fire_station', 'fuel_farm', 'parking', 'hotel', 'gse_depot', 'radar', 'terminal_hall', 'tree1', 'tree2', 'plane_narrow', 'plane_wide', 'plane_prop', 'plane_cargo', 'plane_bizjet', 'plane_super', 'crane', 'excavator', 'mixer', 'site_office', 'skeleton', 'clubhouse', 'ga_hangar', 'small_terminal', 'small_tower', 'avgas', 'plane_ga', 'plane_ga2', 'plane_tp', 'farm', 'house', 'church', 'bush'];
 const VEHICLES = ['veh_tug', 'veh_baggage', 'veh_fuel', 'veh_catering', 'veh_bus', 'veh_cleaning', 'veh_fire', 'veh_deice', 'veh_plow'];
 const TEXTURES = ['tex_facade', 'tex_roof', 'tex_grass', 'tex_concrete', 'tex_asphalt', 'tex_gravel'];
 

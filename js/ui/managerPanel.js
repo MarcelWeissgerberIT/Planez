@@ -20,6 +20,7 @@ import { fuelState, FUEL, orderFuel, maxOrder, avgCost, sellPrice, pending, burn
 import { loans, loanLimit, loanRate, takeLoan, repayLoan, annuity, LOAN_DAYS, debt } from '../sim/finance.js';
 import { goalsState, activeGoals, goalFraction, goalText, RANKS } from '../sim/goals.js';
 import { boardPageHtml } from './board.js';
+import { careerPageHtml, careerClick } from './careerUi.js';
 
 const TABS = [
   ['over', 'Übersicht'],
@@ -92,6 +93,12 @@ export class ManagerPanel {
 
   onClick(e) {
     const s = this.game.state;
+    if (careerClick(this.game, e)) {
+      this.body._html = null;
+      if (this.page) this.page.update(s, true);
+      else this.update(s);
+      return;
+    }
     const tb = e.target.closest('[data-tab]');
     if (tb) {
       if (this.page) return this.page.open({ contracts: 'contracts', build: 'sites' }[tb.dataset.tab] || tb.dataset.tab);
@@ -202,7 +209,7 @@ export class ManagerPanel {
 
   // Inhalt eines Bereichs (für die Management-Zentrale)
   section(key, s) {
-    const fn = { rival: rivalHtml, board: boardPageHtml, over: this.over, contracts: this.contracts, sites: this.sitesHtml, runways: this.runwaysHtml, stands: this.standsHtml, terminal: this.terminalHtml, ops: this.ops, fuel: this.fuel, fees: this.fees, fin: this.fin, goals: this.goalsHtml }[key] || this.over;
+    const fn = { career: careerPageHtml, rival: rivalHtml, board: boardPageHtml, over: this.over, contracts: this.contracts, sites: this.sitesHtml, runways: this.runwaysHtml, stands: this.standsHtml, terminal: this.terminalHtml, ops: this.ops, fuel: this.fuel, fees: this.fees, fin: this.fin, goals: this.goalsHtml }[key] || this.over;
     return fn.call(this, s);
   }
 

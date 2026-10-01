@@ -14,6 +14,9 @@ import { startProject, standProject, projectFor, standBuildHours, upgradeHours, 
 import { onNightMovement, takeLoan, repayLoan, loanLimit, loans } from './finance.js';
 import { rwyCond } from './runway.js';
 import { bump } from './goals.js';
+import { careerReserve } from './career.js';
+import { isCareer, careerFixedCosts, gaTakeoffRevenue, hourlyCareer, autoCareer, stageOf, standBuildable, upgradeAllowed, rwyWorkCost, airlineRotations, rotCap } from './career.js';
+import * as LY from '../layout.js';
 
 export const REV_CATS = { landing: 'Landegebühren', pax: 'Passagierentgelte', parking: 'Parkpositionen', handling: 'Abfertigung', fuel: 'Kerosinverkauf (Marge)', retail: 'Shops & Gastro', carpark: 'Parken (Landseite)', cargo: 'Fracht', hotel: 'Hotel', night: 'Nacht-/Lärmentgelte', deice: 'Enteisung', energy: 'Stromverkauf (Solar)', rail: 'Bahnhof', other: 'Sonstiges' };
 export const COST_CATS = { staff: 'Personal Boden', atc: 'Flugsicherung', infra: 'Instandhaltung', vehicles: 'Fahrzeuge', admin: 'Verwaltung', utilities: 'Energie & Betrieb', penalties: 'Vertragsstrafen & Bußgelder', incidents: 'Vorfälle', marketing: 'Marketing', interest: 'Kreditzinsen' };
@@ -51,7 +54,7 @@ export function onLanding(state, ac) {
   scoreLanding(state, ac);
   const t = AC_TYPES[ac.type];
   const rot = state.rots[ac.rot];
-  const fee = state.fees.landing * t.mtow * (rot?.feeMult || 1);
+  const fee = state.fees.landing * Math.max(t.mtow, t.light ? 1.5 : 0) * (rot?.feeMult || 1);
   earn(state, 'landing', fee);
   const g = ac.tdFpm ? gradeOf(ac.tdFpm) : null;
   fx(state, ac.x, ac.y, g ? `🛬 ${ac.tdFpm} ft/min ${g[2] || g[1]} · +${fmtK(fee)}` : `🛬 Landung · +${fmtK(fee)}`, g ? g[3] : 'good');
@@ -62,7 +65,7 @@ export function onLanding(state, ac) {
   bump(state, 'landStreak');
   bump(state, 'safeStreak');
   if (ac.wakeReq > 3 && !ac.wakeBad) bump(state, 'wakeStreak');
-  if (rot) bump(state, 'pax', rot.paxIn);
+  if (rot && !t.light) bump(state, 'pax', rot.paxIn);
   if (ac.type === 'A388') {
     state.life.a380landed = (state.life.a380landed || 0) + 1;
     rep(state, 1);
@@ -73,7 +76,7 @@ export function onLanding(state, ac) {
     rot.status = 'landed';
     if (ac.emergency) state.life.emgLanded = (state.life.emgLanded || 0) + 1;
     rot.landT = state.time;
-    state.stats.today.pax += rot.paxIn;
+    if (!t.light) state.stats.today.pax += rot.paxIn;
   }
 }
 
@@ -81,13 +84,13 @@ export function onOffBlock(state, ac, rot) {
   const t = AC_TYPES[ac.type];
   const hours = Math.max(0, (rot.offBlock - (rot.onBlock || rot.offBlock)) / 3600 - 0.5);
   const sizeF = { S: 0.6, M: 1, L: 1.8 }[t.size];
-  earn(state, 'parking', hours * state.fees.parking * sizeF);
+  if (!rot.ga) earn(state, 'parking', hours * state.fees.parking * sizeF);
   // ATFM-Slotverspätung (Verkehrsflusssteuerung) zählt nicht als Flughafenverspätung
   const delay = (rot.offBlock - rot.std - (rot.atfm || 0)) / 60;
   rot.depDelay = Math.round(delay);
   const td = state.stats.today;
   if (delay > 15 && (!td.peakDelay || delay > td.peakDelay.min)) td.peakDelay = { cs: rot.depNo || ac.cs, min: Math.round(delay) };
-  fx(state, ac.x, ac.y, delay <= 5 ? '✓ pünktlich' : delay <= 15 ? `+${Math.round(delay)}′` : `+${Math.round(delay)}′ verspätet`, delay <= 5 ? 'good' : delay <= 15 ? 'warn' : 'bad');
+  if (!rot.ga) fx(state, ac.x, ac.y, delay <= 5 ? '✓ pünktlich' : delay <= 15 ? `+${Math.round(delay)}′` : `+${Math.round(delay)}′ verspätet`, delay <= 5 ? 'good' : delay <= 15 ? 'warn' : 'bad');
   if (delay <= 5) bump(state, 'depPunctual');
   const quick = rot.onBlock && rot.offBlock - rot.onBlock <= (t.turn + 5) * 60;
   if (quick) bump(state, 'quickTurns');
@@ -102,7 +105,7 @@ export function onOffBlock(state, ac, rot) {
   } else {
     state.stats.today.delayed++;
     state.stats.today.delayMin += delay;
-    if (attributable > 15) {
+    if (attributable > 15 && !(rot.ga && !rot.partner)) {
       spend(state, 'penalties', (attributable - 15) * COSTS.delayPerMin);
       rep(state, -0.15);
       if (c) c.sat = clamp(c.sat - 2, 0, 100);
@@ -124,10 +127,20 @@ export function onTakeoff(state, ac) {
   bump(state, 'safeStreak');
   if (!rot) return;
   scoreTakeoff(state, ac);
-  bump(state, 'pax', rot.paxOut);
+  if (!(rot.ga && t.light)) bump(state, 'pax', rot.paxOut);
   if ((rot.taxiWait || 0) < 120) bump(state, 'lowWaitDeps');
   rot.status = 'departed';
   rot.atd = state.time;
+  if (rot.ga) {
+    // Kleinflugzeug/Partner: Sprit, Vereinsheim, Provision statt Passagierentgelten
+    gaTakeoffRevenue(state, ac, rot, earnF);
+    if (!t.light) {
+      state.stats.today.pax += rot.paxOut;
+      earnF('pax', rot.paxOut * state.fees.pax * 0.5);
+    }
+    if (sum > 0) fx(state, ac.x, ac.y, `🛫 +${fmtK(sum)}`, 'cash');
+    return;
+  }
   const mult = rot.feeMult || 1;
   const u = state.upgrades;
   state.stats.today.pax += rot.paxOut;
@@ -161,7 +174,9 @@ export function penalize(state, kind, ac) {
   if (!p) return;
   const f = diff(state).penalty;
   rep(state, p.rep * f);
-  spend(state, p.cat, p.cost * f);
+  // Karriere: Bußgelder und Schäden passen zur Größe des Platzes
+  const mf = isCareer(state) ? [0.04, 0.15, 0.5, 1, 1][Math.min(4, stageOf(state))] : 1;
+  spend(state, p.cat, p.cost * f * mf);
   if (kind !== 'goaround' && !p.minor) {
     state.stats.today.incidents++;
     scoreIncident(state, ac);
@@ -184,6 +199,7 @@ export function dailyFixedCosts(state) {
     utilities: COSTS.utilitiesDaily * (u.apronLights ? 0.85 : 1) * (1 + 0.05 * u.parking) * (u.solar ? 0.4 : 1),
   };
   if (bf !== 1) for (const k of Object.keys(fc)) fc[k] *= bf;
+  if (isCareer(state)) careerFixedCosts(state, fc);
   return fc;
 }
 
@@ -204,6 +220,7 @@ function hourly(state) {
   const hh = (state.time / 3600) % 24;
   if (state.upgrades.solar && hh > 7 && hh < 19) earn(state, 'energy', (9000 / 12) * (state.weather.kind === 'clear' ? 1.3 : state.weather.kind === 'clouds' ? 0.8 : 0.45));
   if (state.upgrades.rail) earn(state, 'rail', 7000 / 24);
+  hourlyCareer(state);
   // Airline-Zufriedenheit driftet mit Gebühren/Ansehen
   const fi = feeIndex(state);
   const nightF = state.settings.curfew ? 22 : ((state.fees.night ?? 600) / 4000) * 12;
@@ -285,7 +302,7 @@ export function standBuildCost(stand) {
 // Bauaufträge: bezahlt wird bei Baubeginn, fertig erst nach der Bauzeit
 export function buildStand(state, id) {
   const st = state.stands.find((s) => s.id === id);
-  if (!st || st.built || standProject(state, id)) return false;
+  if (!st || st.built || standProject(state, id) || !standBuildable(state, st)) return false;
   const cost = standBuildCost(st);
   if (state.cash < cost) return notify(state, 'Nicht genug Geld', 'bad'), false;
   capex(state, cost, `Parkposition ${id}`);
@@ -303,7 +320,7 @@ export function upgradeStand(state, id) {
 export function buyUpgrade(state, key) {
   const u = UPGRADES[key];
   const lvl = state.upgrades[key] || 0;
-  if (!u || lvl >= u.max || projectFor(state, 'upgrade', key)) return false;
+  if (!u || lvl >= u.max || projectFor(state, 'upgrade', key) || !upgradeAllowed(state, key)) return false;
   const cost = u.cost[lvl];
   if (state.cash < cost) return notify(state, 'Nicht genug Geld', 'bad'), false;
   capex(state, cost, `${u.name} Stufe ${lvl + 1}`);
@@ -316,10 +333,11 @@ export function orderRunwayWork(state, spec) {
   const w = RWY_WORKS[key];
   if (!w || projects(state).some((p) => p.kind === 'rwy')) return false;
   if (strip === 'S' && !state.upgrades.rwy2) return false;
-  if (state.cash < w.cost) return notify(state, 'Nicht genug Geld', 'bad'), false;
-  const name = `${w.name}${state.upgrades.rwy2 ? (strip === 'S' ? ' (Südbahn)' : ' (Nordbahn)') : ''}`;
-  capex(state, w.cost, name);
-  startProject(state, 'rwy', key, { name, cost: w.cost, hours: w.hours, strip });
+  const wc = rwyWorkCost(state, w);
+  if (state.cash < wc) return notify(state, 'Nicht genug Geld', 'bad'), false;
+  const name = LY.RWY.grass ? (key === 'clean' ? 'Graspiste mähen und walzen' : 'Grasnarbe erneuern') : `${w.name}${state.upgrades.rwy2 ? (strip === 'S' ? ' (Südbahn)' : ' (Nordbahn)') : ''}`;
+  capex(state, wc, name);
+  startProject(state, 'rwy', key, { name, cost: wc, hours: w.hours, strip });
   return true;
 }
 export function buyVehicle(state, type) {
@@ -368,7 +386,7 @@ export function capacity(state) {
   const hrs = 17;
   const cap = { pax: 0, L: 0, cargo: 0 };
   for (const s of state.stands) {
-    if (!s.built) continue;
+    if (!s.built || s.ga || s.closed) continue; // Wiesenplätze nur für Kleinflugzeuge
     if (s.kind === 'cargo') {
       cap.cargo += hrs;
       cap.pax += hrs * 0.3;
@@ -387,6 +405,8 @@ export function plannedMovements(state) {
   return state.contracts.reduce((t, c) => t + c.perDay * 2, 0);
 }
 export function offerFits(state, o) {
+  if (o.partner) return true; // Partner stehen auf eigenen Wiesenplätzen
+  if (isCareer(state) && airlineRotations(state) + o.perDay > rotCap(state)) return false;
   const t = AC_TYPES[o.type];
   const cap = capacity(state);
   const need = standDemand(state);
@@ -396,13 +416,16 @@ export function offerFits(state, o) {
   if (t.cargo) return need.cargo + add <= cap.cargo * 0.85;
   const paxNeed = need.S + need.M + need.L + add;
   if (t.size === 'L' && need.L + add > cap.L * 0.85) return false;
-  return paxNeed <= cap.pax * 0.8;
+  // wenige Positionen: Verkehrsspitzen füllen das Vorfeld schneller (Karriere bis Regionalflughafen)
+  const f = isCareer(state) && stageOf(state) <= 2 ? [0, 0.5, 0.6][stageOf(state)] : 0.8;
+  return paxNeed <= cap.pax * f;
 }
 
 // ---------- Management-KI ----------
 const AUTO_UPGRADES = ['security', 'retail', 'apronLights', 'parking', 'rapidExit', 'solar', 'retail', 'ils3', 'security', 'lounge', 'parking', 'retail', 'hotel', 'rwy2', 'rail', 'security'];
 export function autoManager(state) {
-  const reserve = 1500000;
+  if (isCareer(state)) autoCareer(state);
+  const reserve = isCareer(state) ? [5000, 40000, 500000, 1200000, 1500000][Math.min(4, stageOf(state))] + careerReserve(state) : 1500000;
   // Angebote
   for (const o of [...state.offers]) {
     if (offerFits(state, o)) acceptOffer(state, o.id);
@@ -434,7 +457,7 @@ export function autoManager(state) {
     state.stats.vehWait = {};
   }
   // Personal
-  if (efficiency(state) < 0.95 && state.cash > reserve * 0.5 && state.hourTick % 3 === 0) hire(state, 3);
+  if (efficiency(state) < 0.95 && !(state.strikeUntil > state.time) && state.cash > reserve * 0.5 && state.hourTick % 3 === 0) hire(state, 3);
   const cargoWaiting = state.acs.some((a) => (a.phase === PH.VACATED || a.phase === PH.TAXI_WAIT || a.phase === PH.HOLD) && !a.stand && AC_TYPES[a.type].cargo);
   if (cargoWaiting) state.cargoShortage = (state.cargoShortage || 0) + 1;
   const cargoSite = state.stands.some((s) => !s.built && s.kind === 'cargo' && standProject(state, s.id));
@@ -452,12 +475,13 @@ export function autoManager(state) {
     const condS = state.upgrades.rwy2 ? rwyCond(state, 'S') : 100;
     const strip = condS < cond ? 'S' : 'N';
     const c = Math.min(cond, condS);
-    if (c < 32 && state.cash > RWY_WORKS.resurface.cost + reserve) orderRunwayWork(state, `resurface:${strip}`);
-    else if (c < 58 && state.cash > RWY_WORKS.clean.cost + reserve * 0.3) orderRunwayWork(state, `clean:${strip}`);
+    if (c < 32 && state.cash > rwyWorkCost(state, RWY_WORKS.resurface) + reserve) orderRunwayWork(state, `resurface:${strip}`);
+    else if (c < 58 && state.cash > rwyWorkCost(state, RWY_WORKS.clean) + reserve * 0.3) orderRunwayWork(state, `clean:${strip}`);
   }
   // Liquidität: im Notfall Kredit, bei voller Kasse tilgen
-  if (state.cash < 250000 && loanLimit(state) >= 2000000 && state.hourTick % 6 === 0) takeLoan(state, 2000000);
-  if (state.cash > 12000000) for (const l of [...loans(state)]) if (state.cash - l.rest > 9000000) repayLoan(state, l.id);
+  if (!isCareer(state) && state.cash < 250000 && loanLimit(state) >= 2000000 && state.hourTick % 6 === 0) takeLoan(state, 2000000);
+  const rp = isCareer(state) ? [60000, 400000, 3000000, 9000000, 12000000][Math.min(4, stageOf(state))] : 12000000;
+  if (state.cash > rp) for (const l of [...loans(state)]) if (state.cash - l.rest > rp * 0.75) repayLoan(state, l.id);
   // Schlangen an der Sicherheitskontrolle: Spuren ausbauen, sobald das Geld reicht
   const sec = state.sec;
   if (sec && (sec.peak || 0) > 15 && (state.upgrades.security || 0) < UPGRADES.security.max && !projectFor(state, 'upgrade', 'security')) {

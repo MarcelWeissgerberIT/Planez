@@ -11,8 +11,10 @@ import { PH } from '../sim/aircraft.js';
 import { RouteMap } from './routeMap.js';
 import { rivalState } from '../sim/rival.js';
 import { boardBadge } from './board.js';
+import { isCareer, stageOf, STAGES, stageUpStatus } from '../sim/career.js';
 
 export const CATS = [
+  ['career', 'Aufbau', 'Ausbaustufen, Partner und Marketing – vom Grasplatz zum Drehkreuz'],
   ['over', 'Übersicht', 'Kennzahlen, Auslastung und Airline-Zufriedenheit'],
   ['contracts', 'Airlines & Verträge', 'Angebote prüfen, laufende Verbindungen verwalten'],
   ['rival', 'Wettbewerb', 'Marktanteil gegen Nordhafen, Züge der Konkurrenz'],
@@ -27,6 +29,9 @@ export const CATS = [
   ['fin', 'Finanzen & Kredite', 'Umsatz, Kosten, Kontostand, Kredite'],
   ['goals', 'Ziele & Rang', 'Aufgaben, Prämien, Flughafen-Rang'],
 ];
+
+// Bereiche, die es am Grasplatz/Verkehrslandeplatz noch nicht gibt (Aufbau-Modus)
+const SMALL_HIDE = new Set(['rival', 'board', 'terminal', 'fuel']);
 
 export class ManagementPage {
   constructor(game) {
@@ -80,9 +85,11 @@ export class ManagementPage {
         } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault();
           e.stopImmediatePropagation();
-          const i = CATS.findIndex(([k]) => k === this.cat);
-          const n = (i + (e.key === 'ArrowDown' ? 1 : -1) + CATS.length) % CATS.length;
-          this.open(CATS[n][0]);
+          const gs = this.game.state;
+          const list = CATS.filter(([k]) => (k !== 'career' || isCareer(gs)) && !(isCareer(gs) && stageOf(gs) < 2 && SMALL_HIDE.has(k)));
+          const i = list.findIndex(([k]) => k === this.cat);
+          const n = (i + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length;
+          this.open(list[n][0]);
         } else e.stopImmediatePropagation();
       },
       true
@@ -102,6 +109,9 @@ export class ManagementPage {
       this.el.classList.remove('hidden');
     }
     if (cat) this.cat = cat;
+    if (this.cat === 'career' && !isCareer(s)) this.cat = 'over';
+    if (isCareer(s) && stageOf(s) < 2 && SMALL_HIDE.has(this.cat)) this.cat = 'career';
+    if (!cat && isCareer(s) && !this.seenCareer) (this.cat = 'career'), (this.seenCareer = true);
     this.body._html = null;
     this.body.scrollTop = 0;
     this.update(s, true);
@@ -122,7 +132,7 @@ export class ManagementPage {
   renderNav(s) {
     const G = goalsState(s);
     setHTML(this.el.querySelector('#mg-name'), esc(s.name));
-    setHTML(this.el.querySelector('#mg-time'), `Tag ${dayOf(s.time)} · ${fmtClock(s.time)} · ${fmtMoney(s.cash)} · ${RANKS[G.rank].name}`);
+    setHTML(this.el.querySelector('#mg-time'), `Tag ${dayOf(s.time)} · ${fmtClock(s.time)} · ${fmtMoney(s.cash)} · ${isCareer(s) ? STAGES[stageOf(s)].name : RANKS[G.rank].name}`);
     const fu = fuelState(s);
     const waiting = s.acs.filter((a) => (a.phase === PH.VACATED || a.phase === PH.TAXI_WAIT) && !a.stand).length;
     const ps = projects(s);
@@ -140,11 +150,19 @@ export class ManagementPage {
       fees: s.settings.curfew ? '🌙 Nachtflugverbot aktiv' : `Nachtentgelt ${Math.round(s.fees.night ?? 600)} €`,
       fin: `${s.cash < 0 ? '⚠ ' : ''}Kasse ${fmtMoney(s.cash)}${loans(s).length ? ` · ${loans(s).length} Kredit${loans(s).length > 1 ? 'e' : ''}` : ''}`,
       goals: `${G.xp} XP · ${G.done} erreicht`,
+      career: (() => {
+        if (!isCareer(s)) return '';
+        const S = stageUpStatus(s);
+        return `${STAGES[stageOf(s)].icon} ${STAGES[stageOf(s)].name}${S ? (S.building ? ` · 🏗️ ${Math.floor(S.building.prog * 100)} %` : ` · ${S.reqs.filter((r) => r.ok).length}/${S.reqs.length} Bedingungen`) : ''}`;
+      })(),
     };
     const warn = { contracts: s.offers.length > 0, stands: waiting > 0, fuel: fu.stock < FUEL.cap * 0.15, fin: s.cash < 0, sites: ps.length > 0 };
     let n = 0;
     for (const b of this.el.querySelectorAll('#mg-list .mm-item')) {
       const k = b.dataset.cat;
+      const hide = (k === 'career' && !isCareer(s)) || (isCareer(s) && stageOf(s) < 2 && SMALL_HIDE.has(k));
+      b.classList.toggle('hidden', hide);
+      if (hide) continue;
       n++;
       b.querySelector('.n').textContent = String(n).padStart(2, '0');
       b.classList.toggle('on', k === this.cat);

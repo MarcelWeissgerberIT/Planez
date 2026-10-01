@@ -28,6 +28,13 @@ export const AC_TYPES = {
   DH8D: { id: 'DH8D', name: 'Dash 8-400', sprite: 'plane_prop', size: 'S', wake: 'M', len: 1.98, mtow: 30, pax: 78, vapp: 130, turn: 28, fuel: 3000, scale: 0.6, finH: 0.34 },
   A333: { id: 'A333', name: 'Airbus A330-300', sprite: 'plane_wide', size: 'L', wake: 'H', len: 3.9, mtow: 242, pax: 300, vapp: 140, turn: 70, fuel: 55000, scale: 1.75, finH: 0.7 },
   C68A: { id: 'C68A', name: 'Citation Latitude', sprite: 'plane_bizjet', size: 'S', wake: 'L', len: 1.3, mtow: 14, pax: 8, vapp: 120, turn: 30, fuel: 3000, scale: 0.4, finH: 0.25 },
+  // Karriere (Grasplatz/Verkehrslandeplatz): Sportflugzeuge und Lufttaxis. light = rollt selbst, tankt an der
+  // Zapfsäule, Gäste gehen zu Fuß; selfTaxi = kein Pushback (rollt aus eigener Kraft vom Abstellplatz)
+  C172: { id: 'C172', name: 'Cessna 172 Skyhawk', sprite: 'plane_ga', size: 'S', wake: 'L', len: 0.42, mtow: 1.1, pax: 3, vapp: 65, turn: 25, fuel: 120, scale: 0.2, finH: 0.12, light: true, selfTaxi: true, vmax: 115, cruise: 3500 },
+  PA28: { id: 'PA28', name: 'Piper PA-28 Archer', sprite: 'plane_ga2', size: 'S', wake: 'L', len: 0.37, mtow: 1.2, pax: 3, vapp: 66, turn: 25, fuel: 130, scale: 0.19, finH: 0.11, light: true, selfTaxi: true, vmax: 120, cruise: 4500 },
+  DR40: { id: 'DR40', name: 'Robin DR400', sprite: 'plane_ga2', size: 'S', wake: 'L', len: 0.35, mtow: 1.0, pax: 3, vapp: 62, turn: 25, fuel: 110, scale: 0.18, finH: 0.1, light: true, selfTaxi: true, vmax: 115, cruise: 3500 },
+  PC12: { id: 'PC12', name: 'Pilatus PC-12', sprite: 'plane_tp', size: 'S', wake: 'L', len: 0.72, mtow: 4.7, pax: 8, vapp: 85, turn: 25, fuel: 900, scale: 0.32, finH: 0.2, selfTaxi: true, walk: true, vmax: 210, cruise: 9000 },
+  BE20: { id: 'BE20', name: 'King Air 260', sprite: 'plane_prop', size: 'S', wake: 'L', len: 0.67, mtow: 5.7, pax: 9, vapp: 100, turn: 25, fuel: 1000, scale: 0.3, finH: 0.2, selfTaxi: true, walk: true, vmax: 240, cruise: 11000 },
 };
 export const SIZE_RANK = { S: 0, M: 1, L: 2 };
 
@@ -45,6 +52,12 @@ export const AIRLINES = {
   FJW: { code: 'FJW', name: 'Fjordwing', tel: 'Fjordwing', color: '#0f766e', color2: '#f8fafc', types: ['DH8D', 'CRJ9', 'E190'] },
   VIP: { code: 'VIP', name: 'Executive Charter', tel: 'Exec', color: '#111827', color2: '#d4af37', types: ['C68A'], special: true },
   GOV: { code: 'GOV', name: 'Regierungsstaffel', tel: 'State', color: '#f8fafc', color2: '#1e3a8a', types: ['A333'], special: true },
+  // Karriere: Privatflieger und Partner am kleinen Platz (Rufzeichen = Kennzeichen, z. B. D-EKLM)
+  GAV: { code: 'GAV', name: 'Privatflieger', tel: 'Private', color: '#1d4ed8', color2: '#ffffff', types: ['C172', 'PA28', 'DR40'], special: true, ga: true },
+  FSH: { code: 'FSH', name: 'Flugschule Himmelblau', tel: 'Himmelblau', color: '#0ea5e9', color2: '#ffffff', types: ['C172', 'C172', 'DR40'], special: true, ga: true, partner: 'school' },
+  SKD: { code: 'SKD', name: 'Fallschirmclub Freifall', tel: 'Freifall', color: '#f97316', color2: '#111827', types: ['PC12'], special: true, ga: true, partner: 'skydive' },
+  RFS: { code: 'RFS', name: 'Rundflug-Service Panorama', tel: 'Panorama', color: '#dc2626', color2: '#ffffff', types: ['C172', 'PA28'], special: true, ga: true, partner: 'scenic' },
+  ATX: { code: 'ATX', name: 'Alpenblick Lufttaxi', tel: 'Alpenblick', color: '#334155', color2: '#e2e8f0', types: ['PC12', 'BE20'], special: true, partner: 'taxi' },
 };
 
 // Ziele: brg = Peilung vom Flughafen, cat = Distanzklasse
@@ -62,6 +75,10 @@ export const CITIES = {
   DUB: { name: 'Dublin', brg: 285, cat: 'short' }, NCE: { name: 'Nizza', brg: 200, cat: 'short' }, OLB: { name: 'Olbia', brg: 190, cat: 'mid' },
   LEJ: { name: 'Leipzig', brg: 85, cat: 'short' }, HKG: { name: 'Hongkong', brg: 70, cat: 'long' }, PVG: { name: 'Shanghai', brg: 60, cat: 'long' },
   YYZ: { name: 'Toronto', brg: 300, cat: 'long' }, GVA: { name: 'Genf', brg: 205, cat: 'short' },
+  // kleine Plätze in der Umgebung (Karriere: Privatflieger, Rundflüge)
+  LND: { name: 'Lindenau', brg: 40, cat: 'ga' }, SEF: { name: 'Seefeld', brg: 160, cat: 'ga' }, BRH: { name: 'Bergheim', brg: 215, cat: 'ga' },
+  KRD: { name: 'Kirchdorf', brg: 300, cat: 'ga' }, WBR: { name: 'Waldbrunn', brg: 95, cat: 'ga' }, HSL: { name: 'Hasselfeld', brg: 340, cat: 'ga' },
+  RND: { name: 'Rundflug', brg: 250, cat: 'local' }, JMP: { name: 'Absetzflug', brg: 180, cat: 'local' }, PLR: { name: 'Platzrunde', brg: 0, cat: 'local' },
 };
 
 // Bodenfahrzeuge

@@ -51,7 +51,7 @@ export class StandCrew {
       }
       if (ac.stand == null) continue;
       const st = state.stands.find((s) => s.id === ac.stand);
-      if (!st) continue;
+      if (!st || st.ga) continue; // Wiesenplatz: kein Einwinker, kein Andockleitsystem
       const mx = st.x, my = LY.STAND_NOSE - 0.55;
       const vdgs = st.kind === 'contact';
       const T = LY.TERMINAL;

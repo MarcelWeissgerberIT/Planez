@@ -299,9 +299,14 @@ export class Ride {
   }
 
   resetTower() {
-    this.yaw = 146; // Blick vom Tower (Nordosten) auf die Bahnmitte
-    this.pitch = 8;
-    this.fov = 50;
+    // Blick vom Turm auf die Bahnmitte (großer Tower im Nordosten; im Aufbau-Modus Vereinsheim bzw. Flugleitung)
+    const id = LY.GEO.stage === 0 ? 'club' : LY.GEO.stage === 1 ? 'stower' : 'tower';
+    const b = LY.BUILDINGS.find((q) => q.id === id) || LY.BUILDINGS.find((q) => q.id === 'tower');
+    const ex = b.fx - b.w / 2, ez = b.fy - b.d / 2, eh = id === 'club' ? 0.56 : id === 'stower' ? 1.6 : 6.1;
+    const tx = (LY.RWY.x0 + LY.RWY.x1) / 2, tz = LY.RWY.y;
+    this.yaw = (Math.atan2(tz - ez, tx - ex) * 180) / Math.PI;
+    this.pitch = Math.max(2, (Math.atan2(eh, Math.hypot(tx - ex, tz - ez)) * 180) / Math.PI);
+    this.fov = id === 'tower' ? 50 : 62;
     this.autoZoom = true;
   }
 

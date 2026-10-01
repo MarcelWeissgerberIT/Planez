@@ -291,7 +291,8 @@ const TEMPL = new Map();
 
 export function buildAircraft(ac) {
   const key = `${ac.type}|${ac.airline}`;
-  if (!TEMPL.has(key)) TEMPL.set(key, template(ac.type, ac.airline));
+  const tt = AC_TYPES[ac.type];
+  if (!TEMPL.has(key)) TEMPL.set(key, tt && (tt.light || ac.type === 'PC12') ? lightTemplate(ac.type, ac.airline) : template(ac.type, ac.airline));
   const g = TEMPL.get(key).clone();
   return g;
 }
@@ -805,5 +806,126 @@ export function buildHeli() {
   bc.scale.setScalar(0.18);
   g.add(bc);
   g.userData = { H: R * 1.3 + 0.006, L, R, ry: R, eye: { cockpitX: L * 0.22, cockpitY: R * 0.45, winX: L * 0.12, winY: R * 0.4, winZ: R * 0.85 } };
+  return g;
+}
+
+
+// ---------- Sportflugzeuge und Lufttaxi (Aufbau-Modus) ----------
+// Hochdecker (Cessna 172) bzw. Tiefdecker (PA-28, DR400, PC-12) mit festem Fahrwerk, Propeller an der Nase und
+// Zierstreifen in der Farbe des Betreibers; benannte Teile wie bei den großen Flugzeugen (Lichter, Fahrwerk, GSE).
+const GA_TRIM = { C172: 0x1d4ed8, PA28: 0xb91c1c, DR40: 0x7f1d1d, PC12: 0x334155 };
+function lightTemplate(type, airline) {
+  const t = AC_TYPES[type];
+  const al = AIRLINES[airline] || {};
+  const L = t.len;
+  const high = type === 'C172';
+  const turbo = type === 'PC12';
+  const R = L * (turbo ? 0.06 : 0.067);
+  const span = L * (type === 'C172' ? 1.32 : type === 'PC12' ? 1.13 : 1.42);
+  const b = span / 2;
+  const g = new THREE.Group();
+  const white = [], trim = [], dark = [], glass = [];
+  const trimCol = airline === 'GAV' || !al.color ? GA_TRIM[type] || 0x1d4ed8 : new THREE.Color(al.color).getHex();
+  // Rumpf: spitz zulaufendes Heck, runde Motorhaube
+  white.push([tube([[-L / 2, R * 0.75, R * 0.14, R * 0.14], [-L * 0.32, R * 0.5, R * 0.42, R * 0.38], [-L * 0.06, R * 0.15, R * 0.95, R * 0.82], [L * 0.2, 0, R, R * 0.86], [L * 0.38, -R * 0.08, R * 0.82, R * 0.72], [L * 0.47, -R * 0.12, R * 0.42, R * 0.42], [L * 0.5, -R * 0.12, 0.001, 0.001]], 16), M4()]);
+  // Kabinenfenster bzw. Kanzel
+  if (high) glass.push([tube([[-L * 0.04, R * 0.5, R * 0.52, R * 0.9], [L * 0.18, R * 0.45, R * 0.56, R * 0.9]], 14), M4()]);
+  else glass.push([tube([[-L * 0.08, R * 0.6, R * 0.25, R * 0.55], [L * 0.04, R * 0.85, R * 0.5, R * 0.75], [L * 0.17, R * 0.7, R * 0.45, R * 0.72], [L * 0.24, R * 0.4, R * 0.2, R * 0.5]], 14), M4()]);
+  // Tragfläche
+  const wy = high ? R * 1.05 : -R * 0.55;
+  const cr = L * (turbo ? 0.2 : 0.17), ct = cr * (high ? 1 : 0.75);
+  const wx = L * (high ? 0.16 : 0.12);
+  for (const sd of [-1, 1]) white.push([slab([[wx, wy, 0], [wx, wy, sd * b], [wx - ct, wy, sd * b], [wx - cr, wy, 0]], 0.012, 0.01), M4()]);
+  if (high) for (const sd of [-1, 1]) dark.push([new THREE.CylinderGeometry(0.003, 0.003, b * 0.62, 4), M4(wx - cr * 0.4, wy * 0.1, sd * b * 0.3, sd * 1.2, 0, 0)]);
+  for (const sd of [-1, 1]) trim.push([slab([[wx, wy + 0.001, sd * b * 0.86], [wx, wy + 0.001, sd * b], [wx - ct, wy + 0.001, sd * b], [wx - ct, wy + 0.001, sd * b * 0.86]], 0.013, 0.011), M4()]);
+  if (turbo) for (const sd of [-1, 1]) white.push([slab([[wx - ct * 0.2, wy, sd * b], [wx - ct * 0.6, wy + 0.04, sd * (b + 0.01)], [wx - ct, wy + 0.04, sd * (b + 0.01)], [wx - ct, wy, sd * b]], 0.004, 0.003, 'z'), M4()]);
+  // Leitwerk (PC-12 mit T-Leitwerk)
+  const fin = turbo ? 0.11 : 0.075;
+  trim.push([slab([[-L * 0.3, R * 0.55, 0], [-L * 0.45, R * 0.55 + fin, 0], [-L * 0.53, R * 0.55 + fin, 0], [-L * 0.5, R * 0.55, 0]], 0.006, 0.004, 'z'), M4()]);
+  const sy = turbo ? R * 0.55 + fin : R * 0.6;
+  for (const sd of [-1, 1]) white.push([slab([[-L * 0.4, sy, 0], [-L * 0.42, sy, sd * L * 0.2], [-L * 0.5, sy, sd * L * 0.2], [-L * 0.5, sy, 0]], 0.006, 0.004), M4()]);
+  // Zierstreifen am Rumpf
+  trim.push([tube([[-L * 0.34, R * 0.32, R * 0.6, R * 0.55], [L * 0.32, -R * 0.02, R * 1.0, R * 0.88]], 14).scale(1, 0.2, 1).translate(0, -R * 0.12, 0), M4()]);
+  // festes Fahrwerk mit Radverkleidungen
+  const gear = new THREE.Group();
+  gear.name = 'gear';
+  const gy = -R * 1.55;
+  for (const [x, z, k] of [[L * 0.36, 0, 0.85], [-L * 0.02, R * 1.7, 1], [-L * 0.02, -R * 1.7, 1]]) {
+    const w = new THREE.Mesh(new THREE.SphereGeometry(0.014 * k, 10, 6), lamb(trimCol));
+    w.scale.set(1.6, 1, 0.7);
+    w.position.set(x, gy, z);
+    gear.add(w);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, Math.abs(gy) * 0.8, 4), lamb(0x374151));
+    leg.position.set(x, gy * 0.55, z * 0.8);
+    leg.rotation.x = z ? Math.sign(z) * 0.5 : 0;
+    gear.add(leg);
+  }
+  g.add(gear);
+  const add = (arr, m) => {
+    if (!arr.length) return;
+    const mesh = new THREE.Mesh(merge(arr), m);
+    mesh.castShadow = true;
+    g.add(mesh);
+  };
+  add(white, phong(0xf8fafc, 60));
+  add(trim, phong(trimCol, 40));
+  add(dark, lamb(0x1f2937));
+  add(glass, phong(0x1e293b, 95));
+  // Propeller (dreht sich bei laufendem Motor)
+  const pg = new THREE.Group();
+  pg.name = 'prop';
+  pg.position.set(L * 0.5, -R * 0.12, 0);
+  const nb = turbo ? 4 : 2;
+  for (let i = 0; i < nb; i++) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.002, turbo ? 0.1 : 0.085, 0.008), phong(0x111827, 10));
+    m.rotation.x = (i / nb) * Math.PI;
+    pg.add(m);
+  }
+  const spin = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.025, 10), phong(trimCol, 50));
+  spin.rotation.z = -Math.PI / 2;
+  spin.position.x = 0.008;
+  pg.add(spin);
+  g.add(pg);
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(turbo ? 0.05 : 0.043, 20), new THREE.MeshBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide }));
+  disc.name = 'disc';
+  disc.rotation.y = Math.PI / 2;
+  disc.position.set(L * 0.505, -R * 0.12, 0);
+  g.add(disc);
+  // Lichter
+  const light = (name, c, x, y, z, sc = 0.08) => {
+    const sp = new THREE.Sprite(spriteMat(c));
+    sp.name = name;
+    sp.position.set(x, y, z);
+    sp.scale.setScalar(sc);
+    g.add(sp);
+    return sp;
+  };
+  light('navL', 0xff2a2a, wx - ct * 0.5, wy, -b - 0.004);
+  light('navR', 0x2aff6a, wx - ct * 0.5, wy, b + 0.004);
+  light('navT', 0xffffff, -L * 0.53, R * 0.55 + fin * 0.5, 0);
+  light('bcnT', 0xff3020, -L * 0.48, R * 0.55 + fin, 0);
+  light('strL', 0xffffff, wx - ct * 0.5, wy, -b - 0.006, 0.12);
+  light('strR', 0xffffff, wx - ct * 0.5, wy, b + 0.006, 0.12);
+  const landing = new THREE.Group();
+  landing.name = 'landing';
+  landing.add(light('landingSp', 0xfff7d6, L * 0.5, -R * 0.4, 0, 0.12));
+  g.add(landing);
+  const taxi = new THREE.Group();
+  taxi.name = 'taxi';
+  g.add(taxi);
+  const gse = new THREE.Group();
+  gse.name = 'gse';
+  const stairs = new THREE.Group();
+  stairs.name = 'stairs';
+  gse.add(stairs);
+  // Unterlegkeile vor den Rädern, wenn das Flugzeug steht
+  for (const z of [R * 1.7, -R * 1.7]) {
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.008, 0.01), lamb(0xfacc15));
+    c.position.set(-L * 0.02 + 0.03, gy - 0.006, z);
+    gse.add(c);
+  }
+  g.add(gse);
+  const H = R * 1.55 + 0.014;
+  g.userData = { L, R, ry: R, H, span, gearX: -L * 0.02, gearZ: R * 1.7, noseX: L * 0.36, wy, eye: { cockpitX: L * 0.12, cockpitY: R * 0.75, winX: L * 0.06, winY: R * 0.6, winZ: R * 1.05 } };
   return g;
 }

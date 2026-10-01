@@ -2,6 +2,7 @@
 import { AC_TYPES, AIRLINES, CITIES } from '../config.js';
 import { rand, randRange, randInt, pick, pickWeighted, clamp } from '../util.js';
 import { log, notify } from './messages.js';
+import { isCareer, stageOf, typeAllowed, careerOffer, partnerOf, generateCareerDay, generatePartnerDay, PARTNERS, makeReg } from './career.js';
 
 export function nextId(state, prefix = '') {
   state.nextId = (state.nextId || 1) + 1;
@@ -65,9 +66,12 @@ export function uniqueFn(state, airline, fn, day) {
 export function generateDay(state, day, onlyContract = null) {
   const dayStart = (day - 1) * 86400;
   const rots = [];
+  if (!onlyContract) generateCareerDay(state, day);
+  else if (partnerOf(onlyContract)) return generatePartnerDay(state, onlyContract, day);
   for (const c of state.contracts) {
     if (onlyContract && c.id !== onlyContract.id) continue;
     if (c.days <= 0) continue;
+    if (partnerOf(c)) continue; // Partner am kleinen Platz: eigener Tagesplan (career.js)
     const t = AC_TYPES[c.type];
     const n = c.perDay;
     for (let k = 0; k < n; k++) {
@@ -189,12 +193,25 @@ export function maybeOffer(state, dt) {
   const rankF = (1 - 0.08 * ((state.goals && state.goals.rank) || 0)) * (state.upgrades.rwy2 ? 0.8 : 1); // höherer Rang / zweite Bahn: mehr Interesse
   state.offerTimer = randRange(state, 3, 7) * 3600 * clamp(feeIdx, 0.6, 2) * mkt * (1.4 - state.reputation / 200) * rankF * (state.upgrades.rail ? 0.8 : 1) * ((state.rival && state.rival.offerF) || 1) * ((state.board && state.board.offerF) || 1);
   if (state.offers.length >= 4) return;
-  const pool = Object.values(AIRLINES).filter((a) => !a.special);
+  // Karriere: am kleinen Platz melden sich Partner, Airlines erst mit passender Piste
+  if (isCareer(state)) {
+    const co = careerOffer(state);
+    if (co && co !== 'airline') {
+      const P = PARTNERS[co.partner];
+      state.offers.push({ id: nextId(state, 'o'), airline: co.airline, type: co.type, city: co.city, perDay: co.perDay, days: co.days, partner: co.partner, rent: co.rent, estRev: (P.rent + P.perFlight * co.perDay) * 1, interest: randRange(state, 0.4, 0.9), expires: state.time + randRange(state, 14, 30) * 3600 });
+      notify(state, `📨 Anfrage: ${AIRLINES[co.airline].name} möchte sich bei euch ansiedeln`, 'info');
+      log(state, 'mgr', `Anfrage: ${AIRLINES[co.airline].name} (${P.name}) – ${co.perDay} Flüge täglich, Pacht ${P.rent} €/Tag plus ${P.perFlight} € je Flug.`);
+      return;
+    }
+    if (!co) return;
+  }
+  const pool = Object.values(AIRLINES).filter((a) => !a.special && a.types.some((t) => typeAllowed(state, t)));
+  if (!pool.length) return;
   let al = pickWeighted(state, pool, (a) => (a.types.some((t) => AC_TYPES[t].size === 'L') ? (state.upgrades.lounge ? 1.6 : 0.8) : 1));
-  let type = pick(state, al.types);
+  let type = pick(state, al.types.filter((t) => typeAllowed(state, t)));
   // ab „Internationaler Flughafen“: Orient Pearl bietet manchmal eine feste A380-Verbindung an
   const rank = (state.goals && state.goals.rank) || 0;
-  if (rank >= 2 && rand(state) < 0.12 && !state.contracts.some((c) => c.type === 'A388')) {
+  if ((isCareer(state) ? stageOf(state) >= 4 : rank >= 2) && rand(state) < 0.12 && !state.contracts.some((c) => c.type === 'A388')) {
     al = AIRLINES.OPL;
     type = 'A388';
   }
@@ -223,6 +240,12 @@ export function acceptOffer(state, offerId, feeMult = 1) {
   const o = state.offers.find((x) => x.id === offerId);
   if (!o) return false;
   const c = makeContract(state, o.airline, o.type, o.city, o.perDay, o.days);
+  if (o.partner) {
+    c.partner = o.partner;
+    c.rent = o.rent;
+    // feste Kennzeichen der Partnerflotte
+    c.regs = Array.from({ length: Math.min(3, o.perDay) }, () => makeReg(state, AC_TYPES[o.type].light ? 'E' : 'F'));
+  }
   c.sat = feeMult > 1 ? 70 : 78;
   if (feeMult !== 1) c.feeMult = feeMult;
   c.firstFlight = true; // Erstflug bekommt eine Wassertaufe
@@ -235,6 +258,13 @@ export function acceptOffer(state, offerId, feeMult = 1) {
   // ab morgen im Flugplan
   const tomorrow = Math.floor(state.time / 86400) + 2;
   generateDay(state, tomorrow, c);
+  if (o.partner) {
+    // Partner fangen noch heute an, wenn es früh genug ist
+    if (((state.time / 3600) % 24) < 12) generateDay(state, Math.floor(state.time / 86400) + 1, c);
+    log(state, 'mgr', `Vertrag unterzeichnet: ${AIRLINES[o.airline].name} siedelt sich an (${PARTNERS[o.partner].name}).`);
+    notify(state, `✅ ${AIRLINES[o.airline].name} ist jetzt Partner`, 'good');
+    return true;
+  }
   log(state, 'mgr', `Vertrag unterzeichnet: ${AIRLINES[o.airline].name} → ${CITIES[o.city].name}. Erste Flüge ab morgen.`);
   notify(state, `✅ Vertrag mit ${AIRLINES[o.airline].name} unterzeichnet`, 'good');
   return true;
@@ -302,6 +332,7 @@ export function estimateRotationRevenue(state, type) {
 export function standDemand(state) {
   let need = { S: 0, M: 0, L: 0, cargo: 0 };
   for (const c of state.contracts) {
+    if (partnerOf(c)) continue; // Partner stehen auf der Wiese
     const t = AC_TYPES[c.type];
     const h = c.perDay * (t.turn + 35) / 60;
     if (t.cargo) need.cargo += h;

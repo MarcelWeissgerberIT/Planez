@@ -16,6 +16,7 @@ import { FUEL, fuelState, upliftFor, sellFuel, truckTakeFuel } from './fuel.js';
 import { earn } from './economy.js';
 import { needsDeice } from './winter.js';
 import { hardLandingCheck } from './touchdown.js';
+import { staffBase } from './career.js';
 
 export const BRIDGE_SPEED = 1 / 40; // pro Spielsekunde
 
@@ -25,6 +26,8 @@ export function standFits(stand, ac) {
   const t = AC_TYPES[ac.type];
   if (SIZE_RANK[stand.size] < SIZE_RANK[t.size]) return false;
   if (t.cargo && stand.kind !== 'cargo') return false;
+  // Wiesenplätze (Karriere) nur für Kleinflugzeuge und Lufttaxis
+  if (stand.ga && t.len > 1.35) return false;
   return true;
 }
 export const standFree = (s) => !s.occ && !s.resv;
@@ -34,6 +37,8 @@ export function standScore(stand, ac) {
   let sc = 0;
   if (t.cargo) sc += stand.kind === 'cargo' ? 0 : 100;
   else sc += stand.kind === 'contact' ? 0 : stand.kind === 'remote' ? 20 : 40;
+  // Sportflieger auf die Wiese, Vorfeld für die Größeren freihalten
+  if (t.light || t.walk) sc += stand.ga ? -30 : 15;
   sc += (SIZE_RANK[stand.size] - SIZE_RANK[t.size]) * 8; // große Positionen für große Flugzeuge freihalten
   return sc;
 }
@@ -68,6 +73,23 @@ function makeTasks(state, ac, stand) {
   const contact = stand.kind === 'contact';
   const tasks = {};
   const mk = (k, dur, need, after = []) => (tasks[k] = { k, st: 'wait', dur: dur * 60, prog: 0, need, after, veh: null });
+  if (t.light || t.walk) {
+    // Kleinflugzeug/Lufttaxi: Gäste gehen zu Fuß, Pilot tankt selbst (Sportflieger) bzw. Tankwagen (Turboprop)
+    const paxN = Math.max(1, rot ? Math.max(rot.paxIn, rot.paxOut) : 2);
+    const has = (type) => state.vehicles.some((v) => v.type === type);
+    mk('deboard', 1.5 + paxN * 0.4, null);
+    if (!t.light && has('fuel')) {
+      if (has('baggage')) mk('unload', 3, 'baggage');
+      mk('fuel', TASKS.fuel.base * 0.5, 'fuel');
+      tasks.fuel.uplift = upliftFor(state, ac);
+      tasks.fuel.delivered = 0;
+      mk('board', 3 + paxN * 0.5, null, ['deboard', 'fuel']);
+      if (has('baggage')) mk('load', 3, 'baggage', ['unload']);
+    } else mk('board', (t.light ? 2 : 4) + paxN * 0.5, null, ['deboard']); // Sportflieger tanken selbst an der Zapfsäule
+    if (needsDeice(state) && !t.light && has('deice')) mk('deice', TASKS.deice.base * 0.5, 'deice', Object.keys(tasks));
+    mk('push', 0, null, Object.keys(tasks));
+    return tasks;
+  }
   if (!t.cargo) {
     const busF = contact ? 1 : 1.35;
     mk('deboard', TASKS.deboard.base * paxF * busF, contact ? null : 'bus');
@@ -82,7 +104,7 @@ function makeTasks(state, ac, stand) {
   tasks.fuel.delivered = 0;
   mk('load', TASKS.load.base * (t.cargo ? Math.max(1, (rot?.cargoOut || t.cargo) / 55) : sizeF), 'baggage', ['unload']);
   // Enteisung als letzte Arbeit vor dem Pushback (Winter)
-  if (needsDeice(state)) mk('deice', TASKS.deice.base * Math.max(0.6, sizeF), 'deice', Object.keys(tasks));
+  if (needsDeice(state) && state.vehicles.some((v) => v.type === 'deice')) mk('deice', TASKS.deice.base * Math.max(0.6, sizeF), 'deice', Object.keys(tasks));
   mk('push', 0, 'tug', Object.keys(tasks));
   return tasks;
 }
@@ -147,7 +169,7 @@ export function onPushbackDone(state, ac) {
 }
 
 export function efficiency(state) {
-  const needed = 10 + 2.2 * state.vehicles.length;
+  const needed = staffBase(state) + 2.2 * state.vehicles.length;
   let e = clamp(state.staff / needed, 0.45, 1.15);
   if (state.strikeUntil > state.time) e *= 0.6;
   if (state.moraleUntil > state.time) e *= 1.1;
@@ -187,7 +209,7 @@ export function updateGround(state, dt) {
     const st = state.stands.find((s) => s.id === ac.stand);
     const rot = getRot(state, ac);
     const tasks = ac.ta.tasks;
-    if (!tasks.deice && tasks.push && tasks.push.st === 'wait' && needsDeice(state)) {
+    if (!tasks.deice && tasks.push && tasks.push.st === 'wait' && needsDeice(state) && !AC_TYPES[ac.type].light && state.vehicles.some((v) => v.type === 'deice')) {
       const t = AC_TYPES[ac.type];
       tasks.deice = { k: 'deice', st: 'wait', dur: TASKS.deice.base * Math.max(0.6, t.scale) * 60, prog: 0, need: 'deice', after: Object.keys(tasks).filter((x) => x !== 'push' && x !== 'deice'), veh: null };
       tasks.push.after = [...new Set([...tasks.push.after, 'deice'])];
@@ -268,7 +290,8 @@ export function updateGround(state, dt) {
     if (push.st === 'active' && workDone && bridgeGone && rot && state.time >= (rot.tobt || rot.std) - 5 * 60 && !(ac.pushWaitUntil > state.time)) {
       if (ac.req !== 'push') {
         setReq(state, ac, 'push');
-        radio(state, ac.cs, `${greet(state, ac).replace(/^./, (c) => c.toUpperCase())}${tel(ac)}, stand ${ac.stand}, request pushback.`);
+        const self = AC_TYPES[ac.type].selfTaxi;
+        radio(state, ac.cs, `${greet(state, ac).replace(/^./, (c) => c.toUpperCase())}${tel(ac)}, ${self ? `parking ${ac.stand}, request start-up` : `stand ${ac.stand}, request pushback`}.`);
       }
     }
   }

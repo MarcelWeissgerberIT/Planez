@@ -2,6 +2,11 @@
 import { fmtMoney, clamp, randInt } from '../util.js';
 import { log, notify, listeners } from './messages.js';
 import { nextId } from './schedule.js';
+import { isCareer, stageOf } from './career.js';
+
+// Karriere: Prämien und Geld-/Passagierziele passen zur Größe des Platzes
+const MONEY_F = [0.06, 0.25, 0.6, 1, 1];
+const moneyF = (state) => (isCareer(state) ? MONEY_F[Math.min(4, stageOf(state))] : 1);
 
 export const RANKS = [
   { name: 'Regionalflughafen', xp: 0 },
@@ -70,13 +75,18 @@ export function goalFraction(state, g) {
   return Math.max(0, Math.min(1, goalProgress(state, g) / g.target));
 }
 
+// Aufbau-Modus: am Grasplatz gibt es weder Passagierabfertigung noch Kerosin oder schwere Flugzeuge
+const NOT_AT_GRASS = ['pax', 'fuelMargin', 'fuelT', 'wakeStreak', 'slotsOk'];
 function newGoal(state, role, exclude) {
-  const keys = Object.keys(GOAL_DEFS).filter((k) => (GOAL_DEFS[k].role === role || (role === 'observer' && ['landings', 'pax', 'depPunctual', 'safeStreak'].includes(k))) && !exclude.includes(k));
+  const skip = isCareer(state) && stageOf(state) < 1 ? NOT_AT_GRASS : [];
+  const keys = Object.keys(GOAL_DEFS).filter((k) => (GOAL_DEFS[k].role === role || (role === 'observer' && ['landings', 'pax', 'depPunctual', 'safeStreak'].includes(k))) && !exclude.includes(k) && !skip.includes(k));
   const key = keys[randInt(state, 0, keys.length - 1)];
   const d = GOAL_DEFS[key];
   const tier = tierOf(state);
   let target = d.t[tier];
-  if (d.type === 'level') target = key === 'rep' ? Math.max(target, Math.ceil(state.reputation) + 4) : Math.max(target, Math.ceil((state.cash * 1.3) / 1e6) * 1e6);
+  const mf = moneyF(state);
+  if (mf < 1 && ['fuelMargin', 'pax', 'fuelT'].includes(key)) target = Math.max(1, Math.round((target * mf) / 10) * 10);
+  if (d.type === 'level') target = key === 'rep' ? Math.max(target, Math.ceil(state.reputation) + 4) : mf < 1 ? Math.ceil((Math.max(0, state.cash) * 1.4 + 250000 * mf) / 1e4) * 1e4 : Math.max(target, Math.ceil((state.cash * 1.3) / 1e6) * 1e6);
   return { id: nextId(state, 'g'), key, target, base: d.type === 'streak' ? 0 : valueOf(state, key), tier, created: state.time };
 }
 
@@ -108,7 +118,7 @@ export function updateGoals(state, dt) {
   const list = activeGoals(state);
   for (const g of [...list]) {
     if (goalProgress(state, g) < g.target) continue;
-    const cash = REWARD.cash[g.tier] ?? REWARD.cash[0];
+    const cash = Math.round(((REWARD.cash[g.tier] ?? REWARD.cash[0]) * moneyF(state)) / 100) * 100;
     const xp = REWARD.xp[g.tier] ?? REWARD.xp[0];
     state.cash += cash;
     state.ledger.rev.other = (state.ledger.rev.other || 0) + cash;

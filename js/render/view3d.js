@@ -14,6 +14,7 @@ import { NM_PER_TILE } from '../config.js';
 import { Q } from './quality.js';
 import { soundscape } from '../soundscape.js';
 import { buildAircraft, buildVehicle, buildCessna, buildHeli, glowTex, spriteMat, setNight } from './model3d.js';
+import { grassRunway3d, smallField3d, smallBuilding3d } from './field3d.js';
 
 const ALT_CLIMB = 2.0; // Spielhöhe z -> Kacheln für Steigflug/Durchstarten auf der Karte (≈ 12° statt 40° Bahnneigung)
 const FT = 0.3048 / 20; // Fuß -> Kacheln
@@ -461,6 +462,7 @@ export class View3D {
   build(state) {
     if (this.static) this.scene.remove(this.static);
     this.static = new THREE.Group();
+    this.termGlow = this.beacon = this.radarAnt = this.towerRoof = null;
     this.nightLights = [];
     this.rabbits = {};
     this.papis = [];
@@ -497,6 +499,17 @@ export class View3D {
     // Vorfeld und Rollwege
     const apron = new THREE.MeshLambertMaterial({ map: T.apron });
     const twy = new THREE.MeshLambertMaterial({ map: T.asphalt, color: 0xc9cdd2 });
+    this.apronMat = apron;
+    this.twyMat = twy;
+    const stage = LY.GEO.stage;
+    this.towerPos = null;
+    if (stage < 2) {
+      // Aufbau-Modus: Grasplatz bzw. Verkehrslandeplatz mit eigenem, kleinem Grundriss
+      smallField3d(this, state);
+      if (stage === 0) grassRunway3d(this);
+      else this.runway(LY.RWY, false);
+    }
+    if (stage >= 2) {
     this.flat(LY.TERMINAL.x0 - 2, 77, LY.TERMINAL.y1, LY.LANE + 0.6, apron, 0.006, 3.2);
     this.flat(LY.TERMINAL.x0 - 2, 77, LY.SERVICE - 0.5, LY.TERMINAL.y1, 0x9fa3a7, 0.007);
     this.flat(LY.RWY.x0, LY.RWY.x1, LY.TWY_A - 0.45, LY.TWY_A + 0.45, twy, 0.008, 3);
@@ -522,6 +535,7 @@ export class View3D {
       this.flat(st.x - 0.4, st.x + 0.4, LY.STAND_NOSE - 0.05, LY.STAND_NOSE + 0.02, 0xfacc15, 0.009);
     }
     this.runway(LY.RWY, false);
+    }
     this.rwy2 = !!(state.upgrades && state.upgrades.rwy2);
     if (this.rwy2) {
       this.runway(LY.RWY_S, true);
@@ -529,6 +543,7 @@ export class View3D {
     }
     // Terminal: Glasfassade mit Pfosten, helles Dach mit Überstand
     const TE = LY.TERMINAL;
+    if (stage >= 2) {
     const fac = T.facade.clone();
     fac.needsUpdate = true;
     fac.repeat.set((TE.x1 - TE.x0) / 2.4, 1);
@@ -552,6 +567,7 @@ export class View3D {
       leg.position.set(x, 0.16, LY.STAND_NOSE + 0.1);
       this.static.add(leg);
     }
+    }
     // Flutlichtmasten am Vorfeldrand: nachts Lichtkegel auf dem Beton
     const poolTex = canvasTex(64, 64, (g) => {
       const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -563,7 +579,7 @@ export class View3D {
     }, false);
     const poolMat = new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
     this.poolMat = poolMat;
-    for (let x = TE.x0 + 2; x < 76; x += 8.5) {
+    for (let x = TE.x0 + 2; x < (stage >= 2 ? 76 : stage === 1 ? 41 : -1); x += 8.5) {
       const y = LY.LANE + 1.0;
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 1.6, 6), this.mat(0x9ca3af));
       pole.position.set(x, 0.8, y);
@@ -584,7 +600,8 @@ export class View3D {
     const H = { hall: 1.4, hangar: 1.4, cargo: 0.9, depot: 0.6, fire: 0.55, fuel: 0.5, parking: 0.8, hotel: 2.2, radar: 0.2 };
     const CO = { hall: 0xd6dde5, hangar: 0xaab3bc, cargo: 0x8d9aa7, depot: 0x9ca3af, fire: 0xb91c1c, fuel: 0xe5e7eb, parking: 0x9aa0a6, hotel: 0xe2e8f0, radar: 0x94a3b8 };
     for (const b of LY.BUILDINGS) {
-      if (b.requires && !(state.upgrades && state.upgrades[b.requires])) continue;
+      if (!LY.buildingOn(state, b)) continue;
+      if (smallBuilding3d(this, b)) continue;
       const cx = b.fx - b.w / 2, cy = b.fy - b.d / 2;
       if (b.id === 'tower') {
         // Kanzel in ≈ 120 m Höhe (wie an großen Drehkreuzen) – von dort überblickt man Vorfeld und Bahnen
@@ -1346,7 +1363,11 @@ export class View3D {
 
   // ---------- jeden Frame ----------
   render(state, ride, follow) {
-    if (!this.built || this.rwy2 !== !!(state.upgrades && state.upgrades.rwy2)) this.build(state);
+    const bkey = `${LY.GEO.stage}|${!!(state.upgrades && state.upgrades.rwy2)}|${state.stands.filter((x) => x.built && !x.closed).map((x) => x.id + x.kind[0]).join('')}`;
+    if (!this.built || this.buildKey !== bkey) {
+      this.build(state);
+      this.buildKey = bkey;
+    }
     const now = performance.now() / 1000;
     const raw = now - this.lastT;
     const dt = clamp(raw, 0, 0.1);

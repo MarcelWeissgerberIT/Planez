@@ -7,6 +7,7 @@ import { log, notify } from './messages.js';
 import { feeIndex } from './schedule.js';
 import { pushDecision } from './decisions.js';
 import { pushNews } from './news.js';
+import { isCareer, stageOf } from './career.js';
 
 const H = 3600, D = 86400;
 export const RIVAL_NAME = 'Nordhafen';
@@ -109,6 +110,7 @@ const MOVES = {
 };
 
 export function updateRival(state, dt) {
+  if (isCareer(state) && stageOf(state) < 2) return; // Nordhafen nimmt den kleinen Platz (noch) nicht ernst
   const R = rivalState(state);
   // Marktanteil gleitet zur Zielgröße (etwa ein Drittel pro Tag)
   const tgt = shareTarget(state);
@@ -140,6 +142,7 @@ export function updateRival(state, dt) {
 
 // Tagesabschluss: Verlauf
 export function rivalDayEnd(state) {
+  if (isCareer(state) && stageOf(state) < 2) return;
   const R = rivalState(state);
   R.hist.push(Math.round(R.share * 10) / 10);
   if (R.hist.length > 30) R.hist.shift();

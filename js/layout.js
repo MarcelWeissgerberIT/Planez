@@ -4,7 +4,7 @@ import { NM_PER_TILE } from './config.js';
 
 export const W = 80;
 export const H = 50;
-export const RWY = { y: 32.2, x0: 5, x1: 75, hw: 1.2, thr: { '09': 8, '27': 72 }, td: 3 };
+export const RWY = { y: 32.2, x0: 5, x1: 75, hw: 1.2, thr: { '09': 8, '27': 72 }, td: 3, grass: false };
 // zweite Parallelbahn (Süd) – erst nach dem Ausbau in Betrieb
 export const RWY_S = { y: 41.6, x0: 5, x1: 75, hw: 1.2, thr: { '09': 8, '27': 72 }, td: 3 };
 export const TWY_B = 36.9; // Parallelrollweg zwischen den Bahnen
@@ -16,8 +16,30 @@ export const HOLD_Y = 29.9;
 export const LANE = 23.8;
 export const SERVICE = 15.3;
 export const STAND_NOSE = 16.3;
-export const EXITS = [8, 20, 32, 44, 56, 72];
-export const CONN = [12, 38.5, 66];
+// Wiesenplätze (Aufbau-Modus) liegen näher am Rollweg als die Positionen am Terminal
+export const GA_NOSE = 18.6;
+export const noseY = (st) => (st && st.ga ? GA_NOSE : STAND_NOSE);
+export const EXITS_FULL = [8, 20, 32, 44, 56, 72];
+export const CONN_FULL = [12, 38.5, 66];
+// Abrollwege und Verbindungen Rollweg A – Vorfeldstraße (je nach Ausbaustufe weniger, siehe setGeometry)
+export const EXITS = [...EXITS_FULL];
+export const CONN = [...CONN_FULL];
+// aktuelle Ausbaustufe der Geometrie (Karriere: 0 Grasplatz … 4 Drehkreuz; freies Spiel: 9 = alles)
+export const GEO = { stage: 9 };
+// Pisten- und Rollweg-Geometrie umstellen (Karriere-Ausbaustufen). Die Objekte bleiben dieselben, damit alle Module
+// mit ihren Importen die neuen Werte sehen.
+export function setGeometry(g) {
+  RWY.x0 = g.x0 ?? 5;
+  RWY.x1 = g.x1 ?? 75;
+  RWY.hw = g.hw ?? 1.2;
+  RWY.td = g.td ?? 3;
+  RWY.thr['09'] = g.thr09 ?? RWY.x0 + 3;
+  RWY.thr['27'] = g.thr27 ?? RWY.x1 - 3;
+  RWY.grass = !!g.grass;
+  EXITS.splice(0, EXITS.length, ...(g.exits || EXITS_FULL));
+  CONN.splice(0, CONN.length, ...(g.conn || CONN_FULL));
+  GEO.stage = g.stage ?? 9;
+}
 export const ARP = { x: 40, y: 32.2 };
 export const TERMINAL = { x0: 12, x1: 49.5, y0: 10.6, y1: 14.6, h: 1.0 };
 export const BUS_GATE = { x: 50.4, y: SERVICE };
@@ -38,18 +60,32 @@ export const STAND_DEFS = [
 ];
 
 // Gebäude: fx/fy = vordere Ecke (max x, max y), w/d = Grundfläche, frac = Lage der Ecke im Sprite
+// stages = nur in diesen Karriere-Ausbaustufen (0 Grasplatz, 1 Verkehrslandeplatz, 2 Regional, 3 International, 4 Drehkreuz)
 export const BUILDINGS = [
-  { id: 'hall', sprite: 'terminal_hall', fx: 36.2, fy: 10.7, w: 11.3, d: 9.6, frac: 0.54, name: 'Terminal' },
-  { id: 'tower', sprite: 'tower', fx: 77.2, fy: 8.2, w: 1.6, d: 1.5, frac: 0.51, name: 'Tower' },
-  { id: 'hangar', sprite: 'hangar', fx: 9.5, fy: 21.4, w: 6.8, d: 6.6, frac: 0.51, name: 'Wartungshangar' },
-  { id: 'cargo', sprite: 'cargo', fx: 64.5, fy: 14.2, w: 10.3, d: 4.2, frac: 0.71, name: 'Frachtterminal' },
-  { id: 'depot', sprite: 'gse_depot', fx: 73.5, fy: 14.4, w: 4.6, d: 3.6, frac: 0.56, name: 'Fahrzeugdepot' },
-  { id: 'fire', sprite: 'fire_station', fx: 40, fy: 48.6, w: 4.4, d: 2.7, frac: 0.62, name: 'Feuerwache' },
-  { id: 'fuel', sprite: 'fuel_farm', fx: 80, fy: 16.6, w: 3.6, d: 3.6, frac: 0.49, name: 'Tanklager' },
-  { id: 'parking', sprite: 'parking', fx: 54, fy: 8.8, w: 5.4, d: 4.6, frac: 0.54, name: 'Parkhaus' },
+  { id: 'hall', sprite: 'terminal_hall', fx: 36.2, fy: 10.7, w: 11.3, d: 9.6, frac: 0.54, name: 'Terminal', minStage: 2 },
+  { id: 'tower', sprite: 'tower', fx: 77.2, fy: 8.2, w: 1.6, d: 1.5, frac: 0.51, name: 'Tower', minStage: 2 },
+  { id: 'hangar', sprite: 'hangar', fx: 9.5, fy: 21.4, w: 6.8, d: 6.6, frac: 0.51, name: 'Wartungshangar', minStage: 2 },
+  { id: 'cargo', sprite: 'cargo', fx: 64.5, fy: 14.2, w: 10.3, d: 4.2, frac: 0.71, name: 'Frachtterminal', minStage: 3 },
+  { id: 'depot', sprite: 'gse_depot', fx: 73.5, fy: 14.4, w: 4.6, d: 3.6, frac: 0.56, name: 'Fahrzeugdepot', minStage: 1 },
+  { id: 'fire', sprite: 'fire_station', fx: 40, fy: 48.6, w: 4.4, d: 2.7, frac: 0.62, name: 'Feuerwache', minStage: 1 },
+  { id: 'fuel', sprite: 'fuel_farm', fx: 80, fy: 16.6, w: 3.6, d: 3.6, frac: 0.49, name: 'Tanklager', minStage: 2 },
+  { id: 'parking', sprite: 'parking', fx: 54, fy: 8.8, w: 5.4, d: 4.6, frac: 0.54, name: 'Parkhaus', minStage: 2 },
   { id: 'hotel', sprite: 'hotel', fx: 18.5, fy: 8.4, w: 3.1, d: 3.1, frac: 0.49, name: 'Hotel', requires: 'hotel' },
-  { id: 'radar', sprite: 'radar', fx: 6.5, fy: 48.5, w: 1.7, d: 1.5, frac: 0.53, name: 'Radar' },
+  { id: 'radar', sprite: 'radar', fx: 6.5, fy: 48.5, w: 1.7, d: 1.5, frac: 0.53, name: 'Radar', minStage: 2 },
+  // Karriere: Grasplatz und Verkehrslandeplatz
+  { id: 'club', sprite: 'clubhouse', fx: 47.9, fy: 14.9, w: 1.75, d: 1.65, frac: 0.51, name: 'Vereinsheim mit Flugleitung', stages: [0, 1] },
+  { id: 'gahangar', sprite: 'ga_hangar', fx: 53.2, fy: 15.1, w: 2.4, d: 2.4, frac: 0.5, name: 'Flugzeughalle', stages: [0, 1] },
+  { id: 'avgas', sprite: 'avgas', fx: 40.9, fy: 15.35, w: 0.8, d: 1.05, frac: 0.43, name: 'Tankstelle (AvGas)', stages: [0, 1] },
+  { id: 'sterm', sprite: 'small_terminal', fx: 30.6, fy: 14.4, w: 5.2, d: 3.05, frac: 0.63, name: 'Abfertigungsgebäude', stages: [1] },
+  { id: 'stower', sprite: 'small_tower', fx: 34.4, fy: 13.9, w: 0.8, d: 1.0, frac: 0.44, name: 'Flugleitung (Turm)', stages: [1] },
 ];
+// Gebäude in der aktuellen Ausbaustufe vorhanden?
+export function buildingOn(state, b) {
+  if (b.requires && !(state.upgrades && state.upgrades[b.requires])) return false;
+  const st = GEO.stage;
+  if (b.stages) return b.stages.includes(st);
+  return st >= (b.minStage || 0);
+}
 
 // Solarpark südlich der Piste, Bahnhof im Westen der Landseite
 export const SOLAR = { x0: 47.5, x1: 62.5, y0: 45.3, y1: 49.6 };
@@ -103,7 +139,7 @@ export const rwyDir = (rwy) => (rwy === '09' ? 1 : -1);
 
 // Stand-Geometrie
 export function standCenter(stand, len) {
-  return { x: stand.x, y: STAND_NOSE + len / 2 };
+  return { x: stand.x, y: noseY(stand) + len / 2 };
 }
 
 // ---------- Rollwege ----------
@@ -117,26 +153,36 @@ export function pathTaxiIn(fromX, stand, len, rwy) {
 }
 function taxiInPts(fromX, stand, len, rwy) {
   const sx = stand.x;
-  const cy = STAND_NOSE + len / 2;
+  const cy = noseY(stand) + len / 2;
   const pts = [P(fromX, TWY_A)];
   if (rwy === '27') {
     // Vorfeldstraße ostwärts: Einfahrt westlich des Standes
-    const cands = [12, 38.5].filter((c) => c <= sx - 2.4);
-    const c = Math.max(...cands);
+    const cands = CONN.slice(0, -1).filter((c) => c <= sx - 2.4);
+    const c = cands.length ? Math.max(...cands) : CONN[0];
     pts.push(P(c, TWY_A), P(c, LANE));
   } else {
-    const cands = [38.5, 66].filter((c) => c >= sx + 2.4);
-    const c = Math.min(...cands);
+    const cands = CONN.slice(1).filter((c) => c >= sx + 2.4);
+    const c = cands.length ? Math.min(...cands) : CONN[CONN.length - 1];
     pts.push(P(c, TWY_A), P(c, LANE));
   }
   pts.push(P(sx, LANE), P(sx, cy));
   return pts;
 }
 
+// Kleinflugzeug ohne Schlepper: aus eigener Kraft wenden und zur Vorfeldstraße rollen
+export function pathPowerOut(stand, len, rwy) {
+  const sx = stand.x;
+  const cy = noseY(stand) + len / 2;
+  const d = rwy === '27' ? 1 : -1; // Richtung zur Verbindung, über die es hinausgeht
+  const r = Math.max(0.55, len * 1.1);
+  const pts = [P(sx, cy), P(sx, cy - r * 0.6), P(sx + d * r, cy - r * 0.2), P(sx + d * r * 1.2, cy + r), P(sx + d * r * 1.2, LANE), P(sx + d * Math.max(2, r * 2.5), LANE)];
+  return roundedPath(pts, Math.max(0.4, r * 0.7), 0.12);
+}
+
 // Pushback: von Parkposition rückwärts auf die Vorfeldstraße
 export function pathPushback(stand, len, rwy) {
   const sx = stand.x;
-  const cy = STAND_NOSE + len / 2;
+  const cy = noseY(stand) + len / 2;
   const d = rwy === '27' ? -1 : 1; // Heck schwenkt in diese Richtung
   const endX = sx + d * Math.max(1.8, len * 0.6);
   const pts = [P(sx, cy), P(sx, LANE), P(endX, LANE)];
@@ -147,10 +193,11 @@ export function pathPushback(stand, len, rwy) {
 export function pathTaxiOut(fromX, rwy, len) {
   const pts = [P(fromX, LANE)];
   const hy = Math.max(TWY_A + 0.4, HOLD_Y - len / 2 - 0.1);
+  const e = CONN[CONN.length - 1], w = CONN[0];
   if (rwy === '27') {
-    pts.push(P(66, LANE), P(66, TWY_A), P(RWY.thr['27'], TWY_A), P(RWY.thr['27'], hy));
+    pts.push(P(e, LANE), P(e, TWY_A), P(RWY.thr['27'], TWY_A), P(RWY.thr['27'], hy));
   } else {
-    pts.push(P(12, LANE), P(12, TWY_A), P(RWY.thr['09'], TWY_A), P(RWY.thr['09'], hy));
+    pts.push(P(w, LANE), P(w, TWY_A), P(RWY.thr['09'], TWY_A), P(RWY.thr['09'], hy));
   }
   const path = roundedPath(dedupe(pts), 1.15, 0.2);
   return path;
@@ -171,8 +218,8 @@ export function pathRollout(rwy, exitX, len) {
   const pts = [P(tdx, RWY.y), P(exitX, RWY.y), P(exitX, TWY_A)];
   // weiter auf A in Richtung Einfahrt
   let nextX;
-  if (rwy === '27') nextX = exitX <= 8.5 ? exitX + 2.2 : exitX - Math.max(1.6, len * 0.7);
-  else nextX = exitX >= 71.5 ? exitX - 2.2 : exitX + Math.max(1.6, len * 0.7);
+  if (rwy === '27') nextX = exitX <= RWY.x0 + 3.5 ? exitX + 2.2 : exitX - Math.max(1.6, len * 0.7);
+  else nextX = exitX >= RWY.x1 - 3.5 ? exitX - 2.2 : exitX + Math.max(1.6, len * 0.7);
   pts.push(P(nextX, TWY_A));
   return roundedPath(pts, 1.3, 0.2);
 }
@@ -220,7 +267,7 @@ export function pathToWait(fromX, rwy, len, slot = 0) {
 export function exitsAhead(rwy) {
   const d = rwyDir(rwy);
   const tdx = RWY.thr[rwy] + d * RWY.td;
-  return EXITS.filter((x) => (x - tdx) * d > 4).sort((a, b) => (a - tdx) * d - (b - tdx) * d);
+  return EXITS.filter((x) => (x - tdx) * d > (RWY.grass ? 2.5 : 4) && x > RWY.x0 && x < RWY.x1).sort((a, b) => (a - tdx) * d - (b - tdx) * d);
 }
 
 function dedupe(pts) {

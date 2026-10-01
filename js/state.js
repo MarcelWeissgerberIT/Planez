@@ -8,6 +8,7 @@ import { placeAtStand } from './sim/aircraft.js';
 import { nextId, uniqueFn } from './sim/schedule.js';
 import { AC_TYPES, SIZE_RANK } from './config.js';
 import { FUEL, fuelState } from './sim/fuel.js';
+import { applyStage, setupStands, careerState, STAGES } from './sim/career.js';
 
 export const SAVE_KEY = 'planez_save_v1';
 export const ROLES = {
@@ -23,6 +24,7 @@ export function autoFor(role) {
 
 export function newGame(opts = {}) {
   const role = opts.role || 'tower';
+  const career = !!opts.career;
   const state = {
     version: 1,
     seed: opts.seed ?? (Date.now() & 0x7fffffff),
@@ -76,6 +78,8 @@ export function newGame(opts = {}) {
     offerTimer: 2 * 3600,
     eventTimer: 4 * 3600,
   };
+  if (career) return newCareer(state, opts);
+  applyStage(state);
   const fleet = { tug: 3, baggage: 4, fuel: 2, catering: 2, cleaning: 2, bus: 2, deice: 2 };
   for (const [type, n] of Object.entries(fleet)) for (let i = 0; i < n; i++) state.vehicles.push(makeVehicle(state, type, freeBay(state)));
   for (const v of state.vehicles) if (v.type === 'fuel') v.load = FUEL.truckCap * (0.7 + 0.25 * (v.bay % 2));
@@ -89,6 +93,39 @@ export function newGame(opts = {}) {
     else if (r.spawnAt < state.time) r.spawnAt = state.time + 5;
   }
   warmStart(state);
+  return state;
+}
+
+// Karriere: Grasplatz mit Vereinsheim, drei Abstellplätzen auf der Wiese, ohne Fahrzeuge und Airlines.
+// Wenig Geld, wenig Personal – der Verkehr kommt erst, wenn sich der Platz einen Namen macht.
+function newCareer(state, opts) {
+  state.career = { fame: 8, log: [] };
+  state.stage = 0;
+  state.name = (opts.name || 'Flugplatz Planez').slice(0, 40);
+  state.cash = 40000;
+  state.reputation = 52;
+  state.staff = STAGES[0].staff;
+  state.fees = { landing: 9, pax: 14, parking: 90, night: 600 };
+  state.rwyCond = 92;
+  state.offerTimer = 1.5 * 3600;
+  state.eventTimer = 30 * 3600;
+  careerState(state);
+  setupStands(state, 0);
+  applyStage(state);
+  fuelState(state);
+  state.contracts = [];
+  generateDay(state, 1);
+  generateDay(state, 2);
+  for (const [id, r] of Object.entries(state.rots)) {
+    if (r.spawnAt < state.time - 12 * 60) delete state.rots[id];
+    else if (r.spawnAt < state.time) r.spawnAt = state.time + 5;
+  }
+  // die ersten Gäste sind schon unterwegs
+  const early = Object.values(state.rots).filter((r) => r.status === 'planned').sort((a, b) => a.spawnAt - b.spawnAt).slice(0, 2);
+  early.forEach((r, i) => {
+    const shift = r.spawnAt - (state.time + 30 + i * 400);
+    if (shift > 0) (r.spawnAt -= shift), (r.sta -= shift), (r.std -= shift);
+  });
   return state;
 }
 
@@ -160,7 +197,7 @@ export function saveGame(state) {
   try {
     localStorage.setItem(slotKey(n), JSON.stringify(state, saveReplacer));
     const meta = readMeta();
-    meta[n] = { name: state.name, role: state.role, time: state.time, cash: state.cash, rep: state.reputation, rank: state.goals ? state.goals.rank : 0, saved: Date.now() };
+    meta[n] = { name: state.name, role: state.role, time: state.time, cash: state.cash, rep: state.reputation, rank: state.goals ? state.goals.rank : 0, stage: state.career ? state.stage : null, saved: Date.now() };
     meta.last = n;
     localStorage.setItem(META_KEY, JSON.stringify(meta));
     return true;
@@ -188,6 +225,7 @@ export function loadGame(n = lastSlot()) {
     const s = JSON.parse(raw);
     if (!s || s.version !== 1) return null;
     s.slot = n;
+    applyStage(s);
     return s;
   } catch (e) {
     return null;

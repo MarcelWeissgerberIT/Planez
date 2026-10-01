@@ -10,6 +10,11 @@ export const THR = {
   '09': { x: (RWY.thr['09'] - ARP.x) * NM_PER_TILE, y: 0 },
   '27': { x: (RWY.thr['27'] - ARP.x) * NM_PER_TILE, y: 0 },
 };
+// nach einer Änderung der Pistengeometrie (Karriere-Ausbaustufe) die Schwellen im Luftraum nachziehen
+export function syncThr() {
+  THR['09'].x = (RWY.thr['09'] - ARP.x) * NM_PER_TILE;
+  THR['27'].x = (RWY.thr['27'] - ARP.x) * NM_PER_TILE;
+}
 // Anflugseite: bei 27 kommt der Verkehr von Osten (+x)
 export const appSide = (rwy) => (rwy === '27' ? 1 : -1);
 export const finalCrs = (rwy) => (rwy === '27' ? 270 : 90);
@@ -80,10 +85,10 @@ export function directRoute(pos, rwy) {
 }
 
 // Abflugroute: Pistenrichtung, dann Richtung Ziel
-export function departureRoute(rwy, exitBrg) {
+export function departureRoute(rwy, exitBrg, range = RADAR_RANGE + 3) {
   const s = -appSide(rwy); // Startrichtung
-  const route = [{ x: s * 7, y: 0, name: '' }];
-  const ex = { x: Math.sin(exitBrg * DEG) * (RADAR_RANGE + 3), y: -Math.cos(exitBrg * DEG) * (RADAR_RANGE + 3), name: 'EXIT', exit: true };
+  const route = [{ x: s * (range < RADAR_RANGE ? 3 : 7), y: 0, name: '' }];
+  const ex = { x: Math.sin(exitBrg * DEG) * range, y: -Math.cos(exitBrg * DEG) * range, name: 'EXIT', exit: true };
   // Ziel auf der Anflugseite: großzügig nördlich/südlich ausweichen
   if (ex.x * s < -5) {
     const sy = ex.y < 0 ? -1 : 1;
@@ -108,8 +113,8 @@ export function routeDistance(pos, route) {
   return d;
 }
 
-export function spawnPoint(brg) {
-  return { x: Math.sin(brg * DEG) * (RADAR_RANGE - 1), y: -Math.cos(brg * DEG) * (RADAR_RANGE - 1) };
+export function spawnPoint(brg, r = RADAR_RANGE - 1) {
+  return { x: Math.sin(brg * DEG) * r, y: -Math.cos(brg * DEG) * r };
 }
 export const crsTo = (a, b) => bearing(a.x, a.y, b.x, b.y);
 export const crsToWorld = (crs) => (degNorm(crs) - 90) * DEG; // Kompass -> Weltwinkel

@@ -22,9 +22,11 @@ import { siteGeom, drawSiteGround, siteItems, permanentItems, drawSiteLabel } fr
 import { runwayClosed, stripGeom } from '../sim/runway.js';
 import { motorcade } from '../sim/statevisit.js';
 import { saluteView } from '../sim/firstflight.js';
+import { drawSmallField } from './smallfield.js';
+import { standBuildable } from '../sim/career.js';
 const markOf = (ac) => (ac.mark && MARKS[ac.mark.c] ? MARKS[ac.mark.c] : null);
 
-const BH = { hall: 1.3, tower: 5, hangar: 1.8, cargo: 0.9, depot: 0.7, fire: 0.8, fuel: 0.9, parking: 1.1, hotel: 3.2, radar: 2.6 };
+const BH = { hall: 1.3, tower: 5, hangar: 1.8, cargo: 0.9, depot: 0.7, fire: 0.8, fuel: 0.9, parking: 1.1, hotel: 3.2, radar: 2.6, club: 0.5, gahangar: 0.6, avgas: 0.25, sterm: 0.6, stower: 1.6 };
 const MARGIN = 8;
 const RX0 = -MARGIN, RY0 = -MARGIN, RX1 = LY.W + MARGIN, RY1 = LY.H + MARGIN;
 
@@ -224,7 +226,7 @@ export class MapRenderer {
   }
 
   groundKey(state) {
-    return seasonOf(state).id + '|' + state.stands.map((s) => (s.built ? s.size : '-')).join('') + '|' + state.upgrades.parking + state.upgrades.hotel + state.upgrades.rapidExit + (state.upgrades.rwy2 || 0) + (state.upgrades.rail || 0) + '|' + Math.round((state.rwyCond ?? 88) / 10) + Math.round((state.rwyCondS ?? 100) / 10);
+    return seasonOf(state).id + '|' + LY.GEO.stage + '|' + state.stands.map((s) => (s.built ? s.size : '-')).join('') + '|' + state.upgrades.parking + state.upgrades.hotel + state.upgrades.rapidExit + (state.upgrades.rwy2 || 0) + (state.upgrades.rail || 0) + '|' + Math.round((state.rwyCond ?? 88) / 10) + Math.round((state.rwyCondS ?? 100) / 10);
   }
 
   // ---------- Boden-Cache ----------
@@ -318,16 +320,17 @@ export class MapRenderer {
 
     // Objekte sammeln
     const items = [];
+    const big = LY.GEO.stage >= 2; // Terminal, Parkhaus, Brücken erst ab Regionalflughafen (Karriere)
     for (const b of LY.BUILDINGS) {
-      if (b.requires && !state.upgrades[b.requires]) continue;
+      if (!LY.buildingOn(state, b)) continue;
       const x0 = b.fx - b.w, y0 = b.fy - b.d;
       items.push({ d: (x0 + b.fx) / 2 + (y0 + b.fy) / 2, f: () => this.drawBuilding(b) });
     }
-    items.push({ d: 56 + 2.0, f: () => this.drawLot(state) });
+    if (big) items.push({ d: 56 + 2.0, f: () => this.drawLot(state) });
     for (const s of sites) siteItems(this, state, s.p, s.g, items);
     permanentItems(this, state, items, sites);
     const T = LY.TERMINAL;
-    for (let x = T.x0; x < T.x1 - 1e-6; x += 1) {
+    if (big) for (let x = T.x0; x < T.x1 - 1e-6; x += 1) {
       const xb = Math.min(T.x1, x + 1);
       items.push({ d: (x + xb) / 2 + (T.y0 + T.y1) / 2, f: () => this.drawTerminalSlice(x, xb, xb >= T.x1 - 1e-6, night) });
     }
@@ -2133,9 +2136,12 @@ export class MapRenderer {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       for (const st of state.stands) {
-        const p = cam.toScreen(st.x, LY.LANE - 1.6);
-        let col = '#2ecc71', txt = `P${st.id}`;
         const sp = sites.find((q) => (q.p.kind === 'stand' || q.p.kind === 'standL') && q.p.target === st.id);
+        // Aufbau-Modus: nicht baubare Positionen der kleinen Stufen nicht anzeigen; Wiesenplätze klein beschriften
+        if (!st.built && !sp && !standBuildable(state, st)) continue;
+        if (st.ga && (!st.built || st.closed)) continue;
+        const p = cam.toScreen(st.x, st.ga ? LY.GA_NOSE + 1.15 : LY.LANE - 1.6);
+        let col = '#2ecc71', txt = st.ga ? `${st.id}` : `P${st.id}`;
         if (sp) {
           col = '#fbbf24';
           txt = sp.p.status === 'waiting' ? `P${st.id} ⏳` : `P${st.id} ${Math.floor(sp.p.prog * 100)}%`;
@@ -2145,9 +2151,9 @@ export class MapRenderer {
         } else if (st.occ) col = '#94a3b8';
         else if (st.resv) col = '#3b82f6';
         const hl = ui && (ui.hoverStand === st.id || ui.selStand === st.id);
-        const r = Math.max(9, 13 * cam.zoom) * (hl ? 1.25 : 1);
+        const r = Math.max(st.ga ? 7 : 9, 13 * cam.zoom * (st.ga ? 0.62 : 1)) * (hl ? 1.25 : 1);
         ctx.fillStyle = 'rgba(10,15,25,0.72)';
-        const wl = sp ? 2.3 : 1.6;
+        const wl = sp ? 2.3 : st.ga ? 1.15 : 1.6;
         roundRect(ctx, p.x - r * wl, p.y - r * 0.7, r * wl * 2, r * 1.4, 4);
         ctx.fill();
         ctx.strokeStyle = col;
@@ -2377,7 +2383,7 @@ function drawGround(g, state, trees) {
 
   // Gebäudeschatten
   for (const b of LY.BUILDINGS) {
-    if (b.requires && !state.upgrades[b.requires]) continue;
+    if (!LY.buildingOn(state, b)) continue;
     const hgt = BH[b.id] || 1;
     const x0 = b.fx - b.w, y0 = b.fy - b.d;
     const L = Math.min(6, hgt * 0.8);
@@ -2391,6 +2397,8 @@ function drawGround(g, state, trees) {
     g.fill();
   }
   const T = LY.TERMINAL;
+  // Karriere: Grasplatz und Verkehrslandeplatz haben einen eigenen, kleinen Grundriss
+  if (LY.GEO.stage < 2) return drawSmallField(g, state, { asphalt, concrete, gravel: pat(g, IMG.tex_gravel, 2.5), paintRunway });
   g.fillStyle = 'rgba(10,20,10,0.18)';
   g.fillRect(T.x0, T.y0, T.x1 - T.x0 + 0.8, T.y1 - T.y0);
 

@@ -5,6 +5,7 @@
 // Die Ziele leiten sich aus der Vorwoche ab (erste Woche: aus Tag 1), damit sie zum Ausbaustand passen.
 import { pushNews } from './news.js';
 import { log, notify } from './messages.js';
+import { isCareer, stageOf } from './career.js';
 
 export const STRATEGIES = {
   balanced: { name: 'Ausgewogen', icon: '⚖️', desc: 'Keine Schwerpunkte – moderate Ziele in allen Bereichen.', fx: 'keine Zusatzwirkung', pax: 1.03, profit: 1.03, punct: 85, rep: 0 },
@@ -83,6 +84,7 @@ export function goalRows(state, prog) {
 // Tagesabschluss: Qualitäts-Strategie wirkt täglich; alle 7 Tage tagt der Aufsichtsrat
 export function boardDayEnd(state, rec) {
   if (state.scenario) return null; // Herausforderungen haben eigene Ziele
+  if (isCareer(state) && stageOf(state) < 2) return null; // Aufsichtsrat erst mit der Flughafengesellschaft (Regionalflughafen)
   const B = boardState(state);
   const st = strategy(state);
   if (st.repDay) state.reputation = Math.min(100, state.reputation + st.repDay);

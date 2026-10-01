@@ -36,7 +36,7 @@
         <div id="continue-box" class="hidden">
           <button class="mm-item" id="btn-continue" data-side="save"><span class="n"></span><span class="l"><b>Weiterspielen</b><small id="continue-info"></small></span></button>
         </div>
-        <button class="mm-item" data-mm="new" data-side="new"><span class="n"></span><span class="l"><b>Neues Spiel</b><small>Flughafen gründen und Station wählen</small></span></button>
+        <button class="mm-item" data-mm="new" data-side="new"><span class="n"></span><span class="l"><b>Neues Spiel</b><small>Vom Grasplatz zum Drehkreuz – oder gleich als Regionalflughafen</small></span></button>
         <button class="mm-item" data-mm="slots" data-side="slots"><span class="n"></span><span class="l"><b>Spielstände</b><small>Drei Speicherplätze – laden oder löschen</small></span></button>
         <button class="mm-item" data-mm="scn" data-side="scnall"><span class="n"></span><span class="l"><b>Kampagne &amp; Szenarien</b><small>10 Kapitel mit Story · Herausforderungen mit Sternen · täglich neu</small></span></button>
         <button class="mm-item" data-mm="career" data-side="career"><span class="n"></span><span class="l"><b>Karriere</b><small id="career-info">Rang, Bestwerte und Statistik über alle Spielstände</small></span></button>
@@ -49,7 +49,13 @@
       <nav class="mm-list hidden" id="mm-new" aria-label="Neues Spiel">
         <button class="mm-back" data-mm="back">← Zurück</button>
         <div class="mm-setup">
-          <label><span>Flughafenname</span><input id="inp-name" maxlength="40" value="Planez International" /></label>
+          <label class="mm-start"><span>Start</span>
+            <select id="inp-start" title="Aufbau: Graspiste, Vereinsheim, ein paar Sportflieger und 40.000 € – über Partner, Feste und Ausbaustufen bis zum Drehkreuz. Freies Spiel: fertiger Regionalflughafen mit Linienverkehr.">
+              <option value="grass" selected>Aufbau · vom Grasplatz zum Drehkreuz</option>
+              <option value="regional">Freies Spiel · Regionalflughafen</option>
+            </select>
+          </label>
+          <label><span>Flughafenname</span><input id="inp-name" maxlength="40" value="Flugplatz Planez" /></label>
           <label><span>Speicherplatz</span><select id="inp-slot"></select></label>
           <label><span>Schwierigkeit</span>
             <select id="inp-diff" title="Entspannt: mehr Treibstoffreserve, seltener Zwischenfälle, milde Strafen, keine Fahrzeugdefekte · Profi: knappe Reserven, häufige Zwischenfälle, harte Strafen">
@@ -73,7 +79,7 @@
               <option value="3">Sommer</option>
             </select>
           </label>
-          <label><span>Startkapital</span>
+          <label class="mm-cash"><span>Startkapital</span>
             <select id="inp-cash">
               <option value="2000000">Knapp · 2 Mio €</option>
               <option value="5000000" selected>Normal · 5 Mio €</option>

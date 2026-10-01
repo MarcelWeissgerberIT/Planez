@@ -15,6 +15,14 @@ import { depGap, sidOf } from './sid.js';
 import { runwayClosed, decelFactor, onRunwayLanding, brakingAction, stripGeom, rwyName, closeRunway } from './runway.js';
 import { scoreGoAround } from './score.js';
 import { diff } from './difficulty.js';
+import { vfrTel } from './vfr.js';
+import { isReg, typeAllowed } from './career.js';
+import { standFits, standFree } from './ground.js';
+// freie, passende Position für einen Gastflieger? (auch schon reservierte zählen als belegt)
+function gaStandFree(state, type) {
+  const fake = { type };
+  return state.stands.some((s) => standFits(s, fake) && standFree(s));
+}
 
 export const PH = {
   INBOUND: 'ARR_INBOUND', HOLD: 'ARR_HOLD', APPROACH: 'ARR_APPROACH', GOAROUND: 'GO_AROUND',
@@ -41,6 +49,8 @@ export function greet(state, ac) {
 }
 
 export function tel(ac) {
+  // Kleinflugzeuge melden sich mit dem Kennzeichen („Delta Lima Mike“)
+  if (isReg(ac.cs)) return vfrTel(ac.cs, !ac.telShort);
   const al = AIRLINES[ac.airline];
   return `${al.tel} ${ac.cs.replace(/^[A-Z]+/, '')}`;
 }
@@ -56,10 +66,18 @@ export function getRot(state, ac) {
 // ---------------- Erzeugen ----------------
 export function spawnArrival(state, rot, force = false) {
   const t = AC_TYPES[rot.type];
+  // Karriere: ist die Wiese voll, fliegen Gastflieger woanders hin (statt den Rollweg zu verstopfen)
+  if (rot.ga && rot.airline === 'GAV' && !gaStandFree(state, rot.type)) {
+    rot.status = 'cancelled';
+    state.stats.today.turnedAway = (state.stats.today.turnedAway || 0) + 1;
+    if ((state.stats.today.turnedAway || 0) % 3 === 1) log(state, 'gnd', `Abstellfläche voll – ${rot.arrNo} fliegt einen anderen Platz an.`);
+    return null;
+  }
   const brg = CITIES[rot.city].brg + randRange(state, -10, 10);
-  const pos = AS.spawnPoint(brg);
+  const slow = !!t.vmax;
+  const pos = AS.spawnPoint(brg, slow ? 30 : undefined);
   const rwy = state.rwy;
-  let alt = 13000 + randInt(state, 0, 3) * 1000;
+  let alt = slow ? t.cruise + randInt(state, 0, 2) * 500 : 13000 + randInt(state, 0, 3) * 1000;
   // Einflug-Staffelung: nicht in der Nähe anderer Flugzeuge erzeugen
   const near = (al) => state.acs.some((o) => o.mode === 'air' && Math.hypot(o.pos.x - pos.x, o.pos.y - pos.y) < 12 && Math.abs(o.alt - al) < 2500);
   if (near(alt)) {
@@ -73,7 +91,8 @@ export function spawnArrival(state, rot, force = false) {
   rot.ac = ac.id;
   rot.status = 'inbound';
   state.acs.push(ac);
-  radio(state, ac.cs, `${AIRPORT.name.split(' ')[0]} Approach, ${greet(state, ac)}${tel(ac)}, FL${Math.round(alt / 100)}${rot.special === 'diversion' ? ', diverting from Nordhafen' : ''}, information ${atis(state)}.`);
+  radio(state, ac.cs, `${AIRPORT.name.split(' ')[0]} ${slow ? 'Information' : 'Approach'}, ${greet(state, ac)}${tel(ac)}, ${slow ? fmtAlt(alt) : 'FL' + Math.round(alt / 100)}${rot.special === 'diversion' ? ', diverting from Nordhafen' : ''}, information ${atis(state)}.`);
+  ac.telShort = true;
   if (state.auto.ground || state.settings.standAuto) assignStandAuto(state, ac);
   return ac;
 }
@@ -85,7 +104,7 @@ export function placeAtStand(state, rot, stand) {
   ac.mode = 'map';
   ac.phase = PH.STAND;
   ac.x = stand.x;
-  ac.y = LY.STAND_NOSE + t.len / 2;
+  ac.y = LY.noseY(stand) + t.len / 2;
   ac.hdg = -Math.PI / 2;
   ac.stand = stand.id;
   ac.engines = false;
@@ -113,8 +132,8 @@ function makeAircraft(state, rot, o) {
     pos: o.pos || { x: 0, y: 0 },
     alt: o.alt || 0,
     crs: o.crs || 0,
-    spd: 280,
-    tSpd: 250,
+    spd: Math.min(280, t.vmax || 280),
+    tSpd: Math.min(250, t.vmax || 250),
     tAlt: o.alt || 0,
     route: o.route || [],
     holdFix: null,
@@ -134,7 +153,7 @@ function makeAircraft(state, rot, o) {
     engines: true,
     arr: true,
     // Treibstoff für Anflug + Reserve in Minuten (Warteschleifen zehren daran)
-    fuelMin: (16 + randRange(state, 28, 50) + (t.size === 'L' ? 8 : 0)) * diff(state).fuel,
+    fuelMin: (16 + randRange(state, 28, 50) + (t.size === 'L' ? 8 : 0) + (t.vmax ? 50 : 0)) * diff(state).fuel,
   };
   assignLook(ac, rot);
   return ac;
@@ -142,6 +161,7 @@ function makeAircraft(state, rot, o) {
 
 // Zusätzliches Flugzeug (VIP / Notfall) ohne Vertrag
 export function spawnSpecial(state, opts) {
+  if (!typeAllowed(state, opts.type)) return null; // Karriere: Platz noch zu klein
   const rot = {
     id: nextId(state, 'r'),
     contract: null,
@@ -354,6 +374,12 @@ function updateAir(state, ac, dt) {
     }
   }
 
+  // Kleinflugzeuge: Höchstgeschwindigkeit und niedrige Reiseflughöhe
+  const tt = AC_TYPES[ac.type];
+  if (tt.vmax) {
+    ac.tSpd = Math.min(ac.tSpd, tt.vmax);
+    if ((ac.phase === PH.INBOUND && !ac.stackAlt) || ac.phase === PH.DEPART) ac.tAlt = Math.min(ac.tAlt, Math.max(tt.cruise, 3000));
+  }
   // Beschleunigen / Steigen / Sinken
   const aRate = 1.6 * dt;
   ac.spd += clamp(ac.tSpd - ac.spd, -aRate, aRate);
@@ -616,7 +642,7 @@ function updateMap(state, ac, dt) {
       ac.v = 0;
       break;
     case PH.PUSH: {
-      if (followPath(state, ac, dt, 0.045, true)) {
+      if (followPath(state, ac, dt, ac.selfOut ? 0.08 : 0.045, !ac.selfOut)) {
         ac.phase = PH.STARTUP;
         ac.startT = state.time;
         ac.v = 0;
@@ -626,7 +652,7 @@ function updateMap(state, ac, dt) {
     }
     case PH.STARTUP: {
       ac.engines = true;
-      if (state.time - ac.startT > 55) {
+      if (state.time - ac.startT > (ac.selfOut ? 5 : 55)) {
         if (ac.clr.taxiOut) startTaxiOut(state, ac);
         else if (ac.req !== 'taxi_out') {
           setReq(state, ac, 'taxi_out');
@@ -690,8 +716,9 @@ function updateMap(state, ac, dt) {
       } else setReq(state, ac, 'takeoff');
       break;
     case PH.TAKEOFF: {
-      const vr = 0.36;
-      ac.v = Math.min(0.75, ac.v + (ac.z > 0 ? 0.006 : 0.0095) * dt);
+      const tk = AC_TYPES[ac.type];
+      const vr = tk.vmax ? Math.min(0.36, tk.vapp * 0.0027) : 0.36;
+      ac.v = Math.min(tk.vmax ? 0.42 : 0.75, ac.v + (ac.z > 0 ? 0.006 : 0.0095) * (tk.light ? 0.7 : 1) * dt);
       ac.x += d * ac.v * dt;
       if (ac.v >= vr || ac.z > 0) {
         if (!ac.airborne) {
@@ -735,16 +762,17 @@ function toAirDeparture(state, ac) {
   ac.pos = nm;
   ac.alt = 1200;
   ac.crs = AS.finalCrs(ac.rwy);
-  ac.spd = 180;
-  ac.tSpd = 250;
-  ac.tAlt = 24000;
+  const tdep = AC_TYPES[ac.type];
+  ac.spd = Math.min(180, tdep.vmax || 180);
+  ac.tSpd = Math.min(250, tdep.vmax || 250);
+  ac.tAlt = tdep.vmax ? tdep.cruise : 24000;
   ac.phase = PH.DEPART;
   const brg = rot ? CITIES[rot.city].brg : 0;
-  ac.route = AS.departureRoute(ac.rwy, brg + randRange(state, -6, 6));
+  ac.route = AS.departureRoute(ac.rwy, brg + randRange(state, -6, 6), tdep.vmax ? 26 : undefined);
   ac.trail = [];
   ac.stand = null;
   ac.req = null;
-  if (!state.auto.atc) radio(state, ac.cs, `${tel(ac)}, passing 1500 feet, climbing FL240.`);
+  if (!state.auto.atc) radio(state, ac.cs, tdep.vmax ? `${tel(ac)}, airborne, climbing ${fmtAlt(ac.tAlt)}.` : `${tel(ac)}, passing 1500 feet, climbing FL240.`);
 }
 
 export function startTaxiIn(state, ac) {
@@ -762,9 +790,12 @@ export function startPushback(state, ac) {
   if (!st) return;
   ac.rwy = state.rwy;
   ac.phase = PH.PUSH;
-  ac.path = LY.pathPushback(st, ac.len, ac.rwy);
+  // Kleinflugzeuge und Lufttaxis rollen aus eigener Kraft vom Platz
+  const self = AC_TYPES[ac.type].selfTaxi;
+  ac.path = self ? LY.pathPowerOut(st, ac.len, ac.rwy) : LY.pathPushback(st, ac.len, ac.rwy);
   ac.pi = 0;
-  ac.rev = true;
+  ac.rev = !self;
+  ac.selfOut = self;
   ac.req = null;
   onPushbackStart(state, ac);
 }

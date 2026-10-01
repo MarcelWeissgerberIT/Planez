@@ -15,6 +15,7 @@ import { CMDS, command } from './atc.js';
 import { RIVAL_NAME, rivalState, acceptDiversions } from './rival.js';
 import { temperature } from './winter.js';
 import { pushNews } from './news.js';
+import { careerCardOk } from './career.js';
 
 const MIN = 60, H = 3600;
 const repDelta = (state, d) => (state.reputation = clamp(state.reputation + d, 0, 100));
@@ -680,6 +681,7 @@ export function updateDecisions(state, dt) {
     D.urgT = 120;
     D.lastUrgent = D.lastUrgent || {};
     for (const [key, c] of Object.entries(CATALOG)) {
+      if (!careerCardOk(state, key)) continue;
       if (c.role !== role || !c.urgent || state.time - (D.lastUrgent[key] ?? -1e9) < c.urgent) continue;
       const p = c.cond(state);
       if (!p) continue;
@@ -691,7 +693,7 @@ export function updateDecisions(state, dt) {
   if (D.next[role] === undefined) D.next[role] = state.time + nextGap(state, role) * 0.5;
   if (state.time < D.next[role]) return;
   D.next[role] = state.time + nextGap(state, role);
-  const cands = Object.entries(CATALOG).filter(([, c]) => c.role === role);
+  const cands = Object.entries(CATALOG).filter(([k, c]) => c.role === role && careerCardOk(state, k));
   const tried = [];
   for (let i = 0; i < cands.length; i++) {
     const pickd = pickWeighted(state, cands.filter((x) => !tried.includes(x[0])), (x) => (typeof x[1].weight === 'function' ? x[1].weight(state) : x[1].weight));

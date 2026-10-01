@@ -71,6 +71,7 @@ import { SpotterUi } from './ui/spotter.js';
 import { briefingHtml } from './ui/briefing.js';
 import { careerDayEnd, careerAch, careerTick, careerRank } from './career.js';
 import { RankUp } from './ui/rankUp.js';
+import { isCareer, stageOf, STAGES, stageUpStatus, applyStage } from './sim/career.js';
 
 // eigene SVG-Icons in die statischen Knöpfe (Kartenleiste, Menü, Radar/Funk-Köpfe) einsetzen
 hydrateIcons(document);
@@ -257,7 +258,7 @@ scenarioListeners.push((s, def, res) => {
 });
 
 function wireMenu() {
-  const start = (role) => {
+  const start = (role, fromNew = true) => {
     unlock();
     const name = $('#inp-name').value.trim() || 'Planez International';
     const density = Number($('#inp-density').value) || 1;
@@ -266,7 +267,8 @@ function wireMenu() {
     const seasonOffset = Number(($('#inp-season') || {}).value) || 0;
     const cash = Number(($('#inp-cash') || {}).value) || 5000000;
     const events = (($('#inp-events') || {}).value || '1') !== '0';
-    const st = applyPrefs(newGame({ role, name, density, slot, difficulty, seasonOffset, cash, events }));
+    const career = fromNew && (($('#inp-start') || {}).value || 'grass') === 'grass';
+    const st = applyPrefs(newGame({ role, name, density, slot, difficulty, seasonOffset, cash, events, career }));
     game.introNext = !loadPrefs().calm; // Kino-Intro für neue Spiele (nicht bei „Bewegung reduzieren“)
     startGame(st);
     try {
@@ -274,7 +276,17 @@ function wireMenu() {
     } catch (e) {}
   };
   document.querySelectorAll('.role-card').forEach((b) => b.addEventListener('click', () => start(b.dataset.role)));
-  document.querySelectorAll('[data-role-start]').forEach((b) => b.addEventListener('click', () => start(b.dataset.roleStart)));
+  // Aufbau (Grasplatz) oder freies Spiel: Name und Startkapital passend vorbelegen
+  const syncStart = () => {
+    const grass = ($('#inp-start') || {}).value === 'grass';
+    const nm = $('#inp-name');
+    if (nm && (nm.value === 'Planez International' || nm.value === 'Flugplatz Planez')) nm.value = grass ? 'Flugplatz Planez' : 'Planez International';
+    const cs = document.querySelector('.mm-cash');
+    if (cs) cs.classList.toggle('hidden', grass);
+  };
+  if ($('#inp-start')) $('#inp-start').addEventListener('change', syncStart);
+  syncStart();
+  document.querySelectorAll('[data-role-start]').forEach((b) => b.addEventListener('click', () => start(b.dataset.roleStart, !!b.closest('#mm-new'))));
   $('#btn-continue').addEventListener('click', () => {
     unlock();
     const s = loadGame();
@@ -308,6 +320,7 @@ function spotter() {
 }
 
 function startGame(state) {
+  applyStage(state); // Pisten-/Rollweg-Geometrie der Ausbaustufe (Aufbau-Modus) bzw. voller Flughafen
   soundscape.unlock();
   // 3D-Ansicht im Leerlauf vorladen, damit Turmblick und Mitfliegen sofort starten
   setTimeout(() => (window.requestIdleCallback || ((f) => setTimeout(f, 1)))(() => preload3d().catch(() => {})), 20000);
@@ -576,6 +589,15 @@ function updateHUD(force) {
     setHTML(sc, `<span class="sc-p">${icon('star')} ${S.today.toLocaleString('de-DE')}</span><span class="sc-c ${hot}">×${S.combo.toFixed(1)}</span>`);
   }
   const G = goalsState(s);
+  if (isCareer(s)) {
+    // Aufbau: Ausbaustufe und Fortschritt zur nächsten (erfüllte Bedingungen bzw. Baufortschritt)
+    const S = stageUpStatus(s);
+    const pct = !S ? 100 : S.building ? Math.round(S.building.prog * 100) : Math.round((100 * (S.reqs.filter((r) => r.ok).length + (S.cash ? 1 : 0))) / (S.reqs.length + 1));
+    const stg = STAGES[stageOf(s)];
+    setHTML($('#btn-rank'), `<span class="rk-i rk-stage">${stg.icon}</span><span class="rk-t"><b>${stg.name}</b><i style="--p:${pct}%"></i></span>`);
+    $('#btn-rank').title = S ? (S.building ? `Ausbau zum ${STAGES[S.to].name}: ${pct} %` : `Nächste Stufe: ${STAGES[S.to].name} – ${S.reqs.filter((r) => r.ok).length}/${S.reqs.length} Bedingungen erfüllt`) : 'Höchste Ausbaustufe erreicht';
+    return;
+  }
   const next = RANKS[G.rank + 1];
   const pct = next ? Math.round(((G.xp - RANKS[G.rank].xp) / (next.xp - RANKS[G.rank].xp)) * 100) : 100;
   setHTML($('#btn-rank'), `<span class="rk-i">${icon('medal')}</span><span class="rk-t"><b>${RANKS[G.rank].name}</b><i style="--p:${pct}%"></i></span>`);
@@ -1618,6 +1640,14 @@ function quitToMenu() {
 
 function helpGuide(first) {
   return `<p>Du leitest eine Station am Flughafen – alles andere erledigen KI-Kollegen automatisch. Die Station kannst du jederzeit oben rechts wechseln. <b>Unterstrichene Abkürzungen</b> erklären sich beim Überfahren (Handy: antippen), <b>?</b> neben Abschnitten erklärt den Abschnitt, 📖 öffnet das Glossar.</p>
+    <h3>🌾 Aufbau-Modus: vom Grasplatz zum Drehkreuz</h3>
+    <ul>
+      <li><b>Start:</b> Neues Spiel › Start „Aufbau“. Du beginnst mit einer 560-m-<b>Graspiste</b>, einem Vereinsheim mit Funkkabine, einer AvGas-Zapfsäule, zehn Abstellplätzen auf der Wiese und <b>40.000 €</b>. Es kommen nur Sportflieger (Cessna 172, PA-28, DR400) – sie melden sich im Funk mit dem Kennzeichen („Delta Lima Mike“), rollen selbst vom Platz und tanken an der Zapfsäule.</li>
+      <li><b>Geld verdienen:</b> Landegebühren, Spritmarge, Vereinsheim-Café und Abstellgebühren bringen wenig – <b>Partner</b> bringen mehr: Flugschule, Rundflüge und Fallschirmclub (ab Verkehrslandeplatz auch ein Lufttaxi) fragen an, sobald der Platz bekannt genug ist, und zahlen Pacht plus Provision je Flug (Management-Zentrale › Airlines &amp; Verträge).</li>
+      <li><b>Bekannter werden:</b> In der Leiste rechts und unter Management-Zentrale › <b>Aufbau</b> startest du Aktionen – <b>Flugplatzfest</b> (Eintritt, Besucher, Gastflieger, Ansehen; bei Regen kommen weniger), <b>Anzeige im Fliegermagazin</b> (mehr Gastflieger für 4 Tage) und <b>Fly-In</b> (Pilotentreffen am nächsten Vormittag). Jede Aktion hat eine Pause, bevor sie wieder geht.</li>
+      <li><b>Ausbauen:</b> Jede Stufe hat Bedingungen (Ansehen, Bewegungen, Partner bzw. Airline-Verträge, Passagiere). Sind sie erfüllt, bauen Land, Kreis und Investoren – du zahlst den <b>Eigenanteil</b>. Stufen: Grasplatz → Verkehrslandeplatz (Asphaltbahn, kleines Vorfeld, Abfertigungsgebäude, Turboprops) → Regionalflughafen (Terminal mit Brücken, Tower, Jets) → Internationaler Flughafen (Großraum, Fracht) → Drehkreuz (Parallelbahn, A380).</li>
+      <li><b>Hart, aber ehrlich:</b> Kosten, Bußgelder und Kreditrahmen passen zur Größe des Platzes; ist die Abstellwiese voll, fliegen Gäste woanders hin, und mehr Linienflüge als das Vorfeld verkraftet nimmt die KI nicht an. Rote Zahlen kosten jeden Tag Ansehen.</li>
+    </ul>
     <h3>🎧 Tower-Lotse</h3>
     <ul>
       <li><b>Anflug frei</b> <kbd>A</kbd> schickt Anflüge vom Fix (z.B. NOLTA) auf den Endanflug. Halte mindestens <b>3 NM</b> Abstand (auf dem Radar sichtbar) – nutze Geschwindigkeiten und <b>Warteschleife</b> <kbd>H</kbd>. Im Warteschleifen-Stapel zuerst den Untersten freigeben.</li>

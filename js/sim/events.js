@@ -12,6 +12,7 @@ import { command } from './atc.js';
 import { fodEvent } from './runway.js';
 import { fodRisk } from './inspect.js';
 import { winterWeather, isWinter } from './winter.js';
+import { isCareer, typeAllowed, stageOf } from './career.js';
 
 export const WEATHER = {
   clear: { name: 'Klar', icon: '☀️' },
@@ -187,6 +188,12 @@ function randomEvent(state) {
 
 // Ereignis gezielt auslösen (auch für Szenarien); gibt das betroffene Flugzeug zurück, falls es eins gibt
 export function triggerEvent(state, kind, opt = {}) {
+  // Karriere: Sonderbesuche nur, wenn Piste und Vorfeld das Flugzeug aufnehmen können
+  if (isCareer(state)) {
+    const need = { a380: 'A388', state: 'A333', vip: 'C68A', emergency: 'A320' }[kind];
+    if (need && !typeAllowed(state, need)) return null;
+    if (stageOf(state) < 2 && (kind === 'strike' || kind === 'breakdown' || kind === 'birdstrike')) return null; // kein Tarifstreik im Fliegerclub
+  }
   if (kind === 'a380') {
     // Superjumbo-Besuch: nur mit freier Großraumposition
     if (!state.stands.some((st) => st.built && st.size === 'L' && st.kind !== 'cargo')) return null;

@@ -13,6 +13,8 @@ import { PH } from '../sim/aircraft.js';
 import { forecastInfo } from '../sim/events.js';
 import { secState, secLanes } from '../sim/security.js';
 import { fmtHours, realMinutes } from './projects.js';
+import { isCareer, stageOf } from '../sim/career.js';
+import { careerDockHtml, careerHeroHtml, careerClick, stagePic } from './careerUi.js';
 
 export class ManagerDock {
   constructor(root, game, observer = false) {
@@ -21,8 +23,10 @@ export class ManagerDock {
     root.innerHTML = `
       <div class="p-head"><div class="p-title">${observer ? icon('eye') + ' Beobachter' : icon('briefcase') + ' Leitstand'} <small id="mp-sub"></small></div></div>
       <div class="p-body dock-body">
+        <div id="dk-hero"></div>
         <button class="dock-open" data-open="over"><span>${icon('briefcase')}</span><b>Management-Zentrale</b><kbd>O</kbd></button>
         ${observer ? '<button class="dock-open cine" data-cine><span>' + icon('cinema') + '</span><b>Kino-Modus</b><kbd>K</kbd></button><button class="dock-open spot" data-spotbook><span>' + icon('spotbook') + '</span><b>Spotterbuch</b><kbd>J</kbd></button><button class="dock-open stream" data-stream><span>' + icon('stream') + '</span><b>Livestream</b><kbd>L</kbd></button><div class="dock-spot-tip">Flugzeug anklicken, dann <kbd>F</kbd> oder 📷 Spotten: seltene Typen, Sonderlackierungen und besondere Momente sammeln.</div><div class="dock-motif" id="dk-motif"></div>' : ''}
+        <div id="dk-career"></div>
         <div id="dk-kpi"></div>
         <div class="p-sec"><span>Jetzt wichtig</span></div>
         <div id="dk-todo"></div>
@@ -33,6 +37,7 @@ export class ManagerDock {
       </div>`;
     root.classList.add('dock');
     root.addEventListener('click', (e) => {
+      if (careerClick(this.game, e)) return this.update(this.game.state);
       if (e.target.closest('[data-cine]')) return window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k' }));
       if (e.target.closest('[data-spotbook]')) return window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j' }));
       if (e.target.closest('[data-stream]')) return window.dispatchEvent(new KeyboardEvent('keydown', { key: 'l' }));
@@ -44,6 +49,17 @@ export class ManagerDock {
   }
 
   update(s) {
+    // Kopfbild: aktuelle Ausbaustufe (Aufbau) bzw. ein Luftbild passend zum Flughafen-Rang
+    const career = isCareer(s);
+    const heroKey = career ? 'c' + stageOf(s) : 'r' + Math.min(2, goalsState(s).rank);
+    if (this.heroKey !== heroKey) {
+      this.heroKey = heroKey;
+      const hero = this.root.querySelector('#dk-hero');
+      if (career) hero.innerHTML = careerHeroHtml(s);
+      else hero.innerHTML = `<div class="cr-hero" data-open="over"><div class="cr-hero-img kb0" style="background-image:url(${stagePic(2 + Math.min(2, goalsState(s).rank))})"></div><div class="cr-hero-shade"></div><div class="cr-hero-t"><small>Flughafen-Rang</small><b>🏅 ${esc(RANKS[goalsState(s).rank].name)}</b></div></div>`;
+    }
+    setHTML(this.root.querySelector('#dk-career'), career ? careerDockHtml(s) : '');
+    const small = career && stageOf(s) < 2;
     const mt = this.root.querySelector('#dk-motif');
     if (mt) setHTML(mt, `🎯 Motiv des Tages: <b>${esc(motifOf(s).t)}</b>${motifDone(s) ? ' <span class="ok">✓</span>' : ' · +150'}`);
     const t = s.stats.today;
@@ -56,14 +72,14 @@ export class ManagerDock {
     const tile = (k, v, cls = '', open = '') => `<div class="k${open ? ' link' : ''}" ${open ? `data-open="${open}"` : ''}><span>${k}</span><b class="${cls}">${v}</b></div>`;
     setHTML(
       this.root.querySelector('#dk-kpi'),
-      `<div class="kpis dock-kpis">${tile('Ergebnis heute', fmtMoney(rev - cost), rev - cost >= 0 ? 'pos' : 'neg', 'fin')}${tile('Ansehen', `${Math.round(s.reputation)}/100`, '', 'over')}${tile('Pünktlich', deps ? Math.round((t.onTime / deps) * 100) + ' %' : '—', '', 'over')}${tile('Bewegungen', t.mov, '', 'over')}${tile('Tanklager', `${Math.round(fu.stock)} t`, fu.stock < FUEL.cap * 0.15 ? 'neg' : '', 'fuel')}${tile('Piste', `${cond} % · ${BRAKE_DE[brakingAction(s)]}`, cond < 45 ? 'neg' : '', 'runways')}${tile('Sicherheitskontrolle', `${Math.round(secState(s).wait)} min Wartezeit`, secState(s).wait > 15 ? 'neg' : '', 'terminal')}${tile('Marktanteil', `${Math.round(rivalState(s).share)} % vs. Nordhafen`, rivalState(s).share < 45 ? 'neg' : rivalState(s).share > 55 ? 'pos' : '', 'rival')}${s.board && s.board.targets ? tile('Aufsichtsrat', boardBadge(s), s.board.conf < 40 ? 'neg' : s.board.conf >= 75 ? 'pos' : '', 'board') : ''}</div>`
+      `<div class="kpis dock-kpis">${tile('Ergebnis heute', fmtMoney(rev - cost), rev - cost >= 0 ? 'pos' : 'neg', 'fin')}${tile('Ansehen', `${Math.round(s.reputation)}/100`, '', 'over')}${tile('Pünktlich', deps ? Math.round((t.onTime / deps) * 100) + ' %' : '—', '', 'over')}${tile('Bewegungen', t.mov, '', 'over')}${small ? '' : tile('Tanklager', `${Math.round(fu.stock)} t`, fu.stock < FUEL.cap * 0.15 ? 'neg' : '', 'fuel')}${tile('Piste', `${cond} % · ${BRAKE_DE[brakingAction(s)]}`, cond < 45 ? 'neg' : '', 'runways')}${small ? '' : tile('Sicherheitskontrolle', `${Math.round(secState(s).wait)} min Wartezeit`, secState(s).wait > 15 ? 'neg' : '', 'terminal')}${small ? '' : tile('Marktanteil', `${Math.round(rivalState(s).share)} % vs. Nordhafen`, rivalState(s).share < 45 ? 'neg' : rivalState(s).share > 55 ? 'pos' : '', 'rival')}${!small && s.board && s.board.targets ? tile('Aufsichtsrat', boardBadge(s), s.board.conf < 40 ? 'neg' : s.board.conf >= 75 ? 'pos' : '', 'board') : ''}</div>`
     );
     // Aufgaben
     const todo = [];
     if (s.offers.length) todo.push(['contracts', '📨', `${s.offers.length} Vertragsangebot${s.offers.length > 1 ? 'e' : ''} prüfen`, 'warn']);
     const waiting = s.acs.filter((a) => (a.phase === PH.VACATED || a.phase === PH.TAXI_WAIT) && !a.stand).length;
     if (waiting) todo.push(['stands', '🅿️', `${waiting} Flugzeug${waiting > 1 ? 'e warten' : ' wartet'} auf eine Position`, 'bad']);
-    if (fu.stock < FUEL.cap * 0.25) todo.push(['fuel', '⛽', `Tanklager bei ${Math.round((fu.stock / FUEL.cap) * 100)} % – Kerosin kaufen`, fu.stock < FUEL.cap * 0.12 ? 'bad' : 'warn']);
+    if (!small && fu.stock < FUEL.cap * 0.25) todo.push(['fuel', '⛽', `Tanklager bei ${Math.round((fu.stock / FUEL.cap) * 100)} % – Kerosin kaufen`, fu.stock < FUEL.cap * 0.12 ? 'bad' : 'warn']);
     if (s.cash < 0) todo.push(['fin', '🏦', 'Kasse im Minus – Kredit oder Kosten senken', 'bad']);
     if (cond < 55 && !projects(s).some((p) => p.kind === 'rwy')) todo.push(['runways', '🛬', `Pistenzustand ${cond} % – Wartung beauftragen`, 'warn']);
     if (!hasRwy2(s) && s.cash > 9500000 && !projects(s).some((p) => p.target === 'rwy2')) todo.push(['runways', '🛫', 'Genug Geld für die Parallelbahn', 'info']);

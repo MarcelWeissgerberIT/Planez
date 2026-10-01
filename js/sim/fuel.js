@@ -3,6 +3,7 @@ import { AC_TYPES } from '../config.js';
 import { clamp, rand, randRange, fmtClock, fmtMoney } from '../util.js';
 import { log, notify } from './messages.js';
 import { nextId } from './schedule.js';
+import { isCareer, stageOf } from './career.js';
 
 export const FUEL = {
   cap: 1500, // t Tanklager
@@ -121,10 +122,11 @@ export function updateFuel(state, dt) {
     }
     f.hist.push({ t: f.lastHour * 3600, p: Math.round(f.price), s: Math.round(f.stock), sold: Math.max(0, sold) });
     if (f.hist.length > 96) f.hist.shift();
-    if (f.auto || state.auto.manager) autoBuy(state);
+    // Aufbau-Modus: vor dem Regionalflughafen gibt es kein Tanklager (Sportflieger tanken AvGas an der Zapfsäule)
+    if ((f.auto || state.auto.manager) && !(isCareer(state) && stageOf(state) < 2)) autoBuy(state);
   }
   // Warnung bei knappem Bestand
-  if (f.stock < FUEL.cap * 0.12 && state.time - (f.warned || 0) > 3 * 3600) {
+  if (!(isCareer(state) && stageOf(state) < 2) && f.stock < FUEL.cap * 0.12 && state.time - (f.warned || 0) > 3 * 3600) {
     f.warned = state.time;
     notify(state, `⛽ Tanklager fast leer (${Math.round(f.stock)} t) – Kerosin bestellen!`, 'bad');
   }

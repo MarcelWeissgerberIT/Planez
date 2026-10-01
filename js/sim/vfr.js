@@ -21,19 +21,25 @@ const hash01 = (t) => {
 const LET = 'ABCDEFGHIKLMNOPRSTUW';
 
 // Platzrunde für die Betriebsrichtung (Landerichtung 27 = nach Westen); x gespiegelt für 09
+// (Punkte relativ zur aktuellen Piste – in der Karriere ist sie am Grasplatz nur 560 m lang)
 function circuit(rwy) {
   const Y = RWY.y, DW = 22;
+  const k = (RWY.x1 - RWY.x0) / 70;
+  const td = RWY.thr['27'] - 3 * Math.min(1, k * 1.4);
+  const lift = td - 12 * k;
+  const up = RWY.x0 + 25 * k;
   const P = [
-    { x: 88, y: Y, z: 1.5, k: 'final' },
-    { x: 69, y: Y, z: 0, k: 'td' },
-    { x: 57, y: Y, z: 0, k: 'lift' },
-    { x: 30, y: Y, z: 2.4, k: 'up' },
-    { x: 25, y: 27.5, z: 3, k: 'cross' },
-    { x: 30, y: DW, z: 3.2, k: 'dw0' },
-    { x: 84, y: DW, z: 3.2, k: 'dw1' },
-    { x: 89, y: 26.5, z: 2.4, k: 'base' },
+    { x: RWY.x1 + 13, y: Y, z: 1.5, k: 'final' },
+    { x: td, y: Y, z: 0, k: 'td' },
+    { x: lift, y: Y, z: 0, k: 'lift' },
+    { x: up, y: Y, z: 2.4, k: 'up' },
+    { x: up - 5, y: 27.5, z: 3, k: 'cross' },
+    { x: up, y: DW, z: 3.2, k: 'dw0' },
+    { x: RWY.x1 + 9, y: DW, z: 3.2, k: 'dw1' },
+    { x: RWY.x1 + 14, y: 26.5, z: 2.4, k: 'base' },
   ];
-  return rwy === '27' ? P : P.map((p) => ({ ...p, x: 80 - p.x }));
+  const mid = (RWY.x0 + RWY.x1) / 2;
+  return rwy === '27' ? P : P.map((p) => ({ ...p, x: 2 * mid - p.x }));
 }
 const SPD = 0.26, SPD_GND = 0.16; // Kacheln/s – etwa 90 kt im Verhältnis zu den Linienflügen (135 kt ≈ 0,42)
 // Funk-Rufzeichen im ICAO-Alphabet: beim Erstanruf vollständig („Delta Echo Kilo Lima Mike“), danach wie in
