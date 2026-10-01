@@ -9,6 +9,7 @@ import { penalize } from './economy.js';
 import { scoreHeli } from './score.js';
 import { hasRwy2 } from './runway.js';
 import { clamp } from '../util.js';
+import { pushNews } from './news.js';
 
 export const HELI = 'RESCUE7';
 const X = 44; // Querung in Bahnmitte
@@ -139,6 +140,7 @@ export function updateHeli(state, dt) {
     H.st = 'around';
     radio(state, HELI, 'Tower, Rescue 7, unable to wait any longer, routing around your control zone to the east.', 'pilot');
     state.reputation = clamp(state.reputation - 1, 0, 100);
+    pushNews(state, 'Rettungshubschrauber muss um den Flughafen herumfliegen – Kritik an der Flugsicherung.', 'bad', '🚁');
     log(state, 'sys', '🚁 Rescue 7 hat keine Querung bekommen und fliegt um die Kontrollzone herum – der Patient kommt deutlich später an.');
   }
 }

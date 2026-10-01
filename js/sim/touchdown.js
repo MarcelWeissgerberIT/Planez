@@ -4,6 +4,7 @@
 // Verbraucht den Zufallsgenerator des Spiels nicht.
 import { AC_TYPES } from '../config.js';
 import { log } from './messages.js';
+import { pushNews } from './news.js';
 
 const hash01 = (str) => {
   let h = 2166136261;
@@ -52,6 +53,7 @@ export function touchdown(state, ac) {
     ac.hardLanding = true;
     L.hardLand = (L.hardLand || 0) + 1;
     T.hardLand = (T.hardLand || 0) + 1;
+    pushNews(state, `Harte Landung: ${ac.cs} setzt mit ${fpm} ft/min auf – die Technik prüft das Fahrwerk.`, 'bad', '⚠️');
     log(state, 'sys', `⚠ Harte Landung: ${ac.cs} mit ${fpm} ft/min${late ? ' nach später Landefreigabe' : ''} – die Technik prüft das Fahrwerk an der Position.`);
   }
   return { fpm, late: !!late };

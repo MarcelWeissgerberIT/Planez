@@ -5,6 +5,7 @@
 import { PH, spawnSpecial, tel } from './aircraft.js';
 import { radio, log, notify } from './messages.js';
 import { scoreProtocol } from './score.js';
+import { pushNews } from './news.js';
 import { clamp } from '../util.js';
 import { AC_TYPES } from '../config.js';
 
@@ -43,6 +44,7 @@ export function startStateVisit(state) {
   L.stateVisit = (L.stateVisit || 0) + 1;
   notify(state, `🎖️ Staatsbesuch: ${guest} im Anflug (${ac.cs}) – Protokoll: Landung ohne Warteschleife, Abflug pünktlich`, 'good');
   if (state.role === 'ground') notify(state, '🎖️ Vorfeld: eine freie Großraum-Kontaktposition (3 oder 5) für die Regierungsmaschine bereithalten', 'info');
+  pushNews(state, `Staatsbesuch: ${guest} landet heute in ${state.name} – die Polizei sperrt die Zufahrt zum Vorfeld.`, 'info', '🎖️');
   log(state, 'sys', `🎖️ Staatsbesuch angekündigt: ${guest} mit der Regierungsmaschine ${ac.cs} (A330). Roter Teppich und Kolonne stehen bereit.`);
   return ac;
 }
@@ -106,7 +108,10 @@ function finish(state, S, rot) {
   if (perfect) L.svPerfect = (L.svPerfect || 0) + 1;
   if (S.landT == null) return; // ausgewichen – kein Abschlussbericht
   log(state, 'sys', perfect ? `🎖️ Staatsbesuch ohne Makel: ${S.guest} bedankt sich für den reibungslosen Ablauf.` : `🎖️ Staatsbesuch beendet${S.arrOk === false ? ' – Ankunft nicht nach Protokoll' : ''}${S.depOk === false ? ' – Abflug verspätet' : ''}.`);
-  if (perfect) notify(state, '🎖️ Staatsbesuch ohne Makel – Dankschreiben der Staatskanzlei', 'good');
+  if (perfect) {
+    notify(state, '🎖️ Staatsbesuch ohne Makel – Dankschreiben der Staatskanzlei', 'good');
+    pushNews(state, `${S.guest} reist ab – Lob für den reibungslosen Ablauf am Flughafen.`, 'good', '🎖️');
+  }
 }
 
 // Kolonne: Position der Fahrzeuge (Polizei vorn und hinten, drei Limousinen) – nur für die Darstellung

@@ -5,6 +5,7 @@ import { PH, tel } from './aircraft.js';
 import { AIRLINES, CITIES } from '../config.js';
 import { radio, log, notify } from './messages.js';
 import { clamp } from '../util.js';
+import { pushNews } from './news.js';
 
 // Bogenpunkt: ein langes gerades Stück auf der Vorfeld-Rollgasse (der Pfad ist dicht abgetastet), das noch vor dem
 // Flugzeug liegt – dort ist links und rechts Platz für die Löschfahrzeuge
@@ -60,6 +61,7 @@ export function updateFirstFlight(state) {
       const L = state.life || (state.life = {});
       L.salutes = (L.salutes || 0) + 1;
       state.reputation = clamp(state.reputation + 0.5, 0, 100);
+      pushNews(state, `Neue Verbindung: ${AIRLINES[S.airline].name} fliegt jetzt ${CITIES[S.city] ? 'nach ' + CITIES[S.city].name : 'neu'} – Erstflug mit Wassertaufe begrüßt.`, 'good', '💦');
       log(state, 'sys', `💦 Wassertaufe für ${ac.cs}: Der Erstflug von ${AIRLINES[S.airline].name} aus ${CITIES[S.city] ? CITIES[S.city].name : '…'} rollt durch den Wasserbogen der Feuerwehr.`);
     }
     return;
