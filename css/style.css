@@ -1555,3 +1555,13 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .paper .pp-side .pp-q { color: #44403c !important; }
 .paper .pp-wx { color: #57534e !important; }
 .paper [data-gl], .paper .gl, .paper abbr { color: inherit !important; border-color: rgba(0,0,0,.3) !important; }
+
+/* ---------- Notfall-Checkliste ---------- */
+.emg-cl { border: 1px solid rgba(244,63,94,.6); background: rgba(244,63,94,.1); border-radius: 8px; padding: 6px 9px; font-size: 12px; animation: insp-blink 1.4s ease-in-out infinite; }
+.emg-cl b { color: #fecdd3; }
+.emg-cl ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.emg-cl li { color: #cbd5e1; }
+.emg-cl li.ok { color: #86efac; }
+.emg-cl li.warn { color: #fca5a5; font-weight: 700; }
+.emg-cl kbd { font-family: var(--mono); font-size: 10px; background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 4px; }
+.a11y-cb .emg-cl li.ok { color: #93c5fd; } .a11y-cb .emg-cl li.warn { color: #fdba74; }

@@ -45,6 +45,23 @@ export function runwayStatusHtml(state) {
     const role = !hasRwy2(state) ? '' : segregated(state) ? (strip === 'N' ? ' · Starts' : ' · Landungen') : strip === 'N' ? ' · Starts & Landungen' : ' · Reserve';
     h += `<div class="rwy-line"><b class="rwy-id">${rwyName(state, strip)}</b>${role} · ${closed ? `<span class="state busy">⛔ ${esc(closed)}</span>` : occ.length ? `<span class="state busy">belegt · ${occ.map((a) => esc(a.cs)).join(', ')}</span>` : '<span class="state free">frei</span>'}<div class="rwy-cond">Zustand <b>${cond} %</b> · Bremswirkung <b class="ba-${ba}">${BRAKE_DE[ba]}</b>${isWet(state) ? ' (nass)' : ''}${state.rwySnow && state.rwySnow[strip] > 0.04 ? ` · ❄️ Schnee <b>${Math.round(state.rwySnow[strip] * 100)} %</b>${state.plow && state.plow.strip === strip ? ' – Räumdienst' : state.rwySnow[strip] > 0.25 ? ' – Räumung bald' : ''}` : ''}</div></div><div></div>`;
   }
+  // Notfall-Checkliste (hakt sich selbst ab)
+  const em = !state.auto.atc && state.acs.find((a) => (a.emergency || a.fuelEmergency) && (a.mode === 'air' || [PH.FINAL, PH.ROLLOUT].includes(a.phase)));
+  if (em) {
+    const fire = state.fireAlert && state.fireAlert.ac === em.id;
+    const app = em.mode === 'map' || em.phase === PH.APPROACH;
+    const near = em.mode === 'map' || (em.phase === PH.APPROACH && distToLand(em) < 10);
+    const depClr = state.acs.find((a) => !a.arr && a.clr.takeoff && [PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAXI_OUT].includes(a.phase));
+    const landed = em.mode === 'map' && em.phase === PH.ROLLOUT;
+    const it = (ok, txt, warn) => `<li class="${ok ? 'ok' : warn ? 'warn' : ''}">${ok ? '✔' : warn ? '⚠' : '○'} ${txt}</li>`;
+    h += `<div class="emg-cl"><b>🚨 Notfall ${esc(em.cs)}${em.fuelEmergency ? ' · Treibstoff' : em.emgKind === 'medical' ? ' · medizinisch' : ''}</b><ul>
+      ${it(fire || em.emgKind === 'medical' || em.fuelEmergency, em.emgKind === 'medical' ? 'Rettungsdienst bestellt' : 'Feuerwehr alarmiert')}
+      ${it(app, 'Direktanflug freigeben <kbd>D</kbd>')}
+      ${it(near && !depClr, depClr ? `Startfreigabe ${esc(depClr.cs)} zurückhalten` : 'Keine Starts vor der Notlandung', !!depClr)}
+      ${it(em.clr.land, 'Landefreigabe <kbd>L</kbd>')}
+      ${it(landed, em.emgKind === 'medical' ? 'Gelandet – Rettungswagen am Flugzeug' : 'Gelandet – Feuerwehr am Flugzeug')}
+    </ul></div><div></div>`;
+  }
   // Pistenkontrolle: Anfrage mit Lücken-Check, laufende Kontrolle
   const I = state.insp;
   if (I && I.req && !state.auto.atc) {
