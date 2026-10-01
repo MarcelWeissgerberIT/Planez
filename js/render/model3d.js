@@ -304,7 +304,7 @@ function template(type, airline) {
   const rz = k.r * L, ry = rz * k.kh;
   const H = k.h * ry; // Rumpfachse über dem Boden
   const root = new THREE.Group();
-  const white = [], gray = [], dark = [], tailc = [], metal = [], flaps = [];
+  const white = [], gray = [], dark = [], tailc = [], metal = [], flaps = [], flapsDn = [], spoil = [], rev = [];
 
   // Rumpf: Heck hochgezogen und verjüngt, zylindrische Mitte, runder Bug
   const rings = [];
@@ -350,6 +350,16 @@ function template(type, airline) {
       return slab([[a.te + (a.le - a.te) * depth, a.y + lift, s * a.z], [c.te + (c.le - c.te) * depth, c.y + lift * 0.7, s * c.z], [c.te, c.y + lift * 0.5, s * c.z], [a.te, a.y + lift * 0.6, s * a.z]], k.cr * L * 0.012, k.ct * L * 0.01);
     };
     flaps.push([flap(0.04, 0.68, 0.28), M4()], [flap(0.7, 0.94, 0.24), M4()]);
+    // ausgefahrene Landeklappen (Start/Landung): nach hinten unten aus der Hinterkante; Störklappen (nach dem Aufsetzen)
+    {
+      const a = at(0.04), c = at(0.68);
+      const ca = a.le - a.te, cc = c.le - c.te;
+      flapsDn.push([slab([[a.te + ca * 0.06, a.y - ca * 0.03, s * a.z], [c.te + cc * 0.06, c.y - cc * 0.03, s * c.z], [c.te - cc * 0.26, c.y - cc * 0.16, s * c.z], [a.te - ca * 0.26, a.y - ca * 0.16, s * a.z]], ca * 0.03, cc * 0.03), M4()]);
+      const p = at(0.14), q = at(0.66);
+      const cp = p.le - p.te, cq = q.le - q.te;
+      const top = k.cr * L * 0.055;
+      spoil.push([slab([[p.te + cp * 0.48, p.y + top, s * p.z], [q.te + cq * 0.48, q.y + top * 0.7, s * q.z], [q.te + cq * 0.3, q.y + top * 0.7 + cq * 0.13, s * q.z], [p.te + cp * 0.3, p.y + top + cp * 0.13, s * p.z]], cp * 0.012, cq * 0.012), M4()]);
+    }
     // Vorflügel an der Vorderkante (metallisch)
     {
       const a = at(0.06), c = at(0.97);
@@ -377,6 +387,8 @@ function template(type, airline) {
       dark.push([new THREE.CircleGeometry(er * 0.86, 16), M4(x - el * 0.02, y, z, 0, Math.PI / 2, 0)]);
       metal.push([new THREE.ConeGeometry(er * 0.26, er * 0.5, 10), M4(x - el * 0.02 + er * 0.2, y, z, 0, 0, -Math.PI / 2)]);
       dark.push([new THREE.CircleGeometry(er * 0.42, 12), M4(x - el + 0.001, y, z, 0, -Math.PI / 2, 0)]);
+      // Schubumkehr: geöffneter Spalt in der Gondel (nur beim Ausrollen sichtbar)
+      rev.push([tube([[-el * 0.62, 0, er * 1.03, er * 1.03], [-el * 0.5, 0, er * 1.08, er * 1.08]], 14), M4(x, y, z)]);
     }
   };
   const props = [];
@@ -457,6 +469,18 @@ function template(type, airline) {
   add(white, phong(0xf3f5f7, 50));
   add(gray, phong(0xd3dae1, 45));
   add(flaps, phong(0xaeb7c1, 30));
+  // bewegliche Teile als eigene Netze, die die Ansicht je Phase zeigt
+  const part = (arr, m, name) => {
+    if (!arr.length) return;
+    const mesh = new THREE.Mesh(merge(arr), m);
+    mesh.name = name;
+    mesh.visible = false;
+    mesh.castShadow = true;
+    root.add(mesh);
+  };
+  part(flapsDn, phong(0xb8c0c9, 30), 'flapsDn');
+  part(spoil, phong(0xc7ced6, 30), 'spoilers');
+  part(rev, lamb(0x0b0f17), 'reverse');
   add(dark, lamb(0x111827));
   add(metal, phong(0xc0c7cf, 90));
   // Leitwerk: eigenes Material, nachts vom Logo-Scheinwerfer angestrahlt

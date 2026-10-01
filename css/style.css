@@ -1791,3 +1791,6 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 @keyframes capIn { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
 #game.riding #ride.cine3d ~ #hud, #game.riding:has(#ride.cine3d) #hud { opacity: 0; pointer-events: none; transition: opacity .4s; }
 @media (max-width: 700px) { #ride.cine3d .rd-cap b { font-size: 20px; } #ride.cine3d .rd-bar { top: auto; bottom: calc(9vh + 6px); } }
+
+/* Cockpit: Regen auf der Scheibe mit Scheibenwischern */
+#ride .rd-rain { position: absolute; left: 0; right: 0; top: 0; height: 74%; width: 100%; pointer-events: none; }

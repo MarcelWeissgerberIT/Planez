@@ -28,7 +28,7 @@ export class Ride {
     el.id = 'ride';
     el.className = 'hidden';
     el.innerHTML = `<div class="rd-drag"></div><div class="rd-haze"></div><div class="rd-win"><div class="rd-shade"></div></div>
-      <div class="rd-cockpit"><div class="rd-pillar l"></div><div class="rd-pillar r"></div><div class="rd-pillar c"></div>
+      <div class="rd-cockpit"><canvas class="rd-rain"></canvas><div class="rd-pillar l"></div><div class="rd-pillar r"></div><div class="rd-pillar c"></div>
         <div class="rd-glare"><div class="rd-pfd"><div class="rd-tape spd"><small>KT</small><b data-r="spd">0</b></div><div class="rd-ai"><div class="rd-hor"></div><i></i><span data-r="fma">TAXI</span></div><div class="rd-tape alt"><small>FT</small><b data-r="alt">0</b><em data-r="vs"></em></div></div>
         <div class="rd-nd"><div class="rd-rose" data-r="rose"></div><b data-r="hdg">000</b><small data-r="nd"></small></div></div></div>
       <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-labels"></div><div class="rd-cap"></div>`;
@@ -434,6 +434,7 @@ export class Ride {
     cam.tx = null;
     if (this.use3d) this.v3d.render(s, this, ac);
     else this.perspective(ac);
+    this.windshield(dt, s.weather.kind, (ac.v || 0) * KT);
     // Klang: innen der Kabinenmix des eigenen Flugzeugs; Aufsetzen und Fahrwerk als Ereignis
     this.cabinSound(ac, ac.v * KT, z > 0.02, ac.phase === PH.TAKEOFF && z > 0.02);
     if (this.lastPh === PH.FINAL && ac.phase === PH.ROLLOUT) soundscape.touchdown(clamp((ac.tdFpm || 250) / 600, 0.2, 1));
@@ -482,6 +483,7 @@ export class Ride {
 
 Ride.prototype.updateAir = function (s, ac, dt) {
   const cam = this.game.cam;
+  this.windshield(dt, s.weather.kind, ac.spd || 0);
   this.cabinSound(ac, ac.spd || 0, true, false);
   if (!this.called.has('gearDn') && (ac.alt || 0) < 1800 && ac.phase === PH.APPROACH) (this.called.add('gearDn'), soundscape.gear());
   const dir = s.rwy === '27' ? 1 : -1; // Anflug auf die 27 kommt von Osten
@@ -533,6 +535,7 @@ Ride.prototype.hearAt = function (zoom) {
 // Steigflug nach dem Start (3D): Instrumente mit den echten Luftdaten, SID im Navigationsdisplay
 Ride.prototype.updateAirDep = function (s, ac, dt) {
   this.v3d.render(s, this, ac);
+  this.windshield(dt, s.weather.kind, ac.spd || 0);
   this.cabinSound(ac, ac.spd || 0, true, (ac.tAlt || 0) > (ac.alt || 0) + 150);
   // die 2D-Kamera (Klangkulisse) folgt dem Flugzeug auch außerhalb der Karte
   const p = LY.nmToTile(ac.pos.x, ac.pos.y);
@@ -730,4 +733,82 @@ Ride.prototype.updateCine3d = function (dt) {
   if (cap._h !== html) (cap.innerHTML = html, (cap._h = html), cap.classList.remove('in'), void cap.offsetWidth, cap.classList.add('in'));
   const txt = `Kino 3D · ${CINE_SUB[sh.kind] || ''}`;
   if (this.tEl.textContent !== txt) this.tEl.textContent = txt;
+};
+
+// Regen (und Schnee) auf der Cockpitscheibe: Tropfen sammeln sich, bei Fahrt laufen sie nach oben und zur Seite weg,
+// zwei Scheibenwischer wischen im Takt – nur im Cockpit und nur bei Niederschlag
+Ride.prototype.windshield = function (dt, wx, kt) {
+  const c = this.el.querySelector('.rd-rain');
+  const on = this.mode === 'cockpit' && (wx === 'rain' || wx === 'storm' || wx === 'snow');
+  if (!on) {
+    if (this.drops && this.drops.length) {
+      this.drops.length = 0;
+      c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    }
+    return;
+  }
+  const W = c.clientWidth, H = c.clientHeight;
+  if (c.width !== W || c.height !== H) (c.width = W), (c.height = H);
+  const g = c.getContext('2d');
+  this.drops = this.drops || [];
+  this.wipeT = (this.wipeT || 0) + dt;
+  const snow = wx === 'snow';
+  const rate = (wx === 'storm' ? 70 : snow ? 22 : 40) * (1 + Math.min(1.5, kt / 120));
+  for (let n = rate * dt; n > 0; n--) if (n >= 1 || Math.random() < n) this.drops.push({ x: Math.random() * W, y: Math.random() * H * 0.95, r: (snow ? 1.6 : 1.2) + Math.random() * (snow ? 2.6 : 3.2), a: 0.9 });
+  // Fahrtwind treibt die Tropfen nach oben außen
+  const push = Math.max(0, kt - 40) * 0.9;
+  for (const d of this.drops) {
+    if (push) {
+      d.y -= push * dt * (0.6 + d.r * 0.15);
+      d.x += (d.x < W / 2 ? -1 : 1) * push * dt * 0.25;
+    } else if (!snow && d.r > 3) d.y += dt * 6;
+    d.a -= dt * (snow ? 0.12 : 0.05);
+  }
+  // Wischer: zwei Arme schwenken um Drehpunkte unten an der Scheibe
+  const ang = Math.sin(this.wipeT * (wx === 'storm' ? 3.4 : 2.2)) * 0.95; // −55°…+55° um die Senkrechte
+  const len = H * 0.82;
+  const piv = [[W * 0.3, H], [W * 0.72, H]];
+  this.drops = this.drops.filter((d) => {
+    if (d.a <= 0 || d.y < -10 || d.x < -10 || d.x > W + 10) return false;
+    for (const [px, py] of piv) {
+      const dx = d.x - px, dy = py - d.y, dist = Math.hypot(dx, dy);
+      if (dist < len && Math.abs(Math.atan2(dx, dy) - ang) < 0.06) return false;
+    }
+    return true;
+  });
+  if (this.drops.length > 700) this.drops.splice(0, this.drops.length - 700);
+  g.clearRect(0, 0, W, H);
+  for (const d of this.drops) {
+    g.globalAlpha = Math.min(1, d.a);
+    if (snow) {
+      g.fillStyle = 'rgba(255,255,255,0.85)';
+      g.beginPath();
+      g.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      g.fill();
+      continue;
+    }
+    g.fillStyle = 'rgba(190,210,235,0.22)';
+    g.beginPath();
+    if (push > 40) g.ellipse(d.x, d.y, d.r * 0.7, d.r * (1 + push / 120), 0, 0, Math.PI * 2);
+    else g.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.55)';
+    g.beginPath();
+    g.arc(d.x - d.r * 0.3, d.y - d.r * 0.35, d.r * 0.32, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.globalAlpha = 1;
+  g.strokeStyle = '#0b0d11';
+  g.lineCap = 'round';
+  for (const [px, py] of piv) {
+    g.lineWidth = 5;
+    g.beginPath();
+    g.moveTo(px, py);
+    g.lineTo(px + Math.sin(ang) * len, py - Math.cos(ang) * len);
+    g.stroke();
+    g.lineWidth = 2;
+    g.strokeStyle = '#2b3038';
+    g.stroke();
+    g.strokeStyle = '#0b0d11';
+  }
 };

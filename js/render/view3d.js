@@ -20,6 +20,7 @@ const DEG = Math.PI / 180;
 const FT_PER_TILE = 318 * NM_PER_TILE; // 3°-Gleitpfad: Fuß Höhe je Kachel Abstand
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
+const FLAP_PH = new Set([PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAKEOFF, PH.FINAL, PH.ROLLOUT, PH.MISSED]);
 const ON_RWY = new Set([PH.TAKEOFF, PH.ROLLOUT, PH.LINED, PH.LINEUP, PH.FINAL, PH.MISSED]);
 
 // Himmelskuppel: Verlauf Zenit -> Horizont, Sonnenscheibe und Lichthof
@@ -368,7 +369,9 @@ export class View3D {
 
   runway(R, south) {
     const T = this.textures();
-    const asph = new THREE.MeshLambertMaterial({ map: T.asphalt });
+    // Asphalt mit Glanz, der bei Nässe stark wird (Spiegelung von Sonne und Scheinwerfern)
+    if (!this.rwyMat) this.rwyMat = new THREE.MeshPhongMaterial({ map: T.asphalt, shininess: 20, specular: 0x111111 });
+    const asph = this.rwyMat;
     this.flat(R.x0, R.x1, R.y - R.hw, R.y + R.hw, asph, 0.01, 3);
     const W = 0xf1f5f9;
     // Mittellinie und Randmarkierung
@@ -463,9 +466,18 @@ export class View3D {
     ground.position.set(LY.W / 2, 0, LY.H / 2);
     ground.receiveShadow = true;
     this.static.add(ground);
-    const farMat = new THREE.MeshLambertMaterial({ map: T.grass, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 8 });
-    const far = this.flat(LY.W / 2 - 20000, LY.W / 2 + 20000, LY.H / 2 - 20000, LY.H / 2 + 20000, farMat, -0.15, 6);
-    far.receiveShadow = false;
+    // weit draußen ein Ring aus vier unterteilten Streifen, der das Stück um den Flughafen nicht überlappt
+    const farMat = gm;
+    const C0 = { x: LY.W / 2, z: LY.H / 2 }, N = 800, F = 20000;
+    for (const [x0, x1, z0, z1, sx, sz] of [[-F, F, -F, -N, 40, 20], [-F, F, N, F, 40, 20], [-F, -N, -N, N, 20, 2], [N, F, -N, N, 20, 2]]) {
+      const geo = new THREE.PlaneGeometry(x1 - x0, z1 - z0, sx, sz);
+      const uv = geo.attributes.uv;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * (x1 - x0)) / 6, (uv.getY(i) * (z1 - z0)) / 6);
+      const m = new THREE.Mesh(geo, farMat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(C0.x + (x0 + x1) / 2, 0, C0.z + (z0 + z1) / 2);
+      this.static.add(m);
+    }
     this.landscape();
     this.snowMat = new THREE.MeshLambertMaterial({ color: 0xf4f7fb, transparent: true, opacity: 0, depthWrite: false });
     this.snowPlane = this.flat(LY.W / 2 - 3000, LY.W / 2 + 3000, LY.H / 2 - 3000, LY.H / 2 + 3000, this.snowMat, 0.0045);
@@ -911,7 +923,7 @@ export class View3D {
         this.acs.set(ac.id, g);
         // Teile einmal nachschlagen statt jeden Frame zu suchen
         const R = {};
-        for (const n of ['gear', 'landing', 'taxi', 'gse', 'stairs', 'navL', 'navR', 'navT', 'bcnT', 'bcnB', 'strL', 'strR', 'strT']) R[n] = g.getObjectByName(n);
+        for (const n of ['gear', 'landing', 'taxi', 'gse', 'stairs', 'navL', 'navR', 'navT', 'bcnT', 'bcnB', 'strL', 'strR', 'strT', 'flapsDn', 'spoilers', 'reverse']) R[n] = g.getObjectByName(n);
         R.props = [];
         R.discs = [];
         g.traverse((o) => (o.name === 'prop' ? R.props.push(o) : o.name === 'disc' ? R.discs.push(o) : null));
@@ -967,6 +979,11 @@ export class View3D {
       const gear = R.gear;
       gear.visible = ac.mode === 'map' ? v.y < 2.5 || ac.phase === PH.FINAL : (ac.alt || 0) < 2000;
       const running = ac.phase !== PH.STAND && ac.phase !== PH.PUSH;
+      // Landeklappen beim Rollen zum Start, Start und Landung; Störklappen und Schubumkehr beim Ausrollen
+      const FLAP = ac.mode === 'map' ? FLAP_PH.has(ac.phase) && v.y < 3 : !!(ac.arr && (ac.alt || 0) < 3500);
+      if (R.flapsDn) R.flapsDn.visible = FLAP;
+      if (R.spoilers) R.spoilers.visible = ac.phase === PH.ROLLOUT && (ac.v || 0) > 0.05;
+      if (R.reverse) R.reverse.visible = ac.phase === PH.ROLLOUT && (ac.v || 0) > 0.17;
       if (running) for (const o of R.props) o.rotation.x += dt * 40;
       for (const o of R.discs) o.visible = running;
       const air = ac.mode === 'air' || v.y > 0.05;
@@ -1167,6 +1184,12 @@ export class View3D {
     }
     // Flugzeuge
     const wet = wx === 'rain' || wx === 'storm' || wx === 'snow';
+    if (this.rwyMat) {
+      const w = wx === 'rain' || wx === 'storm' ? 1 : 0;
+      this.rwyMat.shininess = 20 + 90 * w;
+      this.rwyMat.specular.setHex(w ? 0x8a94a3 : 0x111111);
+      this.rwyMat.color.setHex(w ? 0xb4b9c0 : 0xffffff);
+    }
     this.updateAircraft(state, ride, dt, now, lightsOn, wet);
     // Fahrzeuge
     const vs = new Set();
