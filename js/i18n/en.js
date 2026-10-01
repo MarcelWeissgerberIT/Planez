@@ -3264,4 +3264,5 @@ export default {
   "Rundflug-Service Panorama": "Panorama Sightseeing Flights",
   "Alpenblick Lufttaxi": "Alpenblick Air Taxi",
   "{0} hat den Flugbetrieb aufgenommen – willkommen am Platz!": "{0} has started flying here – welcome to the airfield!",
+  "{0} sagt wetterbedingt ab – kein Sichtflugwetter.": "{0} cancels due to weather – no VFR conditions.",
 };

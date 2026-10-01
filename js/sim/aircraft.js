@@ -65,6 +65,9 @@ export function getRot(state, ac) {
 }
 
 // ---------------- Erzeugen ----------------
+// Sportflugzeuge nur nach Sichtflugregeln; bei diesen Wetterlagen bleiben sie am Boden
+const VFR_ONLY = new Set(['C172', 'PA28', 'DR40']);
+const IMC_WX = new Set(['snow', 'fog', 'storm']);
 export function spawnArrival(state, rot, force = false) {
   const t = AC_TYPES[rot.type];
   // Karriere: ist die Wiese voll, fliegen Gastflieger woanders hin (statt den Rollweg zu verstopfen)
@@ -72,6 +75,13 @@ export function spawnArrival(state, rot, force = false) {
     rot.status = 'cancelled';
     state.stats.today.turnedAway = (state.stats.today.turnedAway || 0) + 1;
     if ((state.stats.today.turnedAway || 0) % 3 === 1) log(state, 'gnd', T`Abstellfläche voll – ${rot.arrNo} fliegt einen anderen Platz an.`);
+    return null;
+  }
+  // Sichtflieger (einmotorige Sportflugzeuge, Fallschirmflüge) starten bei Schnee, Nebel oder Gewitter gar nicht erst
+  if (rot.ga && AIRLINES[rot.airline] && AIRLINES[rot.airline].ga && (VFR_ONLY.has(rot.type) || rot.airline === 'SKD') && IMC_WX.has(state.weather.kind)) {
+    rot.status = 'cancelled';
+    state.stats.today.wxCancel = (state.stats.today.wxCancel || 0) + 1;
+    if (state.stats.today.wxCancel % 3 === 1) log(state, 'gnd', T`${rot.arrNo} sagt wetterbedingt ab – kein Sichtflugwetter.`);
     return null;
   }
   const brg = CITIES[rot.city].brg + randRange(state, -10, 10);
