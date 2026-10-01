@@ -28,6 +28,7 @@ import { initPTT } from './ui/ptt.js';
 import { DecisionCard } from './ui/decision.js';
 import { NewsTicker } from './ui/ticker.js';
 import { Cinema } from './ui/cinema.js';
+import { Stream } from './ui/stream.js';
 import { PhotoMode } from './ui/photo.js';
 import { Tutorial } from './ui/tutorial.js';
 import { showAchievement, achievementsHtml } from './ui/achUi.js';
@@ -457,6 +458,7 @@ function loop(ts) {
       }
     }
   }
+  if (game.stream && game.stream.on) game.stream.update(dt);
   if (game.cinema && game.cinema.on) game.cinema.update(dt);
   else {
     followCam(s, dt);
@@ -1208,6 +1210,7 @@ function onKey(e) {
     return game.fids.toggle();
   }
   if ((e.key === 'j' || e.key === 'J') && !e.ctrlKey && !e.metaKey) return spotter().toggle();
+  if ((e.key === 'l' || e.key === 'L') && s.role !== 'tower' && !e.ctrlKey && !e.metaKey) return toggleStream();
   if ((e.key === 'f' || e.key === 'F') && s.role !== 'tower' && !e.ctrlKey && !e.metaKey) {
     const ac = game.ui.selected && s.acs.find((a) => a.id === game.ui.selected);
     if (!ac) return toast('📷 Erst ein Flugzeug anklicken, dann F zum Spotten', 'info', 1800);
@@ -1442,11 +1445,17 @@ function showGameMenu() {
   });
 }
 
+function toggleStream() {
+  if (!game.stream) game.stream = new Stream(game);
+  game.stream.toggle();
+}
+
 function quitToMenu() {
   if (game.state) saveGame(game.state);
   if (game.mgmt) game.mgmt.close();
   if (game.scn) game.scn.hide();
   if (game.cinema && game.cinema.on && game.cinema.stop) game.cinema.stop();
+  if (game.stream && game.stream.on) game.stream.stop();
   closeModal();
   game.running = false;
   showMenu();
@@ -1506,6 +1515,8 @@ function helpGuide(first) {
     <h3>⭐ Herausforderungen</h3>
     <p><b>📅 Tagesherausforderung:</b> ganz oben in der Liste – jeden Kalendertag eine neue Mischung aus einem Tower- oder Vorfeld-Szenario und zwei Zusatzregeln (z.B. Funkausfall, Hochbetrieb, Superjumbo, Winddrehung, Tankwagen-Panne). Für alle gleich gewürfelt; mindestens ein Stern an aufeinanderfolgenden Tagen ergibt eine 🔥 Serie.</p>
     <p>Im Hauptmenü unter <b>Herausforderungen</b>: kurze Einsätze mit festem Start – Morgenwelle, Nebelsuppe, Gewitterfront, Notfall-Schicht (Tower), Ferienstart, Streiktag, Winterchaos (Vorfeld), Sanierungsfall und Wachstumskurs (Manager). Oben zeigt eine Leiste Restzeit und Ziele; jedes Ziel bringt 1–3 Sterne, die Gesamtwertung ist der Durchschnitt (ein verfehltes Ziel = nicht geschafft). Ein Stern schaltet die nächste Herausforderung der Station frei. Herausforderungen überschreiben deinen Spielstand nicht.</p>
+    <h3>📡 Spotter-Livestream</h3>
+    <p>Mit <kbd>L</kbd> (oder 📡 Livestream im Leitstand des Beobachters) geht deine Kamera auf Sendung. Die <b>Zuschauerzahl</b> folgt dem, was im Bild ist: Landungen, Starts und Durchstarter ziehen, ein A380, die Regierungsmaschine, ein Notfall oder eine Sonderlackierung erst recht; Gewitter, Schnee und Nachtlichter helfen. Ein leeres Bild lässt die Zahl fallen – der Balken unter der Anzeige zeigt, wie spannend die Szene gerade ist. Der <b>Live-Chat</b> kommentiert alles. Im Kino-Modus läuft der Stream als TV-Übertragung weiter.</p>
     <h3>🎖️ Staatsbesuch</h3>
     <p>Ab und zu (ab Tag 2) kündigt sich die <b>Regierungsmaschine</b> an (Rufzeichen „State“, Datenblock <b>STATE</b>, Flugstreifen 🎖️). Protokoll im <b>Tower</b>: landen lassen, ohne dass sie länger als vier Minuten kreist oder durchstarten muss. Im <b>Vorfeld</b>: eine Großraum-Kontaktposition bereithalten und die Maschine pünktlich (höchstens 5 min nach Plan) off-block bringen. Am Boden warten roter Teppich, Ehrenformation, Fahnen und eine Kolonne. Gelingt beides, gibt es Ansehen, Schichtpunkte und eine Protokollgebühr von 60.000 €.</p>
     <h3>📸 Momente des Tages</h3>

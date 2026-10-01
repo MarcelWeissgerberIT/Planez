@@ -24,7 +24,7 @@ const ROLE_KEYS = {
   ],
   ground: [['D', 'Alles bedienen (dringendste zuerst)'], ['G', 'Positionsplan (Zeitstrahl, Drag & Drop)'], ['F', 'ausgewähltes Flugzeug spotten (Foto)']],
   manager: [['O', 'Management-Zentrale'], ['↑ ↓ (in der Zentrale)', 'Bereich wechseln'], ['F', 'ausgewähltes Flugzeug spotten (Foto)']],
-  observer: [['O', 'Management-Zentrale'], ['K', 'Kino-Modus – am besten mit 2×'], ['F', 'ausgewähltes Flugzeug spotten (Foto)']],
+  observer: [['O', 'Management-Zentrale'], ['K', 'Kino-Modus – am besten mit 2×'], ['L', 'Spotter-Livestream mit Live-Chat'], ['F', 'ausgewähltes Flugzeug spotten (Foto)']],
 };
 
 export function keysHtml(role) {

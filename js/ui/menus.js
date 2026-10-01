@@ -107,7 +107,7 @@ const SIDE = {
     <ul><li>Kurze Einsätze mit festem Start: Morgenwelle, Nebel, Gewitterfront, Notfälle, Streik, Winterchaos, Sanierungsfall …</li><li>Jedes Ziel bringt 1–3 Sterne – der Bestwert bleibt gespeichert</li><li>Mit einem Stern schaltest du die nächste Stufe deiner Station frei</li></ul></div></div>`,
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
-      <li>🎖️ <b>Staatsbesuch</b>: Regierungsmaschine mit Protokoll, rotem Teppich und Kolonne</li>
+      <li>🎖️ <b>Staatsbesuch</b> mit Protokoll, rotem Teppich und Kolonne · 📡 <b>Livestream</b> mit Live-Chat (<kbd>L</kbd>)</li>
       <li>📖 <b>Kampagne</b>: 9 Kapitel mit Story · 🎞️ <b>Kino-Intro</b> · 📰 <b>Planezer Kurier</b> im Tagesbericht</li>
       <li>🏛️ <b>Aufsichtsrat</b> mit Wochenzielen und Strategie · 🌐 <b>Basis-Angebote</b> von Airlines</li>
       <li>⛈️ <b>Wetterumflüge</b> mit <kbd>Y</kbd> genehmigen · 🚙 <b>Pistenkontrolle</b> in Verkehrslücken</li>
