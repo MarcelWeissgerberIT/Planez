@@ -86,6 +86,8 @@ function newGoal(state, role, exclude) {
   let target = d.t[tier];
   const mf = moneyF(state);
   if (mf < 1 && ['fuelMargin', 'pax', 'fuelT'].includes(key)) target = Math.max(1, Math.round((target * mf) / 10) * 10);
+  // Serien zählen ab jetzt weiter: das neue Ziel muss über die laufende Serie hinausgehen (sonst wäre es sofort erfüllt)
+  if (d.type === 'streak') target = Math.max(target, valueOf(state, key) + Math.ceil(target * 0.5));
   if (d.type === 'level') target = key === 'rep' ? Math.max(target, Math.ceil(state.reputation) + 4) : mf < 1 ? Math.ceil((Math.max(0, state.cash) * 1.4 + 250000 * mf) / 1e4) * 1e4 : Math.max(target, Math.ceil((state.cash * 1.3) / 1e6) * 1e6);
   return { id: nextId(state, 'g'), key, target, base: d.type === 'streak' ? 0 : valueOf(state, key), tier, created: state.time };
 }
