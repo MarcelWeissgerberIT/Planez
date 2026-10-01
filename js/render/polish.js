@@ -23,9 +23,11 @@ export class Polish {
       const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg), rx = -fy, ry = fx;
       // Aufsetzen: Reifenrauch an beiden Hauptfahrwerken
       if (p === PH.FINAL && ac.phase === PH.ROLLOUT) {
+        // je härter die Landung, desto mehr Rauch (Aufsetzrate in ft/min); Butterlandungen nur ein Hauch
+        const hard = ac.tdFpm ? Math.max(0.35, Math.min(2.2, ac.tdFpm / 260)) : 1;
         for (const side of [-1, 1]) {
-          for (let k = 0; k < 7; k++) {
-            this.parts.push({ x: ac.x - fx * ac.len * 0.05 + rx * side * 0.12 * big, y: ac.y - fy * ac.len * 0.05 + ry * side * 0.12 * big, z: 0.03, vx: -fx * (0.6 + Math.random() * 0.8) + (Math.random() - 0.5) * 0.3, vy: -fy * (0.6 + Math.random() * 0.8) + (Math.random() - 0.5) * 0.3, vz: 0.05 + Math.random() * 0.08, life: 0, dur: 1.6 + Math.random() * 1.2, r: 0.12 * big, grow: 0.5 * big, c: '235,235,235', a: 0.55 });
+          for (let k = 0; k < Math.round(7 * hard); k++) {
+            this.parts.push({ x: ac.x - fx * ac.len * 0.05 + rx * side * 0.12 * big, y: ac.y - fy * ac.len * 0.05 + ry * side * 0.12 * big, z: 0.03, vx: -fx * (0.6 + Math.random() * 0.8) + (Math.random() - 0.5) * 0.3, vy: -fy * (0.6 + Math.random() * 0.8) + (Math.random() - 0.5) * 0.3, vz: 0.05 + Math.random() * 0.08, life: 0, dur: 1.6 + Math.random() * 1.2, r: 0.12 * big, grow: 0.5 * big * Math.sqrt(hard), c: '235,235,235', a: 0.55 });
           }
         }
       }
