@@ -72,9 +72,15 @@ import { briefingHtml } from './ui/briefing.js';
 import { careerDayEnd, careerAch, careerTick, careerRank } from './career.js';
 import { RankUp } from './ui/rankUp.js';
 import { isCareer, stageOf, STAGES, stageUpStatus, applyStage } from './sim/career.js';
+import { VERSION } from './version.js';
 
 // eigene SVG-Icons in die statischen Knöpfe (Kartenleiste, Menü, Radar/Funk-Köpfe) einsetzen
 hydrateIcons(document);
+
+{
+  const mv = document.getElementById('mm-ver');
+  if (mv) mv.textContent = 'v' + VERSION;
+}
 
 const game = {
   state: null,
@@ -1290,7 +1296,8 @@ function onKey(e) {
     return game.cinema.toggle();
   }
   if (!game.running || !game.state) return;
-  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
+  // in Eingabefeldern keine Tastenkürzel – außer Esc in einem Fenster (z. B. Suchfeld im Glossar)
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') && !(e.key === 'Escape' && modalOpen())) return;
   const s = game.state;
   if (modalOpen()) {
     // Briefing/Tagesbericht mit Esc schließen = wie „Weiter“ (Tempo zurück, Briefing folgt)
