@@ -1725,3 +1725,21 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .rwy-cond .ico .a { fill: #fcd34d; stroke: #fcd34d; }
 .dc-i .ico { width: 28px; height: 28px; color: #fde68a; vertical-align: 0; }
 .dc-i .ico .a { fill: #fbbf24; stroke: #fbbf24; }
+/* 3D-Kamera beim Mitfliegen */
+#game.riding { background: var(--rd-sky, #9cc3e6); }
+#game.riding #map { will-change: transform; }
+#ride .rd-drag { position: absolute; inset: 0; pointer-events: auto; cursor: grab; touch-action: none; }
+#ride .rd-drag:active { cursor: grabbing; }
+#ride .rd-haze { position: absolute; left: 0; right: 0; pointer-events: none; }
+#ride .rd-modes { display: inline-flex; gap: 4px; }
+#ride .rd-modes button { border: 1px solid var(--line-2, #475569); background: rgba(255,255,255,.06); color: #cbd5e1; border-radius: 8px; padding: 4px 8px; font-size: 12px; white-space: nowrap; }
+#ride .rd-modes button.on { color: #fff; border-color: #38d6f5; background: rgba(56,214,245,.18); }
+#ride .rd-modes .ico { width: 14px; height: 14px; vertical-align: -2px; }
+#ride .rd-help { position: absolute; left: 50%; transform: translateX(-50%); top: 58px; font-size: 11px; color: rgba(226,232,240,.85); background: rgba(6,12,22,.55); padding: 3px 9px; border-radius: 8px; pointer-events: none; }
+#ride.cockpit .rd-help { top: auto; bottom: calc(27% + 8px); }
+#ride.window .rd-win { pointer-events: none; }
+@media (max-width: 700px) { #ride .rd-help { display: none; } #ride .rd-modes button { padding: 3px 6px; font-size: 11px; } }
+#view3d { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 44; display: block; }
+#view3d.hidden { display: none; }
+#ride.v3d .rd-haze { display: none; }
+#ride.v3d.window .rd-win { width: min(58vmin, 72vw); height: min(76vmin, 76vh); }

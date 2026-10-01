@@ -482,7 +482,8 @@ function loop(ts) {
   if (s.speed && !document.hidden) careerTick(dt);
   if (!game.replay) game.replay = new Replay(game);
   game.replay.record(s, dt);
-  game.map.render(game.replay.on ? game.replay.view(s, dt) : s, dt, game.ui);
+  // beim Mitfliegen in 3D zeichnet WebGL die Szene – die 2D-Karte darunter muss nicht mitlaufen
+  if (!(game.ride && game.ride.on && game.ride.use3d)) game.map.render(game.replay.on ? game.replay.view(s, dt) : s, dt, game.ui);
   soundscape.on = !!s.settings.sound && s.settings.ambience !== false && !document.hidden;
   soundscape.update(s, game.cam, game.map, dt, !s.speed || modalOpen());
   if (game.ui.radarOn) game.radar.render(s, dt, game.ui);
@@ -1596,8 +1597,8 @@ function helpGuide(first) {
     <p>Das Spiel schneidet die letzten Sekunden am Platz mit. Nach einem besonderen Moment – Durchstarten, Notlandung, harte oder butterweiche Landung, A380 oder Regierungsmaschine – erscheint unten ein Knopf <b>Wiederholung</b>; <kbd>Umschalt</kbd>+<kbd>R</kbd> spielt sie jederzeit ab. In Zeitlupe, ohne Oberfläche, die Kamera folgt dem Flugzeug; die Simulation wartet so lange. Esc oder ein Klick beendet die Wiederholung.</p>
     <h3>🛬 Aufsetzrate</h3>
     <p>Jede Landung zeigt ihre Sinkrate beim Aufsetzen (ft/min): unter 110 ist 🧈 Butter, ab 600 eine harte Landung. Seitenwind, Böen, Regen, Schnee, Gewitter und Wirbelschleppen machen Landungen fester – und eine <b>späte Landefreigabe</b>: Kommt sie weniger als eine Minute vor dem Aufsetzen, ist der Endanflug unruhig. Nach einer harten Landung prüft die Technik das Fahrwerk an der Position (Abfertigung ruht 20 Minuten).</p>
-    <h3>🪟 Mitfliegen</h3>
-    <p>Flugzeug anklicken und in der Info-Karte <b>Fenster</b> oder <b>Cockpit</b> wählen. Am <b>Fensterplatz</b> schaust du durchs Kabinenfenster auf Tragfläche und Boden (Anschnallzeichen, mit Echter Funk eine Kapitänsdurchsage). Im <b>Cockpit</b> blickst du voraus und hast die Instrumente vor dir: Geschwindigkeit, Höhe, Steigrate, künstlicher Horizont, Flugmodus und Kurs; im Endanflug kommen die Höhenansagen. Einsteigen geht schon im Anflug – dann zeigen die Instrumente die echten Luftdaten, bis die Maschine landet –, oder an der Position vor dem Abflug. Oben lässt sich umschalten, <kbd>Esc</kbd> steigt aus.</p>
+    <h3>🪟 Mitfliegen in 3D</h3>
+    <p>Flugzeug anklicken und in der Info-Karte <b>Fenster</b> oder <b>Cockpit</b> wählen – die Ansicht wechselt in echtes 3D (WebGL). Oben gibt es drei Kameras: <b>Cockpit</b>, <b>Fenster</b> und <b>3D außen</b>; <b>Ziehen</b> dreht und neigt den Blick frei, das <b>Mausrad</b> ändert den Abstand, Doppelklick setzt zurück. Am <b>Fensterplatz</b> schaust du durchs Kabinenfenster auf Tragfläche und Boden (Anschnallzeichen, mit Echter Funk eine Kapitänsdurchsage). Im <b>Cockpit</b> blickst du voraus und hast die Instrumente vor dir: Geschwindigkeit, Höhe, Steigrate, künstlicher Horizont, Flugmodus und Kurs; im Endanflug kommen die Höhenansagen. Einsteigen geht schon im Anflug – dann zeigen die Instrumente die echten Luftdaten, bis die Maschine landet –, oder an der Position vor dem Abflug. Oben lässt sich umschalten, <kbd>Esc</kbd> steigt aus.</p>
     <h3>📡 Spotter-Livestream</h3>
     <p>Mit <kbd>L</kbd> (oder 📡 Livestream im Leitstand des Beobachters) geht deine Kamera auf Sendung. Die <b>Zuschauerzahl</b> folgt dem, was im Bild ist: Landungen, Starts und Durchstarter ziehen, ein A380, die Regierungsmaschine, ein Notfall oder eine Sonderlackierung erst recht; Gewitter, Schnee und Nachtlichter helfen. Ein leeres Bild lässt die Zahl fallen – der Balken unter der Anzeige zeigt, wie spannend die Szene gerade ist. Der <b>Live-Chat</b> kommentiert alles – und äußert <b>Wünsche</b> (eine Landung, ein bestimmtes Flugzeug, den Tower von nah …): Holst du das binnen 60 Sekunden ins Bild, springt die Zuschauerzahl hoch. Im Kino-Modus läuft der Stream als TV-Übertragung weiter. <b>Spotter-Quiz:</b> Ab und zu fragt der Chat nach dem Typ eines Flugzeugs nahe der Bildmitte (das Kartenlabel zeigt dann „???“) – wähle aus drei Antworten; richtig gibt einen Zuschauerschub, zehn richtige den Erfolg „Typenkenner“.</p>
     <h3>🎖️ Staatsbesuch</h3>

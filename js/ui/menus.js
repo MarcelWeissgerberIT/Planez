@@ -107,7 +107,7 @@ const SIDE = {
     <ul><li>Kurze Einsätze mit festem Start: Morgenwelle, Nebel, Gewitterfront, Notfälle, Streik, Winterchaos, Sanierungsfall …</li><li>Jedes Ziel bringt 1–3 Sterne – der Bestwert bleibt gespeichert</li><li>Mit einem Stern schaltest du die nächste Stufe deiner Station frei</li></ul></div></div>`,
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
-      <li>🪟 <b>Mitfliegen</b> am Fensterplatz oder im Cockpit mit Instrumenten und Höhenansagen</li>
+      <li>🧊 <b>Mitfliegen in echtem 3D</b> (WebGL): Cockpit, Fenster oder Außenkamera, frei drehbar – mit Instrumenten und Höhenansagen</li>
       <li>🛡️ <b>Sicherheitsnetz</b> gegen gefährliche Freigaben · 🎙️ natürlichere <b>englische Funkstimmen</b> mit Akzent je Airline</li>
       <li>🎨 <b>Eigene Icons</b> im Spiel-Look · 🦺 <b>Einwinker</b>, Andockanzeige, Wing Walker · 🚑 <b>Rettungswagen</b></li>
       <li>🌌 <b>Lichtspuren</b> im Fotomodus · 📸 <b>Spotterhügel</b> · 🔎 <b>Spotter-Quiz</b> · 🎈 <b>Tag der offenen Tür</b></li>

@@ -1,4 +1,5 @@
-// Mitfliegen (Beobachter): In ein Flugzeug einsteigen – am Fensterplatz (Blick durchs ovale Kabinenfenster auf
+// Mitfliegen (Beobachter): In ein Flugzeug einsteigen – mit perspektivischer 3D-Kamera, die am Flugzeug hängt und sich
+// frei drehen lässt (Ziehen = um das Flugzeug drehen und neigen, Mausrad = Abstand). Dazu – am Fensterplatz (Blick durchs ovale Kabinenfenster auf
 // Tragfläche und Boden, Anschnallzeichen, Kapitänsdurchsage) oder im Cockpit (Kamera schaut voraus, Instrumente
 // mit Geschwindigkeit, Höhe, Kurs, Steig-/Sinkrate und Höhenansagen im Endanflug). Die Kamera fährt mit, bis das
 // Flugzeug an der Position steht oder die Karte verlässt. Esc oder ✕ beendet. Nur Darstellung.
@@ -25,11 +26,11 @@ export class Ride {
     const el = document.createElement('div');
     el.id = 'ride';
     el.className = 'hidden';
-    el.innerHTML = `<div class="rd-win"><div class="rd-shade"></div></div>
+    el.innerHTML = `<div class="rd-drag"></div><div class="rd-haze"></div><div class="rd-win"><div class="rd-shade"></div></div>
       <div class="rd-cockpit"><div class="rd-pillar l"></div><div class="rd-pillar r"></div><div class="rd-pillar c"></div>
         <div class="rd-glare"><div class="rd-pfd"><div class="rd-tape spd"><small>KT</small><b data-r="spd">0</b></div><div class="rd-ai"><div class="rd-hor"></div><i></i><span data-r="fma">TAXI</span></div><div class="rd-tape alt"><small>FT</small><b data-r="alt">0</b><em data-r="vs"></em></div></div>
         <div class="rd-nd"><div class="rd-rose" data-r="rose"></div><b data-r="hdg">000</b><small data-r="nd"></small></div></div></div>
-      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><button class="rd-sw" data-rd="swap"></button><button class="rd-x" data-rd="x" title="Aussteigen (Esc)">✕</button></div>`;
+      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><button class="rd-x" data-rd="x" title="Aussteigen (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
     this.tEl = el.querySelector('.rd-t');
@@ -38,8 +39,34 @@ export class Ride {
       const b = e.target.closest('[data-rd]');
       if (!b) return;
       if (b.dataset.rd === 'x') this.stop();
-      else this.setMode(this.mode === 'window' ? 'cockpit' : 'window');
+      else this.setMode(b.dataset.rd);
     });
+    // frei drehbare Kamera: Ziehen dreht (Gier) und neigt, Mausrad ändert den Abstand
+    const drag = el.querySelector('.rd-drag');
+    let last = null;
+    drag.addEventListener('pointerdown', (e) => {
+      last = { x: e.clientX, y: e.clientY };
+      drag.setPointerCapture && drag.setPointerCapture(e.pointerId);
+    });
+    drag.addEventListener('pointermove', (e) => {
+      if (!last) return;
+      if (this.use3d) {
+        this.yaw += (e.clientX - last.x) * 0.3;
+        this.pitch = this.mode === 'chase' ? clamp(this.pitch + (e.clientY - last.y) * 0.25, 2, 85) : clamp(this.pitch + (e.clientY - last.y) * 0.2, -25, 70);
+      } else {
+        this.yaw += (e.clientX - last.x) * 0.35;
+        this.pitch = clamp(this.pitch - (e.clientY - last.y) * 0.25, 30, 80);
+      }
+      last = { x: e.clientX, y: e.clientY };
+    });
+    const up = () => (last = null);
+    drag.addEventListener('pointerup', up);
+    drag.addEventListener('pointercancel', up);
+    drag.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      this.zoomK = clamp(this.zoomK * (e.deltaY > 0 ? 0.9 : 1.1), 0.45, 2.4);
+    }, { passive: false });
+    drag.addEventListener('dblclick', () => this.setMode(this.mode));
     window.addEventListener('keydown', (e) => {
       if (this.on && e.key === 'Escape') {
         e.preventDefault();
@@ -66,6 +93,21 @@ export class Ride {
     this.el.classList.remove('hidden');
     document.getElementById('game').classList.add('riding');
     this.setMode(mode);
+    // echte 3D-Ansicht (WebGL) nachladen; bis dahin bzw. ohne WebGL die gekippte Karte
+    import('../render/view3d.js').then((m) => {
+      if (!this.on || !m.View3D.supported()) return;
+      try {
+        this.v3d = this.v3d || new m.View3D(this.game);
+      } catch (e) {
+        return;
+      }
+      this.use3d = true;
+      this.v3d.show();
+      this.el.classList.add('v3d');
+      const map = document.getElementById('map');
+      map.style.transform = '';
+      this.setMode(this.mode);
+    }).catch(() => {});
     // Begrüßung durch den Kapitän (Terminal-/Kabinenstimme, nur mit Echter Funk)
     const rot = s.rots[ac.rot];
     const city = rot && CITIES[rot.city] ? CITIES[rot.city].name : '';
@@ -79,21 +121,65 @@ export class Ride {
 
   setMode(mode) {
     this.mode = mode;
+    // Grundeinstellung je Ansicht: Blickrichtung (relativ zur Flugrichtung), Neigung, Abstand
+    this.yaw = mode === 'window' ? (this.use3d ? 75 : 90) : 0; // am Fenster leicht nach vorn auf die Tragfläche
+    this.pitch = this.use3d ? (mode === 'cockpit' ? 5 : mode === 'window' ? 9 : 16) : mode === 'cockpit' ? 70 : mode === 'window' ? 66 : 56;
+    this.zoomK = 1;
+    for (const b of this.el.querySelectorAll('.rd-modes [data-rd]')) b.classList.toggle('on', b.dataset.rd === mode);
     // im Cockpit sitzt man im Flugzeug – es selbst wird nicht gezeichnet
     if (this.game.map) this.game.map.hideAc = mode === 'cockpit' ? this.id : null;
     this.el.classList.toggle('cockpit', mode === 'cockpit');
     this.el.classList.toggle('window', mode === 'window');
-    this.el.querySelector('.rd-sw').innerHTML = mode === 'window' ? `${icon('plane')} Ins Cockpit` : `${icon('eye')} Zum Fensterplatz`;
+    this.el.classList.toggle('chase', mode === 'chase');
   }
 
   stop() {
     if (!this.on) return;
     this.on = false;
     if (this.game.map) this.game.map.hideAc = null;
+    if (this.v3d) this.v3d.hide();
+    this.use3d = false;
+    this.el.classList.remove('v3d');
     this.el.classList.add('hidden');
     document.getElementById('game').classList.remove('riding');
     this.game.ui.labels = this.labels !== false;
     this.game.cam.tx = null;
+    const map = document.getElementById('map');
+    map.style.transform = '';
+    map.style.transformOrigin = '';
+    document.getElementById('game').style.removeProperty('--rd-sky');
+  }
+
+  // Karte perspektivisch kippen und so drehen, dass die Blickrichtung (Flugrichtung + freie Drehung) nach vorn zeigt;
+  // Himmel mit Horizont und Dunst dahinter, damit der Kartenrand im Dunst verschwindet
+  perspective(ac) {
+    const cam = this.game.cam;
+    const map = document.getElementById('map');
+    const W = cam.w, H = cam.h;
+    const a = cam.toScreen(ac.x, ac.y, ac.z || 0), b = cam.toScreen(ac.x + Math.cos(ac.hdg), ac.y + Math.sin(ac.hdg), ac.z || 0);
+    const ang = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI; // Flugrichtung auf dem Bild
+    const rz = -90 - ang - this.yaw;
+    const P = 620;
+    const th = this.pitch;
+    const lift = this.mode === 'cockpit' ? 0.3 : this.mode === 'window' ? 0.24 : 0.2;
+    map.style.transformOrigin = '50% 50%';
+    map.style.transform = `translateY(${Math.round(H * lift)}px) perspective(${P}px) rotateX(${th}deg) rotateZ(${rz.toFixed(2)}deg)`;
+    // Horizont (unendlich ferne Bodenlinie) und nächster möglicher Kartenrand auf dem Bildschirm
+    const rad = (th * Math.PI) / 180;
+    const oy = H / 2 + H * lift;
+    const hz = oy - P / Math.tan(rad);
+    const d = Math.min(W, H) * 0.48;
+    const edge = oy - (d * Math.cos(rad) * P) / (P + d * Math.sin(rad));
+    const hr = ((this.game.state.time / 3600) % 24 + 24) % 24;
+    const night = hr < 5.5 || hr > 21 ? 1 : hr < 7 ? (7 - hr) / 1.5 : hr > 19.5 ? (hr - 19.5) / 1.5 : 0;
+    const sky = night > 0.5 ? ['#0b1324', '#1e2a44', '#2a3550'] : ['#4f86c6', '#9cc3e6', '#dce8f0'];
+    const haze = night > 0.5 ? '#26304a' : '#cfdbe2';
+    const g = document.getElementById('game');
+    g.style.setProperty('--rd-sky', `linear-gradient(to bottom, ${sky[0]} 0px, ${sky[1]} ${Math.max(0, hz - 60)}px, ${sky[2]} ${hz}px, ${haze} ${hz + 2}px, ${haze} 100%)`);
+    const hzEl = this.el.querySelector('.rd-haze');
+    hzEl.style.top = `${Math.round(hz - 40)}px`;
+    hzEl.style.height = `${Math.max(60, Math.round(edge - hz + 110))}px`;
+    hzEl.style.background = `linear-gradient(to bottom, ${sky[2]}00 0%, ${haze} 30%, ${haze} ${Math.max(35, Math.min(80, ((edge - hz + 40) / (edge - hz + 110)) * 100))}%, ${haze}00 100%)`;
   }
 
   // Höhenansage im Endanflug (englisch, kurz)
@@ -129,28 +215,22 @@ export class Ride {
     }
     const L = ac.len, fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg), rx = -fy, ry = fx;
     const z = ac.z || 0;
-    let tx, ty, tz;
-    if (this.mode === 'window') {
-      // rechter Fensterplatz kurz hinter der Tragfläche: Blick auf Flügel und Boden
-      const bob = Math.sin(performance.now() / 700) * 0.03 * (z > 0.05 ? 1 : 0.3);
-      tx = ac.x + rx * L * 0.42 - fx * L * 0.1;
-      ty = ac.y + ry * L * 0.42 - fy * L * 0.1 - z * 0.4 + bob;
-      tz = 2.6;
-    } else {
-      // Cockpit: weit voraus schauen
-      const lead = 1.2 + clamp((ac.v || 0) * 9, 0, 3.2);
-      tx = ac.x + fx * (L * 0.5 + lead);
-      ty = ac.y + fy * (L * 0.5 + lead) - z * 0.4;
-      tz = 2.2;
-    }
-    const k = 1 - Math.pow(this.mode === 'cockpit' ? 0.0001 : 0.001, dt);
+    // Standpunkt: Cockpit an der Nase, Fenster über der rechten Tragfläche, außen in der Flugzeugmitte
+    const seat = this.mode === 'cockpit' ? L * 0.45 : this.mode === 'window' ? -L * 0.05 : 0;
+    const side = this.mode === 'window' ? L * 0.18 : 0;
+    const tx = ac.x + fx * seat + rx * side, ty = ac.y + fy * seat + ry * side - z * 0.4;
+    // je höher, desto weiter fällt der Boden ab
+    const tz = ({ cockpit: 1.7, window: 2.1, chase: 1.9 }[this.mode] * this.zoomK) / (1 + z * 0.35);
+    const k = 1 - Math.pow(0.0001, dt);
     // Rütteln auf der Bahn: Startlauf und Ausrollen, je schneller, desto stärker
     const rumble = (ac.phase === PH.TAKEOFF && z < 0.05) || (ac.phase === PH.ROLLOUT && (ac.v || 0) > 0.15) ? Math.min(0.05, (ac.v || 0) * 0.08) : 0;
     const jx = rumble ? (Math.random() - 0.5) * rumble : 0, jy = rumble ? (Math.random() - 0.5) * rumble : 0;
     cam.x += (tx - cam.x) * k + jx;
     cam.y += (ty - cam.y) * k + jy;
-    cam.zoom += (tz - cam.zoom) * Math.min(1, dt * 2);
+    cam.zoom += (tz - cam.zoom) * Math.min(1, dt * 3);
     cam.tx = null;
+    if (this.use3d) this.v3d.render(s, this, ac);
+    else this.perspective(ac);
     // Instrumente und Anzeige
     const kt = Math.round((ac.v || 0) * KT), alt = Math.round((z * FT) / 10) * 10;
     const vs = dt > 0 ? ((z - this.lastZ) * FT * 60) / Math.max(dt * (s.speed || 1) * 15, 1e-3) : 0;
@@ -201,6 +281,8 @@ Ride.prototype.updateAir = function (s, ac, dt) {
   cam.y += (ty - cam.y) * k;
   cam.zoom += ((this.mode === 'cockpit' ? 1.4 : 1.8) - cam.zoom) * Math.min(1, dt * 2);
   cam.tx = null;
+  if (this.use3d) this.v3d.render(s, this, ac);
+  else this.perspective({ x: cam.x, y: cam.y, z: 0, hdg: dir > 0 ? Math.PI : 0 });
   const d = AS.routeDistance(ac.pos, ac.route.length && ac.phase === PH.APPROACH ? ac.route : AS.approachRoute(ac.pos, ac.rwy));
   const rot = s.rots[ac.rot];
   const city = rot && CITIES[rot.city] ? CITIES[rot.city].name : '';
