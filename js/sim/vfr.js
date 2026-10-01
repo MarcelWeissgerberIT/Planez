@@ -62,6 +62,17 @@ export function vfrConflict(state) {
   return soft;
 }
 
+// Entfernung der nächsten Linienlandung auf der Nordbahn (NM; 0 = schon im kurzen Endanflug)
+function nextArrival(state) {
+  let m = 99;
+  for (const a of state.acs) {
+    if (!a.arr || (a.strip || 'N') !== 'N') continue;
+    if (a.mode === 'map' && a.phase === PH.FINAL) return 0;
+    if (a.mode === 'air' && a.phase === PH.APPROACH) m = Math.min(m, AS.routeDistance(a.pos, a.route.length ? a.route : [AS.THR[a.rwy]]));
+  }
+  return m;
+}
+
 export function clearVfr(state) {
   const p = vfrState(state).p;
   if (!p || !p.req || p.clr) return { ok: false };
@@ -157,7 +168,7 @@ export function updateVfr(state, dt) {
     p.z = 3.2;
     p.hdg = p.oa + Math.PI / 2;
     setOcc(state, p);
-    if (p.req && !p.clr && !humanTower(state) && !vfrConflict(state) && !runwayClosed(state, 'N')) clearVfr(state);
+    if (p.req && !p.clr && !humanTower(state) && !vfrConflict(state) && nextArrival(state) >= 14 && !runwayClosed(state, 'N')) clearVfr(state);
     return;
   } else if (d > 1e-6) {
     const k = Math.min(1, v / d);
@@ -185,7 +196,7 @@ export function updateVfr(state, dt) {
     radio(state, p.cs, `${tel(p.cs)}, downwind runway ${p.rwy}, request touch and go.`, 'pilot');
   }
   // Auto-Lotse: frei, sobald Platz ist – erst am Ende des Gegenanflugs, damit die Lücke bis zum Aufsetzen hält
-  if (p.req && !p.clr && !humanTower(state) && Math.abs(p.x - C[6].x) < 12 && !vfrConflict(state) && !runwayClosed(state, 'N')) clearVfr(state);
+  if (p.req && !p.clr && !humanTower(state) && Math.abs(p.x - C[6].x) < 12 && !vfrConflict(state) && nextArrival(state) >= 14 && !runwayClosed(state, 'N')) clearVfr(state);
   // Endanflug: belegte Bahn → selbst durchstarten
   if (p.mode === 'circuit' && p.i === 1 && p.z < 1.2 && p.z > 0.05) {
     const blk = runwayBlocker(state, { strip: 'N', vfr: true });

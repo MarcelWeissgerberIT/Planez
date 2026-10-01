@@ -82,7 +82,7 @@ export const CMDS = {
     run: (s, ac) => {
       ac.clr.land = true;
       ac.clr.landT = s.time;
-      ac.clr.landGivenBlocked = !!runwayBlocker(s, ac) && !(runwayBlocker(s, ac).phase === PH.TAKEOFF);
+      ac.clr.landGivenBlocked = !!runwayBlocker(s, ac) && !(runwayBlocker(s, ac).phase === PH.TAKEOFF) && !runwayBlocker(s, ac).vfr; // Cessna beim Touch and Go ist gleich wieder weg
       ac.req = null;
       const ba = brakingAction(s, ac.strip || 'N');
       const rn = rwyName(s, ac.strip || 'N');
@@ -514,7 +514,7 @@ function autoArrivals(state) {
     if (a.phase === PH.APPROACH && !onFinal(a)) continue;
     if (d > 6) continue;
     const blk = runwayBlocker(state, a);
-    const ok = !runwayClosed(state, a.strip || 'N') && (!blk || blk.phase === PH.TAKEOFF || (blk.phase === PH.ROLLOUT && d > 2.8));
+    const ok = !runwayClosed(state, a.strip || 'N') && (!blk || blk.phase === PH.TAKEOFF || (blk.phase === PH.ROLLOUT && d > 2.8) || (blk.vfr && d > 3.5));
     if (ok) command(state, a, 'land');
   }
 
