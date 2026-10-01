@@ -7,6 +7,7 @@ import { PH } from '../sim/aircraft.js';
 import { ZS } from '../config.js';
 import { trainPos } from './infra.js';
 import { Q } from './quality.js';
+import { season } from '../sim/winter.js';
 
 const CAR_COLS = ['#e2e8f0', '#1f2937', '#b91c1c', '#1d4ed8', '#9ca3af', '#065f46', '#f8fafc', '#475569', '#7c2d12', '#a16207'];
 const SHIRTS = ['#1d4ed8', '#b91c1c', '#f8fafc', '#111827', '#15803d', '#a855f7', '#f59e0b', '#0e7490', '#be185d', '#57534e'];
@@ -226,6 +227,16 @@ export class Ambient {
           if (close && (vt * 2.3 + s * 0.13) % 1 < 0.04) lights.push({ x, y, z: 0.14, c: '#ffffff', s: 9, a: 0.95, day: true });
         }
       });
+    }
+    // Mähtraktor im Frühling und Sommer: zieht tagsüber Bahnen durch den Grasstreifen südlich der Nordbahn
+    const sid = season(state).id;
+    if ((sid === 'spring' || sid === 'summer') && hr > 8 && hr < 18 && state.weather.kind !== 'rain' && state.weather.kind !== 'storm') {
+      const lanes = 3, laneL = 58; // je Bahn knapp eine Minute
+      const total = (vt * 1.1) % (lanes * laneL);
+      const lane = Math.floor(total / laneL), along = total % laneL;
+      const east = lane % 2 === 0;
+      const mx = east ? 11 + along : 11 + laneL - along, my = 34.55 + lane * 0.6;
+      if (vis(mx, my)) items.push({ d: mx + my, f: () => r.drawAmbientCar({ kind: 'mower', col: '#15803d' }, { x: mx, y: my, h: east ? 0 : Math.PI }, night, lights) });
     }
     // Follow-me-Wagen auf der Vorfeldstraße
     const L = 108, u = (vt * 0.9) % L;
