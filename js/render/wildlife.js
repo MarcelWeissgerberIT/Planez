@@ -1,5 +1,6 @@
 // Leben am Himmel: Vogelschwärme (tagsüber, bei Vogelschlag-Gefahr kreisend über der Piste)
-// und ab und zu ein Rettungshubschrauber, der über den Platz fliegt
+// und ab und zu ein Rettungshubschrauber, der über den Platz fliegt; am Boden Feldhasen im Gras zwischen den Bahnen,
+// die vor rollenden Flugzeugen davonhoppeln
 import * as LY from '../layout.js';
 import { clamp, hourOf } from '../util.js';
 import { Q } from './quality.js';
@@ -12,6 +13,45 @@ export class Wildlife {
     this.heli = null;
     this.nextFlock = 20;
     this.nextHeli = rnd(90, 240);
+    // Feldhasen: im Gras südlich der Nordbahn und am Südrand
+    this.hares = Array.from({ length: 7 }, (_, i) => {
+      const band = i % 2 ? [34.3, 36.2] : [44.6, 48.8];
+      return { x: rnd(7, 73), y: rnd(band[0], band[1]), y0: band[0], y1: band[1], hdg: rnd(0, 6.28), st: 'sit', t: rnd(1, 6), hop: 0 };
+    });
+  }
+
+  // Hasen: sitzen, ab und zu ein Hüpfer, Flucht vor rollenden Flugzeugen
+  updateHares(state, dt) {
+    for (const h of this.hares) {
+      const near = state.acs.some((a) => a.mode === 'map' && (a.z || 0) < 0.6 && a.v > 0.02 && Math.hypot(a.x - h.x, a.y - h.y) < 4);
+      h.t -= dt;
+      if (h.st === 'hop') {
+        const sp = h.flee ? 2.4 : 0.9;
+        h.x += Math.cos(h.hdg) * sp * dt;
+        h.y += Math.sin(h.hdg) * sp * dt;
+        h.hop += dt * (h.flee ? 9 : 6);
+        if (h.y < h.y0 || h.y > h.y1) {
+          h.y = clamp(h.y, h.y0, h.y1);
+          h.hdg = -h.hdg;
+        }
+        h.x = clamp(h.x, 5, 75);
+        if (h.t <= 0) {
+          h.st = 'sit';
+          h.flee = false;
+          h.t = rnd(2, 9);
+        }
+      } else if (near && !h.flee) {
+        const a = state.acs.find((o) => o.mode === 'map' && Math.hypot(o.x - h.x, o.y - h.y) < 4);
+        h.hdg = a ? Math.atan2(h.y - a.y, h.x - a.x) : rnd(0, 6.28);
+        h.st = 'hop';
+        h.flee = true;
+        h.t = rnd(1.2, 2);
+      } else if (h.t <= 0) {
+        h.st = 'hop';
+        h.hdg += rnd(-1.2, 1.2);
+        h.t = rnd(0.4, 1.2);
+      }
+    }
   }
 
   update(state, dt) {
@@ -47,7 +87,8 @@ export class Wildlife {
     this.flocks = this.flocks.filter((f) => f.t < 400 && f.cx > -30 && f.cx < LY.W + 30 && f.cy > -30 && f.cy < LY.H + 30);
     // Hubschrauber
     this.nextHeli -= dt;
-    if (!this.heli && this.nextHeli <= 0) {
+    this.updateHares(state, dt);
+    if (!this.heli && this.nextHeli <= 0 && !(state.heli && state.heli.h)) {
       this.nextHeli = rnd(240, 520);
       if (state.weather.kind !== 'storm' && state.weather.kind !== 'fog') {
         const fromW = Math.random() < 0.5;
@@ -89,6 +130,36 @@ export class Wildlife {
     const t = r.time;
     cam.setScreen(ctx);
     const z = Math.max(0.35, cam.zoom);
+    // Hasen (nur bei Tag und nah genug herangezoomt)
+    const hr = hourOf(state.time);
+    if (cam.zoom >= 0.75 && hr > 5.5 && hr < 21.5 && state.weather.kind !== 'storm') {
+      for (const h of this.hares) {
+        const lift = h.st === 'hop' ? Math.abs(Math.sin(h.hop * Math.PI)) * 0.08 : 0;
+        const p = cam.toScreen(h.x, h.y, lift);
+        if (p.x < -20 || p.y < -20 || p.x > cam.w + 20 || p.y > cam.h + 20) continue;
+        const g = cam.toScreen(h.x, h.y, 0);
+        const s = 3.2 * z;
+        const dir = Math.cos(h.hdg) - Math.sin(h.hdg) >= 0 ? 1 : -1; // schaut im Bild nach rechts oder links
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(g.x, g.y, s * 1.3, s * 0.45, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#8a6a48';
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y - s * 0.7, s * 1.15, s * 0.75, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(p.x + dir * s * 0.95, p.y - s * 1.25, s * 0.5, s * 0.45, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#6b5136';
+        ctx.fillRect(p.x + dir * s * 0.8, p.y - s * 2.5, Math.max(1, s * 0.22), s * 1.05);
+        ctx.fillRect(p.x + dir * s * 1.08, p.y - s * 2.4, Math.max(1, s * 0.22), s * 0.95);
+        ctx.fillStyle = '#f1f5f9';
+        ctx.beginPath();
+        ctx.arc(p.x - dir * s * 1.05, p.y - s * 0.75, s * 0.28, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
     for (const f of this.flocks) {
       ctx.strokeStyle = f.gulls ? 'rgba(245,245,245,0.9)' : 'rgba(30,34,40,0.8)';
       ctx.lineWidth = Math.max(1, 1.2 * z);
