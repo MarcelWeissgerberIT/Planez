@@ -10,6 +10,29 @@ import { WEATHER } from '../sim/events.js';
 import { temperature } from '../sim/winter.js';
 import { voice } from '../voice.js';
 import { SPECIALS } from '../sim/spotter.js';
+import { secState } from '../sim/security.js';
+import { fuelState } from '../sim/fuel.js';
+
+// Rundgang: Gebäude und Anlagen mit Live-Zahlen im Kommentar
+function tourSpots(s) {
+  const B = Object.fromEntries(LY.BUILDINGS.map((b) => [b.id, b]));
+  const at = (b, z) => ({ x: b.fx - b.w / 2, y: b.fy - b.d / 2, z });
+  const t = s.stats.today;
+  const list = [
+    { id: 'tour:tower', ...at(B.tower, 2.3), k: 'TOWER', title: 'Kontrollturm', sub: `Betriebsrichtung ${s.rwy}${t.mov ? ` · ${t.mov} Bewegungen heute` : ''}`, lines: ['Der Tower: Von hier oben behalten die Lotsen jede Landung und jeden Start im Blick.', t.mov > 5 ? `Im Kontrollturm laufen die Fäden zusammen – ${t.mov} Bewegungen bisher heute.` : 'Im Kontrollturm beginnt die Schicht – gleich kommt die erste Welle.'] },
+    { id: 'tour:fire', ...at(B.fire, 2), k: 'FEUERWACHE', title: 'Flughafenfeuerwehr', sub: 'Drei Großlöschfahrzeuge, rund um die Uhr besetzt', lines: ['Die Flughafenfeuerwehr: In unter drei Minuten muss sie jeden Punkt der Bahn erreichen.', 'Drei Großlöschfahrzeuge stehen bereit – hoffentlich bleibt es heute ruhig.'] },
+    { id: 'tour:hall', ...at(B.hall, 1.05), k: 'TERMINAL', title: 'Terminal', sub: t.pax ? `${t.pax.toLocaleString('de-DE')} Reisende heute · Kontrolle ${Math.round(secState(s).wait)} min` : 'Check-in, Sicherheitskontrolle, Gates', lines: [t.pax > 200 ? `Das Terminal: ${t.pax.toLocaleString('de-DE')} Reisende sind heute schon durch diese Türen gegangen.` : 'Das Terminal – hier beginnt und endet jede Reise.', secState(s).wait >= 3 ? `An der Sicherheitskontrolle warten die Reisenden gerade etwa ${Math.round(secState(s).wait)} Minuten.` : 'An der Sicherheitskontrolle geht es gerade zügig voran.'] },
+    { id: 'tour:cargo', ...at(B.cargo, 1.4), k: 'FRACHT', title: 'Frachtterminal', sub: 'Umschlag von Luftfracht', lines: ['Im Frachtterminal wird umgeschlagen – von Ersatzteilen bis zu frischem Fisch.', 'Fracht fliegt oft nachts – hier wird schon für die nächste Maschine sortiert.'] },
+    { id: 'tour:hangar', ...at(B.hangar, 1.5), k: 'WARTUNG', title: 'Wartungshangar', sub: 'Technik und Instandhaltung', lines: ['Im Wartungshangar werden Flugzeuge gecheckt – Schraube für Schraube.', 'Ohne die Technik im Hangar hebt hier nichts ab.'] },
+    { id: 'tour:fuel', ...at(B.fuel, 2), k: 'TANKLAGER', title: 'Tanklager', sub: `${Math.round(fuelState(s).stock)} t Kerosin auf Lager`, lines: [`Das Tanklager: ${Math.round(fuelState(s).stock)} Tonnen Kerosin warten auf ihren Einsatz.`, 'Von hier rollen die Tankwagen zu jeder Maschine auf dem Vorfeld.'] },
+    { id: 'tour:parking', ...at(B.parking, 1.7), k: 'LANDSEITE', title: 'Parkhaus', sub: 'Parken direkt am Terminal', lines: ['Das Parkhaus – für viele Reisende der erste Eindruck vom Flughafen.', 'Wer früh kommt, parkt nah am Terminal.'] },
+    { id: 'tour:radar', ...at(B.radar, 2.4), k: 'RADAR', title: 'Radaranlage', sub: 'Rundsichtradar für Anflug und Abflug', lines: ['Die Radarantenne dreht sich unermüdlich – jede Umdrehung ein neues Lagebild für die Lotsen.'] },
+  ];
+  if (s.upgrades.hotel) list.push({ id: 'tour:hotel', ...at(B.hotel, 1.9), k: 'HOTEL', title: 'Flughafenhotel', sub: 'Übernachten mit Blick aufs Vorfeld', lines: ['Das Flughafenhotel – für Crews, Umsteiger und alle, die früh fliegen.'] });
+  if (s.upgrades.solar) list.push({ id: 'tour:solar', x: (LY.SOLAR.x0 + LY.SOLAR.x1) / 2, y: (LY.SOLAR.y0 + LY.SOLAR.y1) / 2, z: 1.3, k: 'ENERGIE', title: 'Solarpark', sub: s.weather.kind === 'clear' ? 'volle Sonne, volle Leistung' : 'Strom vom eigenen Dach', lines: ['Der Solarpark liefert Strom für Terminal und Vorfeld – und senkt die Kosten.'] });
+  if (s.upgrades.rail) list.push({ id: 'tour:rail', x: (LY.RAIL.station.x0 + LY.RAIL.station.x1) / 2, y: (LY.RAIL.station.y0 + LY.RAIL.station.y1) / 2, z: 1.7, k: 'BAHNHOF', title: 'Flughafenbahnhof', sub: 'Mit dem Zug zum Flug', lines: ['Der Flughafenbahnhof: Mit dem Zug in die Stadt – weniger Autos, mehr Reisende.'] });
+  return list;
+}
 
 // Phasen eines ankommenden Flugs (ac.arr bleibt über den ganzen Umlauf gesetzt)
 const ARR_PH = new Set([PH.INBOUND, PH.HOLD, PH.APPROACH, PH.GOAROUND, PH.FINAL, PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN]);
@@ -110,6 +133,7 @@ export class Cinema {
     }
     for (const p of s.projects || []) out.push({ kind: 'site', id: p.id, w: recent.includes(p.id) ? 0.3 : 1.6 });
     out.push({ kind: 'land-side', id: 'curb', w: recent.includes('curb') ? 0.2 : 1 });
+    for (const sp of tourSpots(s)) out.push({ kind: 'tour', id: sp.id, w: recent.includes(sp.id) ? 0.05 : 0.32 });
     out.push({ kind: 'wide', id: 'wide', w: recent.includes('wide') ? 0.2 : 1.2 });
     if (hourOf(s.time) > 20 || hourOf(s.time) < 5.5) out.push({ kind: 'night', id: 'night', w: recent.includes('night') ? 0.2 : 1.4 });
     return out;
@@ -130,7 +154,7 @@ export class Cinema {
       }
     }
     this.recent = [pick.id, ...(this.recent || [])].slice(0, 4);
-    this.shot = { ...pick, t: 0, dur: { land: 16, dep: 14, goaround: 16, push: 12, taxi: 10, turn: 12, site: 10, 'land-side': 10, wide: 12, night: 12 }[pick.kind] || 12, drift: Math.random() * Math.PI * 2 };
+    this.shot = { ...pick, t: 0, dur: { land: 16, dep: 14, goaround: 16, push: 12, taxi: 10, turn: 12, site: 10, 'land-side': 10, wide: 12, night: 12, tour: 11 }[pick.kind] || 12, drift: Math.random() * Math.PI * 2 };
     const cam = this.game.cam;
     if (force || pick.kind === 'wide') cam.tx = null;
     this.caption(s);
@@ -166,6 +190,10 @@ export class Cinema {
       const p = (s.projects || []).find((q) => q.id === sh.id);
       return set('BAUSTELLE', p ? p.name : 'Bauarbeiten', p ? `${Math.floor(p.prog * 100)} % fertig` : '');
     }
+    if (sh.kind === 'tour') {
+      const sp = tourSpots(s).find((q) => q.id === sh.id);
+      if (sp) return set(sp.k, sp.title, sp.sub);
+    }
     if (sh.kind === 'land-side') return set('LANDSEITE', 'Terminal-Vorfahrt', 'Taxis, Busse und Reisende');
     if (sh.kind === 'night') return set('NACHT', s.name, 'Befeuerung und Nachtbetrieb');
     return set('ÜBERBLICK', s.name, `${s.acs.filter((a) => a.mode === 'map').length} Flugzeuge am Platz`);
@@ -197,6 +225,13 @@ export class Cinema {
       tx = (g.g.x0 + g.g.x1) / 2 + Math.cos(sh.drift) * sh.t * 0.08;
       ty = (g.g.y0 + g.g.y1) / 2 + Math.sin(sh.drift) * sh.t * 0.08;
       tz = 1.5;
+    } else if (sh.kind === 'tour') {
+      const sp = sh.spot || (sh.spot = tourSpots(s).find((q) => q.id === sh.id));
+      if (!sp) return this.next();
+      // langsame Kreisfahrt um das Gebäude
+      tx = sp.x + Math.cos(sh.drift + sh.t * 0.06) * 1.6;
+      ty = sp.y + Math.sin(sh.drift + sh.t * 0.06) * 1.0;
+      tz = sp.z;
     } else if (sh.kind === 'land-side') {
       tx = 30 + sh.t * 0.25;
       ty = 1.8;
@@ -273,6 +308,10 @@ function commentary(s, sh, ac) {
   if (sh.kind === 'site') {
     const p = (s.projects || []).find((q) => q.id === sh.id);
     return p ? `Hier wird gebaut: ${p.name} – ${Math.floor(p.prog * 100)} Prozent fertig.` : '';
+  }
+  if (sh.kind === 'tour') {
+    const sp = tourSpots(s).find((q) => q.id === sh.id);
+    if (sp) return pickC(sp.lines);
   }
   if (sh.kind === 'land-side') return pickC([`Vor dem Terminal ist Betrieb – heute schon ${s.stats.today.pax.toLocaleString('de-DE')} Reisende.`, 'Taxis, Busse, Koffer – die Landseite erwacht.']);
   if (sh.kind === 'night') return pickC([`Nachtbetrieb in ${s.name} – die Befeuerung weist den Weg.`, 'Ruhige Stunden am Flughafen, nur die Lichter blinken.']);
