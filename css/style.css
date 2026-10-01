@@ -1723,3 +1723,5 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 @media (max-width: 700px) { #ride.cockpit .rd-bar { top: 70px; bottom: auto; } #ride .rd-glare { gap: 2vw; } #ride .rd-pfd, #ride .rd-nd { height: 70%; } }
 .lane-h .ico, #rl-filter .ico, .c-st .ico, .cmd.wait .ico { width: 15px; height: 15px; vertical-align: -3px; }
 .rwy-cond .ico .a { fill: #fcd34d; stroke: #fcd34d; }
+.dc-i .ico { width: 28px; height: 28px; color: #fde68a; vertical-align: 0; }
+.dc-i .ico .a { fill: #fbbf24; stroke: #fbbf24; }
