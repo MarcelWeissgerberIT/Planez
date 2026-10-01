@@ -29,6 +29,9 @@ import { DecisionCard } from './ui/decision.js';
 import { NewsTicker } from './ui/ticker.js';
 import { Cinema } from './ui/cinema.js';
 import { paTick } from './ui/pa.js';
+import { approveHeli } from './sim/heli.js';
+import { clearVfr } from './sim/vfr.js';
+import { approveInspection } from './sim/inspect.js';
 import { highlightsHtml } from './ui/highlights.js';
 import { Stream } from './ui/stream.js';
 import { PhotoMode } from './ui/photo.js';
@@ -1250,7 +1253,17 @@ function onKey(e) {
   if ((e.key === 'y' || e.key === 'Y') && s.role === 'tower' && !s.auto.atc && !e.ctrlKey && !e.metaKey) {
     const selAc = game.ui.selected && s.acs.find((a) => a.id === game.ui.selected);
     const t = selAc && selAc.wxReq ? selAc : s.acs.filter((a) => a.wxReq).sort((a, b) => a.wxReq.t - b.wxReq.t)[0];
-    if (!t) return toast('⛈️ Keine Umweg-Anfrage offen', 'info', 1800);
+    if (!t) {
+      // sonst: Nebenverkehr freigeben – Hubschrauber vor Cessna vor Pistenkontrolle
+      const side = s.heli && s.heli.h && s.heli.h.st === 'req' ? 'heli' : s.vfr && s.vfr.p && s.vfr.p.req && !s.vfr.p.clr ? 'vfr' : s.insp && s.insp.req ? 'insp' : null;
+      if (!side) return toast('Keine Anfrage offen (Umweg, Heli, Touch and Go, Pistenkontrolle)', 'info', 1800);
+      const r = side === 'heli' ? approveHeli(s) : side === 'vfr' ? clearVfr(s) : approveInspection(s);
+      if (r.ok) sfx.click();
+      const what = { heli: '🚁 Rescue 7 quert', vfr: `🛩️ ${s.vfr.p ? s.vfr.p.cs : 'Cessna'}: Touch and Go frei`, insp: '🚙 Pistenkontrolle frei' }[side];
+      toast(r.bad ? `⚠ ${what} – Konflikt mit dem Linienverkehr!` : r.soft ? `${what} – knapp, ${r.soft.ac.cs} ist ${r.soft.why}` : what, r.bad ? 'bad' : r.soft ? 'warn' : 'good', 2400);
+      game.refreshUi && game.refreshUi();
+      return;
+    }
     const r = command(s, t, 'wxOk');
     if (r.ok) {
       sfx.click();

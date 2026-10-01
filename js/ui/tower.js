@@ -79,13 +79,13 @@ export function runwayStatusHtml(state) {
   if (HH && HH.st === 'req' && !state.auto.atc && !state.settings.inspAuto) {
     const c = heliConflict(state);
     const wait = Math.max(0, Math.round((state.time - HH.t) / 60));
-    h += `<div class="insp-rq heli${c ? (c.hard ? ' hard' : ' soft') : ' ok'}">🚁 <b>Rescue 7</b> bittet, die Bahnen in der Mitte zu queren${wait ? ` · wartet seit ${wait} min` : ''}<small>${c ? `⚠ ${esc(c.ac.cs)} ${esc(c.why)}` : '✓ frei – jetzt queren lassen'}</small></div><div class="insp-b"><button class="cmd ${c && c.hard ? '' : 'big'}" data-heli="ok">Querung frei</button>${HH.told ? '' : '<button class="cmd" data-heli="hold">Warten</button>'}</div>`;
+    h += `<div class="insp-rq heli${c ? (c.hard ? ' hard' : ' soft') : ' ok'}">🚁 <b>Rescue 7</b> bittet, die Bahnen in der Mitte zu queren${wait ? ` · wartet seit ${wait} min` : ''}<small>${c ? `⚠ ${esc(c.ac.cs)} ${esc(c.why)}` : '✓ frei – jetzt queren lassen'}</small></div><div class="insp-b"><button class="cmd ${c && c.hard ? '' : 'big'}" data-heli="ok" title="Taste Y">Querung frei</button>${HH.told ? '' : '<button class="cmd" data-heli="hold">Warten</button>'}</div>`;
   } else if (HH && HH.st === 'cross' && HH.y > 26) h += `<div class="insp-rq act heli">🚁 Rescue 7 quert die Bahnen</div><div></div>`;
   // Platzrunden: Touch-and-Go-Anfrage mit Lücken-Check
   const VP = state.vfr && state.vfr.p;
   if (VP && VP.req && !VP.clr && !state.auto.atc && !state.settings.inspAuto) {
     const c = vfrConflict(state);
-    h += `<div class="insp-rq vfr${c ? (c.hard ? ' hard' : ' soft') : ' ok'}">🛩️ <b>${esc(VP.cs)}</b> (Cessna, Platzrunde) bittet um Touch and Go${VP.mode === 'orbit' ? ' · fliegt Vollkreis' : ''}<small>${c ? `⚠ ${esc(c.ac.cs)} ${esc(c.why)}` : '✓ Lücke – jetzt freigeben'}</small></div><div class="insp-b"><button class="cmd ${c && c.hard ? '' : 'big'}" data-vfr="ok">Touch & Go</button>${VP.told || VP.mode === 'orbit' ? '' : '<button class="cmd" data-vfr="ext">Vollkreis</button>'}</div>`;
+    h += `<div class="insp-rq vfr${c ? (c.hard ? ' hard' : ' soft') : ' ok'}">🛩️ <b>${esc(VP.cs)}</b> (Cessna, Platzrunde) bittet um Touch and Go${VP.mode === 'orbit' ? ' · fliegt Vollkreis' : ''}<small>${c ? `⚠ ${esc(c.ac.cs)} ${esc(c.why)}` : '✓ Lücke – jetzt freigeben'}</small></div><div class="insp-b"><button class="cmd ${c && c.hard ? '' : 'big'}" data-vfr="ok" title="Taste Y">Touch & Go</button>${VP.told || VP.mode === 'orbit' ? '' : '<button class="cmd" data-vfr="ext">Vollkreis</button>'}</div>`;
   }
   // Assistenz: Wetterumwege und Pistenkontrollen dem Kollegen überlassen
   if (!state.auto.atc) h += `<div class="rwy-assist"><span>Assistenz</span><button class="rl-tg" data-assist="wxAuto" title="Umweg-Anfragen bei Gewitter automatisch genehmigen (ohne Punkte)"><span class="switch ${state.settings.wxAuto ? 'on' : ''}"></span>Umwege auto</button><button class="rl-tg" data-assist="inspAuto" title="Pistenkontrollen, Hubschrauber-Querungen und Touch-and-Go der Platzrunden in ruhigen Phasen automatisch freigeben (ohne Punkte)"><span class="switch ${state.settings.inspAuto ? 'on' : ''}"></span>Nebenverkehr auto</button></div>`;

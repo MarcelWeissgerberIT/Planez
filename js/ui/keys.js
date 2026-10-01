@@ -20,7 +20,7 @@ const ROLE_KEYS = {
   tower: [
     ['A', 'Anflug frei'], ['D', 'Direkt zum FAF'], ['H', 'Warteschleife'], ['L', 'Landefreigabe'], ['G', 'Durchstarten'],
     ['R', 'Rollfreigabe'], ['P', 'Pushback'], ['E', 'Warten bis TSAT'], ['U', 'Line up'], ['T', 'Startfreigabe'], ['X · C', 'Halt · weiterrollen'],
-    ['W · S', 'in der Pistenfolge früher / später'], ['N · Tab', 'nächste Anfrage'], ['F', 'Radar groß'], ['V (halten)', 'Sprechtaste – selbst funken'], ['Q', 'falschen Readback korrigieren'],
+    ['W · S', 'in der Pistenfolge früher / später'], ['N · Tab', 'nächste Anfrage'], ['F', 'Radar groß'], ['V (halten)', 'Sprechtaste – selbst funken'], ['Q', 'falschen Readback korrigieren'], ['Y', 'Wetterumweg genehmigen · sonst Heli, Touch and Go oder Pistenkontrolle freigeben'],
   ],
   ground: [['D', 'Alles bedienen (dringendste zuerst)'], ['G', 'Positionsplan (Zeitstrahl, Drag & Drop)'], ['F', 'ausgewähltes Flugzeug spotten (Foto)']],
   manager: [['O', 'Management-Zentrale'], ['↑ ↓ (in der Zentrale)', 'Bereich wechseln'], ['F', 'ausgewähltes Flugzeug spotten (Foto)']],
