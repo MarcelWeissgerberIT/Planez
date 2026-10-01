@@ -4,6 +4,7 @@ import { correctReadback, RB_WINDOW, RB_HINT } from '../sim/readback.js';
 import { SIDS } from '../sim/sid.js';
 import { WX_WINDOW } from '../sim/wxdev.js';
 import { inspState, inspConflict, approveInspection, deferInspection, INSP_MIN } from '../sim/inspect.js';
+import { heliConflict, approveHeli, holdHeli } from '../sim/heli.js';
 import { PH, PHASE_DE, runwayOccupants, fmtAlt } from '../sim/aircraft.js';
 import * as AS from '../sim/airspace.js';
 import { AC_TYPES, CITIES, AIRPORT } from '../config.js';
@@ -72,8 +73,15 @@ export function runwayStatusHtml(state) {
     const left = Math.max(0, I.active.until - state.time);
     h += `<div class="insp-rq act">🚙 Pistenkontrolle auf Bahn ${rwyName(state, 'N')} – noch ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}</div><div></div>`;
   }
+  // Rettungshubschrauber: Querungsanfrage mit Lücken-Check
+  const HH = state.heli && state.heli.h;
+  if (HH && HH.st === 'req' && !state.auto.atc && !state.settings.inspAuto) {
+    const c = heliConflict(state);
+    const wait = Math.max(0, Math.round((state.time - HH.t) / 60));
+    h += `<div class="insp-rq heli${c ? (c.hard ? ' hard' : ' soft') : ' ok'}">🚁 <b>Rescue 7</b> bittet, die Bahnen in der Mitte zu queren${wait ? ` · wartet seit ${wait} min` : ''}<small>${c ? `⚠ ${esc(c.ac.cs)} ${esc(c.why)}` : '✓ frei – jetzt queren lassen'}</small></div><div class="insp-b"><button class="cmd ${c && c.hard ? '' : 'big'}" data-heli="ok">Querung frei</button>${HH.told ? '' : '<button class="cmd" data-heli="hold">Warten</button>'}</div>`;
+  } else if (HH && HH.st === 'cross' && HH.y > 26) h += `<div class="insp-rq act heli">🚁 Rescue 7 quert die Bahnen</div><div></div>`;
   // Assistenz: Wetterumwege und Pistenkontrollen dem Kollegen überlassen
-  if (!state.auto.atc) h += `<div class="rwy-assist"><span>Assistenz</span><button class="rl-tg" data-assist="wxAuto" title="Umweg-Anfragen bei Gewitter automatisch genehmigen (ohne Punkte)"><span class="switch ${state.settings.wxAuto ? 'on' : ''}"></span>Umwege auto</button><button class="rl-tg" data-assist="inspAuto" title="Pistenkontrollen in ruhigen Phasen automatisch freigeben (ohne Punkte)"><span class="switch ${state.settings.inspAuto ? 'on' : ''}"></span>Kontrolle auto</button></div>`;
+  if (!state.auto.atc) h += `<div class="rwy-assist"><span>Assistenz</span><button class="rl-tg" data-assist="wxAuto" title="Umweg-Anfragen bei Gewitter automatisch genehmigen (ohne Punkte)"><span class="switch ${state.settings.wxAuto ? 'on' : ''}"></span>Umwege auto</button><button class="rl-tg" data-assist="inspAuto" title="Pistenkontrollen und Hubschrauber-Querungen in ruhigen Phasen automatisch freigeben (ohne Punkte)"><span class="switch ${state.settings.inspAuto ? 'on' : ''}"></span>Kontrolle & Heli auto</button></div>`;
   if (hasRwy2(state)) h += `<div class="rwy-cond">Betriebsart: <b>${segregated(state) ? 'getrennt (Landungen Süd, Starts Nord)' : 'eine Bahn (alles auf der Nordbahn)'}</b></div><button class="cmd" data-rwymode="${segregated(state) ? 'single' : 'seg'}">${segregated(state) ? '→ eine Bahn' : '→ getrennt'}</button>`;
   h += `<div class="rwy-cond">${temperature(state).toFixed(0)} °C · ${state.weather.kind === 'fog' ? `RVR <b>${state.weather.rvr ?? '—'} m</b> · LVP · ` : ''}${isNight(state) ? `🌙 Nacht${state.settings.curfew ? 'flugverbot' : ''}` : '☀️ Tagbetrieb'}</div>${qm('rwy')}`;
   return h;
@@ -273,7 +281,16 @@ export class TowerPanel {
     if (ab) {
       const k = ab.dataset.assist;
       s.settings[k] = !s.settings[k];
-      toast(k === 'wxAuto' ? (s.settings[k] ? '⛈️ Umweg-Anfragen genehmigt jetzt der Kollege' : '⛈️ Umweg-Anfragen wieder selbst beantworten') : s.settings[k] ? '🚙 Pistenkontrollen gibt jetzt der Kollege in ruhigen Phasen frei' : '🚙 Pistenkontrollen wieder selbst freigeben', 'info', 2600);
+      toast(k === 'wxAuto' ? (s.settings[k] ? '⛈️ Umweg-Anfragen genehmigt jetzt der Kollege' : '⛈️ Umweg-Anfragen wieder selbst beantworten') : s.settings[k] ? '🚙 Pistenkontrollen und 🚁 Heli-Querungen gibt jetzt der Kollege in ruhigen Phasen frei' : '🚙🚁 Kontrollen und Heli-Querungen wieder selbst freigeben', 'info', 2600);
+      this.update(s);
+      return;
+    }
+    const hb = e.target.closest('[data-heli]');
+    if (hb) {
+      const r = hb.dataset.heli === 'ok' ? approveHeli(s) : holdHeli(s);
+      if (r.ok) sfx.click();
+      if (r.bad) toast('⚠ Verkehrskonflikt – Hubschrauber quert vor Verkehr!', 'bad', 3500);
+      else if (hb.dataset.heli === 'ok' && r.ok) toast(r.soft ? `🚁 Querung frei – ${r.soft.ac.cs} ist ${r.soft.why}, der Heli muss sich beeilen` : '🚁 Rescue 7 quert', r.soft ? 'warn' : 'good', 2400);
       this.update(s);
       return;
     }

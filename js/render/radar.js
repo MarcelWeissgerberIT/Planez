@@ -327,6 +327,17 @@ export class Radar {
     const sel = ui && ui.selected;
     const placed = [];
     ctx.font = `600 ${this.R > 200 ? 11 : 10}px ui-monospace, Menlo, monospace`;
+    // Rettungshubschrauber (Sichtflug, Querungsanfrage)
+    const HH = state.heli && state.heli.h;
+    if (HH) {
+      const q = LY.tileToNm(HH.x, HH.y);
+      const p = this.toScreen(q.x, q.y);
+      ctx.fillStyle = HH.st === 'req' && blink ? 'rgba(251,191,36,0.95)' : 'rgba(255,140,140,0.95)';
+      ctx.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
+      ctx.textAlign = 'left';
+      ctx.fillText('RESCUE7', p.x + 6, p.y - 4);
+      ctx.fillText(HH.st === 'req' ? 'HELI X?' : 'HELI X', p.x + 6, p.y + 8);
+    }
     for (const ac of state.acs) {
       let pos, alt;
       if (ac.mode === 'air') {

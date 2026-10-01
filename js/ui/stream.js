@@ -134,6 +134,17 @@ export class Stream {
       if (h < 5.5 || h > 21) I += 0.8;
     }
     if (s.fire) I += 3;
+    const hh = s.heli && s.heli.h;
+    if (hh) {
+      const p = cam.toScreen(hh.x, hh.y, hh.z);
+      if (p.x > 0 && p.y > 0 && p.x < W && p.y < H) {
+        I += 2;
+        if (this.heliSeen !== s.heli.n) {
+          this.heliSeen = s.heli.n;
+          this.say(r(['Heli! 🚁', 'Rettungshubschrauber, gute Besserung an den Patienten 🙏', 'Der Sound vom Rotor 🚁🔊', 'Ab in die Klinik, schnell 🚑']), 2);
+        }
+      }
+    }
     if (s.salute && s.salute.p) {
       const p = cam.toScreen(s.salute.p.x, s.salute.p.y, 0);
       if (p.x > 0 && p.y > 0 && p.x < W && p.y < H) I += 3;

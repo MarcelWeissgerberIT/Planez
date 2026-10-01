@@ -88,6 +88,13 @@ export function scoreProtocol(state, ac, role, ok) {
   else fail(state, ac, 100, 'Protokoll verletzt');
 }
 
+// Hubschrauber-Querung: in einer Lücke freigegeben = Punkte, mit Verkehr im Weg = Kombo weg
+export function scoreHeli(state, clean) {
+  if (!active(state, 'tower')) return;
+  if (clean) add(state, null, 90, 'Heli-Querung');
+  else fail(state, null, 100, 'Querung zur Unzeit');
+}
+
 // ---------- Vorfeld ----------
 export function scoreOffBlock(state, ac, delay, quick) {
   if (!active(state, 'ground')) return;

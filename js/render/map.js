@@ -383,6 +383,7 @@ export class MapRenderer {
     for (const it of items) it.f();
     this.drawFireSpray(state);
     if (sal && sal.spray) this.drawSalute(sal);
+    if (state.heli && state.heli.h) this.drawHeli(state.heli.h, lights);
     flying.sort((a, b) => a.x + a.y - (b.x + b.y));
     for (const ac of flying) this.drawAircraft(state, ac, lights, night, ui);
     this.drawLightBeam(state);
@@ -1355,6 +1356,89 @@ export class MapRenderer {
       ctx.fillStyle = g;
       ctx.fillRect(p.x - 22 * cam.zoom, p.y - 22 * cam.zoom, 44 * cam.zoom, 44 * cam.zoom);
     }
+  }
+
+  // Rettungshubschrauber: Schatten, Rumpf mit Kanzel, Heckausleger, Kufen, Rotorkreis mit Blättern, Blitzlicht
+  drawHeli(h, lights) {
+    const { ctx, cam } = this;
+    const z0 = cam.zoom;
+    const fx = Math.cos(h.hdg), fy = Math.sin(h.hdg);
+    const P = (a, s = 0, dz = 0) => cam.toScreen(h.x + fx * a - fy * s, h.y + fy * a + fx * s, h.z + dz);
+    cam.setScreen(ctx);
+    // Schatten
+    const sh = cam.toScreen(h.x + 0.15, h.y + 0.08, 0);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.beginPath();
+    ctx.ellipse(sh.x, sh.y, 15 * z0, 7 * z0, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Kufen
+    ctx.strokeStyle = '#1f2937';
+    ctx.lineWidth = Math.max(1, 1.4 * z0);
+    for (const s of [-0.11, 0.11]) {
+      const a = P(0.22, s, -0.1), b = P(-0.2, s, -0.1);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+    // Heckausleger und Leitwerk
+    const c = P(0, 0, 0), t = P(-0.62, 0, 0.04);
+    ctx.strokeStyle = '#b91c1c';
+    ctx.lineWidth = Math.max(1.5, 3 * z0);
+    ctx.beginPath();
+    ctx.moveTo(c.x, c.y);
+    ctx.lineTo(t.x, t.y);
+    ctx.stroke();
+    const tf = P(-0.62, 0, 0.16);
+    ctx.lineWidth = Math.max(1.5, 2.6 * z0);
+    ctx.beginPath();
+    ctx.moveTo(t.x, t.y);
+    ctx.lineTo(tf.x, tf.y);
+    ctx.stroke();
+    // Heckrotor
+    ctx.strokeStyle = 'rgba(30,30,30,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(tf.x, (tf.y + t.y) / 2, 3.2 * z0, 0, Math.PI * 2);
+    ctx.stroke();
+    // Rumpf
+    const n = P(0.3, 0, 0.02), r = P(-0.22, 0, 0.02);
+    const ang = Math.atan2(n.y - r.y, n.x - r.x);
+    const len = Math.hypot(n.x - r.x, n.y - r.y);
+    ctx.save();
+    ctx.translate((n.x + r.x) / 2, (n.y + r.y) / 2 - 3 * z0);
+    ctx.rotate(ang);
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, len / 2 + 3 * z0, 6.5 * z0, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(-len / 2, -1.2 * z0, len * 0.75, 2.4 * z0);
+    ctx.fillStyle = '#1e3a5f';
+    ctx.beginPath();
+    ctx.ellipse(len / 2 - 1 * z0, -1 * z0, 4.2 * z0, 4.6 * z0, 0, -Math.PI / 2, Math.PI / 2);
+    ctx.fill();
+    ctx.restore();
+    // Hauptrotor: Rotorkreis und zwei Blätter
+    const hub = P(0, 0, 0.16);
+    const R = 0.46;
+    ctx.fillStyle = 'rgba(40,44,52,0.13)';
+    ctx.beginPath();
+    ctx.ellipse(hub.x, hub.y, R * 32 * z0 * 1.05, R * 16 * z0 * 1.05, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(30,30,34,0.75)';
+    ctx.lineWidth = Math.max(1, 1.6 * z0);
+    const a0 = this.time * 26;
+    for (const k of [0, Math.PI / 2]) {
+      const a = P(Math.cos(a0 + k) * R, Math.sin(a0 + k) * R, 0.16), b = P(-Math.cos(a0 + k) * R, -Math.sin(a0 + k) * R, 0.16);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+    // Blitzlicht oben und rotes Heck-Positionslicht
+    if ((this.time * 1.3) % 1 < 0.12) lights.push({ x: h.x, y: h.y, z: h.z + 0.2, c: '#ffffff', s: 14, a: 0.95, day: true });
+    lights.push({ x: h.x - fx * 0.6, y: h.y - fy * 0.6, z: h.z + 0.05, c: '#ff3030', s: 7, a: 0.8 });
   }
 
   // Wassertaufe: zwei Bögen von den Löschfahrzeugen, die sich hoch über dem Rollweg kreuzen
