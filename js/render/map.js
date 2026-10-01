@@ -2180,7 +2180,8 @@ export class MapRenderer {
     if (!ui) return;
     cam.setScreen(ctx);
     const fs = Math.round(clamp(11 * Math.sqrt(cam.zoom / 0.6), 9, 13));
-    ctx.font = `700 ${fs}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    const MONO = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.font = `700 ${fs}px ${MONO}`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     for (const ac of state.acs) {
@@ -2193,11 +2194,11 @@ export class MapRenderer {
       const line2 = ui.labelFn ? ui.labelFn(ac) : '';
       const line3 = mk && ac.mark.note ? `⚑ ${ac.mark.note}` : '';
       const w1 = ctx.measureText(ac.cs).width;
-      ctx.font = `500 ${fs - 1}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      ctx.font = `500 ${fs - 1}px ${MONO}`;
       const w2 = line2 ? ctx.measureText(line2).width : 0;
       const w3 = line3 ? ctx.measureText(line3).width : 0;
-      ctx.font = `700 ${fs}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-      const bw = Math.max(w1, w2, w3) + 10 + (mk ? 4 : 0);
+      ctx.font = `700 ${fs}px ${MONO}`;
+      const bw = Math.max(w1, w2, w3) + 14 + (mk ? 4 : 0);
       const bh = (line2 ? fs * 2 + 8 : fs + 7) + (line3 ? fs + 2 : 0);
       const bx = p.x + 10, by = p.y - 26 - bh / 2;
       let border = 'rgba(255,255,255,0.25)';
@@ -2212,19 +2213,27 @@ export class MapRenderer {
       ctx.moveTo(p.x, p.y);
       ctx.lineTo(bx, by + bh / 2);
       ctx.stroke();
-      ctx.fillStyle = isSel ? 'rgba(8,40,60,0.9)' : 'rgba(10,14,22,0.78)';
-      roundRect(ctx, bx, by, bw, bh, 4);
+      ctx.fillStyle = border;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 1.8, 0, Math.PI * 2);
       ctx.fill();
-      ctx.lineWidth = isSel || ac.req || sc ? 1.8 : 1;
+      const lg = ctx.createLinearGradient(0, by, 0, by + bh);
+      lg.addColorStop(0, isSel ? 'rgba(14,58,84,0.94)' : 'rgba(22,32,52,0.88)');
+      lg.addColorStop(1, isSel ? 'rgba(6,30,46,0.94)' : 'rgba(8,12,22,0.86)');
+      ctx.fillStyle = lg;
+      roundRect(ctx, bx, by, bw, bh, 5);
+      ctx.fill();
+      ctx.lineWidth = isSel || ac.req || sc ? 1.6 : 1;
       ctx.stroke();
-      const tx = bx + 5 + (mk ? 4 : 0);
-      if (mk) {
-        ctx.fillStyle = mk.hex;
-        ctx.fillRect(bx + 1, by + 1, 4, bh - 2);
-      }
+      // Farbstreifen links: Markierung, sonst Airline-Farbe
+      const al = AIRLINES[ac.airline];
+      ctx.fillStyle = mk ? mk.hex : (al && al.color) || '#64748b';
+      roundRect(ctx, bx + 1.5, by + 2.5, 3, bh - 5, 1.5);
+      ctx.fill();
+      const tx = bx + 8 + (mk ? 4 : 0);
       ctx.fillStyle = ac.emergency ? '#fda4af' : '#f8fafc';
       ctx.fillText(ac.cs, tx, by + fs / 2 + 4);
-      if (line2 || line3) ctx.font = `500 ${fs - 1}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      if (line2 || line3) ctx.font = `500 ${fs - 1}px ${MONO}`;
       if (line2) {
         ctx.fillStyle = sc || (ac.req ? '#fcd34d' : '#94a3b8');
         ctx.fillText(line2, tx, by + fs * 1.5 + 5);
@@ -2233,7 +2242,7 @@ export class MapRenderer {
         ctx.fillStyle = mk.hex;
         ctx.fillText(line3, tx, by + (line2 ? fs * 2.5 + 6 : fs * 1.5 + 5));
       }
-      ctx.font = `700 ${fs}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      ctx.font = `700 ${fs}px ${MONO}`;
     }
   }
 
