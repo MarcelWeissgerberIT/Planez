@@ -229,7 +229,7 @@ for (const clip of CLIPS) {
   await page.clock.install();
   if (clip.after && !(await clip.after(page))) console.log(`${clip.id}: keine passende Szene gefunden`);
   await page.clock.runFor(500);
-  const n = Math.round(clip.dur * FPS);
+  const n = Math.min(Math.round(clip.dur * FPS), Number(process.env.TRAILER_MAXF) || Infinity); // TRAILER_MAXF: kurzer Probelauf
   for (let f = 0; f < n; f++) {
     const t = f / (n - 1), sec = f / FPS;
     const fadeIn = clip.card === 'title' ? 1 - ease(sec / 0.8) : 1 - ease(sec / 0.25);
