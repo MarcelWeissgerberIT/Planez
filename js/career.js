@@ -22,7 +22,8 @@ export function career() {
     data = JSON.parse(localStorage.getItem(KEY) || 'null');
   } catch (e) {}
   if (!data || typeof data !== 'object') data = {};
-  data = { days: 0, mov: 0, pax: 0, landings: 0, deps: 0, incidents: 0, perfect: 0, playSec: 0, ach: [], byRole: {}, first: Date.now(), ...data };
+  data = { days: 0, mov: 0, pax: 0, landings: 0, deps: 0, incidents: 0, perfect: 0, playSec: 0, ach: [], byRole: {}, rec: {}, first: Date.now(), ...data };
+  if (!data.rec) data.rec = {};
   return data;
 }
 function save() {
@@ -52,6 +53,14 @@ export function careerDayEnd(state, rec, stars) {
   }
   if (rec.score) r.bestScore = Math.max(r.bestScore, rec.score);
   if ((rec.depN || 0) >= 20) r.bestPunct = Math.max(r.bestPunct, rec.onTime || 0);
+  // Rekorde über alle Spielstände
+  const R = c.rec;
+  const b = rec.td && rec.td.best;
+  if (b && (!R.td || b.fpm < R.td.fpm)) R.td = { fpm: b.fpm, cs: b.cs, type: b.type };
+  if ((rec.mov || 0) > (R.mov || 0)) R.mov = rec.mov;
+  const L = state.life || {};
+  if ((L.streamPeak || 0) > (R.viewers || 0)) R.viewers = L.streamPeak;
+  if ((rec.pax || 0) > (R.pax || 0)) R.pax = rec.pax;
   save();
 }
 export function careerAch(id) {

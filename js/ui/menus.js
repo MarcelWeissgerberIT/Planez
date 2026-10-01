@@ -146,6 +146,8 @@ const SIDE = {
       <div class="cr-bar"><i style="width:${Math.round(R.frac * 100)}%"></i></div>
       <div class="cr-next">${R.next ? `Nächster Rang: ${R.next.icon} <b>${esc(R.next.name)}</b> ab ${R.next.pts.toLocaleString('de-DE')}` : 'Höchster Rang erreicht'}</div>
       <div class="cr-grid">${cell('Schichten (Tage)', c.days)}${cell('Spielzeit', `${h} h ${m} min`)}${cell('Bewegungen', c.mov.toLocaleString('de-DE'))}${cell('Passagiere', c.pax.toLocaleString('de-DE'))}${cell('Perfekte Tage ★★★★★', c.perfect)}${cell('Erfolge', `${c.ach.length} / ${S.achAll}`)}${cell('Kampagne', (() => { const cp = campaignProgress(); return cp.next == null ? `🏆 ${cp.total}/${cp.total}` : `📖 ${cp.done}/${cp.total} Kapitel`; })())}${cell('Herausforderungen', `⭐ ${S.stars}`)}${cell('Tagesserie', `🔥 ${S.daily.streak || 0} · Rekord ${S.daily.best || 0}`)}${cell('Spotterpunkte', S.spot.pts.toLocaleString('de-DE'))}</div>
+      <div class="ms-sec">Rekorde</div>
+      <div class="cr-grid">${cell('🛬 Weichste Landung', c.rec && c.rec.td ? `${c.rec.td.fpm} ft/min · ${esc(c.rec.td.cs)}` : '—')}${cell('📈 Meiste Bewegungen', c.rec && c.rec.mov ? `${c.rec.mov} an einem Tag` : '—')}${cell('📡 Zuschauerrekord', c.rec && c.rec.viewers ? c.rec.viewers.toLocaleString('de-DE') : '—')}</div>
       <div class="ms-sec">Je Station</div>
       <table class="cr-tab"><tr><th></th><th>Tage</th><th>Bestwert ⭐</th><th>Pünktl.</th><th>Perfekt</th></tr>${['tower', 'ground', 'manager', 'observer'].map(role).join('')}</table>
       <div class="ms-auto">Punkte gibt es für gespielte Tage, Verkehr, Sterne, Erfolge, Tagesherausforderungen, perfekte Tage und das Spotterbuch.</div></div></div>`;

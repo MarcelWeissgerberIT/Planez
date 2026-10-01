@@ -1146,9 +1146,9 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .kr em { font-style: normal; color: #cbd5e1; text-align: right; }
 @media (max-width: 700px) { .keys-cols { grid-template-columns: 1fr; } }
 .ms-card.wn ul { margin: 0 0 4px; padding-left: 16px; font-size: 13px; line-height: 1.55; }
-.ms-card.wn { max-height: calc(100vh - 48px); overflow-y: auto; scrollbar-width: thin; }
+.ms-card.wn, .ms-card.career { max-height: calc(100vh - 48px); overflow-y: auto; scrollbar-width: thin; }
 .mm-scene { transition: opacity .3s; }
-#menu:has(.ms-card.wn) .mm-scene { opacity: 0; pointer-events: none; } /* langer Neu-Text reicht bis unten – Szenen-Titel ausblenden */
+#menu:has(.ms-card.wn) .mm-scene, #menu:has(.ms-card.career) .mm-scene { opacity: 0; pointer-events: none; } /* langer Neu-Text reicht bis unten – Szenen-Titel ausblenden */
 
 /* ---------- Anzeigetafel (Fallblatt) ---------- */
 #fids { position: absolute; inset: 0; z-index: 45; display: flex; align-items: center; justify-content: center; background: rgba(2,6,12,.55); }
