@@ -1,6 +1,6 @@
 // Trailer aus echtem Spielmaterial: Szenen werden Bild für Bild mit angehaltener Uhr aufgenommen (flüssig auch auf
 // langsamen Rechnern), mit Untertiteln, Titel- und Schlusskarte versehen und mit der Menümusik zu einer MP4 gemischt.
-// Aufruf: node tools/trailer.mjs [en|de] [nur,diese,szenen | --from=szene]  (eigener Mini-Server; PLANEZ_URL nutzt einen anderen)
+// Aufruf: node tools/trailer.mjs [en|de] [nur,diese,szenen | --from=szene | --redo=szene,szene]  (eigener Mini-Server; PLANEZ_URL nutzt einen anderen)
 // Braucht Playwright + Chromium und ffmpeg (Umgebungsvariable FFMPEG oder ffmpeg im PATH).
 // Ausgabe: store/trailer/planez_trailer_<sprache>.mp4 (nicht im Repository)
 import fs from 'fs';
@@ -30,7 +30,8 @@ const BASE = SERVER.url;
 const LANG = process.argv[2] || 'en';
 const ARG = process.argv[3] || '';
 const FROM = ARG.startsWith('--from=') ? ARG.slice(7) : null; // Aufnahme ab dieser Szene fortsetzen, frühere Bilder bleiben
-const ONLY = ARG && !FROM ? ARG.split(',') : null;
+const REDO = ARG.startsWith('--redo=') ? ARG.slice(7).split(',') : null; // nur diese Szenen neu aufnehmen, Rest bleibt
+const ONLY = ARG && !FROM && !REDO ? ARG.split(',') : null;
 const FPS = 30;
 const W = 1920, H = 1080;
 const FFMPEG = process.env.FFMPEG || 'ffmpeg';
@@ -137,7 +138,7 @@ async function cine(page, want) {
 // dur in s, speed = Spieltempo, cam = Kamerafahrt (Zoomfaktor Anfang/Ende, Verschiebung in Kacheln)
 const CLIPS = [
   { id: 'title', dur: 3.6, card: 'title' },
-  { id: 'grass', dur: 5, cap: TXT.grass, speed: 2, cam: { z: [1.05, 1.3] }, setup: async (p) => { await start(p, 'manager', 'grass'); await sim(p, 3 * 86400, { hour: 10.6, weather: 'clear' }); await photo(p); } },
+  { id: 'grass', dur: 5, cap: TXT.grass, speed: 2, cam: { z: [1, 1.18] }, setup: async (p) => { await start(p, 'manager', 'grass'); await sim(p, 3 * 86400, { hour: 10.6, weather: 'clear' }); await photo(p); await p.evaluate(() => Object.assign(window.planez.cam, { x: 44, y: 16.5, zoom: 1.15, tx: null })); } },
   { id: 'hub', dur: 5, cap: TXT.hub, speed: 2, cam: { z: [0.78, 0.62] }, setup: async (p) => { await start(p, 'observer'); await sim(p, 2 * 3600, { hour: 8.2, weather: 'clear' }); await photo(p); } },
   { id: 'land', dur: 5, cap: TXT.land, speed: 1, setup: async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 17.3, weather: 'clouds' }); await cine(p, 'land'); } },
   { id: 'tower', dur: 5, cap: TXT.tower, speed: 2, setup: async (p) => { await start(p, 'tower'); await sim(p, 3 * 3600, { hour: 9.1 }); } },
@@ -195,15 +196,20 @@ const OVERLAY = ({ tag, end1, end2 }) => {
 const ease = (t) => (t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t));
 // Bildnummer, mit der eine Szene beginnt (jede Szene hat feste Länge)
 const startOf = (id) => CLIPS.slice(0, CLIPS.findIndex((c) => c.id === id)).reduce((a, c) => a + Math.round(c.dur * FPS), 0);
-if (!FROM) fs.rmSync(FR, { recursive: true, force: true });
+if (!FROM && !REDO) fs.rmSync(FR, { recursive: true, force: true });
 fs.mkdirSync(FR, { recursive: true });
 if (FROM) for (const f of fs.readdirSync(FR)) if (+f.slice(0, 5) >= startOf(FROM)) fs.rmSync(path.join(FR, f));
+const TOTAL = CLIPS.reduce((a, c) => a + Math.round(c.dur * FPS), 0);
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 let frame = FROM ? startOf(FROM) : 0;
 const t0 = Date.now();
 for (const clip of CLIPS) {
   if (ONLY && !ONLY.includes(clip.id)) continue;
   if (FROM && CLIPS.indexOf(clip) < CLIPS.findIndex((c) => c.id === FROM)) continue;
+  if (REDO) {
+    if (!REDO.includes(clip.id)) continue;
+    frame = startOf(clip.id);
+  }
   const page = await browser.newPage({ viewport: { width: W, height: H } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -249,7 +255,7 @@ await browser.close();
 SERVER.close();
 
 // ---------- Video + Musik ----------
-const total = frame / FPS;
+const total = (REDO ? TOTAL : frame) / FPS;
 const out = path.join(OUT, `planez_trailer_${LANG}${ONLY ? '_part' : ''}.mp4`);
 execFileSync(FFMPEG, ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(FR, '%05d.jpg'), '-i', path.join(ROOT, 'assets/music/menu.mp3'), '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-af', `afade=t=in:d=0.8,afade=t=out:st=${(total - 2.5).toFixed(2)}:d=2.5`, '-t', total.toFixed(2), '-movflags', '+faststart', out]);
 console.log('trailer', path.relative(ROOT, out), total.toFixed(1), 's');
