@@ -30,6 +30,7 @@ export const CATALOG = {
   // ======== Vorfeld ========
   belt: {
     role: 'ground', weight: 1.2, timeout: 8 * MIN,
+    crew: (s, p) => { const a = byId(s, p.ac); return a && [`Bandlader ${a.stand}`, `Vorfeld, Bandlader an Position ${a.stand}, das Band steht, ${a.cs} ist halb verladen. Wie geht's weiter?`]; },
     cond: (s) => {
       const c = s.acs.filter((a) => a.phase === PH.STAND && (['unload', 'load'].some((k) => task(a, k) && ['ready', 'active', 'wait'].includes(task(a, k).st))));
       return c.length ? { ac: pick(s, c).id } : null;
@@ -48,6 +49,7 @@ export const CATALOG = {
   },
   missingPax: {
     role: 'ground', weight: 1, timeout: 6 * MIN,
+    crew: (s, p) => { const a = byId(s, p.ac); return a && [`Gate ${a.stand}`, `Vorfeld, Gate an Position ${a.stand}, uns fehlt ein Passagier für ${a.cs}, sein Koffer ist schon an Bord.`]; },
     cond: (s) => {
       const c = s.acs.filter((a) => a.phase === PH.STAND && task(a, 'board') && ['active', 'ready', 'wait'].includes(task(a, 'board').st) && s.rots[a.rot]?.paxOut > 20);
       return c.length ? { ac: pick(s, c).id } : null;
@@ -66,6 +68,7 @@ export const CATALOG = {
   },
   catering: {
     role: 'ground', weight: 0.8, timeout: 6 * MIN,
+    crew: (s, p) => { const a = byId(s, p.ac); return a && ['Catering', `Vorfeld, Catering an Position ${a.stand}, Kühlkette gerissen, die Mahlzeiten für ${a.cs} dürfen nicht an Bord.`]; },
     cond: (s) => {
       const c = s.acs.filter((a) => a.phase === PH.STAND && task(a, 'cater') && ['ready', 'wait', 'active'].includes(task(a, 'cater').st));
       return c.length ? { ac: pick(s, c).id } : null;
@@ -84,6 +87,7 @@ export const CATALOG = {
   },
   aog: {
     role: 'ground', weight: 0.5, timeout: 6 * MIN,
+    crew: (s, p) => { const a = byId(s, p.ac); return a && ['Technik', `Vorfeld, Technik an Position ${a.stand}, Positionsleuchte an ${a.cs} ist defekt. Tauschen oder nach MEL fliegen lassen?`]; },
     cond: (s) => {
       const c = s.acs.filter((a) => a.phase === PH.STAND && a.ta && task(a, 'board') && task(a, 'board').st !== 'done' && !a.aogDone);
       return c.length ? { ac: pick(s, c).id } : null;
@@ -102,6 +106,7 @@ export const CATALOG = {
   },
   wrongBag: {
     role: 'ground', weight: 0.5, timeout: 5 * MIN,
+    crew: (s, p) => { const a = byId(s, p.ac); return a && ['Gepäckabgleich', `Vorfeld, Gepäckabgleich, in ${a.cs} an Position ${a.stand} liegt ein Koffer, der da nicht hingehört.`]; },
     cond: (s) => {
       const c = s.acs.filter((a) => a.phase === PH.STAND && task(a, 'load') && ['active', 'done'].includes(task(a, 'load').st) && task(a, 'board') && task(a, 'board').st !== 'done');
       return c.length ? { ac: pick(s, c).id } : null;
@@ -120,6 +125,7 @@ export const CATALOG = {
   },
   noStand: {
     role: 'ground', weight: 0, urgent: 2 * H, timeout: 4 * MIN,
+    crew: (s, p) => { const a = byId(s, p.ac); return a && ['Vorfeldaufsicht', `Vorfeld, ${a.cs} steht auf dem Rollweg und wartet, alle passenden Positionen sind belegt.`]; },
     cond: (s) => {
       const w = s.acs.find((a) => a.arr && !a.stand && [PH.VACATED, PH.TAXI_WAIT].includes(a.phase) && s.time - (a.reqT || s.time) > 3 * MIN);
       if (!w) return null;
@@ -155,6 +161,7 @@ export const CATALOG = {
   // Anschlussflug: verspätete Ankunft mit Umsteigern für einen Abflug derselben Airline
   connection: {
     role: 'ground', weight: 0.3, timeout: 6 * MIN, urgent: 3 * H,
+    crew: (s, p) => { const a = byId(s, p.arr), d = byId(s, p.dep); return a && d && ['Transfer', `Vorfeld, Transferschalter, ${p.n} Umsteiger aus ${a.cs} wollen noch auf ${d.cs} an Position ${d.stand}.`]; },
     cond: (s) => {
       const late = s.acs.filter((a) => a.arr && a.mode === 'air' && [PH.INBOUND, PH.HOLD, PH.APPROACH].includes(a.phase) && ((s.rots[a.rot]?.arrDelay || 0) >= 3 || a.phase === PH.HOLD));
       for (const a of late) {
@@ -180,6 +187,7 @@ export const CATALOG = {
   },
   fuelSpill: {
     role: 'ground', weight: 0.7, timeout: 5 * MIN,
+    crew: (s, p) => { const a = byId(s, p.ac); return a && ['Tankwagen', `Vorfeld, Tankwagen an Position ${a.stand}, Kerosin läuft aus, Betankung ${a.cs} gestoppt!`]; },
     cond: (s) => {
       const c = s.acs.filter((a) => a.phase === PH.STAND && task(a, 'fuel') && task(a, 'fuel').st === 'active');
       return c.length ? { ac: pick(s, c).id } : null;
@@ -198,6 +206,7 @@ export const CATALOG = {
   },
   lightning: {
     role: 'ground', weight: 0.6, timeout: 4 * MIN,
+    crew: () => ['Wetterwarte', 'An alle Bodencrews, Blitzwarnung, Gewitter im Umkreis von fünf Kilometern.'],
     cond: (s) => (['rain', 'clouds'].includes(s.weather.kind) && s.acs.some((a) => a.phase === PH.STAND) ? {} : null),
     card: () => ({
       icon: '⚡', title: 'Blitzwarnung im Umkreis von 5 km',
@@ -511,6 +520,15 @@ export function choose(state, id, idx, byPlayer = false) {
   return true;
 }
 
+// Karte aufschlagen; im Vorfeld meldet sich die betroffene Crew zusätzlich über den Betriebsfunk
+function pushCard(state, D, key, c, p, role) {
+  D.active.push({ id: 'd' + Math.floor(state.time) + key, key, p, role, t: state.time, expires: state.time + c.timeout });
+  notify(state, `${c.card(state, p).icon} Entscheidung: ${c.card(state, p).title}`, 'warn');
+  if (c.crew && state.role === 'ground') {
+    const r = c.crew(state, p);
+    if (r) log(state, 'crew', r[1], r[0], { prio: 2 });
+  }
+}
 export function updateDecisions(state, dt) {
   const D = decisionsState(state);
   // laufende Folgen
@@ -560,8 +578,7 @@ export function updateDecisions(state, dt) {
       const p = c.cond(state);
       if (!p) continue;
       D.lastUrgent[key] = state.time;
-      D.active.push({ id: 'd' + Math.floor(state.time) + key, key, p, role, t: state.time, expires: state.time + c.timeout });
-      notify(state, `${c.card(state, p).icon} Entscheidung: ${c.card(state, p).title}`, 'warn');
+      pushCard(state, D, key, c, p, role);
       return;
     }
   }
@@ -577,8 +594,7 @@ export function updateDecisions(state, dt) {
     tried.push(key);
     const p = c.cond(state);
     if (!p) continue;
-    D.active.push({ id: 'd' + Math.floor(state.time) + key, key, p, role, t: state.time, expires: state.time + c.timeout });
-    notify(state, `${c.card(state, p).icon} Entscheidung: ${c.card(state, p).title}`, 'warn');
+    pushCard(state, D, key, c, p, role);
     break;
   }
 }
