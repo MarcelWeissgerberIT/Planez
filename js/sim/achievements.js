@@ -38,6 +38,8 @@ export const ACHIEVEMENTS = [
   { id: 'board5', icon: '🏛️', name: 'Musterwoche', desc: 'Alle fünf Wochenziele des Aufsichtsrats erreicht.', xp: 120, check: (s) => L(s, 'boardPerfect') >= 1 },
   { id: 'fod3', icon: '🚙', name: 'Saubere Bahn', desc: 'Pistenkontrollen haben drei Fremdkörper gefunden, bevor etwas passiert ist.', xp: 60, check: (s) => L(s, 'fodFound') >= 3 },
   { id: 'wx10', icon: '⛈️', name: 'Wetterfrosch', desc: 'Zehn Umwege um Gewitterzellen genehmigt.', xp: 70, check: (s) => L(s, 'wxOk') >= 10 },
+  { id: 'touchgo20', icon: '🛩️', name: 'Platzrunden-Profi', desc: '20 Touch and Go der Cessna zwischen den Linienflügen.', xp: 50, check: (s) => L(s, 'touchGo') >= 20 },
+  { id: 'heli10', icon: '🚁', name: 'Luftrettung', desc: 'Zehnmal den Rettungshubschrauber über die Bahnen gelassen.', xp: 60, check: (s) => L(s, 'heliX') >= 10 },
   { id: 'salute5', icon: '💦', name: 'Wassertaufe', desc: 'Fünf Erstflüge neuer Strecken mit dem Wasserbogen der Feuerwehr begrüßt.', xp: 50, check: (s) => L(s, 'salutes') >= 5 },
   { id: 'butter50', icon: '🧈', name: 'Butterweich', desc: '50 Landungen mit weniger als 110 ft/min Sinkrate beim Aufsetzen.', xp: 50, check: (s) => L(s, 'butter') >= 50 },
   { id: 'stream', icon: '📡', name: 'Quotenhit', desc: 'Im Spotter-Livestream schauen 2.500 Menschen gleichzeitig zu.', xp: 60, check: (s) => L(s, 'streamPeak') >= 2500 },
