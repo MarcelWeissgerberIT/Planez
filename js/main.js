@@ -10,6 +10,7 @@ import { SPEEDS, AC_TYPES, dayMinutes } from './config.js';
 import { TowerPanel, REQ_DE, fixReadback } from './ui/tower.js';
 import { boardMeetingHtml } from './ui/board.js';
 import { playIntro } from './ui/intro.js';
+import { isNight } from './sim/finance.js';
 import { newspaperHtml } from './ui/newspaper.js';
 import { chooseStrategy, STRATEGIES } from './sim/board.js';
 import { CHAPTERS, chapterOf } from './sim/campaign.js';
@@ -949,6 +950,15 @@ function wireGame() {
   $('#panel-toggle').addEventListener('click', togglePanel);
   $('#z-in').addEventListener('click', () => game.cam.zoomAt(1.25, game.cam.w / 2, game.cam.h / 2));
   $('#z-out').addEventListener('click', () => game.cam.zoomAt(0.8, game.cam.w / 2, game.cam.h / 2));
+  $('#t-noise').addEventListener('click', () => {
+    game.ui.noise = !game.ui.noise;
+    $('#t-noise').classList.toggle('on', game.ui.noise);
+    const s = game.state;
+    if (game.ui.noise && s) {
+      const night = isNight(s);
+      toast(`🔉 Lärmkarte: rot ≥ 65 dB, orange ≥ 60 dB, gelb ≥ 55 dB – ${s.stats.today.complaints || 0} Beschwerden heute${night ? ' · nachts sind die Zonen größer' : ''}${s.settings.curfew ? ' · Nachtflugverbot aktiv' : ''}`, 'info', 4200);
+    }
+  });
   $('#t-labels').addEventListener('click', () => {
     game.ui.labels = !game.ui.labels;
     $('#t-labels').classList.toggle('on', game.ui.labels);
@@ -1483,6 +1493,7 @@ function helpGuide(first) {
       <li><b>Piste:</b> Landungen hinterlassen Gummiabrieb – der Zustand sinkt. Reinigung oder Sanierung laufen nachts in Verkehrspausen und sperren die Piste solange.</li>
       <li><b>Baustellen:</b> jeder Ausbau braucht Bauzeit und ist mit Zaun, Kran, Bagger und Betonmischer zu sehen. „📍 Zeigen“ springt hin, „Abbrechen“ erstattet 50 % der noch nicht verbauten Kosten.</li>
       <li><b>Kredite</b> überbrücken Engpässe (30 Tagesraten). <b>Nachtflüge</b> bringen Nachtentgelte, aber Lärmbeschwerden; ein Nachtflugverbot verärgert Frachtairlines.</li>
+      <li><b>🔉 Lärmkarte:</b> Der Kartenknopf 🔉 blendet die Lärmzonen um die Bahn ein. Sie wachsen mit dem Verkehr der letzten Stunde, mit schweren Flugzeugen und nachts – genau dann kommen die Beschwerden. Nachtentgelt und Nachtflugverbot findest du unter Gebühren &amp; Nachtflug.</li>
       <li><b>🌐 Basis-Angebot:</b> Bei gutem Ansehen kann eine Partner-Airline anbieten, eine Basis zu eröffnen: vier neue Verbindungen auf einmal, dafür Rabatt auf die Entgelte und die Zusage von mindestens 85 % Pünktlichkeit pro Woche. Die Aufsichtsratssitzung prüft das; wird die Zusage zweimal verfehlt, zieht die Airline wieder ab.</li>
       <li><b>🏛️ Aufsichtsrat:</b> Alle 7 Tage tagt der Aufsichtsrat (nach dem Tagesbericht) und prüft fünf <b>Wochenziele</b>: Passagiere, Betriebsergebnis, Pünktlichkeit, Ansehen und Sicherheit (höchstens 2 Vorfälle). Die Ziele leiten sich aus der Vorwoche ab – Passagiere und Ergebnis sollen wachsen. Je erreichtem Ziel steigt oder sinkt das <b>Vertrauen</b>; ab 3 Zielen gibt es einen <b>Investitionszuschuss</b> (bis 500 Tsd €, ab 80 Vertrauen +50 %), unter 25 Vertrauen eine teure Sonderprüfung. In der Sitzung wählst du die <b>Strategie</b> für die nächste Woche: Ausgewogen, Wachstum (mehr Airline-Angebote), Effizienz (Fixkosten −6 %) oder Qualität (Ansehen +0,4/Tag) – jeweils mit passenden Zielen. Stand jederzeit in der Management-Zentrale › Aufsichtsrat.</li>
       <li><b>🏢 Wettbewerb:</b> Der Nachbarflughafen <b>Nordhafen</b> kämpft um dieselben Airlines. Der <b>Marktanteil</b> (Management-Zentrale › Wettbewerb) ergibt sich aus Ansehen, Pünktlichkeit, Entgelten und Kapazität beider Flughäfen – mehr Anteil bringt häufiger Angebote und bessere Verlängerungschancen. Nordhafen senkt Entgelte, baut aus, macht Werbung und <b>wirbt Verbindungen ab</b> (Gegenangebot, Service-Paket oder ziehen lassen). Ist Nordhafen gesperrt, kannst du <b>Umleitungen</b> annehmen – Zusatzentgelte, Ansehen und im Tower spürbar mehr Verkehr. Liegst du vorn, greift Nordhafen öfter an.</li>

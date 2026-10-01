@@ -294,6 +294,7 @@ export class MapRenderer {
 
     // Wolkenschatten
     if (state.weather.kind !== 'clear' && state.weather.kind !== 'fog') this.cloudShadows(ctx, state);
+    if (ui && ui.noise) this.drawNoise(ctx, state);
 
     // Baustellen (Boden)
     const sites = [];
@@ -514,6 +515,36 @@ export class MapRenderer {
         ctx.stroke();
       }
     }
+  }
+
+  // Lärmkarte: Lärmzonen um die Bahn – Größe nach Bewegungen der letzten Stunde (schwere Flugzeuge zählen mehr),
+  // nachts deutlich größer; zur Abflugseite gestreckt
+  drawNoise(ctx, state) {
+    const t = state.stats.today;
+    const h = Math.floor(hourOf(state.time));
+    const mov = ((t.arrH && t.arrH[h]) || 0) + ((t.depH && t.depH[h]) || 0) + 0.5 * (((t.arrH && t.arrH[h - 1]) || 0) + ((t.depH && t.depH[h - 1]) || 0));
+    const heavy = state.acs.filter((a) => AC_TYPES[a.type].wake === 'H' || AC_TYPES[a.type].wake === 'J').length;
+    const night = h < 6 || h >= 22 ? 1.6 : 1;
+    const I = clamp(((mov + heavy * 1.5) / 14) * night, 0.12, 1.8);
+    const rw = LY.RWY;
+    const dir = state.rwy === '27' ? -1 : 1; // Startrichtung
+    const cx = (rw.x0 + rw.x1) / 2 + dir * (3 + I * 3), cy = rw.y;
+    this.cam.setIso(ctx, 0);
+    const rings = [[1, 'rgba(250,204,21,0.16)'], [0.7, 'rgba(249,115,22,0.2)'], [0.42, 'rgba(239,68,68,0.26)']];
+    for (const [k, col] of rings) {
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, (rw.x1 - rw.x0) / 2 + (6 + I * 16) * k, (3 + I * 9) * k + 1, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.setLineDash([0.4, 0.3]);
+    ctx.lineWidth = 0.08;
+    ctx.strokeStyle = 'rgba(239,68,68,0.6)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, (rw.x1 - rw.x0) / 2 + (6 + I * 16) * 0.42, (3 + I * 9) * 0.42 + 1, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    this.cam.setScreen(ctx);
   }
 
   // „Follow me“: Superjumbo und VIP-Jets werden nach der Landung von einem gelben Lotsenfahrzeug zur Position geführt
