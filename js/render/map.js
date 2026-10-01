@@ -8,6 +8,7 @@ import { Polish } from './polish.js';
 import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowySprite } from './snow.js';
 import { updateWetness, drawWetGround, drawWetReflections } from './wet.js';
 import { Wildlife } from './wildlife.js';
+import { StandCrew } from './standcrew.js';
 import { seasonalTree, seasonalGrass } from './seasonal.js';
 import { season as seasonOf } from '../sim/winter.js';
 import { HALF_W, HALF_H } from './camera.js';
@@ -203,6 +204,7 @@ export class MapRenderer {
     this.time = 0;
     this.cars = makeCars();
     this.ambient = new Ambient();
+    this.standCrew = new StandCrew();
     this.topZ = {};
     this.fxList = [];
     this.siteCenters = new Map();
@@ -346,6 +348,7 @@ export class MapRenderer {
     // Belebung: Besucherverkehr, Fußgänger, Bodenpersonal, Baustellen, Nachtlichter
     this.ambient.update(state, dtReal);
     this.ambient.items(this, state, items, lights, night, sites, (x, y) => inView(view, x, y, 1.5));
+    this.standCrew.items(this, state, items, lights, night, (x, y) => inView(view, x, y, 1.5));
     const flying = [];
     for (const ac of state.acs) {
       if (ac.mode !== 'map') continue;
