@@ -13,7 +13,10 @@ import { PH } from '../sim/aircraft.js';
 import { NM_PER_TILE } from '../config.js';
 import { Q } from './quality.js';
 import { soundscape } from '../soundscape.js';
-import { buildAircraft, buildVehicle, buildCessna, buildHeli, glowTex, spriteMat, setNight } from './model3d.js';
+import { buildAircraft, buildCessna, buildHeli, glowTex, spriteMat, setNight } from './model3d.js';
+import { buildVehicle, vehParts } from './vehicles3d.js';
+import { followMeCars } from './followme.js';
+import { plowFleet } from './snow.js';
 import { grassRunway3d, smallField3d, smallBuilding3d } from './field3d.js';
 import { countryside3d } from './land3d.js';
 
@@ -1487,7 +1490,7 @@ export class View3D {
     this.updateAircraft(state, ride, dt, now, lightsOn, wet);
     // Fahrzeuge
     const vs = new Set();
-    for (const v of state.vehicles) {
+    for (const v of state.vehicles.concat(this.extraVehicles(state))) {
       vs.add(v.id);
       let m = this.vehs.get(v.id);
       if (!m) {
@@ -1497,8 +1500,7 @@ export class View3D {
       }
       m.position.set(v.x, 0, v.y);
       m.rotation.y = -(v.hdg || 0);
-      const b = m.getObjectByName('bcn');
-      if (b) b.visible = (lightsOn || v.state !== 'idle') && Math.floor(now * 2.2 + (v.id.length || 0)) % 2 === 0;
+      this.animVehicle(state, v, m, dt, now, lightsOn);
     }
     for (const [id, m] of this.vehs) if (!vs.has(id)) (this.scene.remove(m), this.vehs.delete(id));
     this.updateGA(state, dt, now, lightsOn);
@@ -1538,6 +1540,56 @@ export class View3D {
       this.spot.target.updateMatrixWorld();
     } else this.spot.intensity = 0;
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // Feuerwehr, Räumkolonne und Follow-me als Fahrzeuge (nicht im Fuhrpark)
+  extraVehicles(state) {
+    const out = [];
+    if (state.fire)
+      state.fire.trucks.forEach((t, i) => {
+        if (t.st === 'home' && LY.GEO.stage === 0) return;
+        out.push({ id: 'fire' + i, type: 'fire', x: t.x, y: t.y, hdg: t.hdg, st: t.st === 'home' ? 'idle' : 'alarm' });
+      });
+    for (const p of plowFleet(state)) out.push(p);
+    for (const c of followMeCars(state)) out.push({ ...c, type: 'followme' });
+    return out;
+  }
+  // Rundumleuchte, Scheinwerfer, Catering-Hubkasten, Enteiser-Arm mit Sprühstrahl, Schneefahne der Pflüge
+  animVehicle(state, v, m, dt, now, lightsOn) {
+    const P = vehParts(m);
+    const fast = v.st === 'alarm' || v.type === 'followme';
+    const blink = Math.floor(now * (fast ? 4.5 : 2.2) + (v.id.length || 0)) % 2 === 0;
+    P.bcn.forEach((b, i) => (b.visible = (lightsOn || v.st !== 'idle') && (i % 2 ? !blink : blink)));
+    if (P.hl) P.hl.visible = P.tl.visible = lightsOn;
+    const ease = (tgt, rate) => (P.u += Math.sign(tgt - P.u) * Math.min(Math.abs(tgt - P.u), dt * rate));
+    if (P.lift) {
+      ease(v.st === 'work' ? 1 : 0, 0.45);
+      const hgt = P.u * 0.11;
+      P.lift.position.y = 0.07 + hgt;
+      P.scis.visible = hgt > 0.004;
+      P.scis.scale.y = Math.max(0.001, hgt);
+      P.plat.visible = P.u > 0.6;
+      P.plat.scale.x = Math.max(0.02, (P.u - 0.6) / 0.4);
+    }
+    if (P.boom) {
+      const ac = v.st === 'work' && v.job ? state.acs.find((a) => a.id === v.job.ac) : null;
+      ease(ac ? 1 : 0, 0.35);
+      let yaw = 0;
+      if (ac) {
+        yaw = (v.hdg || 0) - Math.atan2(ac.y - v.y, ac.x - v.x);
+        yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+      }
+      P.yaw += (yaw - P.yaw) * Math.min(1, dt * 1.5);
+      P.tur.rotation.y = P.yaw * Math.min(1, P.u * 2);
+      P.boom.rotation.z = -0.03 + P.u * 0.72;
+      P.bask.rotation.z = -P.boom.rotation.z;
+      P.spray.visible = !!ac && P.u > 0.97;
+      if (P.spray.visible) P.spray.scale.set(1, 0.85 + 0.15 * Math.sin(now * 23 + v.x), 1);
+    }
+    if (v.type === 'plow' && Math.random() < dt * 10) {
+      const side = v.o < 0 ? -1 : 1;
+      this.puff(v.x + v.dir * 0.32, 0.08, v.y + side * 0.2, 'spray');
+    }
   }
 
   // Augenpunkt in der Tower-Kanzel

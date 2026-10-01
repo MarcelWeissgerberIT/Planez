@@ -5,7 +5,7 @@
 // Modell einmal gebaut (Teile je Material zu einem Netz verschmolzen) und dann geklont. Dazu Positions-, Blitz-,
 // Kollisionswarn- und Landelichter, die die Ansicht je nach Phase und Tageszeit schaltet. 1 Einheit = 1 Kachel (20 m).
 import * as THREE from '../vendor/three.module.min.js';
-import { AC_TYPES, AIRLINES, VEH_TYPES } from '../config.js';
+import { AC_TYPES, AIRLINES } from '../config.js';
 
 const DEG = Math.PI / 180;
 
@@ -83,7 +83,7 @@ function slab(c, t0, t1, ax = 'y') {
 }
 
 // Teile mit gleichem Material zu einem Netz verschmelzen (weniger Draw-Calls bei vielen Flugzeugen)
-function merge(parts) {
+export function merge(parts) {
   const geos = parts.map(([geo, m]) => {
     const g = (geo.index ? geo.toNonIndexed() : geo.clone()).applyMatrix4(m);
     if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
@@ -368,9 +368,10 @@ function template(type, airline) {
       metal.push([slab([[a.le, a.y + lift, s * a.z], [c.le, c.y + lift * 0.7, s * c.z], [c.le - (c.le - c.te) * 0.13, c.y + lift * 0.7, s * c.z], [a.le - (a.le - a.te) * 0.12, a.y + lift, s * a.z]], k.cr * L * 0.01, k.ct * L * 0.008), M4()]);
     }
     // Klappenführungen unter der Hinterkante
+    // (schlanke „Kanus“ in Flügelfarbe, hinten über die Hinterkante hinaus)
     if (!k.high) for (const f of [0.25, 0.45, 0.62]) {
-      const a = at(f);
-      dark.push([new THREE.ConeGeometry(k.cr * L * 0.035, k.cr * L * 0.3, 6).rotateZ(Math.PI / 2), M4(a.te - k.cr * L * 0.05, a.y - k.cr * L * 0.03, s * a.z)]);
+      const a = at(f), fl = k.cr * L * (0.42 - f * 0.25), fr = k.cr * L * 0.028;
+      gray.push([tube([[-fl * 0.5, 0, fr * 0.15, fr * 0.15], [-fl * 0.3, 0, fr * 0.8, fr * 0.7], [0, 0, fr, fr * 0.8], [fl * 0.35, 0, fr * 0.7, fr * 0.6], [fl * 0.5, 0, fr * 0.1, fr * 0.1]], 8), M4(a.te + fl * 0.1, a.y - fr * 0.7, s * a.z)]);
     }
     // Flügelwurzel-Verkleidung
     if (!k.high) white.push([slab([[rLE + 0.02 * L, wy + ry * 0.12, s * rz * 0.75], [rLE - 0.04 * L, wy, s * (z0 + rz * 0.5)], [rTE - 0.03 * L, wy, s * (z0 + rz * 0.4)], [rTE - 0.05 * L, wy + ry * 0.1, s * rz * 0.75]], ry * 0.3, ry * 0.1), M4()]);
@@ -383,9 +384,9 @@ function template(type, airline) {
     const rr = prop
       ? [[-el, 0, 0.35, 0.35], [-el * 0.6, 0, 0.9, 0.8], [-el * 0.2, 0, 1, 0.85], [0, 0, 0.75, 0.7], [el * 0.06, 0, 0.3, 0.3]]
       : [[-el, 0, 0.45, 0.45], [-el * 0.78, 0, 0.82, 0.82], [-el * 0.4, 0, 1, 1], [-el * 0.08, 0, 1, 1], [0, 0, 0.93, 0.93]];
-    white.push([tube(rr.map(([a, yy, s1, s2]) => [a, yy, s1 * er, s2 * er]), 16), M4(x, y, z)]);
+    white.push([tube(rr.map(([a, yy, s1, s2]) => [a, yy, s1 * er, s2 * er]), 28), M4(x, y, z)]);
     if (!prop) {
-      dark.push([new THREE.CircleGeometry(er * 0.86, 16), M4(x - el * 0.02, y, z, 0, Math.PI / 2, 0)]);
+      dark.push([new THREE.CircleGeometry(er * 0.86, 28), M4(x - el * 0.02, y, z, 0, Math.PI / 2, 0)]);
       metal.push([new THREE.ConeGeometry(er * 0.26, er * 0.5, 10), M4(x - el * 0.02 + er * 0.2, y, z, 0, 0, -Math.PI / 2)]);
       dark.push([new THREE.CircleGeometry(er * 0.42, 12), M4(x - el + 0.001, y, z, 0, -Math.PI / 2, 0)]);
       // Schubumkehr: geöffneter Spalt in der Gondel (nur beim Ausrollen sichtbar)
@@ -490,27 +491,42 @@ function template(type, airline) {
   add(tailc, tm);
   for (const p of props) root.add(p);
 
-  // Fahrwerk
-  const gear = [], wr = k.wheel * L * 1.1;
+  // Fahrwerk: helle Federbeine mit Gelenkstreben, Reifen mit Felgen, Fahrwerksklappen (Gruppe 'gear')
+  const gear = [], tires = [], hubs = [], doors = [], wr = k.wheel * L * 1.1;
   const strut = (x, z, top) => {
     const len = top - (-H + wr);
-    gear.push([new THREE.CylinderGeometry(wr * 0.22, wr * 0.22, len, 6), M4(x, -H + wr + len / 2, z)]);
+    gear.push([new THREE.CylinderGeometry(wr * 0.22, wr * 0.26, len, 8), M4(x, -H + wr + len / 2, z)]);
+    gear.push([new THREE.CylinderGeometry(wr * 0.1, wr * 0.1, len * 0.75, 6), M4(x - wr * 0.9, -H + wr + len * 0.55, z, 0, 0, 0.5)]);
+    return len;
   };
-  const wheel = (x, z) => gear.push([new THREE.CylinderGeometry(wr, wr, wr * 0.8, 12), M4(x, -H + wr, z, Math.PI / 2, 0, 0)]);
+  const wheel = (x, z) => {
+    tires.push([new THREE.CylinderGeometry(wr, wr, wr * 0.8, 16), M4(x, -H + wr, z, Math.PI / 2, 0, 0)]);
+    hubs.push([new THREE.CylinderGeometry(wr * 0.55, wr * 0.55, wr * 0.84, 10), M4(x, -H + wr, z, Math.PI / 2, 0, 0)]);
+  };
   const nx = 0.36 * L;
-  strut(nx, 0, -ry * 0.7);
+  const nl = strut(nx, 0, -ry * 0.7);
   wheel(nx, wr * 0.45);
   wheel(nx, -wr * 0.45);
+  for (const s of [-1, 1]) doors.push([new THREE.BoxGeometry(wr * 3.2, nl * 0.55, wr * 0.08), M4(nx - wr * 0.6, -ry * 0.7 - nl * 0.25, s * wr * 1.25)]);
   const mx = k.high ? rTE + k.cr * L * 0.25 : rTE + k.cr * L * 0.3;
   const gz = k.gearZ * L;
   for (const s of [-1, 1]) {
-    strut(mx, s * gz, k.high ? -ry * 0.6 : wy);
-    if (k.bogie) for (const dx of [-wr * 1.15, wr * 1.15]) (wheel(mx + dx, s * gz + wr * 0.5), wheel(mx + dx, s * gz - wr * 0.5));
-    else (wheel(mx, s * gz + wr * 0.5), wheel(mx, s * gz - wr * 0.5));
+    const ml = strut(mx, s * gz, k.high ? -ry * 0.6 : wy);
+    if (k.bogie) {
+      // 777: Drehgestell mit drei Achsen, sonst zwei
+      const ax = type.startsWith('B77') ? [-wr * 2.25, 0, wr * 2.25] : [-wr * 1.15, wr * 1.15];
+      for (const dx of ax) (wheel(mx + dx, s * gz + wr * 0.5), wheel(mx + dx, s * gz - wr * 0.5));
+      gear.push([new THREE.BoxGeometry(wr * (ax.length > 2 ? 5.6 : 3.4), wr * 0.3, wr * 0.3), M4(mx, -H + wr, s * gz)]);
+    } else (wheel(mx, s * gz + wr * 0.5), wheel(mx, s * gz - wr * 0.5));
+    doors.push([new THREE.BoxGeometry(wr * 2.6, ml * 0.7, wr * 0.08), M4(mx, -H + wr * 2 + ml * 0.4, s * (gz + wr * 1.15), 0.08 * s, 0, 0)]);
   }
-  const gm = new THREE.Mesh(merge(gear), lamb(0x1f2937));
+  const gm = new THREE.Group();
   gm.name = 'gear';
-  gm.castShadow = true;
+  for (const [arr, m] of [[gear, phong(0xc3c9d0, 60)], [tires, lamb(0x15171a)], [hubs, phong(0xd9dee4, 90)], [doors, phong(0xe9edf1, 45)]]) {
+    const mesh = new THREE.Mesh(merge(arr), m);
+    mesh.castShadow = true;
+    gm.add(mesh);
+  }
   root.add(gm);
 
   // Lichter (Sprites, additiv) – die Ansicht schaltet sie
@@ -614,96 +630,6 @@ function template(type, airline) {
 
   root.userData = { L, R: rz, ry, H, span: b * 2, gearX: mx, gearZ: gz, noseX: nx, wy, eye: { cockpitX: 0.3 * L + noseL * 0.45, cockpitY: ry * 0.35, winX: rLE - 0.07 * L, winZ: rz * 1.02, winY: ry * 0.42 } };
   return root;
-}
-
-// ---------- Bodenfahrzeuge ----------
-const VT = new Map();
-export function buildVehicle(v) {
-  if (!VT.has(v.type)) VT.set(v.type, vehTemplate(v.type));
-  return VT.get(v.type).clone();
-}
-
-function vehTemplate(type) {
-  const vt = VEH_TYPES[type] || {};
-  const L = vt.len || 0.4;
-  const W = 0.13;
-  const g = new THREE.Group();
-  const body = phong(new THREE.Color(vt.color || '#facc15').getHex(), 30);
-  const glass = phong(0x1e293b, 80);
-  const box = (x0, x1, y0, y1, w, m) => {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, w), m);
-    b.position.set((x0 + x1) / 2, (y0 + y1) / 2, 0);
-    b.castShadow = true;
-    g.add(b);
-    return b;
-  };
-  const h = L / 2;
-  const wheelGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.02, 10);
-  const wheels = (xs, wz = W / 2) => {
-    for (const x of xs) for (const s of [-1, 1]) {
-      const w = new THREE.Mesh(wheelGeo, lamb(0x111827));
-      w.rotation.x = Math.PI / 2;
-      w.position.set(x, 0.025, s * wz);
-      g.add(w);
-    }
-  };
-  if (type === 'tug') {
-    box(-h, h, 0.02, 0.07, 0.17, body);
-    box(-h * 0.2, h * 0.5, 0.07, 0.12, 0.12, glass);
-    wheels([-h * 0.6, h * 0.6], 0.085);
-  } else if (type === 'baggage') {
-    box(h - 0.18, h, 0.02, 0.08, 0.1, body);
-    box(h - 0.12, h - 0.04, 0.08, 0.13, 0.09, glass);
-    for (let i = 0; i < 3; i++) {
-      const x0 = h - 0.22 - (i + 1) * 0.24;
-      box(x0, x0 + 0.2, 0.03, 0.05, 0.11, lamb(0x6b7280));
-      box(x0 + 0.02, x0 + 0.18, 0.05, 0.1, 0.09, lamb([0x1d4ed8, 0x7c2d12, 0x065f46][i]));
-      wheels([x0 + 0.04, x0 + 0.16], 0.05);
-    }
-    wheels([h - 0.15, h - 0.03], 0.05);
-  } else if (type === 'fuel') {
-    box(h - 0.16, h, 0.02, 0.13, W, body);
-    box(h - 0.06, h, 0.08, 0.12, W * 0.9, glass);
-    const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, L - 0.2, 14), phong(0xe5e7eb, 70));
-    tank.rotation.z = Math.PI / 2;
-    tank.position.set(-0.1, 0.1, 0);
-    tank.castShadow = true;
-    g.add(tank);
-    box(-h, -h + 0.03, 0.03, 0.06, W, lamb(0x374151));
-    wheels([h - 0.08, -h + 0.12, -h + 0.22]);
-  } else if (type === 'catering') {
-    box(h - 0.14, h, 0.02, 0.12, W, phong(0x334155, 30));
-    box(h - 0.05, h, 0.07, 0.11, W * 0.9, glass);
-    box(-h, h - 0.16, 0.06, 0.2, W * 1.05, body);
-    box(-h, h - 0.16, 0.02, 0.06, W * 0.3, lamb(0x6b7280));
-    wheels([h - 0.07, -h + 0.08]);
-  } else if (type === 'bus') {
-    box(-h, h, 0.03, 0.15, W * 1.15, body);
-    box(-h + 0.03, h - 0.02, 0.08, 0.13, W * 1.17, glass);
-    box(-h, h, 0.15, 0.16, W * 1.1, phong(0xf1f5f9, 20));
-    wheels([-h * 0.7, h * 0.7], W * 0.58);
-  } else if (type === 'deice') {
-    box(h - 0.16, h, 0.02, 0.12, W, body);
-    box(h - 0.06, h, 0.07, 0.11, W * 0.9, glass);
-    box(-h, h - 0.17, 0.02, 0.1, W, phong(0xe5e7eb, 40));
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.025, 0.025), body);
-    arm.position.set(-0.05, 0.22, 0);
-    arm.rotation.z = 0.6;
-    g.add(arm);
-    box(0.08, 0.16, 0.32, 0.38, 0.08, body);
-    wheels([h - 0.08, -h + 0.1]);
-  } else {
-    box(-h, h, 0.02, 0.1, W, body);
-    box(h * 0.2, h * 0.9, 0.06, 0.09, W * 1.01, glass);
-    wheels([-h * 0.6, h * 0.6]);
-  }
-  // Rundumleuchte (orange), nachts und beim Fahren
-  const bc = new THREE.Sprite(spriteMat(0xffa31a));
-  bc.name = 'bcn';
-  bc.position.set(0, 0.17, 0);
-  bc.scale.setScalar(0.12);
-  g.add(bc);
-  return g;
 }
 
 // ---------- Kleinverkehr: Cessna (Platzrunden) und Rettungshubschrauber ----------

@@ -89,18 +89,20 @@ export function drawRunwaySnow(r, state) {
 }
 
 // Räumfahrzeuge in Staffelformation auf der gesperrten Bahn
-export function plowItems(r, state, items, lights) {
+// Räumkolonne auf der Bahn: drei Pflüge und ein Enteiser gestaffelt, zwei Durchgänge (hin und zurück)
+export function plowFleet(state) {
   const p = state.plow;
-  if (!p) return;
+  if (!p) return [];
   const rw = p.strip === 'S' ? LY.RWY_S : LY.RWY;
   const u = clamp((state.time - p.start) / Math.max(1, p.until - p.start), 0, 1);
-  // zwei Durchgänge: hin und zurück
   const pass = u < 0.5 ? u * 2 : (1 - u) * 2;
   const dir = u < 0.5 ? 1 : -1;
   const x = rw.x0 + 2 + (rw.x1 - rw.x0 - 4) * pass;
-  const lanes = [-0.42, -0.14, 0.14, 0.42];
-  lanes.forEach((o, i) => {
-    const vx = x - dir * i * 0.9, vy = rw.y + o;
+  return [-0.42, -0.14, 0.14, 0.42].map((o, i) => ({ id: 'plow' + i, type: i === 3 ? 'deice' : 'plow', x: x - dir * i * 0.9, y: rw.y + o, hdg: dir > 0 ? 0 : Math.PI, dir, o, st: 'drive' }));
+}
+
+export function plowItems(r, state, items, lights) {
+  plowFleet(state).forEach(({ x: vx, y: vy, dir, o }, i) => {
     items.push({
       d: vx + vy,
       f: () => {
