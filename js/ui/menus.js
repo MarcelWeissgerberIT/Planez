@@ -107,7 +107,7 @@ const SIDE = {
     <ul><li>Kurze Einsätze mit festem Start: Morgenwelle, Nebel, Gewitterfront, Notfälle, Streik, Winterchaos, Sanierungsfall …</li><li>Jedes Ziel bringt 1–3 Sterne – der Bestwert bleibt gespeichert</li><li>Mit einem Stern schaltest du die nächste Stufe deiner Station frei</li></ul></div></div>`,
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
-      <li>🛩️ <b>Platzrunden</b> mit Touch and Go · 🚁 <b>Rettungshubschrauber</b> quert die Bahnen</li>
+      <li>⏪ <b>Wiederholung</b> in Zeitlupe (<kbd>⇧R</kbd>) · 🛩️ <b>Platzrunden</b> · 🚁 <b>Rettungshubschrauber</b> · 🛩️ <b>Großer Flugtag</b></li>
       <li>💦 <b>Wassertaufe</b> für jeden Erstflug · 🛬 <b>Aufsetzrate</b> von 🧈 Butter bis hart · ✨ <b>Highlights</b> im Tagesbericht</li>
       <li>🎖️ <b>Staatsbesuch</b> mit rotem Teppich und Kolonne · 📡 <b>Livestream</b> mit Live-Chat (<kbd>L</kbd>)</li>
       <li>🎞️ <b>Kino-Look</b> mit Tilt-Shift und Regen auf der Linse · 🔍 <b>Miniatur-Fotos</b> · 🔔 <b>Terminal-Durchsagen</b></li>

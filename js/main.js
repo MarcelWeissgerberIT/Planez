@@ -32,6 +32,7 @@ import { paTick } from './ui/pa.js';
 import { approveHeli } from './sim/heli.js';
 import { clearVfr } from './sim/vfr.js';
 import { approveInspection } from './sim/inspect.js';
+import { Replay } from './ui/replay.js';
 import { highlightsHtml } from './ui/highlights.js';
 import { Stream } from './ui/stream.js';
 import { PhotoMode } from './ui/photo.js';
@@ -472,7 +473,9 @@ function loop(ts) {
   }
   keyPan(dt);
   if (s.speed && !document.hidden) careerTick(dt);
-  game.map.render(s, dt, game.ui);
+  if (!game.replay) game.replay = new Replay(game);
+  game.replay.record(s, dt);
+  game.map.render(game.replay.on ? game.replay.view(s, dt) : s, dt, game.ui);
   soundscape.on = !!s.settings.sound && s.settings.ambience !== false && !document.hidden;
   soundscape.update(s, game.cam, game.map, dt, !s.speed || modalOpen());
   if (game.ui.radarOn) game.radar.render(s, dt, game.ui);
@@ -1159,6 +1162,16 @@ function setSpeed(v) {
 }
 
 function onKey(e) {
+  if (game.replay && game.replay.on && (e.key === 'Escape' || e.key === ' ')) {
+    e.preventDefault();
+    return game.replay.stop();
+  }
+  if (e.key === 'R' && e.shiftKey && game.state && game.running && !modalOpen() && !(game.cinema && game.cinema.on)) {
+    e.preventDefault();
+    if (!game.replay) game.replay = new Replay(game);
+    if (game.replay.on) return game.replay.stop();
+    return game.replay.play(game.replay.offerUntil ? game.replay.offerAc : null, game.replay.offerUntil ? game.replay.offerText : '');
+  }
   if (game.photo && game.photo.on && e.key === 'Escape') {
     e.preventDefault();
     return game.photo.stop();
@@ -1473,6 +1486,7 @@ function quitToMenu() {
   if (game.scn) game.scn.hide();
   if (game.cinema && game.cinema.on && game.cinema.stop) game.cinema.stop();
   if (game.stream && game.stream.on) game.stream.stop();
+  if (game.replay && game.replay.on) game.replay.stop();
   closeModal();
   game.running = false;
   showMenu();
@@ -1538,6 +1552,8 @@ function helpGuide(first) {
     <p>Ein paar Mal am Tag meldet sich <b>Rescue 7</b> südlich des Platzes und will auf dem Weg zur Klinik die Bahnen in der Mitte queren. Er schwebt, bis du im Pistenblock <b>Querung frei</b> gibst. Gib frei, wenn niemand im kurzen Endanflug, im Startlauf oder auf der Bahn ist – sonst ist es ein Verkehrskonflikt. Lässt du ihn über sieben Minuten warten, verzögert sich der Patiententransport; nach 15 Minuten fliegt er um die Kontrollzone herum. Mit „Nebenverkehr auto“ übernimmt der Kollege.</p>
     <h3>💦 Erstflug mit Wassertaufe</h3>
     <p>Wenn eine neu unterschriebene Strecke zum ersten Mal landet, stellt die Flughafenfeuerwehr zwei Löschfahrzeuge an die Rollgasse und schießt einen Wasserbogen, durch den das Flugzeug zur Position rollt – eine schöne Szene für Kino-Modus, Livestream und Spotter, dazu etwas Ansehen und eine Schlagzeile im Kurier.</p>
+    <h3>⏪ Wiederholung</h3>
+    <p>Das Spiel schneidet die letzten Sekunden am Platz mit. Nach einem besonderen Moment – Durchstarten, Notlandung, harte oder butterweiche Landung, A380 oder Regierungsmaschine – erscheint unten ein Knopf <b>Wiederholung</b>; <kbd>Umschalt</kbd>+<kbd>R</kbd> spielt sie jederzeit ab. In Zeitlupe, ohne Oberfläche, die Kamera folgt dem Flugzeug; die Simulation wartet so lange. Esc oder ein Klick beendet die Wiederholung.</p>
     <h3>🛬 Aufsetzrate</h3>
     <p>Jede Landung zeigt ihre Sinkrate beim Aufsetzen (ft/min): unter 110 ist 🧈 Butter, ab 600 eine harte Landung. Seitenwind, Böen, Regen, Schnee, Gewitter und Wirbelschleppen machen Landungen fester – und eine <b>späte Landefreigabe</b>: Kommt sie weniger als eine Minute vor dem Aufsetzen, ist der Endanflug unruhig. Nach einer harten Landung prüft die Technik das Fahrwerk an der Position (Abfertigung ruht 20 Minuten).</p>
     <h3>📡 Spotter-Livestream</h3>

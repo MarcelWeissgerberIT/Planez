@@ -13,6 +13,7 @@ const COMMON = [
   ['I', 'Anzeigetafel Abflug/Ankunft'],
   ['J', 'Spotterbuch'],
   ['Umschalt+P', 'Fotomodus'],
+  ['Umschalt+R', 'Wiederholung der letzten Sekunden (Zeitlupe)'],
   ['Esc', 'Auswahl aufheben · Pausenmenü'],
   ['?', 'diese Übersicht'],
 ];
