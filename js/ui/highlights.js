@@ -13,6 +13,9 @@ const ITEMS = [
   ['heliX', '🚁', (n) => `${n} Heli-Querung${n > 1 ? 'en' : ''}`],
   ['wxOk', '⛈️', (n) => `${n} Wetterumweg${n > 1 ? 'e' : ''}`],
   ['fodFound', '🚙', (n) => `${n}× Fremdkörper gefunden`],
+  ['openDays', '🎈', () => 'Tag der offenen Tür'],
+  ['streamWishes', '💬', (n) => (n > 1 ? `${n} Zuschauerwünsche erfüllt` : 'Zuschauerwunsch erfüllt')],
+  ['quizOk', '🔎', (n) => `${n} Typ${n > 1 ? 'en' : ''} im Quiz erkannt`],
   ['hardLand', '⚠', (n) => `${n} harte Landung${n > 1 ? 'en' : ''}`],
 ];
 
