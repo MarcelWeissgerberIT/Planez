@@ -30,7 +30,7 @@ export class Ride {
       <div class="rd-cockpit"><div class="rd-pillar l"></div><div class="rd-pillar r"></div><div class="rd-pillar c"></div>
         <div class="rd-glare"><div class="rd-pfd"><div class="rd-tape spd"><small>KT</small><b data-r="spd">0</b></div><div class="rd-ai"><div class="rd-hor"></div><i></i><span data-r="fma">TAXI</span></div><div class="rd-tape alt"><small>FT</small><b data-r="alt">0</b><em data-r="vs"></em></div></div>
         <div class="rd-nd"><div class="rd-rose" data-r="rose"></div><b data-r="hdg">000</b><small data-r="nd"></small></div></div></div>
-      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button></span><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-labels"></div>`;
+      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-labels"></div><div class="rd-cap"></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
     this.tEl = el.querySelector('.rd-t');
@@ -40,6 +40,9 @@ export class Ride {
       if (!b) return;
       if (b.dataset.rd === 'x') this.stop();
       else if (b.dataset.rd === 'track') this.setTrack(!this.track);
+      else if (b.dataset.rd === 'cine') this.startCine3d();
+      else if (b.dataset.rd === 'tower') this.startTower();
+      else if (b.dataset.rd === 'nextshot') this.shot = null;
       else this.setMode(b.dataset.rd);
     });
     // frei drehbare Kamera: Ziehen dreht (Gier) und neigt, Mausrad ändert den Abstand
@@ -63,7 +66,7 @@ export class Ride {
         pinch = d;
         return;
       }
-      if (!last) return;
+      if (!last || this.mode === 'cine3d') return;
       if (this.mode === 'tower') {
         const k = (this.fov || 55) / 55;
         this.yaw += (last.x - e.clientX) * 0.18 * k;
@@ -101,6 +104,12 @@ export class Ride {
     }, { passive: false });
     drag.addEventListener('dblclick', () => (this.mode === 'tower' ? this.resetTower() : this.setMode(this.mode)));
     window.addEventListener('keydown', (e) => {
+      if (this.on && this.mode === 'cine3d' && (e.key === ' ' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this.shot = null;
+        return;
+      }
       if (this.on && e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -187,7 +196,7 @@ export class Ride {
     this.resetTower();
     this.track = false;
     this.lbl = new Map();
-    this.el.classList.remove('hidden', 'cockpit', 'window', 'chase');
+    this.el.classList.remove('hidden', 'cockpit', 'window', 'chase', 'cine3d');
     this.el.classList.add('tower');
     this.el.querySelector('.rd-help').textContent = 'Ziehen = umsehen · Mausrad = Fernglas · Klick auf ein Flugzeug = auswählen · Doppelklick = zurücksetzen';
     this.tEl.textContent = 'Turmblick';
@@ -295,6 +304,12 @@ export class Ride {
   stop() {
     if (!this.on) return;
     this.on = false;
+    if (this.mode === 'cine3d') {
+      this.el.classList.remove('cine3d');
+      this.el.querySelector('.rd-cap').innerHTML = '';
+      this.id = null;
+      this.cineChase = false;
+    }
     if (this.mode === 'tower') {
       document.getElementById('game').classList.remove('towerview');
       document.getElementById('t-tower3d')?.classList.remove('on');
@@ -367,6 +382,7 @@ export class Ride {
     const g = this.game, s = g.state, cam = g.cam;
     if (g.cinema && g.cinema.on) return this.stop();
     if (this.mode === 'tower') return this.updateTower(dt);
+    if (this.mode === 'cine3d') return this.updateCine3d(dt);
     const ac = s && s.acs.find((a) => a.id === this.id);
     // noch im Anflug außerhalb der Karte: Kamera wartet am Anfang des Endanflugs, Instrumente mit echten Luftdaten
     if (ac && ac.mode === 'air' && ac.arr && ARR_PH.has(ac.phase)) return this.updateAir(s, ac, dt);
@@ -508,3 +524,165 @@ Ride.prototype.updateAirDep = function (s, ac, dt) {
 function distLeft(ac) {
   return Math.max(0, (ac.z || 0) / 0.05);
 }
+
+// ---------- Kino 3D: automatische Kamerafahrten in der WebGL-Ansicht ----------
+// Szenen: Landung von der Bahnseite, Start, Überflug am Bahnende, Anflug von hinten, Rollverkehr, Pushback,
+// Rettungshubschrauber, Cessna, Kranfahrt über das Vorfeld und der Blick vom Tower. Jede Szene läuft 9–16 s;
+// ist das Motiv weg (gelandet, abgeflogen), kommt die nächste. Breitbild-Balken und Einblendung unten links.
+const CINE_SUB = { land: 'Landung', takeoff: 'Start', climb: 'Steigflug', app: 'Im Anflug', taxi: 'Rollt', push: 'Pushback', heli: 'Rettungshubschrauber', vfr: 'Platzrunde', orbit: 'Vorfeld', tower: 'Blick vom Tower' };
+
+Ride.prototype.startCine3d = function () {
+  if (this.on) this.stop();
+  this.on = true;
+  this.id = null;
+  this.mode = 'cine3d';
+  this.shot = null;
+  this.recent = [];
+  this.labels = this.game.ui.labels;
+  this.el.classList.remove('hidden', 'cockpit', 'window', 'chase', 'tower');
+  this.el.classList.add('cine3d');
+  document.getElementById('game').classList.add('riding');
+  this.tEl.textContent = 'Kino 3D';
+  this.load3d(() => {
+    toast('Kino 3D braucht WebGL – dein Browser bietet es gerade nicht an', 'warn', 3200);
+    this.stop();
+  });
+};
+
+Ride.prototype.cineShots = function (s) {
+  const out = [];
+  const seen = (id) => this.recent.includes(id);
+  const R = (ac) => (ac.strip === 'S' ? LY.RWY_S : LY.RWY);
+  for (const a of s.acs) {
+    if (a.mode === 'map') {
+      if (a.phase === PH.FINAL) {
+        const d = LY.rwyDir(a.rwy);
+        const rem = (R(a).thr[a.rwy] + d * R(a).td - a.x) * d;
+        if (rem > 6 && rem < 34) out.push({ kind: 'land', id: a.id, w: seen(a.id) ? 0.3 : 7 });
+      } else if (a.phase === PH.LINED || a.phase === PH.LINEUP || (a.phase === PH.TAKEOFF && (a.z || 0) < 0.05)) out.push({ kind: 'takeoff', id: a.id, w: seen(a.id) ? 0.3 : 6 });
+      else if (a.phase === PH.TAKEOFF && (a.z || 0) < 1.2) out.push({ kind: 'climb', id: a.id, w: seen(a.id) ? 0.3 : 3 });
+      else if (a.phase === PH.TAXI_IN || a.phase === PH.TAXI_OUT) out.push({ kind: 'taxi', id: a.id, w: seen(a.id) ? 0.2 : 1.6 });
+      else if (a.phase === PH.PUSH) out.push({ kind: 'push', id: a.id, w: seen(a.id) ? 0.2 : 2 });
+    } else if (a.arr && a.pos && (a.phase === PH.APPROACH || a.phase === PH.FINAL) && Math.hypot(a.pos.x, a.pos.y) < 6) out.push({ kind: 'app', id: a.id, w: seen(a.id) ? 0.3 : 3 });
+  }
+  if (s.heli && s.heli.h) out.push({ kind: 'heli', id: 'heli' + s.heli.n, w: seen('heli' + s.heli.n) ? 0.3 : 3 });
+  if (s.vfr && s.vfr.p) out.push({ kind: 'vfr', id: 'vfr' + s.vfr.n, w: seen('vfr' + s.vfr.n) ? 0.3 : 1.6 });
+  out.push({ kind: 'orbit', id: 'orbit', w: seen('orbit') ? 0.3 : 1 });
+  out.push({ kind: 'tower', id: 'tower', w: seen('tower') ? 0.3 : 0.8 });
+  return out;
+};
+
+Ride.prototype.pickShot = function (s) {
+  const c = this.cineShots(s);
+  const tot = c.reduce((a, b) => a + b.w, 0);
+  let r = Math.random() * tot;
+  let sh = c[c.length - 1];
+  for (const x of c) {
+    r -= x.w;
+    if (r <= 0) {
+      sh = x;
+      break;
+    }
+  }
+  sh = { ...sh, t: 0, dur: { land: 15, takeoff: 16, climb: 10, app: 12, taxi: 10, push: 9, heli: 12, vfr: 12, orbit: 14, tower: 12 }[sh.kind], side: Math.random() < 0.5 ? -1 : 1, a0: Math.random() * Math.PI * 2 };
+  this.recent = [sh.id, ...this.recent].slice(0, 6);
+  // feste Kamerapunkte je Szene
+  const ac = s.acs.find((a) => a.id === sh.id);
+  if (ac && ac.mode === 'map') {
+    const RW = ac.strip === 'S' ? LY.RWY_S : LY.RWY;
+    const d = LY.rwyDir(ac.rwy || s.rwy);
+    const thr = RW.thr[ac.rwy || s.rwy];
+    if (sh.kind === 'land') sh.cam = { x: thr + d * (RW.td + 7), y: 0.22, z: RW.y + sh.side * 4.2 };
+    else if (sh.kind === 'takeoff') sh.cam = { x: thr + d * 26, y: 0.18, z: RW.y + sh.side * 3.6 };
+    else if (sh.kind === 'climb') sh.cam = { x: (d > 0 ? RW.x1 : RW.x0) + d * 5, y: 0.12, z: RW.y + sh.side * 1.6 };
+    else if (sh.kind === 'taxi' || sh.kind === 'push') {
+      // Rollen: Kamera wartet vorn seitlich; Pushback: seitlich hinter dem Flugzeug (es rollt rückwärts darauf zu)
+      const h = ac.hdg || 0, ahead = sh.kind === 'taxi' ? 7 : -2.5, side = sh.kind === 'taxi' ? 2.2 : 3.8;
+      sh.cam = { x: ac.x + Math.cos(h) * ahead - Math.sin(h) * side * sh.side, y: sh.kind === 'taxi' ? 0.3 : 0.4, z: ac.y + Math.sin(h) * ahead + Math.cos(h) * side * sh.side };
+      sh.cam.z = Math.max(sh.cam.z, LY.TERMINAL.y1 + 0.8); // nie im Terminal
+    }
+  }
+  return sh;
+};
+
+Ride.prototype.updateCine3d = function (dt) {
+  const s = this.game.state;
+  if (!this.use3d) return;
+  let sh = this.shot;
+  const subj = (x) => x && s.acs.find((a) => a.id === x.id);
+  const ok = (x) => {
+    if (!x || x.t > x.dur) return false;
+    if (x.kind === 'heli') return !!(s.heli && s.heli.h);
+    if (x.kind === 'vfr') return !!(s.vfr && s.vfr.p);
+    if (x.kind === 'orbit' || x.kind === 'tower') return true;
+    const a = subj(x);
+    if (!a) return false;
+    if (x.kind === 'app') return a.mode === 'air' || a.phase === PH.FINAL;
+    if (x.kind === 'land') return a.mode === 'map' && (a.phase === PH.FINAL || (a.phase === PH.ROLLOUT && (a.v || 0) > 0.08));
+    return a.mode === 'map';
+  };
+  if (!ok(sh)) sh = this.shot = this.pickShot(s);
+  sh.t += dt;
+  const v = this.v3d;
+  const ac = subj(sh);
+  this.cineChase = false;
+  this.id = null;
+  let target = null, fovTarget = 45;
+  if (sh.kind === 'app' && ac) {
+    // von hinten seitlich mitfliegen
+    this.cineChase = true;
+    this.id = ac.id;
+    this.yaw = 28 * sh.side;
+    this.pitch = 7;
+    this.zoomK = 0.85;
+    v.render(s, this, ac);
+  } else {
+    if (sh.kind === 'orbit') {
+      const a = sh.a0 + sh.t * 0.045;
+      this.camPos = { x: 40 + Math.cos(a) * 34, y: 7.5, z: 19 + Math.sin(a) * 26 };
+      target = { x: 40, y: 0.5, z: 20 };
+      fovTarget = 50;
+    } else if (sh.kind === 'tower') {
+      this.camPos = v.towerEye();
+      const busy = s.acs.filter((a) => a.mode === 'map' && a.phase !== PH.STAND);
+      const pick = busy.length ? busy[Math.floor((sh.a0 / (Math.PI * 2)) * busy.length)] : null;
+      const p = pick && v.acPos(pick.id);
+      target = p ? { x: p.x, y: p.y, z: p.z } : { x: 40, y: 0, z: 30 };
+      const dist = Math.hypot(target.x - this.camPos.x, target.z - this.camPos.z);
+      fovTarget = p ? clamp((2 * Math.atan(((pick.len || 2.4) * 3) / Math.max(1, dist)) * 180) / Math.PI, 7, 45) : 45;
+    } else if (sh.kind === 'heli' || sh.kind === 'vfr') {
+      const o = sh.kind === 'heli' ? s.heli.h : s.vfr.p;
+      const g = sh.kind === 'heli' ? v.heli : v.cessna;
+      const p = g ? g.position : { x: o.x, y: 1, z: o.y };
+      if (!sh.cam) sh.cam = { x: p.x + 9 * sh.side, y: 0.6, z: p.z + 7 };
+      this.camPos = sh.cam;
+      target = { x: p.x, y: p.y, z: p.z };
+      fovTarget = clamp((2 * Math.atan(1.6 / Math.max(1, Math.hypot(p.x - sh.cam.x, p.z - sh.cam.z))) * 180) / Math.PI, 5, 40);
+    } else if (ac) {
+      const p = v.acPos(ac.id);
+      this.camPos = sh.cam || { x: ac.x + 6, y: 0.4, z: ac.y + 6 };
+      target = p ? { x: p.x, y: p.y, z: p.z } : { x: ac.x, y: 0, z: ac.y };
+      const dist = Math.hypot(target.x - this.camPos.x, target.y - this.camPos.y, target.z - this.camPos.z);
+      fovTarget = clamp((2 * Math.atan(((ac.len || 2.4) * 1.5) / Math.max(0.5, dist)) * 180) / Math.PI, 5, 55);
+    }
+    // weich nachführen (Blick und Brennweite)
+    const k = 1 - Math.exp(-dt * 5);
+    if (!this.camLook || sh !== this.lastShot) (this.camLook = { ...target }, (this.fov = fovTarget));
+    else for (const c of ['x', 'y', 'z']) this.camLook[c] += (target[c] - this.camLook[c]) * k;
+    this.fov += (fovTarget - this.fov) * (1 - Math.exp(-dt * 2));
+    v.render(s, this, null);
+  }
+  this.lastShot = sh;
+  // Einblendung unten links
+  const cap = this.el.querySelector('.rd-cap');
+  let html = '';
+  if (ac) {
+    const t = AC_TYPES[ac.type], al = AIRLINES[ac.airline];
+    const rwy = ac.rwy || s.rwy;
+    const sub = sh.kind === 'land' ? `Landung auf der ${rwy}` : sh.kind === 'takeoff' || sh.kind === 'climb' ? `Start von der ${rwy}` : CINE_SUB[sh.kind];
+    html = `<b>${esc(ac.cs)}</b><span>${esc(t ? t.name : ac.type)}${al ? ` · ${esc(al.name)}` : ''}</span><small>${esc(sub)} · ${esc(s.name)}</small>`;
+  } else html = `<b>${esc(sh.kind === 'heli' ? 'Rescue 7' : sh.kind === 'vfr' ? (s.vfr.p && s.vfr.p.cs) || '' : s.name)}</b><small>${esc(CINE_SUB[sh.kind] || '')}</small>`;
+  if (cap._h !== html) (cap.innerHTML = html, (cap._h = html), cap.classList.remove('in'), void cap.offsetWidth, cap.classList.add('in'));
+  const txt = `Kino 3D · ${CINE_SUB[sh.kind] || ''}`;
+  if (this.tEl.textContent !== txt) this.tEl.textContent = txt;
+};

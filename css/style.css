@@ -1771,3 +1771,23 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 #ride .rl.ga { border-color: rgba(250,204,21,.6); color: #fde68a; cursor: default; }
 #map-ctrls #t-tower3d.on { color: #38d6f5; border-color: #38d6f5; }
 @media (max-width: 700px) { #ride.tower .rd-bar { top: auto; bottom: 10px; } }
+
+/* Kino 3D: Breitbild-Balken, Einblendung unten links */
+#ride .rd-cn, #ride .rd-cap { display: none; }
+#ride.cine3d .rd-cn { display: inline-flex; gap: 4px; }
+#ride.cine3d .rd-modes, #ride.cine3d .rd-belt, #ride.cine3d .rd-tw, #ride.cine3d .rd-help { display: none; }
+#ride .rd-cn button { border: 1px solid var(--line-2, #475569); background: rgba(255,255,255,.06); color: #cbd5e1; border-radius: 8px; padding: 4px 8px; font-size: 12px; white-space: nowrap; }
+#ride .rd-cn .ico { width: 14px; height: 14px; vertical-align: -2px; }
+#ride.cine3d::before, #ride.cine3d::after { content: ''; position: absolute; left: 0; right: 0; height: 9vh; background: #000; pointer-events: none; z-index: 0; }
+#ride.cine3d::before { top: 0; }
+#ride.cine3d::after { bottom: 0; }
+#ride.cine3d .rd-bar { top: calc(9vh + 8px); opacity: .25; transition: opacity .3s; z-index: 1; }
+#ride.cine3d .rd-bar:hover { opacity: 1; }
+#ride.cine3d .rd-cap { display: flex; flex-direction: column; position: absolute; left: 4vw; bottom: calc(9vh + 26px); color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.6); pointer-events: none; z-index: 1; border-left: 3px solid #38d6f5; padding-left: 12px; }
+#ride.cine3d .rd-cap b { font: 800 28px/1.1 var(--display, inherit); letter-spacing: .04em; }
+#ride.cine3d .rd-cap span { font-size: 15px; opacity: .92; margin-top: 2px; }
+#ride.cine3d .rd-cap small { font-size: 12px; opacity: .75; margin-top: 3px; text-transform: uppercase; letter-spacing: .12em; }
+#ride.cine3d .rd-cap.in { animation: capIn .7s ease-out; }
+@keyframes capIn { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+#game.riding #ride.cine3d ~ #hud, #game.riding:has(#ride.cine3d) #hud { opacity: 0; pointer-events: none; transition: opacity .4s; }
+@media (max-width: 700px) { #ride.cine3d .rd-cap b { font-size: 20px; } #ride.cine3d .rd-bar { top: auto; bottom: calc(9vh + 6px); } }
