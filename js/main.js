@@ -558,7 +558,7 @@ function updateHUD(force) {
 
 // Anfragen / Konflikte akustisch melden
 // Momente des Tages: besondere Szenen automatisch fotografieren (für den Tagesbericht)
-const MOMENT_PRIO = { a380: 5, emergency: 5, nordo: 4, special: 3, storm: 2, golden: 1, night: 1 };
+const MOMENT_PRIO = { state: 5, a380: 5, emergency: 5, nordo: 4, special: 3, storm: 2, golden: 1, night: 1 };
 function watchMoments(s) {
   if (!game.map || s.scenario || (game.photo && game.photo.on) || (game.cinema && game.cinema.on)) return;
   const M = game.moments || (game.moments = []);
@@ -571,7 +571,8 @@ function watchMoments(s) {
     if (!landing && !takeoff) continue;
     let kind = null, text = '';
     const what = landing ? 'Landung' : 'Start';
-    if (ac.type === 'A388') [kind, text] = ['a380', `🐋 ${what} des Superjumbos ${ac.cs}`];
+    if (ac.protocol) [kind, text] = ['state', `🎖️ ${what} der Regierungsmaschine ${ac.cs}`];
+    else if (ac.type === 'A388') [kind, text] = ['a380', `🐋 ${what} des Superjumbos ${ac.cs}`];
     else if (ac.emergency && landing) [kind, text] = ['emergency', `🚨 Notlandung ${ac.cs} – sicher unten`];
     else if (ac.nordo && landing) [kind, text] = ['nordo', `💡 ${ac.cs} landet per Lichtsignal`];
     else if (ac.special) [kind, text] = ['special', `🎨 ${what} in Sonderlackierung – ${ac.cs}`];
@@ -1505,8 +1506,10 @@ function helpGuide(first) {
     <h3>⭐ Herausforderungen</h3>
     <p><b>📅 Tagesherausforderung:</b> ganz oben in der Liste – jeden Kalendertag eine neue Mischung aus einem Tower- oder Vorfeld-Szenario und zwei Zusatzregeln (z.B. Funkausfall, Hochbetrieb, Superjumbo, Winddrehung, Tankwagen-Panne). Für alle gleich gewürfelt; mindestens ein Stern an aufeinanderfolgenden Tagen ergibt eine 🔥 Serie.</p>
     <p>Im Hauptmenü unter <b>Herausforderungen</b>: kurze Einsätze mit festem Start – Morgenwelle, Nebelsuppe, Gewitterfront, Notfall-Schicht (Tower), Ferienstart, Streiktag, Winterchaos (Vorfeld), Sanierungsfall und Wachstumskurs (Manager). Oben zeigt eine Leiste Restzeit und Ziele; jedes Ziel bringt 1–3 Sterne, die Gesamtwertung ist der Durchschnitt (ein verfehltes Ziel = nicht geschafft). Ein Stern schaltet die nächste Herausforderung der Station frei. Herausforderungen überschreiben deinen Spielstand nicht.</p>
+    <h3>🎖️ Staatsbesuch</h3>
+    <p>Ab und zu (ab Tag 2) kündigt sich die <b>Regierungsmaschine</b> an (Rufzeichen „State“, Datenblock <b>STATE</b>, Flugstreifen 🎖️). Protokoll im <b>Tower</b>: landen lassen, ohne dass sie länger als vier Minuten kreist oder durchstarten muss. Im <b>Vorfeld</b>: eine Großraum-Kontaktposition bereithalten und die Maschine pünktlich (höchstens 5 min nach Plan) off-block bringen. Am Boden warten roter Teppich, Ehrenformation, Fahnen und eine Kolonne. Gelingt beides, gibt es Ansehen, Schichtpunkte und eine Protokollgebühr von 60.000 €.</p>
     <h3>📸 Momente des Tages</h3>
-    <p>Besondere Szenen – ein A380, eine Notlandung, eine Landung per Lichtsignal, eine Sonderlackierung, ein Start im Gewitter oder in der goldenen Stunde – fotografiert das Spiel automatisch. Die drei besten zeigt der Tagesbericht als Fotostreifen.</p>
+    <p>Besondere Szenen – ein A380, die Regierungsmaschine, eine Notlandung, eine Landung per Lichtsignal, eine Sonderlackierung, ein Start im Gewitter oder in der goldenen Stunde – fotografiert das Spiel automatisch. Die drei besten zeigt der Tagesbericht als Fotostreifen.</p>
     <h3>📋 Schichtbriefing</h3>
     <p>Zu Beginn jedes Tages (Tower, Vorfeld, Manager) fasst ein Briefing die Schicht zusammen: Wetter und Vorhersage, geplanter Verkehr je Stunde mit Spitzenstunde, besondere Flüge (A380, VIP), die Lage deiner Station (Betriebsrichtung und Heavys, Positionen und Tanklager, Kasse, auslaufende Verträge und Marktanteil) und die Ziele der Schicht. <kbd>Enter</kbd> beginnt die Schicht; abschaltbar im Briefing oder unter Einstellungen.</p>
     <h3>📖 Kampagne</h3>

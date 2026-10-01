@@ -43,7 +43,8 @@ export const AIRLINES = {
   BWG: { code: 'BWG', name: 'Balticwings', tel: 'Baltic', color: '#0891b2', color2: '#ffffff', types: ['AT76', 'E190', 'DH8D'] },
   LUM: { code: 'LUM', name: 'Lumen Air', tel: 'Lumen', color: '#84cc16', color2: '#312e81', types: ['A223', 'A320', 'B738'] },
   FJW: { code: 'FJW', name: 'Fjordwing', tel: 'Fjordwing', color: '#0f766e', color2: '#f8fafc', types: ['DH8D', 'CRJ9', 'E190'] },
-  VIP: { code: 'VIP', name: 'Executive Charter', tel: 'Exec', color: '#111827', color2: '#d4af37', types: ['C68A'] },
+  VIP: { code: 'VIP', name: 'Executive Charter', tel: 'Exec', color: '#111827', color2: '#d4af37', types: ['C68A'], special: true },
+  GOV: { code: 'GOV', name: 'Regierungsstaffel', tel: 'State', color: '#f8fafc', color2: '#1e3a8a', types: ['A333'], special: true },
 };
 
 // Ziele: brg = Peilung vom Flughafen, cat = Distanzklasse

@@ -224,7 +224,7 @@ export const CATALOG = {
       if (s.scenario || s.hub || s.hubPending || s.time < 3 * 86400 || s.reputation < 55) return null; // nicht in kurzen Herausforderungen
       // größter Partner (ohne Zufall – die Bedingung wird oft geprüft und soll den Spielverlauf nicht verschieben)
       const cnt = {};
-      for (const c of s.contracts) if (AIRLINES[c.airline] && c.airline !== 'VIP' && AIRLINES[c.airline].types.some((t) => !AC_TYPES[t].cargo)) cnt[c.airline] = (cnt[c.airline] || 0) + 1;
+      for (const c of s.contracts) if (AIRLINES[c.airline] && !AIRLINES[c.airline].special && AIRLINES[c.airline].types.some((t) => !AC_TYPES[t].cargo)) cnt[c.airline] = (cnt[c.airline] || 0) + 1;
       const best = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
       return best ? { al: best[0] } : null;
     },

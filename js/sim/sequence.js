@@ -236,7 +236,7 @@ export function updateArrQueue(state) {
   if (!fresh.length && state.arrQManual) return state.arrQ;
   const dist = new Map();
   const d = (a) => {
-    if (!dist.has(a.id)) dist.set(a.id, queueDist(state, a) - (a.emergency ? 500 : a.minFuel ? 200 : 0));
+    if (!dist.has(a.id)) dist.set(a.id, queueDist(state, a) - (a.emergency ? 500 : a.protocol ? 300 : a.minFuel ? 200 : 0));
     return dist.get(a.id);
   };
   if (!state.arrQManual) {

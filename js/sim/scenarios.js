@@ -248,7 +248,7 @@ export const MUTATORS = {
   dense: { icon: '📈', name: 'Hochbetrieb', text: '25 % mehr Verkehr – die Zielwerte liegen höher', roles: ['tower', 'ground'] },
   nordo: { icon: '📻', name: 'Funkausfall', text: 'Ein anfliegendes Flugzeug verliert den Funk – Lichtsignale geben', roles: ['tower'], at: 35 * 60, run: (s) => retry(s, 'nordo') },
   a380: { icon: '🐋', name: 'Superjumbo', text: 'Ein A380 kommt zu Besuch', roles: ['tower', 'ground'], at: 25 * 60, run: (s) => retry(s, 'a380') },
-  vip: { icon: '🕴️', name: 'Staatsbesuch', text: 'Ein VIP-Flug will bevorzugt behandelt werden', roles: ['tower', 'ground'], at: 15 * 60, run: (s) => triggerEvent(s, 'vip') },
+  vip: { icon: '🎖️', name: 'Staatsbesuch', text: 'Eine Regierungsmaschine kommt – Landung ohne Warteschleife, Abflug pünktlich', roles: ['tower', 'ground'], at: 15 * 60, run: (s) => retry(s, 'state') },
   birds: { icon: '🐦', name: 'Vogelzug', text: 'Ein Vogelschlag mitten in der Schicht', roles: ['tower'], at: 70 * 60, run: (s) => retry(s, 'birdstrike') },
   emergency: { icon: '🚨', name: 'Notfall', text: 'Ein MAYDAY mitten in der Schicht', roles: ['tower'], at: 50 * 60, run: (s) => triggerEvent(s, 'emergency') },
   gusts: {

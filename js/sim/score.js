@@ -80,6 +80,13 @@ export function scoreInspect(state, clean) {
   else fail(state, null, 60, 'Kontrolle zur Unzeit');
 }
 
+// Staatsbesuch: Landung nach Protokoll (Tower) bzw. pünktlicher Abflug (Vorfeld)
+export function scoreProtocol(state, ac, role, ok) {
+  if (!active(state, role)) return;
+  if (ok) add(state, ac, 200, 'Protokoll eingehalten');
+  else fail(state, ac, 100, 'Protokoll verletzt');
+}
+
 // ---------- Vorfeld ----------
 export function scoreOffBlock(state, ac, delay, quick) {
   if (!active(state, 'ground')) return;

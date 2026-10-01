@@ -3,6 +3,7 @@ import { rand, randRange, randInt, pick, pickWeighted, hourOf, clamp, degNorm, f
 import { crewBroken } from './crew.js';
 import { startNordo, nordoCandidate } from './nordo.js';
 import { log, notify, radio } from './messages.js';
+import { startStateVisit, stateVisitPossible } from './statevisit.js';
 import { spawnSpecial, PH, divert, goAround } from './aircraft.js';
 import * as AS from './airspace.js';
 import { diff } from './difficulty.js';
@@ -179,6 +180,7 @@ function randomEvent(state) {
     ['birdstrike', 1],
     ['nordo', h > 6 && h < 22 && nordoCandidate(state) ? 0.9 : 0],
     ['fod', 0.7 * fodRisk(state)],
+    ['state', h > 9 && h < 16 && state.time > 86400 && stateVisitPossible(state) ? 1.2 : 0],
   ];
   triggerEvent(state, pickWeighted(state, opts, (o) => o[1])[0]);
 }
@@ -195,6 +197,8 @@ export function triggerEvent(state, kind, opt = {}) {
     state.life = state.life || {};
     state.life.a380 = (state.life.a380 || 0) + 1;
     return ac;
+  } else if (kind === 'state') {
+    return startStateVisit(state);
   } else if (kind === 'vip') {
     const n = randInt(state, 100, 999);
     spawnSpecial(state, { airline: 'VIP', type: 'C68A', arrNo: `VIP${n}`, depNo: `VIP${n + 1}`, city: pick(state, ['NCE', 'GVA', 'OLB', 'LHR']), pax: randInt(state, 2, 8), special: 'vip', feeMult: 2.5 });

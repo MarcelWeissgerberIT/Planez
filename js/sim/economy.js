@@ -137,6 +137,7 @@ export function onTakeoff(state, ac) {
   if (t.cargo) earnF('cargo', (rot.cargoIn + rot.cargoOut) * 55);
   else earnF('cargo', (rot.cargoIn + rot.cargoOut) * 40);
   if (rot.special === 'vip') earnF('other', 18000);
+  if (rot.special === 'state') earnF('other', state.sv && state.sv.arrOk && state.sv.depOk ? 60000 : 30000); // Protokollgebühr
   fx(state, ac.x, ac.y, `🛫 +${fmtK(sum)}`, 'cash');
 }
 

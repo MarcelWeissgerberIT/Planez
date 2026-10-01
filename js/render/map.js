@@ -2,7 +2,7 @@
 import { IMG, shadowOf, glowTinted } from '../assets.js';
 import { lookOf } from '../sim/spotter.js';
 import { drawAircraftBody, drawVehicleBody, drawCarBody } from './volume.js';
-import { Ambient } from './ambient.js';
+import { Ambient, drawPerson } from './ambient.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { Polish } from './polish.js';
 import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowySprite } from './snow.js';
@@ -18,6 +18,7 @@ import { hourOf, roundedPath, clamp, lerp } from '../util.js';
 import { MARKS } from '../ui/marks.js';
 import { siteGeom, drawSiteGround, siteItems, permanentItems, drawSiteLabel } from './sites.js';
 import { runwayClosed, stripGeom } from '../sim/runway.js';
+import { motorcade } from '../sim/statevisit.js';
 const markOf = (ac) => (ac.mark && MARKS[ac.mark.c] ? MARKS[ac.mark.c] : null);
 
 const BH = { hall: 1.3, tower: 5, hangar: 1.8, cargo: 0.9, depot: 0.7, fire: 0.8, fuel: 0.9, parking: 1.1, hotel: 3.2, radar: 2.6 };
@@ -371,6 +372,7 @@ export class MapRenderer {
     items.push({ d: 66 + 35.6, f: () => this.drawWindsock(state) });
     this.runwayWorkItems(state, items, lights);
     this.followMeItems(state, items, lights);
+    this.stateVisitItems(state, items, lights, night);
     plowItems(this, state, items, lights);
     infraItems(this, state, items, lights, night);
     deiceFx(this, state, items);
@@ -574,6 +576,107 @@ export class MapRenderer {
       const fv = { id: 'fm' + ac.id, type: 'tug', x: px, y: py, hdg, st: 'work', brokenUntil: 0 };
       items.push({ d: px + py, f: () => this.drawVehicle(state, fv, lights) });
     }
+  }
+
+  // Staatsbesuch: Treppe und roter Teppich an der hinteren linken Tür, Ehrenformation, Fahnen und die Kolonne
+  // (Polizei vorn und hinten, drei Limousinen), die über die Vorfeldstraße anrollt und neben dem Flugzeug parkt
+  stateVisitItems(state, items, lights, night) {
+    const M = motorcade(state);
+    if (!M) return;
+    const S = state.sv;
+    const ac = state.acs.find((a) => a.id === S.ac);
+    const t = this.ambient.vt;
+    const st = M.stand;
+    const parkX = st.x - 3, y0 = LY.SERVICE + 0.25, yEnd = LY.STAND_NOSE + 4.6;
+    const P = [{ x: 84, y: y0 }, { x: parkX, y: y0 }, { x: parkX, y: yEnd }];
+    const L1 = P[0].x - P[1].x, Ltot = L1 + (P[2].y - P[1].y);
+    const at = (s) => (s <= L1 ? { x: P[0].x - s, y: y0, h: Math.PI } : { x: parkX, y: y0 + Math.min(s - L1, P[2].y - y0), h: Math.PI / 2 });
+    const KINDS = ['police', 'limo', 'limo', 'limo', 'police'];
+    const ease = (u) => 1 - (1 - u) * (1 - u);
+    KINDS.forEach((kind, k) => {
+      const s = M.leaving ? Ltot - k * 0.55 - (1 - M.u) * (Ltot + 3) : ease(M.u) * Ltot - k * 0.55;
+      if (s < 0) return;
+      const p = at(Math.min(s, Ltot - k * 0.55));
+      if (M.leaving) p.h += Math.PI;
+      const moving = M.leaving ? M.u < 1 : M.u < 1;
+      items.push({ d: p.x + p.y, f: () => this.drawAmbientCar({ kind, col: kind === 'police' ? '#e2e8f0' : '#0b0d12', siren: moving || kind === 'police' }, p, night, lights) });
+    });
+    if (!M.carpet || !ac) return;
+    // Treppe und Teppich an der hinteren linken Tür (hinter der Tragfläche)
+    const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg), lx = fy, ly = -fx; // links von der Flugrichtung
+    const along = -0.3 * ac.len, half = 0.24 * (AC_TYPES[ac.type].scale || 1) * 0.55 + 0.12;
+    const door = { x: ac.x + fx * along + lx * half, y: ac.y + fy * along + ly * half };
+    const len = 2.2, w = 0.32;
+    const end = { x: door.x + lx * (len + 0.45), y: door.y + ly * (len + 0.45) };
+    const ctx = this.ctx, cam = this.cam;
+    items.push({
+      d: Math.min(door.x + door.y, end.x + end.y) - 0.3,
+      f: () => {
+        cam.setIso(ctx, 0);
+        ctx.save();
+        ctx.translate(door.x + lx * 0.45, door.y + ly * 0.45);
+        ctx.rotate(Math.atan2(ly, lx));
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fillRect(0.04, -w / 2 + 0.04, len, w);
+        ctx.fillStyle = '#b91c1c';
+        ctx.fillRect(0, -w / 2, len, w);
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(0, -w / 2, len, 0.03);
+        ctx.fillRect(0, w / 2 - 0.03, len, 0.03);
+        ctx.restore();
+        // Fluggasttreppe
+        prism(ctx, cam, [
+          { x: door.x + fx * 0.14, y: door.y + fy * 0.14 },
+          { x: door.x + lx * 0.45 + fx * 0.14, y: door.y + ly * 0.45 + fy * 0.14 },
+          { x: door.x + lx * 0.45 - fx * 0.14, y: door.y + ly * 0.45 - fy * 0.14 },
+          { x: door.x - fx * 0.14, y: door.y - fy * 0.14 },
+        ], 0, 0.16, [235, 238, 242], [200, 204, 210], [170, 174, 180]);
+      },
+    });
+    // Fahnenmasten am Teppichende
+    for (const sgn of [-1, 1]) {
+      const fpx = end.x + fx * sgn * 0.45, fpy = end.y + fy * sgn * 0.45;
+      items.push({
+        d: fpx + fpy,
+        f: () => {
+          cam.setScreen(ctx);
+          const b = cam.toScreen(fpx, fpy, 0), top = cam.toScreen(fpx, fpy, 0.7);
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = Math.max(1, 1.2 * cam.zoom);
+          ctx.beginPath();
+          ctx.moveTo(b.x, b.y);
+          ctx.lineTo(top.x, top.y);
+          ctx.stroke();
+          const fw = 9 * cam.zoom, fh = 6 * cam.zoom, wav = Math.sin(t * 3 + sgn) * 1.5 * cam.zoom;
+          ctx.fillStyle = sgn < 0 ? '#1e3a8a' : '#f8fafc';
+          ctx.beginPath();
+          ctx.moveTo(top.x, top.y);
+          ctx.quadraticCurveTo(top.x + fw * 0.5, top.y + wav, top.x + fw, top.y);
+          ctx.lineTo(top.x + fw, top.y + fh);
+          ctx.quadraticCurveTo(top.x + fw * 0.5, top.y + fh + wav, top.x, top.y + fh);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#facc15';
+          ctx.fillRect(top.x + fw * 0.35, top.y + fh * 0.3, fw * 0.3, fh * 0.4);
+        },
+      });
+    }
+    // Ehrenformation beidseits des Teppichs und Empfangskomitee – bei Ankunft und Abschied
+    const rot = state.rots[ac.rot];
+    const ceremony = state.time - (S.onT || 0) < 25 * 60 || (rot && rot.std - state.time < 15 * 60);
+    if (!ceremony || this.cam.zoom < 0.45) return;
+    for (let i = 0; i < 6; i++) {
+      for (const sgn of [-1, 1]) {
+        const a = 0.55 + i * 0.3;
+        const px = door.x + lx * a + fx * sgn * 0.3, py = door.y + ly * a + fy * sgn * 0.3;
+        items.push({ d: px + py, f: () => drawPerson(this, px, py, '#3f4a3c', 1, false, 0, false) });
+      }
+    }
+    const COM = ['#111827', '#7f1d1d', '#111827'];
+    COM.forEach((c, i) => {
+      const px = end.x + lx * 0.15 + fx * (i - 1) * 0.22, py = end.y + ly * 0.15 + fy * (i - 1) * 0.22;
+      items.push({ d: px + py, f: () => drawPerson(this, px, py, c, 1, false, t + i, false) });
+    });
   }
 
   runwayWorkItems(state, items, lights) {
@@ -904,6 +1007,14 @@ export class MapRenderer {
     } else {
       drawCarBody(ctx, cam, p.x, p.y, p.h, c.col, prism, carShades, cam.zoom < 0.7);
       if (c.kind === 'taxi') rect(-0.02, 0.03, 0.02, 0.095, 0.11, [255, 255, 255], [220, 220, 220], [190, 190, 190]);
+      if (c.kind === 'police') {
+        rect(-0.03, 0.05, 0.05, 0.095, 0.11, [30, 64, 175], [30, 58, 138], [23, 37, 84]);
+        rect(-0.16, 0.16, 0.081, 0.03, 0.05, [37, 99, 235], [29, 78, 216], [30, 64, 175]);
+        if (c.siren) {
+          const on = (this.ambient.vt * 3) % 1 < 0.5;
+          lights.push({ x: p.x, y: p.y, z: 0.12, c: on ? '#3b82f6' : '#93c5fd', s: on ? 16 : 9, a: 0.95, day: true });
+        }
+      }
       if (c.kind === 'followme') {
         rect(-0.1, 0.1, 0.066, 0.059, 0.062, [20, 20, 20], [20, 20, 20], [20, 20, 20]);
         if ((this.ambient.vt * 2) % 1 < 0.5) lights.push({ x: p.x, y: p.y, z: 0.12, c: '#ffae00', s: 14, a: 0.9, day: true });

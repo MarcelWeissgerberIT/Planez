@@ -64,7 +64,7 @@ export const MOMENTS = {
 };
 
 // Länderkennung je Airline
-const PREFIX = { AUR: ['D-A', 3], RHJ: ['D-A', 3], ALP: ['HB-J', 2], NST: ['SE-R', 2], SKB: ['EI-F', 2], OPL: ['B-L', 3], TGC: ['N', 0], BWG: ['YL-', 3], VIP: ['D-C', 3], LUM: ['9H-L', 2], FJW: ['LN-F', 2] };
+const PREFIX = { AUR: ['D-A', 3], RHJ: ['D-A', 3], ALP: ['HB-J', 2], NST: ['SE-R', 2], SKB: ['EI-F', 2], OPL: ['B-L', 3], TGC: ['N', 0], BWG: ['YL-', 3], VIP: ['D-C', 3], GOV: ['D-AG', 2], LUM: ['9H-L', 2], FJW: ['LN-F', 2] };
 const hashStr = (s) => {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
@@ -83,7 +83,7 @@ export function assignLook(ac, rot) {
     ac.reg = pre + s;
   }
   // etwa jede 18. Linienmaschine trägt eine Sonderlackierung
-  if (rot.airline !== 'VIP' && (h >>> 20) % 18 === 0) ac.special = SPECIAL_KEYS[(h >>> 8) % SPECIAL_KEYS.length];
+  if (rot.airline !== 'VIP' && rot.airline !== 'GOV' && (h >>> 20) % 18 === 0) ac.special = SPECIAL_KEYS[(h >>> 8) % SPECIAL_KEYS.length];
 }
 
 // Farben fürs Zeichnen

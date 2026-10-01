@@ -21,6 +21,7 @@ export function newspaperHtml(state, rec) {
   if (rec.incidents >= 2) [kick, head, tone] = ['Luftaufsicht ermittelt', `Turbulenter Tag: ${rec.incidents} Zwischenfälle am Flughafen`, 'bad'];
   else if ((used = has('🏆'))) [kick, head, tone] = ['Rekord', `${rec.pax.toLocaleString('de-DE')} Passagiere – so viele wie nie`, 'good'];
   else if (d('emgLanded') > 0) [kick, head, tone] = ['Glück im Unglück', 'Notlandung in ' + name + ' – alle an Bord wohlauf', 'good'];
+  else if (d('stateVisit') > 0 && state.sv) [kick, head, tone] = ['Hoher Besuch', state.sv.arrOk && state.sv.depOk ? `${state.sv.guest} zu Gast – Staatsbesuch in ${name} wie am Schnürchen` : `Staatsbesuch in ${name}: ${state.sv.guest} landet mit allen Ehren`, state.sv.arrOk && state.sv.depOk ? 'good' : 'info'];
   else if (d('a380') > 0) [kick, head, tone] = ['Riese zu Besuch', `Der Superjumbo A380 landet in ${name}`, 'good'];
   else if (rec.diversions > 0) [kick, head, tone] = ['Ärger für Reisende', `${rec.diversions} Maschine${rec.diversions > 1 ? 'n mussten' : ' musste'} ausweichen`, 'bad'];
   else if ((used = has('⛈️') || has('🌫️') || has('🌨️'))) [kick, head, tone] = ['Wetter', used.icon === '⛈️' ? 'Gewitter legt das Vorfeld lahm' : used.icon === '🌫️' ? 'Nebel: Flughafen landet im Blindflug' : 'Schneechaos? Nicht hier – Räumdienst im Dauereinsatz', 'info'];

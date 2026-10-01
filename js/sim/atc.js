@@ -368,7 +368,7 @@ function clearNextApproach(state, cands, distCleared, departuresWaiting, order =
     const below = state.acs.some((o) => o !== c && o.mode === 'air' && o.alt < c.alt - 300 && ((o.phase === PH.HOLD && Math.hypot(o.pos.x - c.pos.x, o.pos.y - c.pos.y) < 9) || (Math.hypot(o.pos.x - c.pos.x, o.pos.y - c.pos.y) < 6 && o.alt > 4500)));
     return { c, d: AS.routeDistance(c.pos, AS.approachRoute(c.pos, rwy)) + (below ? 50 : 0), blocked: below, o: order ? order.indexOf(c.id) : 0 };
   });
-  const prio = (x) => (x.c.emergency ? 2 : 0) + (x.c.minFuel ? 1 : 0);
+  const prio = (x) => (x.c.emergency ? 2 : 0) + (x.c.minFuel ? 1 : 0) + (x.c.protocol ? 1.5 : 0);
   scored.sort((x, y) => prio(y) - prio(x) || (order ? x.o - y.o : 0) || x.d - y.d);
   const next = scored[0];
   if (!next) return null;

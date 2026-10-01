@@ -318,7 +318,7 @@ function hash(str, k) {
 }
 
 // Kleine Person: Beine, Körper, Kopf (Helm auf Baustellen), optional Koffer
-function drawPerson(r, x, y, col, alpha, bag, ph, moving, hivis = false, helmet = false) {
+export function drawPerson(r, x, y, col, alpha, bag, ph, moving, hivis = false, helmet = false) {
   const { ctx, cam } = r;
   cam.setScreen(ctx);
   const z = cam.zoom;
