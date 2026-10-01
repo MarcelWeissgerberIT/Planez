@@ -2,6 +2,7 @@
 // sobald die Aktion wirklich ausgeführt wurde. Beim ersten Spielen einer Rolle automatisch.
 import { PH } from '../sim/aircraft.js';
 import { projects } from '../sim/construction.js';
+import { isCareer, stageOf } from '../sim/career.js';
 import { T } from '../i18n.js';
 
 const KEY = 'planez_tut_';
@@ -19,6 +20,25 @@ const markSeen = (role) => {
 };
 
 // Schritte: sel = hervorzuhebendes Element, text, done(state, game, ctx) -> true wenn erledigt; wait = nur „Weiter“
+// Aufbau-Modus am kleinen Platz: eigene Schritte (am Grasplatz gibt es weder Terminal-Ausbau noch Fuhrpark)
+const STEPS_SMALL = {
+  manager: [
+    { sel: '#panel', title: T('Dein Platz'), text: T('Oben Kasse und Ansehen, darunter die <b>nächste Ausbaustufe</b> mit ihren Bedingungen. Am kleinen Platz gibt es wenig Verkehr und wenig Geld – hart, aber ehrlich.'), wait: true },
+    { sel: '.cr-acts', title: T('Aktionen'), text: T('Starte eine <b>Aktion</b> – eine Anzeige im Fliegermagazin oder ein Fly-In bringt Gastflieger und macht den Platz bekannter.'), done: (s) => ['ad', 'flyin', 'fest'].some((k) => ((s.career && s.career['cd_' + k]) || 0) > s.time) },
+    { sel: '.dock-open', title: T('Management-Zentrale'), text: T('Öffne die <b>Management-Zentrale</b> (Klick oder Taste <kbd>O</kbd>).'), done: () => !!document.querySelector('#mgmt:not(.hidden)') },
+    { sel: '#mg-body', title: T('Aufbau'), text: T('Hier stehen Zeitleiste, Bedingungen, Aktionen und <b>Partner</b>. Flugschule, Rundflüge und Fallschirmclub zahlen Pacht – ihre Anfragen nimmst du unter <b>„Airlines &amp; Verträge“</b> an.'), wait: true },
+    { sel: '#mgmt [data-mg-close]', title: T('Zurück zum Platz'), text: T('Schließe die Zentrale (<kbd>Esc</kbd>) und sieh dir deinen Platz auf der Karte an.'), done: () => !document.querySelector('#mgmt:not(.hidden)') },
+    { sel: null, title: T('Los geht’s!'), text: T('Sind alle Bedingungen erfüllt, startest du den <b>Ausbau</b> – Land, Kreis und Investoren zahlen den Großteil, nach jeder neuen Stufe wählst du einen <b>Ausbau-Bonus</b>. Viel Erfolg!'), wait: true, last: true },
+  ],
+  ground: [
+    { sel: '#panel', title: T('Vorfeld am Grasplatz'), text: T('Am Grasplatz gibt es noch keinen Fuhrpark: Die Piloten schieben ihre Flieger selbst und tanken an der <b>Zapfsäule</b>. Du kümmerst dich um die <b>Abstellplätze auf der Wiese</b>.'), wait: true },
+    { sel: '#gp-inb', title: T('Abstellplätze'), text: T('Ankommende Gastflieger brauchen einen Platz (W1–W10) – automatisch oder per Auswahl. Ist die Wiese voll, fliegen Gäste woanders hin.'), wait: true },
+    { sel: null, title: T('Los geht’s!'), text: T('Ab dem <b>Verkehrslandeplatz</b> kommen Schlepper und Tankwagen dazu – dann gibt es hier richtig zu tun. Viel Erfolg!'), wait: true, last: true },
+  ],
+};
+// welche Einführung passt: Manager am Gras-/Verkehrslandeplatz, Vorfeld am Grasplatz → eigene Variante mit eigenem Merker
+const variant = (s, role) => (isCareer(s) && ((role === 'manager' && stageOf(s) < 2) || (role === 'ground' && stageOf(s) < 1)) ? 'small' : '');
+
 const STEPS = {
   tower: [
     { sel: '#panel', title: T('Dein Arbeitsplatz'), text: T('Rechts siehst du <b>Radar</b>, <b>Pistenstatus</b> und den <b>Funk</b>. Auf dem Radar fliegen die Anflüge von den Warteschleifen-Fixen auf die Piste zu.'), wait: true },
@@ -79,11 +99,13 @@ export class Tutorial {
 
   maybeStart() {
     const s = this.game.state;
-    if (!s || !STEPS[s.role] || seen(s.role) || this.pending || this.on) return;
+    const key = (st) => st.role + (variant(st, st.role) ? '_small' : '');
+    if (!s || !STEPS[s.role] || seen(key(s)) || this.pending || this.on) return;
     this.pending = true;
     setTimeout(() => {
       this.pending = false;
-      if (!this.on && this.game.state && !seen(this.game.state.role)) this.start();
+      const g = this.game.state;
+      if (!this.on && g && !seen(key(g))) this.start();
     }, 900);
   }
 
@@ -91,7 +113,9 @@ export class Tutorial {
     const s = this.game.state;
     if (!s) return;
     this.role = role || s.role;
-    this.steps = STEPS[this.role];
+    const v = variant(s, this.role);
+    this.key = this.role + (v ? '_small' : '');
+    this.steps = (v && STEPS_SMALL[this.role]) || STEPS[this.role];
     if (!this.steps) return;
     this.i = 0;
     this.on = true;
@@ -102,7 +126,7 @@ export class Tutorial {
   stop() {
     this.on = false;
     this.el.classList.add('hidden');
-    markSeen(this.role);
+    markSeen(this.key || this.role);
   }
 
   enter() {
@@ -135,6 +159,9 @@ export class Tutorial {
 
   place() {
     const st = this.steps[this.i];
+    // über der Management-Zentrale liegen, solange sie offen ist (sonst verdeckt sie Blase und Knöpfe)
+    const mg = document.getElementById('mgmt');
+    this.el.style.zIndex = mg && !mg.classList.contains('hidden') ? '56' : '';
     const t = st.sel ? document.querySelector(st.sel) : null;
     const W = window.innerWidth, H = window.innerHeight;
     if (!t || !t.offsetParent) {
@@ -142,6 +169,9 @@ export class Tutorial {
       this.bub.style.cssText = `left:${W / 2 - 190}px;top:${H / 2 - 100}px`;
       return;
     }
+    // Ziel außerhalb des sichtbaren Bereichs (z. B. weiter unten in der Seitenleiste): erst hinscrollen
+    const r0 = t.getBoundingClientRect();
+    if (r0.top < 0 || r0.bottom > H) t.scrollIntoView({ block: 'center' });
     const r = t.getBoundingClientRect();
     const pad = 6;
     this.spot.style.cssText = `left:${r.left - pad}px;top:${r.top - pad}px;width:${r.width + pad * 2}px;height:${r.height + pad * 2}px`;
