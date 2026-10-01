@@ -16,6 +16,8 @@ import * as AS from '../sim/airspace.js';
 import * as LY from '../layout.js';
 
 const KT = 323; // Kacheln je Spielsekunde -> Knoten (wie Info-Karte und Kino)
+// Drohnensteuerung: Tasten -> Richtung
+const DRONE_KEYS = { w: 'up', arrowup: 'up', ArrowUp: 'up', s: 'down', ArrowDown: 'down', a: 'left', ArrowLeft: 'left', d: 'right', ArrowRight: 'right', e: 'rise', ' ': 'rise', q: 'sink', c: 'sink' };
 const FT = 500; // z -> Fuß
 const CALLS = [500, 100, 50, 40, 30, 20, 10];
 // Phasen eines ankommenden Flugs (ac.arr bleibt über den ganzen Umlauf gesetzt)
@@ -32,7 +34,7 @@ export class Ride {
       <div class="rd-cockpit"><canvas class="rd-rain"></canvas><div class="rd-pillar l"></div><div class="rd-pillar r"></div><div class="rd-pillar c"></div>
         <div class="rd-glare"><div class="rd-pfd"><div class="rd-tape spd"><small>KT</small><b data-r="spd">0</b></div><div class="rd-ai"><div class="rd-hor"></div><i></i><span data-r="fma">TAXI</span></div><div class="rd-tape alt"><small>FT</small><b data-r="alt">0</b><em data-r="vs"></em></div></div>
         <div class="rd-nd"><div class="rd-rose" data-r="rose"></div><b data-r="hdg">000</b><small data-r="nd"></small></div></div></div>
-      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-photo" data-rd="photo" title="Foto fürs Spotterbuch (F) – fotografiert das Flugzeug in der Bildmitte">${icon('photo')}</button><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-labels"></div><div class="rd-cap"></div><div class="rd-marshal"><div class="rd-wand l"></div><div class="rd-wand r"></div><div class="rd-mres"></div><button class="rd-stop" data-rd="mstop">STOPP <small>Leertaste</small></button></div>`;
+      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button><button data-rd="drone" title="Drohne: frei über den Flughafen fliegen (WASD, Q/E, Umschalt = schnell)">${icon('drone')} Drohne</button></span><span class="rd-dr"><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-photo" data-rd="photo" title="Foto fürs Spotterbuch (F) – fotografiert das Flugzeug in der Bildmitte">${icon('photo')}</button><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-labels"></div><div class="rd-cap"></div><div class="rd-pad"><button data-k="up" title="vor">▲</button><button data-k="left" title="links">◀</button><button data-k="down" title="zurück">▼</button><button data-k="right" title="rechts">▶</button><button data-k="rise" title="steigen">⤒</button><button data-k="sink" title="sinken">⤓</button></div><div class="rd-marshal"><div class="rd-wand l"></div><div class="rd-wand r"></div><div class="rd-mres"></div><button class="rd-stop" data-rd="mstop">STOPP <small>Leertaste</small></button></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
     this.tEl = el.querySelector('.rd-t');
@@ -43,6 +45,7 @@ export class Ride {
       if (b.dataset.rd === 'x') this.stop();
       else if (b.dataset.rd === 'track') this.setTrack(!this.track);
       else if (b.dataset.rd === 'cine') this.startCine3d();
+      else if (b.dataset.rd === 'drone') this.startDrone();
       else if (b.dataset.rd === 'tower') this.startTower();
       else if (b.dataset.rd === 'nextshot') this.shot = null;
       else if (b.dataset.rd === 'photo') this.photo();
@@ -72,7 +75,10 @@ export class Ride {
         return;
       }
       if (!last || this.mode === 'cine3d') return;
-      if (this.mode === 'tower') {
+      if (this.mode === 'drone') {
+        this.yaw += (last.x - e.clientX) * 0.22;
+        this.pitch = clamp(this.pitch + (last.y - e.clientY) * -0.18, -80, 70);
+      } else if (this.mode === 'tower') {
         const k = (this.fov || 55) / 55;
         this.yaw += (last.x - e.clientX) * 0.18 * k;
         this.pitch = clamp(this.pitch + (last.y - e.clientY) * -0.15 * k, -25, 60);
@@ -100,6 +106,10 @@ export class Ride {
     drag.addEventListener('pointercancel', up);
     drag.addEventListener('wheel', (e) => {
       e.preventDefault();
+      if (this.mode === 'drone') {
+        this.droneMove(e.deltaY > 0 ? -1.5 : 1.5);
+        return;
+      }
       if (this.mode === 'tower') {
         this.fov = clamp((this.fov || 55) * (e.deltaY > 0 ? 1.12 : 0.89), 5, 70);
         this.autoZoom = false;
@@ -114,6 +124,16 @@ export class Ride {
         e.stopImmediatePropagation();
         this.photo();
         return;
+      }
+      if (this.on && this.mode === 'drone' && !['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target && e.target.tagName) || '')) {
+        const k = DRONE_KEYS[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+        if (k || e.key === 'Shift') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          if (k) this.keys.add(k);
+          if (e.key === 'Shift') this.keys.add('fast');
+          return;
+        }
       }
       if (this.on && this.mode === 'marshal' && e.key === ' ') {
         e.preventDefault();
@@ -133,6 +153,24 @@ export class Ride {
         this.stop();
       }
     }, true);
+    window.addEventListener('keyup', (e) => {
+      if (!this.keys) return;
+      const k = DRONE_KEYS[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+      if (k) this.keys.delete(k);
+      if (e.key === 'Shift') this.keys.delete('fast');
+    }, true);
+    window.addEventListener('blur', () => this.keys && this.keys.clear());
+    // Steuerkreuz für Touch (gedrückt halten)
+    const pad = el.querySelector('.rd-pad');
+    const press = (e, on) => {
+      const b = e.target.closest('[data-k]');
+      if (!b || !this.keys) return;
+      e.preventDefault();
+      if (on) this.keys.add(b.dataset.k);
+      else this.keys.delete(b.dataset.k);
+    };
+    pad.addEventListener('pointerdown', (e) => press(e, true));
+    for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) pad.addEventListener(ev, (e) => press(e, false));
   }
 
   start(acId, mode = 'window') {
@@ -173,7 +211,8 @@ export class Ride {
       this.el.classList.add('v3d');
       const map = document.getElementById('map');
       map.style.transform = '';
-      if (this.mode !== 'tower') this.setMode(this.mode);
+      // nur die Mitflug-Kameras neu einstellen (Turm, Kino, Drohne, Einwinken behalten ihre Blickrichtung)
+      if (['cockpit', 'window', 'chase'].includes(this.mode)) this.setMode(this.mode);
     }).catch(() => onFail && onFail());
   }
 
@@ -214,7 +253,7 @@ export class Ride {
     this.resetTower();
     this.track = false;
     this.lbl = new Map();
-    this.el.classList.remove('hidden', 'cockpit', 'window', 'chase', 'cine3d');
+    this.el.classList.remove('hidden', 'cockpit', 'window', 'chase', 'cine3d', 'drone');
     this.el.classList.add('tower');
     this.el.querySelector('.rd-help').textContent = 'Ziehen = umsehen · Mausrad = Fernglas · Klick auf ein Flugzeug = auswählen · Doppelklick = zurücksetzen';
     this.tEl.textContent = 'Turmblick';
@@ -340,6 +379,11 @@ export class Ride {
       Object.assign(this.game.cam, this.cam0);
       this.cam0 = null;
     }
+    if (this.mode === 'drone') {
+      this.el.classList.remove('drone');
+      this.keys && this.keys.clear();
+      this.mode = null;
+    }
     if (this.mode === 'marshal') {
       this.el.classList.remove('marshal');
       this.el.querySelector('.rd-mres').innerHTML = '';
@@ -426,6 +470,7 @@ export class Ride {
     if (g.cinema && g.cinema.on) return this.stop();
     if (this.ga) return this.updateGA(dt);
     if (this.mode === 'marshal') return this.updateMarshal(dt);
+    if (this.mode === 'drone') return this.updateDrone(dt);
     if (this.mode === 'tower') return this.updateTower(dt);
     if (this.mode === 'cine3d') return this.updateCine3d(dt);
     const ac = s && s.acs.find((a) => a.id === this.id);
@@ -1019,4 +1064,76 @@ Ride.prototype.updateMarshal = function (dt) {
   this.cineChase = false;
   this.v3d.render(s, this, null);
   this.hearAt(1.6);
+};
+
+// ---------- Drohne: frei über den Flughafen fliegen ----------
+// WASD/Pfeile = fliegen (in Blickrichtung), Q/E = sinken/steigen, Umschalt = schnell, Ziehen = umsehen, Mausrad =
+// ein Stück vor/zurück. Auf dem Handy ein Steuerkreuz. Höhe mindestens 3 m, Reichweite ein paar Kilometer.
+Ride.prototype.startDrone = function () {
+  const back = this.v3d && this.v3d.camera ? this.v3d.camera.position.clone() : null;
+  const yaw = this.yaw, pitch = this.pitch;
+  const cam0 = this.cam0;
+  if (this.on) this.stop();
+  this.on = true;
+  this.mode = 'drone';
+  this.id = null;
+  this.keys = this.keys || new Set();
+  this.keys.clear();
+  this.cam0 = cam0 || { x: this.game.cam.x, y: this.game.cam.y, zoom: this.game.cam.zoom };
+  this.drone = back ? { x: back.x, y: Math.max(1, back.y), z: back.z, v: 0 } : { x: 70, y: 6, z: 10, v: 0 };
+  this.yaw = Number.isFinite(yaw) ? yaw : 146;
+  this.pitch = Number.isFinite(pitch) ? pitch : 10;
+  this.fov = 60;
+  this.el.classList.remove('hidden', 'cockpit', 'window', 'chase', 'tower', 'cine3d');
+  this.el.classList.add('drone');
+  document.getElementById('game').classList.add('riding');
+  this.el.querySelector('.rd-help').textContent = 'WASD/Pfeile = fliegen · Q/E = sinken/steigen · Umschalt = schnell · Ziehen = umsehen · F = Foto';
+  clearTimeout(this.helpT);
+  this.el.classList.remove('nohelp');
+  this.helpT = setTimeout(() => this.el.classList.add('nohelp'), 8000);
+  this.load3d(() => {
+    toast('Die Drohne braucht WebGL', 'warn', 2400);
+    this.stop();
+  });
+};
+
+Ride.prototype.droneMove = function (dist) {
+  const d = this.drone;
+  if (!d) return;
+  const yw = (this.yaw * Math.PI) / 180, pt = (this.pitch * Math.PI) / 180;
+  d.x += Math.cos(yw) * Math.cos(pt) * dist;
+  d.z += Math.sin(yw) * Math.cos(pt) * dist;
+  d.y = clamp(d.y - Math.sin(pt) * dist, 0.15, 150);
+};
+
+Ride.prototype.updateDrone = function (dt) {
+  const s = this.game.state, d = this.drone, K = this.keys;
+  if (!this.use3d || !d) return;
+  const fast = K.has('fast') ? 4 : 1;
+  const sp = (2.2 + d.y * 0.25) * fast; // Kacheln je Sekunde, in der Höhe schneller
+  const yw = (this.yaw * Math.PI) / 180;
+  let fx = 0, fz = 0;
+  if (K.has('up')) (fx += Math.cos(yw)), (fz += Math.sin(yw));
+  if (K.has('down')) (fx -= Math.cos(yw)), (fz -= Math.sin(yw));
+  if (K.has('left')) (fx += Math.sin(yw)), (fz -= Math.cos(yw));
+  if (K.has('right')) (fx -= Math.sin(yw)), (fz += Math.cos(yw));
+  const n = Math.hypot(fx, fz) || 1;
+  // weich beschleunigen und abbremsen
+  const tvx = (fx / n) * sp * (fx || fz ? 1 : 0), tvz = (fz / n) * sp * (fx || fz ? 1 : 0);
+  const tvy = (K.has('rise') ? 1 : 0) - (K.has('sink') ? 1 : 0);
+  const k = 1 - Math.exp(-dt * 5);
+  d.vx = (d.vx || 0) + (tvx - (d.vx || 0)) * k;
+  d.vz = (d.vz || 0) + (tvz - (d.vz || 0)) * k;
+  d.vy = (d.vy || 0) + (tvy * (1.5 + d.y * 0.3) * fast - (d.vy || 0)) * k;
+  d.x = clamp(d.x + d.vx * dt, -600, 680);
+  d.z = clamp(d.z + d.vz * dt, -600, 650);
+  d.y = clamp(d.y + d.vy * dt, 0.15, 150);
+  const pt = (this.pitch * Math.PI) / 180;
+  this.camPos = { x: d.x, y: d.y, z: d.z };
+  this.camLook = { x: d.x + Math.cos(yw) * Math.cos(pt) * 10, y: d.y - Math.sin(pt) * 10, z: d.z + Math.sin(yw) * Math.cos(pt) * 10 };
+  this.cineChase = false;
+  this.v3d.render(s, this, null);
+  this.hearAt(Math.max(0.5, 2.2 - d.y * 0.08));
+  const txt = `Drohne · Höhe ${Math.round(d.y * 20)} m${K.has('fast') ? ' · schnell' : ''}`;
+  if (this.tEl.textContent !== txt) this.tEl.textContent = txt;
 };

@@ -1996,3 +1996,23 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .ach.on { box-shadow: 0 0 0 1px rgba(253, 224, 71, 0.5), 0 0 16px rgba(253, 224, 71, 0.12); }
 .ach b { font-family: var(--ui-font); letter-spacing: 0.02em; }
 .modal-acts .btn { font-family: var(--ui-font); letter-spacing: 0.06em; }
+
+/* Drohne: Steuerkreuz (Touch), Leiste */
+#ride .rd-pad, #ride .rd-dr { display: none; }
+#ride.drone .rd-dr { display: inline-flex; }
+#ride.drone .rd-modes, #ride.drone .rd-belt { display: none; }
+#ride.drone .rd-bar { top: calc(var(--hud-h, 56px) + 8px); }
+#ride.drone .rd-help { top: calc(var(--hud-h, 56px) + 54px); transition: opacity .6s; }
+#ride.drone.nohelp .rd-help { opacity: 0; }
+#ride .rd-dr button { border: 1px solid var(--line-2, #475569); background: rgba(255,255,255,.06); color: #cbd5e1; border-radius: 8px; padding: 4px 8px; font-size: 12px; white-space: nowrap; }
+#ride .rd-dr .ico { width: 14px; height: 14px; vertical-align: -2px; }
+#ride.drone .rd-pad { display: grid; position: absolute; left: 18px; bottom: 22px; grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(2, 46px); gap: 6px; pointer-events: auto; }
+#ride .rd-pad button { border: 0; border-radius: 12px; background: linear-gradient(180deg, rgba(24, 34, 56, 0.85), rgba(10, 16, 30, 0.88)); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 1px rgba(148,178,214,.22); color: #e2e8f0; font-size: 17px; touch-action: none; user-select: none; }
+#ride .rd-pad button:active { background: rgba(56, 214, 245, 0.3); }
+#ride .rd-pad [data-k=up] { grid-column: 2; grid-row: 1; }
+#ride .rd-pad [data-k=left] { grid-column: 1; grid-row: 2; }
+#ride .rd-pad [data-k=down] { grid-column: 2; grid-row: 2; }
+#ride .rd-pad [data-k=right] { grid-column: 3; grid-row: 2; }
+#ride .rd-pad [data-k=rise] { grid-column: 3; grid-row: 1; font-size: 15px; }
+#ride .rd-pad [data-k=sink] { grid-column: 1; grid-row: 1; font-size: 15px; }
+@media (hover: hover) and (pointer: fine) { #ride.drone .rd-pad { opacity: .55; } #ride.drone .rd-pad:hover { opacity: 1; } }

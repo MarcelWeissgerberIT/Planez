@@ -913,7 +913,7 @@ export class View3D {
     const seen = new Set();
     for (const ac of state.acs) {
       // im Turmblick auch die Flugzeuge im nahen Luftraum (Anflug, Abflug) – sonst nur das eigene im Anflug
-      const vis = ac.mode === 'map' || (ac.id === ride.id && ac.mode === 'air') || ((ride.mode === 'tower' || ride.mode === 'cine3d') && ac.mode === 'air' && ac.pos && Math.hypot(ac.pos.x, ac.pos.y) < 9);
+      const vis = ac.mode === 'map' || (ac.id === ride.id && ac.mode === 'air') || ((ride.mode === 'tower' || ride.mode === 'cine3d' || ride.mode === 'drone') && ac.mode === 'air' && ac.pos && Math.hypot(ac.pos.x, ac.pos.y) < 9);
       if (!vis) continue;
       seen.add(ac.id);
       let g = this.acs.get(ac.id);
@@ -1342,7 +1342,7 @@ export class View3D {
     // Schatten folgen der Kamera (im Turmblick dem Punkt, auf den man schaut); Scheinwerfer des eigenen Flugzeugs
     const tg = follow && this.acs.get(follow.id);
     let center = tg ? tg.position : this.camera.position;
-    const wide = ride.mode === 'tower' || (ride.mode === 'cine3d' && !ride.cineChase);
+    const wide = ride.mode === 'tower' || ride.mode === 'drone' || (ride.mode === 'cine3d' && !ride.cineChase);
     if (wide) {
       const dir = new THREE.Vector3();
       this.camera.getWorldDirection(dir);
@@ -1472,7 +1472,7 @@ export class View3D {
     const cam = this.camera;
     // in der Kanzel: Dach und Mast nicht von innen zeichnen
     if (this.towerRoof) for (const m of this.towerRoof) m.visible = ride.mode !== 'tower';
-    if ((ride.mode === 'cine3d' || ride.mode === 'marshal') && !ride.cineChase && ride.camPos) {
+    if ((ride.mode === 'cine3d' || ride.mode === 'marshal' || ride.mode === 'drone') && !ride.cineChase && ride.camPos) {
       const c = ride.camPos, l = ride.camLook || { x: 40, y: 0, z: 30 };
       cam.position.set(c.x, c.y, c.z);
       cam.up.set(0, 1, 0);
