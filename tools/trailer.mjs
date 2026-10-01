@@ -112,27 +112,29 @@ async function sim(page, sec, { hour, weather } = {}) {
   await closeModals(page);
 }
 const photo = (page) => page.evaluate(() => document.getElementById('game').classList.add('photo'));
-// 3D-Kino mit einer bestimmten Szenenart (Landung, Start …)
-async function cine(page, want) {
+// 3D-Kino öffnen (die Szene selbst wird erst bei angehaltener Uhr gewählt, siehe forceShot)
+async function cine(page) {
   await page.click('#t-tower3d');
   await page.waitForTimeout(2000);
   await page.click('#ride [data-rd=cine]');
   await page.waitForTimeout(2500);
-  await page.evaluate(async (want) => {
+}
+// bei angehaltener Uhr die Simulation vorspulen, bis eine passende Szene beginnt (Landung: gerade im Endanflug)
+const forceShot = (page, want) =>
+  page.evaluate(async (want) => {
     const m = await import('./js/sim/sim.js');
     const s = window.planez.state, r = window.planez.ride;
-    for (let k = 0; k < 600; k++) {
+    for (let k = 0; k < 6000; k++) {
       const c = r.cineShots(s).filter((x) => x.kind === want);
       if (c.length) {
+        r.recent = [];
         r.shot = r.pickShot.call(Object.assign(Object.create(Object.getPrototypeOf(r)), r, { cineShots: () => [c[0]], recent: [] }), s);
-        return;
+        return true;
       }
-      for (let j = 0; j < 6; j++) m.step(s, 0.25);
-      await new Promise((res) => setTimeout(res, 30));
+      m.step(s, 0.5);
     }
+    return false;
   }, want);
-  await page.waitForTimeout(1500);
-}
 
 // ---------- Szenen ----------
 // dur in s, speed = Spieltempo, cam = Kamerafahrt (Zoomfaktor Anfang/Ende, Verschiebung in Kacheln)
@@ -140,13 +142,13 @@ const CLIPS = [
   { id: 'title', dur: 3.6, card: 'title' },
   { id: 'grass', dur: 5, cap: TXT.grass, speed: 2, cam: { z: [1, 1.18] }, setup: async (p) => { await start(p, 'manager', 'grass'); await sim(p, 3 * 86400, { hour: 10.6, weather: 'clear' }); await photo(p); await p.evaluate(() => Object.assign(window.planez.cam, { x: 44, y: 16.5, zoom: 1.15, tx: null })); } },
   { id: 'hub', dur: 5, cap: TXT.hub, speed: 2, cam: { z: [0.78, 0.62] }, setup: async (p) => { await start(p, 'observer'); await sim(p, 2 * 3600, { hour: 8.2, weather: 'clear' }); await photo(p); } },
-  { id: 'land', dur: 5, cap: TXT.land, speed: 1, setup: async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 17.3, weather: 'clouds' }); await cine(p, 'land'); } },
+  { id: 'land', dur: 5, cap: TXT.land, speed: 1, setup: async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 17.3, weather: 'clouds' }); await cine(p); }, after: (p) => forceShot(p, 'land') },
   { id: 'tower', dur: 5, cap: TXT.tower, speed: 2, setup: async (p) => { await start(p, 'tower'); await sim(p, 3 * 3600, { hour: 9.1 }); } },
   { id: 'ground', dur: 5, cap: TXT.ground, speed: 2, setup: async (p) => { await start(p, 'ground'); await sim(p, 3 * 3600, { hour: 8.4 }); } },
   { id: 'mgmt', dur: 4.5, cap: TXT.mgmt, speed: 1, setup: async (p) => { await start(p, 'manager'); await sim(p, 2 * 86400, { hour: 13 }); await p.keyboard.press('o'); await p.waitForTimeout(900); } },
   { id: 'storm', dur: 4, cap: TXT.storm, speed: 2, cam: { z: [0.85, 0.95] }, setup: async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 15.5, weather: 'storm' }); await photo(p); } },
   { id: 'night', dur: 4, cap: TXT.night, speed: 2, cam: { z: [0.9, 0.8] }, setup: async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 22.2, weather: 'clear' }); await photo(p); } },
-  { id: 'takeoff', dur: 4.5, speed: 1, setup: async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 18.4, weather: 'clear' }); await cine(p, 'takeoff'); } },
+  { id: 'takeoff', dur: 4.5, speed: 1, setup: async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 18.4, weather: 'clear' }); await cine(p); }, after: (p) => forceShot(p, 'takeoff') },
   { id: 'end', dur: 4.8, card: 'end' },
 ];
 
@@ -225,6 +227,7 @@ for (const clip of CLIPS) {
   }, clip.speed || 1);
   await page.waitForTimeout(300);
   await page.clock.install();
+  if (clip.after && !(await clip.after(page))) console.log(`${clip.id}: keine passende Szene gefunden`);
   await page.clock.runFor(500);
   const n = Math.round(clip.dur * FPS);
   for (let f = 0; f < n; f++) {
