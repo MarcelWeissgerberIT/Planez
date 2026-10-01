@@ -155,7 +155,7 @@ const SIDE = {
       <li>🐦 Vogelschwärme, 🚁 Rettungshubschrauber, 🚨 Martinshorn</li>
       <li>🎥 <b>Folgen</b>-Kamera · 🎬 Kino-Modus als Live-Übertragung · <kbd>?</kbd> Tastenkürzel</li>
       <li>🪧 <b>Anzeigetafel</b> im Fallblatt-Stil (<kbd>I</kbd>)</li>
-    </ul></div></div>`.replace('<ul>', `<ul>${T('<li>🌐 <b>English version</b> – das ganze Spiel jetzt auch auf Englisch: Menüs, Hilfe, Glossar, Zeitung, Livestream, Betriebsfunk und Kommentator; umschaltbar unter Einstellungen › Sprache</li>')}${T('<li>🖼️ <b>Shop-Material</b>: Titelbild und Grafiken in allen Steam- und itch.io-Formaten (Deutsch und Englisch), erzeugt mit <code>node tools/capsules.mjs</code></li>')}`),
+    </ul></div></div>`.replace('<ul>', `<ul>${T('<li>🌐 <b>English version</b> – das ganze Spiel jetzt auch auf Englisch: Menüs, Hilfe, Glossar, Zeitung, Livestream, Betriebsfunk und Kommentator; umschaltbar unter Einstellungen › Sprache</li>')}${T('<li>🌨️ <b>Sichtflug-Wetter</b>: Sportflieger bleiben bei Schnee, Nebel und Gewitter am Boden – keine Kette von Treibstoff-Notlagen mehr am kleinen Platz; Partner melden ihren ersten Flug in der Lokalzeitung</li>')}${T('<li>🖼️ <b>Shop-Material</b>: Titelbild und Grafiken in allen Steam- und itch.io-Formaten (Deutsch und Englisch), erzeugt mit <code>node tools/capsules.mjs</code></li>')}`),
   career: () => {
     const S = careerSummary();
     const R = careerRank();

@@ -3265,4 +3265,5 @@ export default {
   "Alpenblick Lufttaxi": "Alpenblick Air Taxi",
   "{0} hat den Flugbetrieb aufgenommen – willkommen am Platz!": "{0} has started flying here – welcome to the airfield!",
   "{0} sagt wetterbedingt ab – kein Sichtflugwetter.": "{0} cancels due to weather – no VFR conditions.",
+  "<li>🌨️ <b>Sichtflug-Wetter</b>: Sportflieger bleiben bei Schnee, Nebel und Gewitter am Boden – keine Kette von Treibstoff-Notlagen mehr am kleinen Platz; Partner melden ihren ersten Flug in der Lokalzeitung</li>": "<li>🌨️ <b>VFR weather</b>: light aircraft stay on the ground in snow, fog and thunderstorms – no more chain of fuel emergencies at small airfields; partners announce their first flight in the local paper</li>",
 };
