@@ -4,7 +4,7 @@ import { parseVoice, parseSide } from '../voiceCmd.js';
 import { approveHeli, holdHeli } from '../sim/heli.js';
 import { clearVfr, extendVfr, vfrTel } from '../sim/vfr.js';
 import { approveInspection, deferInspection } from '../sim/inspect.js';
-import { CMDS, command } from '../sim/atc.js';
+import { CMDS, command, clearanceRisk } from '../sim/atc.js';
 import { voice, micClick } from '../voice.js';
 import { toast } from './dom.js';
 import { sfx } from '../audio.js';
@@ -39,6 +39,7 @@ export function initPTT(game) {
     active = true;
     final = '';
     interim = '';
+    handled = ''; // neue Aufnahme: auch derselbe Wortlaut zählt wieder (z. B. Freigabe bestätigen)
     micClick(voice.vol);
     // eigener Funkspruch hat Vorrang: laufende Ansage abbrechen
     if (window.speechSynthesis) speechSynthesis.cancel();
@@ -85,6 +86,7 @@ export function initPTT(game) {
   }
 
   let handled = '';
+  let this_confirm = null; // offene Rückfrage des Piloten nach einer gefährlichen Freigabe
   function finish() {
     const said = (final + ' ' + interim).trim();
     if (said && said === handled) return;
@@ -131,6 +133,18 @@ export function initPTT(game) {
       show(`📻✖ ${r.ac.cs} antwortet nicht (7600) – Lichtsignal auf dem Streifen benutzen`, 'bad');
       return hide(3000);
     }
+    // Sicherheitsnetz im Funk: Bei einer gefährlichen Freigabe fragt der Pilot nach; erst die Wiederholung gilt
+    const risk = s.settings.safetyNet !== false ? clearanceRisk(s, r.ac, r.cmd) : null;
+    const again = this_confirm && this_confirm.id === r.ac.id && this_confirm.cmd === r.cmd && performance.now() - this_confirm.t < 10000;
+    if (risk && !again) {
+      this_confirm = { id: r.ac.id, cmd: r.cmd, t: performance.now() };
+      const what = { land: 'cleared to land', takeoff: 'cleared for take-off', lineup: 'line up and wait' }[r.cmd] || 'that clearance';
+      const why = /Endanflug|Landefreigabe/.test(risk) ? 'we have traffic on short final' : 'the runway is not clear';
+      radio(s, r.ac.cs, `Tower, ${tel(r.ac)}, confirm ${what}? ${why[0].toUpperCase() + why.slice(1)}.`, 'pilot');
+      show(`⚠ ${r.ac.cs} fragt nach: ${risk} – Freigabe wiederholen, um sie trotzdem zu erteilen`, 'bad');
+      return hide(4000);
+    }
+    this_confirm = null;
     // eigene Ansage nicht noch einmal vorlesen, nur die Rücklesung des Piloten
     voice.muteAtcUntil = performance.now() + 2500;
     const res = command(s, r.ac, r.cmd);
