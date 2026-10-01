@@ -77,7 +77,7 @@ async function cine(page, want) {
   await page.evaluate(async (want) => {
     const m = await import('./js/sim/sim.js');
     const s = window.planez.state, r = window.planez.ride;
-    for (let k = 0; k < 200; k++) {
+    for (let k = 0; k < 600; k++) {
       const c = r.cineShots(s).filter((x) => x.kind === want);
       if (c.length) {
         r.shot = r.pickShot.call(Object.assign(Object.create(Object.getPrototypeOf(r)), r, { cineShots: () => [c[0]], recent: [] }), s);
