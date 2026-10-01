@@ -1,6 +1,6 @@
 // Wiederholung: Die letzten Sekunden am Boden und im Endanflug werden laufend mitgeschnitten (Flugzeuge und
 // Fahrzeuge, 20 Bilder pro Sekunde). Umschalt+R oder der Knopf nach einem besonderen Moment (Durchstarten,
-// Notlandung, harte Landung, Butterlandung) spielt sie in Zeitlupe ab – mit Letterbox und „Wiederholung“-Einblendung.
+// Notlandung, harte Landung, Butterlandung, Wassertaufe) spielt sie in Zeitlupe ab – mit Letterbox und „Wiederholung“-Einblendung.
 // Während der Wiederholung ruht die Simulation; Esc oder ein Klick beendet sie.
 import { PH } from '../sim/aircraft.js';
 import { esc } from '../util.js';
@@ -53,6 +53,13 @@ export class Replay {
         else if (ac.tdFpm && ac.tdFpm < 90) this.offer(ac, `Butterlandung ${ac.cs} · ${ac.tdFpm} ft/min`);
         else if (ac.type === 'A388' || ac.protocol) this.offer(ac, `Landung ${ac.cs}`);
       }
+    }
+    // Wassertaufe: kurz nachdem das Flugzeug durch den Bogen gerollt ist
+    const sal = s.salute;
+    if (sal && sal.done && this.salOffered !== sal.t) {
+      this.salOffered = sal.t;
+      const ac = s.acs.find((a) => a.id === sal.ac);
+      if (ac) this.offer(ac, `Wassertaufe ${ac.cs}`);
     }
     if (this.prev.size > 300) this.prev.clear();
     if (this.offerUntil && performance.now() > this.offerUntil) {
