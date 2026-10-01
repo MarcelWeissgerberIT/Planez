@@ -14,6 +14,7 @@ import { acdmOnBlock } from './acdm.js';
 import { FUEL, fuelState, upliftFor, sellFuel, truckTakeFuel } from './fuel.js';
 import { earn } from './economy.js';
 import { needsDeice } from './winter.js';
+import { hardLandingCheck } from './touchdown.js';
 
 export const BRIDGE_SPEED = 1 / 40; // pro Spielsekunde
 
@@ -101,6 +102,7 @@ export function onBlock(state, ac) {
   ac.crossing = false;
   ac.strip = 'N';
   ac.ta = { tasks: makeTasks(state, ac, st), onBlock: state.time };
+  hardLandingCheck(state, ac);
   if (rot) {
     rot.status = 'onblock';
     rot.onBlock = state.time;

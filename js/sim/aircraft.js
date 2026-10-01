@@ -1,5 +1,6 @@
 // Flugzeuge: Lebenszyklus, Navigation im Luftraum, Bewegung auf der Karte
 import { AC_TYPES, AIRLINES, CITIES, AIRPORT } from '../config.js';
+import { touchdown } from './touchdown.js';
 import { assignLook } from './spotter.js';
 import { clamp, dist, degDiff, degNorm, DEG, rand, randInt, randRange, angNorm, pathLength } from '../util.js';
 import * as LY from '../layout.js';
@@ -506,6 +507,7 @@ function updateMap(state, ac, dt) {
         ac.pi = 0;
         ac.x = ac.path[0].x;
         ac.y = ac.path[0].y;
+        touchdown(state, ac);
         onLanding(state, ac);
         onRunwayLanding(state, ac);
         ac.brake = brakingAction(state, ac.strip || 'N');

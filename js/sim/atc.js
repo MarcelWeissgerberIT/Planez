@@ -81,6 +81,7 @@ export const CMDS = {
     valid: (s, ac) => (ac.phase === PH.APPROACH || ac.phase === PH.FINAL) && !ac.clr.land && !runwayClosed(s, ac.strip || 'N'),
     run: (s, ac) => {
       ac.clr.land = true;
+      ac.clr.landT = s.time;
       ac.clr.landGivenBlocked = !!runwayBlocker(s, ac) && !(runwayBlocker(s, ac).phase === PH.TAKEOFF);
       ac.req = null;
       const ba = brakingAction(s, ac.strip || 'N');

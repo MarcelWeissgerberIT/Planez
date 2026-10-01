@@ -177,7 +177,13 @@ export class Stream {
         continue;
       }
       const wet = ['rain', 'storm', 'snow'].includes(s.weather.kind);
-      if (ac.phase === PH.ROLLOUT) this.say(ac.emergency ? r(L.emgDone) : wet && Math.random() < 0.5 ? r(L.landWet) : r(L.land), ac.emergency ? 3 : 2);
+      if (ac.phase === PH.ROLLOUT) {
+        const f = ac.tdFpm;
+        if (ac.emergency) this.say(r(L.emgDone), 3);
+        else if (f && f < 110) this.say(r([`Butter!! 🧈 ${f} ft/min`, `${f} fpm, Wahnsinn 🧈`, 'Die hat er gestreichelt 🧈']), 3);
+        else if (f && f >= 600) this.say(r([`Autsch, ${f} ft/min 😬`, 'Flugzeugträger-Style 😅', 'Fahrwerk hat\'s überlebt?', 'Rums! 😬']), 3);
+        else this.say(wet && Math.random() < 0.5 ? r(L.landWet) : r(L.land), 2);
+      }
       else if (ac.phase === PH.TAKEOFF) {
         const rot = s.rots[ac.rot];
         const c = rot && CITIES[rot.city];

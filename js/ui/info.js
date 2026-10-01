@@ -1,4 +1,5 @@
 // Info-Karte zum ausgewählten Objekt
+import { gradeOf } from '../sim/touchdown.js';
 import { AC_TYPES, AIRLINES, CITIES, VEH_TYPES, UPGRADES, STAND_COSTS } from '../config.js';
 import { PH, PHASE_DE, fmtAlt } from '../sim/aircraft.js';
 import { fmtClock, fmtMoney, esc } from '../util.js';
@@ -73,6 +74,10 @@ export function renderInfo(el, state, ui) {
     }
     const fol = ui.follow && ui.follow.id === ac.id;
     h += `<div class="i-head"><div><div class="i-cs"><i class="al-dot" style="background:${al.color}"></i>${esc(ac.cs)}${ac.emergency ? ' 🚨' : ''}${ac.protocol ? ' 🎖️' : ''}</div><div class="i-sub">${al.name} · ${t.name} · Wirbelschleppe ${wakeTag(t.wake)} ${WAKE_DE[t.wake]}</div></div>${ac.mode === 'map' ? `<button class="mini i-spot${ac.spotted && ac.spotted.includes('_') ? ' done' : ''}" data-spot="${ac.id}" title="Foto fürs Spotterbuch${state.role !== 'tower' ? ' (F)' : ''}">📷 Spotten</button>` : ''}<button class="mini i-follow ${fol ? 'on' : ''}" data-follow="ac:${ac.id}" title="Kamera folgt diesem Flugzeug (auch über den ganzen Umlauf)">🎥 ${fol ? 'folgt' : 'Folgen'}</button><button class="icon-btn i-close" data-close>✕</button></div>`;
+    if (ac.tdFpm && [PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN, PH.STAND].includes(ac.phase)) {
+      const g = gradeOf(ac.tdFpm);
+      h += `<div class="i-reg">Aufgesetzt mit <b>${ac.tdFpm} ft/min</b> · ${g[2] ? g[2] + ' ' : ''}${g[1]}${ac.tdLate ? ' (späte Landefreigabe)' : ''}</div>`;
+    }
     if (ac.reg) h += `<div class="i-reg">Kennzeichen <b>${esc(ac.reg)}</b>${ac.special ? ` · <span class="i-special">${SPECIALS[ac.special].icon} Sonderlackierung „${esc(SPECIALS[ac.special].name)}“</span>` : ''}</div>`;
     if (fol && ac.mode === 'air') h += `<div class="i-sub" style="margin:2px 0 6px">🎥 Im Luftraum – die Kamera übernimmt, sobald ${esc(ac.cs)} im Endanflug auf der Karte erscheint.</div>`;
     h += `<div class="i-grid">`;

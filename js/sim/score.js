@@ -36,6 +36,7 @@ function fail(state, ac, minus, label) {
 export function scoreLanding(state, ac) {
   if (!active(state, 'tower')) return;
   if (ac.wakeBad) return fail(state, ac, 100, 'Wirbelschleppe');
+  if (ac.tdLate && ac.tdFpm >= 600) return fail(state, ac, 80, 'Späte Freigabe · harte Landung');
   const rot = state.rots[ac.rot];
   add(state, ac, rot && rot.goArounds ? 50 : 100, ac.emergency ? 'Notlandung sicher' : 'Saubere Landung');
 }

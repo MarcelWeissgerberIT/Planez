@@ -1,4 +1,5 @@
 // Wirtschaft: Erlöse, Kosten, Ausbau, Management-KI
+import { gradeOf } from './touchdown.js';
 import { AC_TYPES, AIRLINES, COSTS, VEH_TYPES, UPGRADES, STAND_COSTS, MARKETING, FEE_LIMITS, CITIES } from '../config.js';
 import { clamp, fmtMoney, rand, dayOf } from '../util.js';
 import { log, notify, fx } from './messages.js';
@@ -51,7 +52,8 @@ export function onLanding(state, ac) {
   const rot = state.rots[ac.rot];
   const fee = state.fees.landing * t.mtow * (rot?.feeMult || 1);
   earn(state, 'landing', fee);
-  fx(state, ac.x, ac.y, `🛬 Landung · +${fmtK(fee)}`, 'good');
+  const g = ac.tdFpm ? gradeOf(ac.tdFpm) : null;
+  fx(state, ac.x, ac.y, g ? `🛬 ${ac.tdFpm} ft/min ${g[2] || g[1]} · +${fmtK(fee)}` : `🛬 Landung · +${fmtK(fee)}`, g ? g[3] : 'good');
   state.stats.today.mov++;
   hourBump(state, 'arrH');
   onNightMovement(state, ac, earn, spend);
