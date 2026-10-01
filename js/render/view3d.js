@@ -109,6 +109,7 @@ export class View3D {
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(LY.W / 2, 0, LY.H / 2);
     this.static.add(ground);
+    this.landscape();
     // Vorfeld und Rollwege
     this.flat(LY.TERMINAL.x0 - 2, 77, LY.TERMINAL.y1, LY.LANE + 0.6, 0xb9bcbf, 0.006);
     this.flat(LY.TERMINAL.x0 - 2, 77, LY.SERVICE - 0.5, LY.TERMINAL.y1, 0x9fa3a7, 0.007);
@@ -169,6 +170,91 @@ export class View3D {
     });
     this.static.add(crown);
     this.built = true;
+  }
+
+  // Umland: Felder in Grün-, Gelb- und Brauntönen, Waldstücke, eine Stadt im Norden, Straßen – fest gesät,
+  // damit es bei jedem Besuch gleich aussieht
+  landscape() {
+    let seed = 987654;
+    const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const COLS = [0x7a9a45, 0x8fae4f, 0xa8a24a, 0x6d8a3a, 0x9c8a55, 0x5f7f34, 0xb5ad62];
+    const fields = new THREE.Group();
+    const geo = new THREE.PlaneGeometry(1, 1);
+    for (let i = 0; i < 900; i++) {
+      const ang = r() * Math.PI * 2, dist = 70 + Math.pow(r(), 0.7) * 2600;
+      const x = LY.W / 2 + Math.cos(ang) * dist, y = LY.H / 2 + Math.sin(ang) * dist;
+      // Anflugschneise und Flughafengelände frei lassen
+      if (Math.abs(y - LY.RWY.y) < 12 && Math.abs(x - LY.W / 2) < 160) continue;
+      const w = 8 + r() * 40, h = 8 + r() * 30;
+      const m = new THREE.Mesh(geo, this.mat(COLS[Math.floor(r() * COLS.length)]));
+      m.scale.set(w, h, 1);
+      m.rotation.set(-Math.PI / 2, 0, Math.floor(r() * 4) * 0.1);
+      m.position.set(x, 0.002, y);
+      fields.add(m);
+    }
+    this.static.add(fields);
+    // Wälder
+    const n = 2500;
+    const forest = new THREE.InstancedMesh(new THREE.ConeGeometry(1.4, 3.2, 6), this.mat(0x2d5427), n);
+    const mx = new THREE.Matrix4();
+    let k = 0;
+    for (let c = 0; c < 40 && k < n; c++) {
+      const ang = r() * Math.PI * 2, dist = 140 + r() * 1800;
+      const cx = LY.W / 2 + Math.cos(ang) * dist, cy = LY.H / 2 + Math.sin(ang) * dist;
+      if (Math.abs(cy - LY.RWY.y) < 20 && Math.abs(cx - LY.W / 2) < 260) continue;
+      for (let i = 0; i < 60 && k < n; i++) {
+        const s = 0.7 + r() * 0.8;
+        mx.makeScale(s, s, s);
+        mx.setPosition(cx + (r() - 0.5) * 50, 1.6 * s, cy + (r() - 0.5) * 35);
+        forest.setMatrixAt(k++, mx);
+      }
+    }
+    forest.count = k;
+    this.static.add(forest);
+    // Stadt im Norden: Häuserblocks, in der Mitte höher
+    const town = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), this.mat(0xd4cfc6), 700);
+    const roofs = [0xb45309, 0x9ca3af, 0x7c2d12];
+    let t = 0;
+    const TX = LY.W / 2 - 40, TY = -160;
+    for (let i = 0; i < 700; i++) {
+      const a = r() * Math.PI * 2, d = Math.pow(r(), 0.6) * 90;
+      const x = TX + Math.cos(a) * d, y = TY + Math.sin(a) * d * 0.7;
+      const h = (1 + r() * 2) * (d < 25 ? 3 + r() * 5 : 1);
+      mx.makeScale(2 + r() * 3, h, 2 + r() * 3);
+      mx.setPosition(x, h / 2, y);
+      town.setMatrixAt(t++, mx);
+    }
+    this.static.add(town);
+    // Straßen zur Stadt und um den Platz
+    this.flat(LY.W / 2 - 41, LY.W / 2 - 39, TY, 0, 0x55595e, 0.004);
+    this.flat(-400, 480, -6, -4.5, 0x55595e, 0.004);
+    void roofs;
+  }
+
+  // Wolken (bei Bewölkung, Regen, Gewitter): weiche Haufen in 1.200–2.400 m Höhe
+  clouds(kind) {
+    if (this.cloudKind === kind) return;
+    this.cloudKind = kind;
+    if (this.cloudGroup) this.scene.remove(this.cloudGroup);
+    const n = { clouds: 70, rain: 110, storm: 130, snow: 100 }[kind] || (kind === 'clear' ? 14 : 0);
+    if (!n) return;
+    let seed = 4242;
+    const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const g = new THREE.Group();
+    const mat = new THREE.MeshLambertMaterial({ color: kind === 'storm' ? 0x8a929c : kind === 'rain' ? 0xc5ccd3 : 0xf8fafc, transparent: true, opacity: 0.88 });
+    const sph = new THREE.SphereGeometry(1, 10, 8);
+    for (let i = 0; i < n; i++) {
+      const cx = LY.W / 2 + (r() - 0.5) * 2400, cy = LY.H / 2 + (r() - 0.5) * 2400, alt = 60 + r() * 60;
+      for (let j = 0; j < 5; j++) {
+        const m = new THREE.Mesh(sph, mat);
+        const s = 10 + r() * 14;
+        m.scale.set(s * 1.6, s * 0.6, s);
+        m.position.set(cx + (r() - 0.5) * 30, alt + r() * 6, cy + (r() - 0.5) * 20);
+        g.add(m);
+      }
+    }
+    this.cloudGroup = g;
+    this.scene.add(g);
   }
 
   // ---------- Flugzeugmodell ----------
@@ -284,6 +370,7 @@ export class View3D {
     this.hemi.intensity = 0.25 + 0.95 * day;
     this.sun.intensity = 0.1 + 1.6 * day * (1 - murk * 0.7);
     for (const p of this.nightLights) p.visible = day < 0.6 || wx === 'fog';
+    this.clouds(wx);
     // Flugzeuge
     const seen = new Set();
     for (const ac of state.acs) {
