@@ -10,11 +10,13 @@ import { goalsState, RANKS } from '../sim/goals.js';
 import { PH } from '../sim/aircraft.js';
 import { RouteMap } from './routeMap.js';
 import { rivalState } from '../sim/rival.js';
+import { boardBadge } from './board.js';
 
 export const CATS = [
   ['over', 'Übersicht', 'Kennzahlen, Auslastung und Airline-Zufriedenheit'],
   ['contracts', 'Airlines & Verträge', 'Angebote prüfen, laufende Verbindungen verwalten'],
   ['rival', 'Wettbewerb', 'Marktanteil gegen Nordhafen, Züge der Konkurrenz'],
+  ['board', 'Aufsichtsrat', 'Wochenziele, Vertrauen und Strategie – Sitzung alle 7 Tage'],
   ['sites', 'Baustellen', 'Laufende Bauprojekte mit Fortschritt und Restzeit'],
   ['runways', 'Pisten & Rollwege', 'Pistenzustand, Wartung, Parallelbahn, Schnellabrollwege, ILS'],
   ['stands', 'Parkpositionen', 'Positionen bauen und für Großraumjets ausbauen'],
@@ -128,6 +130,7 @@ export class ManagementPage {
       over: `Ansehen ${Math.round(s.reputation)} · pünktlich ${(() => { const t = s.stats.today; const d = t.onTime + t.delayed; return d ? Math.round((t.onTime / d) * 100) + ' %' : '—'; })()}`,
       contracts: s.offers.length ? `📨 ${s.offers.length} neue${s.offers.length > 1 ? '' : 's'} Angebot${s.offers.length > 1 ? 'e' : ''}` : `${s.contracts.length} Verträge`,
       rival: `Marktanteil ${Math.round(rivalState(s).share)} %${rivalState(s).feeCutUntil > s.time ? ' · 💸 Preiskampf' : rivalState(s).closedUntil > s.time ? ' · ⛔ Nordhafen zu' : ''}`,
+      board: boardBadge(s),
       sites: ps.length ? `🏗️ ${ps.length} aktiv` : 'keine Baustelle',
       runways: `${hasRwy2(s) ? '2 Bahnen' : '1 Bahn'} · Zustand ${Math.round(rwyCond(s))} %${hasRwy2(s) ? ` / ${Math.round(rwyCond(s, 'S'))} %` : ''}`,
       stands: waiting ? `⚠ ${waiting} Flugzeug${waiting > 1 ? 'e' : ''} ohne Position` : `${s.stands.filter((x) => x.built).length} von ${s.stands.length} gebaut`,

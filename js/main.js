@@ -8,6 +8,8 @@ import { run, hooks } from './sim/sim.js';
 import { listeners } from './sim/messages.js';
 import { SPEEDS, AC_TYPES, dayMinutes } from './config.js';
 import { TowerPanel, REQ_DE, fixReadback } from './ui/tower.js';
+import { boardMeetingHtml } from './ui/board.js';
+import { chooseStrategy, STRATEGIES } from './sim/board.js';
 import { GroundPanel } from './ui/groundPanel.js';
 import { ManagerPanel } from './ui/managerPanel.js';
 import { $, toast, openModal, closeModal, modalOpen, setHTML } from './ui/dom.js';
@@ -129,6 +131,7 @@ const LOAD_TIPS = [
   'Tipp: Unter Wettbewerb siehst du deinen Marktanteil gegen Nordhafen – Ansehen und Pünktlichkeit zählen am meisten.',
   'Tipp: Im Tower lohnt sich Hinhören – ein falscher Readback lässt sich mit Q korrigieren.',
   'Tipp: Bittet ein Pilot bei Gewitter um einen Umweg, genehmige ihn mit Y – sonst geht es durch die Turbulenz.',
+  'Tipp: Der Aufsichtsrat tagt alle 7 Tage – mit der Strategie „Wachstum“ melden sich mehr Airlines.',
   'Tipp: Etwa jede 18. Maschine trägt eine Sonderlackierung – fotografiere sie fürs 📒 Spotterbuch.',
   'Tipp: Eine Landung im Gewitter oder ein Nachtstart bringt im Spotterbuch Extrapunkte für den Moment.',
 ];
@@ -725,9 +728,36 @@ function showReport(rec) {
     (box) => box.querySelector('[data-close-modal]').addEventListener('click', () => {
       closeModal();
       game.state.speed = prevSpeed;
+      if (game.state.board && game.state.board.pending) return showBoard(prevSpeed);
       showBriefing(prevSpeed);
     })
   );
+}
+
+// Aufsichtsratssitzung (Manager, alle 7 Tage): Ergebnis, Vertrauen, Strategie für die nächste Woche
+function showBoard(resume) {
+  const s = game.state;
+  const res = s.board && s.board.pending;
+  if (!res) return showBriefing(resume);
+  s.speed = 0;
+  let pick = s.board.strategy;
+  openModal(boardMeetingHtml(s, res), (box) => {
+    box.querySelectorAll('[data-strat]').forEach((b) =>
+      b.addEventListener('click', () => {
+        pick = b.dataset.strat;
+        box.querySelectorAll('[data-strat]').forEach((x) => x.classList.toggle('on', x === b));
+        sfx.click();
+      })
+    );
+    box.querySelector('[data-close-modal]').addEventListener('click', () => {
+      chooseStrategy(s, pick);
+      closeModal();
+      s.speed = resume;
+      if (res.bonus) sfx.cash && sfx.cash();
+      toast(`🏛️ Strategie „${STRATEGIES[pick].name}“ beschlossen – neue Wochenziele in der Management-Zentrale`, 'info', 3200);
+      showBriefing(resume);
+    });
+  });
 }
 
 // Schichtbriefing (Tower, Vorfeld, Management) – pausiert, bis die Schicht beginnt
@@ -1412,6 +1442,7 @@ function helpGuide(first) {
       <li><b>Piste:</b> Landungen hinterlassen Gummiabrieb – der Zustand sinkt. Reinigung oder Sanierung laufen nachts in Verkehrspausen und sperren die Piste solange.</li>
       <li><b>Baustellen:</b> jeder Ausbau braucht Bauzeit und ist mit Zaun, Kran, Bagger und Betonmischer zu sehen. „📍 Zeigen“ springt hin, „Abbrechen“ erstattet 50 % der noch nicht verbauten Kosten.</li>
       <li><b>Kredite</b> überbrücken Engpässe (30 Tagesraten). <b>Nachtflüge</b> bringen Nachtentgelte, aber Lärmbeschwerden; ein Nachtflugverbot verärgert Frachtairlines.</li>
+      <li><b>🏛️ Aufsichtsrat:</b> Alle 7 Tage tagt der Aufsichtsrat (nach dem Tagesbericht) und prüft fünf <b>Wochenziele</b>: Passagiere, Betriebsergebnis, Pünktlichkeit, Ansehen und Sicherheit (höchstens 2 Vorfälle). Die Ziele leiten sich aus der Vorwoche ab – Passagiere und Ergebnis sollen wachsen. Je erreichtem Ziel steigt oder sinkt das <b>Vertrauen</b>; ab 3 Zielen gibt es einen <b>Investitionszuschuss</b> (bis 500 Tsd €, ab 80 Vertrauen +50 %), unter 25 Vertrauen eine teure Sonderprüfung. In der Sitzung wählst du die <b>Strategie</b> für die nächste Woche: Ausgewogen, Wachstum (mehr Airline-Angebote), Effizienz (Fixkosten −6 %) oder Qualität (Ansehen +0,4/Tag) – jeweils mit passenden Zielen. Stand jederzeit in der Management-Zentrale › Aufsichtsrat.</li>
       <li><b>🏢 Wettbewerb:</b> Der Nachbarflughafen <b>Nordhafen</b> kämpft um dieselben Airlines. Der <b>Marktanteil</b> (Management-Zentrale › Wettbewerb) ergibt sich aus Ansehen, Pünktlichkeit, Entgelten und Kapazität beider Flughäfen – mehr Anteil bringt häufiger Angebote und bessere Verlängerungschancen. Nordhafen senkt Entgelte, baut aus, macht Werbung und <b>wirbt Verbindungen ab</b> (Gegenangebot, Service-Paket oder ziehen lassen). Ist Nordhafen gesperrt, kannst du <b>Umleitungen</b> annehmen – Zusatzentgelte, Ansehen und im Tower spürbar mehr Verkehr. Liegst du vorn, greift Nordhafen öfter an.</li>
     </ul>
     <h3>🎯 Ziele &amp; Rang</h3>

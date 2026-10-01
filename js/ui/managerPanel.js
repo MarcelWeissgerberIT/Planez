@@ -19,6 +19,7 @@ import { rwyCond, brakingAction, BRAKE_DE, runwayStrips } from '../sim/runway.js
 import { fuelState, FUEL, orderFuel, maxOrder, avgCost, sellPrice, pending, burnRate, inventory } from '../sim/fuel.js';
 import { loans, loanLimit, loanRate, takeLoan, repayLoan, annuity, LOAN_DAYS, debt } from '../sim/finance.js';
 import { goalsState, activeGoals, goalFraction, goalText, RANKS } from '../sim/goals.js';
+import { boardPageHtml } from './board.js';
 
 const TABS = [
   ['over', 'Übersicht'],
@@ -178,7 +179,7 @@ export class ManagerPanel {
 
   // Inhalt eines Bereichs (für die Management-Zentrale)
   section(key, s) {
-    const fn = { rival: rivalHtml, over: this.over, contracts: this.contracts, sites: this.sitesHtml, runways: this.runwaysHtml, stands: this.standsHtml, terminal: this.terminalHtml, ops: this.ops, fuel: this.fuel, fees: this.fees, fin: this.fin, goals: this.goalsHtml }[key] || this.over;
+    const fn = { rival: rivalHtml, board: boardPageHtml, over: this.over, contracts: this.contracts, sites: this.sitesHtml, runways: this.runwaysHtml, stands: this.standsHtml, terminal: this.terminalHtml, ops: this.ops, fuel: this.fuel, fees: this.fees, fin: this.fin, goals: this.goalsHtml }[key] || this.over;
     return fn.call(this, s);
   }
 

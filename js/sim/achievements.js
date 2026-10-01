@@ -35,6 +35,7 @@ export const ACHIEVEMENTS = [
   { id: 'voice', icon: '🎙️', name: 'On Frequency', desc: 'Eine Freigabe per Sprechtaste erteilt.', xp: 40, check: (s) => L(s, 'voiceCmd') >= 1 },
   { id: 'nordo', icon: '💡', name: 'Lichtzeichen', desc: 'Ein Flugzeug mit Funkausfall per Lichtsignal gelandet und zur Position gerollt.', xp: 70, check: (s) => L(s, 'nordoLanded') >= 1 },
   { id: 'market65', icon: '🥇', name: 'Platzhirsch', desc: '65 % Marktanteil gegen Nordhafen erreicht.', xp: 100, check: (s) => !!s.rival && s.rival.share >= 65 },
+  { id: 'board5', icon: '🏛️', name: 'Musterwoche', desc: 'Alle fünf Wochenziele des Aufsichtsrats erreicht.', xp: 120, check: (s) => L(s, 'boardPerfect') >= 1 },
   { id: 'wx10', icon: '⛈️', name: 'Wetterfrosch', desc: 'Zehn Umwege um Gewitterzellen genehmigt.', xp: 70, check: (s) => L(s, 'wxOk') >= 10 },
   { id: 'readback5', icon: '👂', name: 'Gutes Gehör', desc: 'Fünf falsche Readbacks rechtzeitig korrigiert.', xp: 70, check: (s) => L(s, 'rbFixed') >= 5 },
   { id: 'spot10', icon: '📷', name: 'Spotter', desc: '10 Fotos fürs Spotterbuch geschossen.', xp: 40, check: (s) => L(s, 'spotShots') >= 10 },

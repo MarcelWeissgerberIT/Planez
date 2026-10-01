@@ -169,7 +169,8 @@ export function penalize(state, kind, ac) {
 export function dailyFixedCosts(state) {
   const u = state.upgrades;
   const built = state.stands.filter((s) => s.built).length;
-  return {
+  const bf = (state.board && state.board.costF) || 1; // Aufsichtsrat: Effizienz-Strategie
+  const fc = {
     staff: state.staff * COSTS.staffDaily,
     atc: COSTS.atcDaily,
     infra: built * COSTS.standDaily + COSTS.runwayDaily * (1 + (u.rwy2 || 0)) + COSTS.terminalDaily * (1 + 0.08 * (u.retail + u.security + u.lounge)),
@@ -177,6 +178,8 @@ export function dailyFixedCosts(state) {
     admin: COSTS.adminDaily,
     utilities: COSTS.utilitiesDaily * (u.apronLights ? 0.85 : 1) * (1 + 0.05 * u.parking) * (u.solar ? 0.4 : 1),
   };
+  if (bf !== 1) for (const k of Object.keys(fc)) fc[k] *= bf;
+  return fc;
 }
 
 export function updateEconomy(state, dt) {

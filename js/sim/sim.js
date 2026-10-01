@@ -25,6 +25,7 @@ import { updateFuel } from './fuel.js';
 import { dailyLoans } from './finance.js';
 import { spend } from './economy.js';
 import { updateGoals, onDayEnd as goalsDayEnd } from './goals.js';
+import { boardDayEnd } from './board.js';
 import { log } from './messages.js';
 import * as LY from '../layout.js';
 
@@ -84,6 +85,7 @@ function dayRollover(state) {
   dailyLoans(state, spend);
   goalsDayEnd(state, rec);
   rivalDayEnd(state);
+  boardDayEnd(state, rec);
   dailyContracts(state);
   const day = dayOf(state.time);
   generateDay(state, day + 1);

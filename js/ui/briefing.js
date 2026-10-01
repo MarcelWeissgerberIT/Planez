@@ -7,6 +7,7 @@ import { preferredRunway } from '../sim/atc.js';
 import { activeGoals, goalText } from '../sim/goals.js';
 import { fuelState, FUEL } from '../sim/fuel.js';
 import { rivalState } from '../sim/rival.js';
+import { boardState, weekProgress, goalRows, strategy } from '../sim/board.js';
 import { projects, remainingHours } from '../sim/construction.js';
 import { rwyCond } from '../sim/runway.js';
 import { fmtClock, fmtMoney, esc, dayOf } from '../util.js';
@@ -16,7 +17,7 @@ const H = 3600, D = 86400;
 const TIPS = {
   tower: ['Heavys möglichst hintereinander starten lassen – das spart Wirbelschleppen-Wartezeit.', 'Hör auf die Rücklesungen: Ein falscher Readback lässt sich mit Q korrigieren.', 'In der Spitzenstunde Starts in die Lücken vor der nächsten Landung setzen – das bringt Kombo-Punkte.', 'Bei Rückenwind über 5 kt rechtzeitig die Betriebsrichtung wechseln.'],
   ground: ['Tankwagen früh losschicken – leere Wagen müssen erst zum Tanklager.', 'Der Positionsplan (G) zeigt Engpässe schon Stunden vorher.', 'Boxenstopp: Turnaround in der Mindestzeit bringt 100 Extrapunkte.', 'Schlepper rechtzeitig bereitstellen, dann klappt der Pushback auf die Minute.'],
-  manager: ['Nordhafen beobachtet dich – Ansehen und Pünktlichkeit zählen am meisten für den Marktanteil.', 'Auslaufende Verträge verlängern sich eher, wenn die Airline zufrieden ist.', 'Kerosin günstig einkaufen, wenn der Preis unter dem Schnitt liegt.', 'Baustellen blockieren Positionen – Ausbau lieber vor der Hauptsaison.'],
+  manager: ['Alle 7 Tage tagt der Aufsichtsrat – fünf Wochenziele, Zuschuss ab drei erreichten Zielen.', 'Nordhafen beobachtet dich – Ansehen und Pünktlichkeit zählen am meisten für den Marktanteil.', 'Auslaufende Verträge verlängern sich eher, wenn die Airline zufrieden ist.', 'Kerosin günstig einkaufen, wenn der Preis unter dem Schnitt liegt.', 'Baustellen blockieren Positionen – Ausbau lieber vor der Hauptsaison.'],
 };
 
 function trafficOf(state, day0) {
@@ -90,6 +91,13 @@ export function briefingHtml(state) {
     if (state.offers.length) L.push(item('📨', `${state.offers.length} Vertragsangebot${state.offers.length > 1 ? 'e' : ''} warten auf Antwort`));
     const R = rivalState(state);
     L.push(item('🏢', `Marktanteil gegen Nordhafen: <b>${Math.round(R.share)} %</b>${R.feeCutUntil > state.time ? ' – Nordhafen lockt gerade mit Rabatten' : ''}`, R.share < 45 ? 'warn' : ''));
+    const B = boardState(state);
+    if (B.targets) {
+      const rows = goalRows(state, weekProgress(state));
+      const left = B.startDay + B.targets.days - dayOf(state.time) + 1;
+      const miss = rows.filter((r) => !r.ok).map((r) => r.label.replace(/ \(.*\)/, ''));
+      L.push(item('🏛️', `Aufsichtsrat (${strategy(state).icon} ${strategy(state).name}, Vertrauen ${B.conf}): ${left <= 1 ? 'Sitzung heute Abend' : `Sitzung in ${left} Tagen`} – ${miss.length ? `noch offen: ${miss.join(', ')}` : 'alle Wochenziele auf Kurs'}`, B.conf < 40 ? 'warn' : ''));
+    }
     const ps = projects(state).filter((p) => p.status !== 'waiting' && remainingHours(p) <= 24);
     if (ps.length) L.push(item('🏗️', `Heute fertig: ${ps.map((p) => esc(p.name)).join(', ')}`));
   }

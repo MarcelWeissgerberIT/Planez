@@ -96,6 +96,7 @@ const SIDE = {
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
       <li>📅 <b>Tagesherausforderung</b> mit Zusatzregeln und 🔥 Serie · 🎖️ <b>Karriere</b> über alle Spielstände</li>
+      <li>🏛️ <b>Aufsichtsrat</b>: Wochenziele, Vertrauen, Zuschuss und Strategie für Manager</li>
       <li>⛈️ <b>Wetterumflüge</b>: Piloten bitten bei Gewitter um Umwege – genehmigen mit <kbd>Y</kbd></li>
       <li>👂 <b>Readback-Fehler</b> hören und mit <kbd>Q</kbd> korrigieren · 📻✖ <b>Funkausfall</b> mit Lichtsignalen</li>
       <li>📻 <b>Betriebsfunk</b> der Bodencrews auf Deutsch · 📋 <b>Schichtbriefing</b> zum Tagesbeginn</li>
