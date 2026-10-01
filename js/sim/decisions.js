@@ -8,14 +8,14 @@ import { log, notify, fx } from './messages.js';
 import { earn, spend } from './economy.js';
 import { PH, spawnSpecial, goAround } from './aircraft.js';
 import * as AS from './airspace.js';
-import { closeRunway } from './runway.js';
+import { closeRunway, rwyCond as rwyCondOf } from './runway.js';
 import { birdstrikeOn } from './events.js';
 import { fuelState, FUEL, maxOrder } from './fuel.js';
 import { CMDS, command } from './atc.js';
 import { RIVAL_NAME, rivalState, acceptDiversions } from './rival.js';
 import { temperature } from './winter.js';
 import { pushNews } from './news.js';
-import { careerCardOk } from './career.js';
+import { careerCardOk, careerState, generateVisitors, isCareer, stageOf } from './career.js';
 import { T } from '../i18n.js';
 
 const MIN = 60, H = 3600;
@@ -27,6 +27,15 @@ const contractOfAc = (state, ac) => {
 };
 const satDelta = (c, d) => c && (c.sat = clamp(c.sat + d, 0, 100));
 const task = (ac, k) => ac && ac.ta && ac.ta.tasks[k];
+// Karten für den kleinen Platz (Aufbau-Modus, Grasplatz und Verkehrslandeplatz)
+const hour = (s) => (s.time / H) % 24;
+const today = (s) => Math.floor(s.time / 86400) + 1;
+const cool = (s, key, days) => s.time - ((s.decisions && s.decisions.lastKey && s.decisions.lastKey[key]) ?? -1e9) > days * 24 * H;
+const fame = (s, d) => {
+  const C = careerState(s);
+  C.fame = clamp(C.fame + d, 0, 100);
+};
+const cardOk = (s, key, c) => (c.small ? isCareer(s) && !s.scenario && stageOf(s) <= (c.maxStage ?? 1) && stageOf(s) >= (c.minStage ?? 0) : careerCardOk(s, key));
 
 // ---------------- Katalog ----------------
 // cond(state) -> Parameter oder null; card(state, p) -> { icon, title, text, options: [{ label, detail, run(state, p) }] }
@@ -557,6 +566,148 @@ export const CATALOG = {
       ],
     }),
   },
+
+  // ======== Kleiner Platz (Aufbau-Modus) ========
+  oldtimer: {
+    role: 'manager', small: true, weight: 0.5, timeout: 2 * H,
+    cond: (s) => (hour(s) > 7 && hour(s) < 10.5 && cool(s, 'oldtimer', 6) ? {} : null),
+    card: () => ({
+      icon: '✈️', title: T('Oldtimer-Staffel fragt an'),
+      text: T('Vier Doppeldecker auf Deutschlandtour wollen heute Mittag bei euch landen, tanken und im Vereinsheim essen. Die Piloten fragen, ob sie willkommen sind.'),
+      options: [
+        { label: T('Gern, ganz normal'), detail: T('3 Gäste zur Mittagszeit · Bekanntheit +2'), run: (st) => { generateVisitors(st, today(st), 3, [12, 14]); fame(st, 2); } },
+        { label: T('Groß empfangen – Würstchen aufs Haus'), detail: T('300 € · 4 Gäste · Bekanntheit +5 · Ansehen +1'), run: (st) => { spend(st, 'marketing', 300); generateVisitors(st, today(st), 4, [12, 14]); fame(st, 5); repDelta(st, 1); pushNews(st, T`Doppeldecker-Staffel zu Gast in ${st.name}: Zuschauer am Zaun, Würstchen vom Grill.`, 'good', '✈️'); } },
+        { label: T('Absagen – zu viel Trubel'), detail: T('nichts passiert'), run: () => {} },
+      ],
+    }),
+  },
+  neighbor: {
+    role: 'manager', small: true, weight: 0.45, timeout: 3 * H,
+    cond: (s) => (s.time > 2 * 86400 && hour(s) > 8 && hour(s) < 19 && cool(s, 'neighbor', 5) ? {} : null),
+    card: () => ({
+      icon: '🏡', title: T('Beschwerde vom Nachbarhof'),
+      text: T('Der Landwirt am Pistenende ruft an: Die Platzrunden über seinem Hof seien am Wochenende nicht auszuhalten, die Kühe gäben weniger Milch. Er droht mit der Lokalzeitung.'),
+      options: [
+        { label: T('Hinfahren, Kiste Bier mitbringen'), detail: T('60 € · meist ist danach Ruhe'), run: (st) => { spend(st, 'marketing', 60); if (rand(st) < 0.7) repDelta(st, 0.5); else { repDelta(st, -0.5); log(st, 'mgr', T('🏡 Der Nachbar bleibt sauer – das Bier hat er trotzdem behalten.')); } } },
+        { label: T('Lärmschutzhecke pflanzen'), detail: T('2.200 € · Ansehen +2 · Bekanntheit +1'), run: (st) => { spend(st, 'infra', 2200); repDelta(st, 2); fame(st, 1); pushNews(st, T('Flugplatz pflanzt Hecke für die Nachbarn – „Wir wollen gute Nachbarn sein“.'), 'good', '🌳'); } },
+        { label: T('Ignorieren'), detail: T('45 % Risiko: Zeitungsartikel, Ansehen −2,5'), run: (st) => { if (rand(st) < 0.45) { repDelta(st, -2.5); pushNews(st, T('„Fluglärm raubt uns den Schlaf“ – Landwirt klagt über den Flugplatz.'), 'bad', '🏡'); } } },
+      ],
+    }),
+  },
+  photo: {
+    role: 'manager', small: true, weight: 0.35, timeout: 90 * MIN,
+    cond: (s) => (hour(s) > 9 && hour(s) < 14 && ['clear', 'clouds'].includes(s.weather.kind) && cool(s, 'photo', 7) ? {} : null),
+    card: () => ({
+      icon: '📸', title: T('Fotoshooting auf der Piste'),
+      text: T('Eine Werbeagentur will für einen Autohersteller auf eurer Graspiste drehen: ein Sportwagen neben einer Cessna im Gegenlicht. Dafür bleibt die Bahn 40 Minuten zu.'),
+      options: [
+        { label: T('Zusagen'), detail: T('+2.400 € · Piste 40 min gesperrt · Bekanntheit +3'), run: (st) => { earn(st, 'other', 2400); closeRunway(st, 40, T('Fotoshooting')); fame(st, 3); } },
+        { label: T('Ablehnen'), detail: T('nichts passiert'), run: () => {} },
+      ],
+    }),
+  },
+  glider: {
+    role: 'manager', small: true, weight: 0.3, timeout: 3 * H, maxStage: 0,
+    cond: (s) => (s.time > 3 * 86400 && hour(s) > 8 && hour(s) < 16 && cool(s, 'glider', 12) ? {} : null),
+    card: () => ({
+      icon: '🪁', title: T('Segelflieger wollen einen Wettbewerb ausrichten'),
+      text: T('Der Segelflugverein aus dem Nachbarort sucht einen Platz für seinen Regionalwettbewerb morgen. Mit Schleppflugzeugen, Zuschauern und Grill – aber jemand muss Absperrung und Toiletten bezahlen.'),
+      options: [
+        { label: T('Ausrichten'), detail: T('900 € · morgen 8 zusätzliche Flugzeuge · Bekanntheit +6'), run: (st) => { spend(st, 'marketing', 900); generateVisitors(st, today(st) + 1, 8, [9, 15]); fame(st, 6); pushNews(st, T`Segelflug-Wettbewerb morgen in ${st.name} – Zuschauer willkommen.`, 'good', '🪁'); } },
+        { label: T('Absagen'), detail: T('nichts passiert'), run: () => {} },
+      ],
+    }),
+  },
+  intern: {
+    role: 'manager', small: true, weight: 0.25, timeout: 4 * H,
+    cond: (s) => (hour(s) > 8 && hour(s) < 17 && cool(s, 'intern', 15) ? {} : null),
+    card: () => ({
+      icon: '🎒', title: T('Schnupperpraktikum'),
+      text: T('Die Realschule fragt, ob zwei Neuntklässler eine Woche bei euch reinschnuppern dürfen – Flugleitung, Tankstelle, Rasenmähen. Kostet Zeit und ein paar Euro, aber so findet man den Nachwuchs von morgen.'),
+      options: [
+        { label: T('Gerne'), detail: T('250 € · Ansehen +1 · Bekanntheit +2'), run: (st) => { spend(st, 'staff', 250); repDelta(st, 1); fame(st, 2); } },
+        { label: T('Keine Zeit'), detail: T('nichts passiert'), run: () => {} },
+      ],
+    }),
+  },
+  mower: {
+    role: 'manager', small: true, weight: 0.35, timeout: 3 * H, maxStage: 0,
+    cond: (s) => (hour(s) > 7 && hour(s) < 18 && cool(s, 'mower', 8) ? {} : null),
+    card: () => ({
+      icon: '🚜', title: T('Der Rasenmäher ist kaputt'),
+      text: T('Der alte Aufsitzmäher qualmt und steht. Die Graspiste wächst – zu hohes Gras verlängert die Startstrecke und verschlechtert den Pistenzustand.'),
+      options: [
+        { label: T('Reparieren lassen'), detail: T('700 € · 40 % Risiko: geht bald wieder kaputt, Pistenzustand −10'), run: (st) => { spend(st, 'infra', 700); if (rand(st) < 0.4) { st.rwyCond = clamp(rwyCondOf(st) - 10, 5, 100); log(st, 'mgr', T('🚜 Der Mäher hat nach zwei Bahnen wieder aufgegeben – das Gras steht hoch.')); } } },
+        { label: T('Neuen Mäher kaufen'), detail: T('5.500 € · Pistenzustand +8'), run: (st) => { spend(st, 'infra', 5500); st.rwyCond = clamp(rwyCondOf(st) + 8, 5, 100); } },
+        { label: T('Der Bauer mäht gegen das Heu'), detail: T('kostenlos · Piste jetzt 50 min gesperrt · Ansehen +0,5'), run: (st) => { closeRunway(st, 50, T('Mäharbeiten')); repDelta(st, 0.5); } },
+      ],
+    }),
+  },
+  avgas: {
+    role: 'manager', small: true, weight: 0.35, timeout: 3 * H,
+    cond: (s) => (s.time > 2 * 86400 && cool(s, 'avgas', 12) ? {} : null),
+    card: () => ({
+      icon: '⛽', title: T('Spritlieferant erhöht den Preis'),
+      text: T('Der Lieferant schlägt 18 Cent pro Liter auf. Gibst du das an die Piloten weiter, maulen sie und tanken woanders – oder du schluckst die Marge eine Weile.'),
+      options: [
+        { label: T('An die Piloten weitergeben'), detail: T('Bekanntheit −3'), run: (st) => fame(st, -3) },
+        { label: T('Marge schlucken'), detail: T('1.400 €'), run: (st) => spend(st, 'admin', 1400) },
+        { label: T('Lieferanten wechseln'), detail: T('400 € · 35 % Risiko: Zapfsäule einen Tag trocken'), run: (st) => { spend(st, 'admin', 400); if (rand(st) < 0.35) { careerState(st).pumpDown = st.time + 24 * H; notify(st, T('⛽ Der neue Lieferant kommt erst morgen – die Zapfsäule ist leer'), 'bad'); } } },
+      ],
+    }),
+  },
+  firedrill: {
+    role: 'manager', small: true, weight: 0.3, timeout: 2 * H,
+    cond: (s) => (hour(s) > 9 && hour(s) < 16 && cool(s, 'firedrill', 12) ? {} : null),
+    card: () => ({
+      icon: '🚒', title: T('Die Feuerwehr will üben'),
+      text: T('Die Freiwillige Feuerwehr möchte einen Flugzeugbrand auf dem Platz üben – mit Schaum, Rauch und Blaulicht. Die Piste ist dafür eine halbe Stunde zu, aber im Ernstfall kennen sie jeden Weg.'),
+      options: [
+        { label: T('Gern'), detail: T('Piste 30 min gesperrt · Ansehen +1,5 · Bekanntheit +1'), run: (st) => { closeRunway(st, 30, T('Feuerwehrübung')); repDelta(st, 1.5); fame(st, 1); pushNews(st, T('Feuerwehr übt Flugzeugbrand – Zuschauer staunen über die Schaumwand.'), 'good', '🚒'); } },
+        { label: T('Lieber nicht'), detail: T('nichts passiert'), run: () => {} },
+      ],
+    }),
+  },
+  hangar: {
+    role: 'manager', small: true, weight: 0.4, timeout: 4 * H, minStage: 1,
+    cond: (s) => (!(careerState(s).hangarUntil > s.time) && cool(s, 'hangar', 10) ? {} : null),
+    card: () => ({
+      icon: '🏗️', title: T('Unternehmer sucht einen Hallenplatz'),
+      text: T('Ein Maschinenbauer aus der Gegend will seine Turboprop bei euch unterstellen – einen Monat zur Probe. Dafür muss der Hausmeister die Halle umräumen.'),
+      options: [
+        { label: T('Vermieten'), detail: T('+90 €/Tag für 30 Tage · einmalig 500 € fürs Umräumen'), run: (st) => { spend(st, 'infra', 500); careerState(st).hangarUntil = st.time + 30 * 24 * H; } },
+        { label: T('Ablehnen'), detail: T('nichts passiert'), run: () => {} },
+      ],
+    }),
+  },
+  balloon: {
+    role: 'tower', small: true, weight: 0.6, timeout: 3 * MIN,
+    cond: (s) => ((hour(s) < 9.5 || hour(s) > 17) && s.weather.kind === 'clear' && s.acs.some((a) => a.arr && a.mode === 'air' && a.phase === PH.APPROACH) && cool(s, 'balloon', 4) ? {} : null),
+    card: () => ({
+      icon: '🎈', title: T('Heißluftballon nahe dem Endanflug'),
+      text: T('Ein Ballon treibt mit dem Wind langsam auf die Anflugachse zu. Er kann nicht ausweichen – aber vielleicht ist er schon vorbei, bevor der nächste Anflug kommt.'),
+      options: [
+        { label: T('Anflüge kurz aussetzen'), detail: T('Piste 4 min gesperrt · sicher'), run: (st) => closeRunway(st, 4, T('Ballon im Anflug')) },
+        { label: T('Verkehrsinfo geben, weiter'), detail: T('25 % Risiko: Durchstart'), run: (st) => {
+          if (rand(st) >= 0.25) return log(st, 'sys', T('🎈 Der Ballon ist durch – Anflüge laufen weiter.'));
+          const a = st.acs.filter((x) => x.arr && x.phase === PH.APPROACH && x.mode === 'air').sort((x, y) => AS.routeDistance(x.pos, x.route) - AS.routeDistance(y.pos, y.route))[0];
+          if (a) goAround(st, a, T('Ballon im Endanflug'));
+        } },
+      ],
+    }),
+  },
+  pump: {
+    role: 'ground', small: true, weight: 0.6, timeout: 10 * MIN,
+    cond: (s) => (hour(s) > 8 && hour(s) < 18 && !(careerState(s).pumpDown > s.time) && cool(s, 'pump', 6) ? {} : null),
+    card: () => ({
+      icon: '⛽', title: T('Die Zapfsäule streikt'),
+      text: T('Das Zählwerk der Zapfsäule zeigt nur noch Striche. Ohne Sprit fliegen die Gäste unbetankt weiter – und tanken beim nächsten Mal woanders.'),
+      options: [
+        { label: T('Techniker rufen'), detail: T('350 € · 40 min kein Sprit'), run: (st) => { spend(st, 'infra', 350); careerState(st).pumpDown = st.time + 40 * MIN; } },
+        { label: T('Selbst reparieren'), detail: T('60 %: in 10 min erledigt · sonst 3 h kein Sprit'), run: (st) => { const ok = rand(st) < 0.6; careerState(st).pumpDown = st.time + (ok ? 10 * MIN : 3 * H); log(st, 'gnd', ok ? T('⛽ Sicherung getauscht – die Zapfsäule läuft wieder.') : T('⛽ Das war nicht die Sicherung – der Techniker kommt erst am Nachmittag.')); } },
+      ],
+    }),
+  },
 };
 
 // Karte von außen einreihen (Wettbewerb). Spielt die KI den Manager, entscheidet sie sofort.
@@ -619,6 +770,7 @@ export function choose(state, id, idx, byPlayer = false) {
 // Karte aufschlagen; im Vorfeld meldet sich die betroffene Crew zusätzlich über den Betriebsfunk
 function pushCard(state, D, key, c, p, role) {
   D.active.push({ id: 'd' + Math.floor(state.time) + key, key, p, role, t: state.time, expires: state.time + c.timeout });
+  (D.lastKey = D.lastKey || {})[key] = state.time;
   notify(state, T`${c.card(state, p).icon} Entscheidung: ${c.card(state, p).title}`, 'warn');
   if (c.crew && state.role === 'ground') {
     const r = c.crew(state, p);
@@ -682,7 +834,7 @@ export function updateDecisions(state, dt) {
     D.urgT = 120;
     D.lastUrgent = D.lastUrgent || {};
     for (const [key, c] of Object.entries(CATALOG)) {
-      if (!careerCardOk(state, key)) continue;
+      if (!cardOk(state, key, c)) continue;
       if (c.role !== role || !c.urgent || state.time - (D.lastUrgent[key] ?? -1e9) < c.urgent) continue;
       const p = c.cond(state);
       if (!p) continue;
@@ -694,7 +846,7 @@ export function updateDecisions(state, dt) {
   if (D.next[role] === undefined) D.next[role] = state.time + nextGap(state, role) * 0.5;
   if (state.time < D.next[role]) return;
   D.next[role] = state.time + nextGap(state, role);
-  const cands = Object.entries(CATALOG).filter(([k, c]) => c.role === role && careerCardOk(state, k));
+  const cands = Object.entries(CATALOG).filter(([k, c]) => c.role === role && cardOk(state, k, c));
   const tried = [];
   for (let i = 0; i < cands.length; i++) {
     const pickd = pickWeighted(state, cands.filter((x) => !tried.includes(x[0])), (x) => (typeof x[1].weight === 'function' ? x[1].weight(state) : x[1].weight));

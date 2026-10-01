@@ -529,7 +529,7 @@ export function gaTakeoffRevenue(state, ac, rot, earnF0) {
   const earnF = (cat, v) => earnF0(cat, v * loyal * (cat === 'fuel' ? fuelF : 1));
   // Sprit an der Zapfsäule (AvGas) bzw. Jet A-1 für Turboprops: Marge je Liter
   const litres = t.light ? randRange(state, 35, 110) : randRange(state, 250, 700);
-  earnF('fuel', litres * (t.light ? 0.85 : 0.45));
+  if (!(C.pumpDown > state.time)) earnF('fuel', litres * (t.light ? 0.85 : 0.45)); // Zapfsäule defekt (Entscheidungskarte): kein Sprit
   // Vereinsheim/Café: Piloten und Gäste kehren ein
   const guests = (rot.paxIn || 0) + 1;
   if (rot.partner !== 'skydive') earnF('retail', guests * (stageOf(state) === 0 ? 11 : 14));
@@ -550,6 +550,8 @@ export function hourlyCareer(state) {
   autoPerk(state);
   // Pacht der Partner
   for (const c of partnerContracts(state)) earn(state, 'other', (PARTNERS[partnerOf(c)].rent || 0) / 24);
+  // Hallenmieter (Entscheidungskarte am Verkehrslandeplatz)
+  if (C.hangarUntil > state.time) earn(state, 'parking', 90 / 24);
   // Flugplatzfest: Besucher zahlen Eintritt, essen, trinken
   const F = C.fest;
   if (F && state.time >= F.from && state.time < F.until) {
