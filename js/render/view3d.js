@@ -12,6 +12,7 @@ import * as LY from '../layout.js';
 import { PH } from '../sim/aircraft.js';
 import { NM_PER_TILE } from '../config.js';
 import { Q } from './quality.js';
+import { soundscape } from '../soundscape.js';
 import { buildAircraft, buildVehicle, buildCessna, buildHeli, glowTex, spriteMat, setNight } from './model3d.js';
 
 const ALT_CLIMB = 2.0; // Spielhöhe z -> Kacheln für Steigflug/Durchstarten auf der Karte (≈ 12° statt 40° Bahnneigung)
@@ -45,6 +46,18 @@ const SKY = {
   murkDay: C(0x9aa3ad),
   murkNight: C(0x151a22),
 };
+
+// Geometrien (mit Index) zu einer zusammenführen – nur Positionen (für unbeleuchtete Effekte wie Blitze)
+function mergeGeos(geos) {
+  const parts = geos.map((g) => (g.index ? g.toNonIndexed() : g));
+  const n = parts.reduce((a, g) => a + g.attributes.position.count, 0);
+  const P = new Float32Array(n * 3);
+  let o = 0;
+  for (const g of parts) (P.set(g.attributes.position.array, o * 3), (o += g.attributes.position.count));
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(P, 3));
+  return out;
+}
 
 function canvasTex(w, h, draw, repeat = true) {
   const c = document.createElement('canvas');
@@ -806,6 +819,139 @@ export class View3D {
     this.scene.add(g);
   }
 
+  // Gewitter- und Schauerzellen aus der Simulation (Positionen in NM, ziehen mit dem Wind): Gewittertürme mit Amboss,
+  // Regenvorhang darunter, Blitze mit Donner. Weit entfernte Zellen verblassen zum Horizont hin (Luftperspektive).
+  stormCells(state, dt, hor) {
+    const cells = (state.weather && state.weather.cells) || [];
+    this.cells = this.cells || new Map();
+    const seen = new Set();
+    const cam = this.camera.position;
+    cells.forEach((c, i) => {
+      const key = c.id != null ? 'c' + c.id : 'i' + i + (c.shower ? 's' : '');
+      seen.add(key);
+      let C = this.cells.get(key);
+      if (!C) {
+        C = this.buildCell(c, i);
+        this.cells.set(key, C);
+        this.scene.add(C.g);
+      }
+      const p = LY.nmToTile(c.x, c.y);
+      C.g.position.set(p.x, 0, p.y);
+      // Luftperspektive: mit der Entfernung zum Horizont hin aufhellen
+      const d = Math.hypot(p.x - cam.x, p.y - cam.z);
+      const t = clamp((d - 250) / 2600, 0, 0.82);
+      C.body.color.copy(C.base).lerp(hor, t);
+      C.top.color.copy(C.base2).lerp(hor, t * 0.9);
+      C.rain.opacity = (c.shower ? 0.22 : 0.32) * (1 - t * 0.7);
+      C.d = d;
+      // Blitze
+      if (!c.shower) {
+        C.next = (C.next ?? 2 + Math.random() * 6) - dt;
+        if (C.next <= 0) {
+          C.next = 3 + Math.random() * 9;
+          this.bolt(C, p, c.r * (1 / NM_PER_TILE));
+        }
+      }
+      if (C.boltT > 0) {
+        // erst zeigen, dann herunterzählen – so ist der Blitz auch bei langsamen Bildern mindestens ein Bild lang da
+        const on = C.boltT > 0.2 || (C.boltT > 0.06 && C.boltT < 0.13);
+        C.boltObj.visible = on;
+        C.body.emissive.setHex(on ? 0x8090b0 : 0x181c22);
+        C.boltT -= dt;
+        if (C.boltT <= 0) (C.boltObj.visible = false), C.body.emissive.setHex(0x181c22);
+      }
+    });
+    for (const [k, C] of this.cells) if (!seen.has(k)) (this.scene.remove(C.g), this.cells.delete(k));
+  }
+
+  buildCell(c, i) {
+    const r = rng(1000 + i * 77);
+    const R = c.r / NM_PER_TILE; // Radius in Kacheln
+    const g = new THREE.Group();
+    const storm = !c.shower;
+    const base = C(storm ? 0x4a5462 : 0x8a949f), base2 = C(storm ? 0xc3cad3 : 0xb7c0ca);
+    const body = new THREE.MeshLambertMaterial({ color: base.clone(), fog: false, emissive: 0x181c22 });
+    const top = new THREE.MeshLambertMaterial({ color: base2.clone(), fog: false, emissive: 0x2a2f36 });
+    const sph = new THREE.SphereGeometry(1, 14, 10);
+    const H = storm ? 520 : 170; // Wolkenobergrenze (≈ 10 bzw. 3,5 km)
+    const baseY = storm ? 60 : 55;
+    // Sockel: breite, flache Wolkenmasse
+    for (let k = 0; k < 7; k++) {
+      const m = new THREE.Mesh(sph, body);
+      const a = (k / 7) * Math.PI * 2 + r(), rr = R * (0.25 + r() * 0.35);
+      m.position.set(Math.cos(a) * rr, baseY + 30 + r() * 30, Math.sin(a) * rr);
+      m.scale.set(R * (0.45 + r() * 0.2), 45 + r() * 25, R * (0.45 + r() * 0.2));
+      g.add(m);
+    }
+    // Turm: viele überlappende, runde Quellwolken-Ballen, nach oben heller und etwas schmaler
+    const steps = storm ? 16 : 5;
+    for (let k = 0; k < steps; k++) {
+      const f = k / Math.max(1, steps - 1);
+      const m = new THREE.Mesh(sph, f > 0.45 ? top : body);
+      const w = R * (storm ? 0.36 - f * 0.1 : 0.3) * (0.8 + r() * 0.4);
+      const a = r() * Math.PI * 2, off = R * 0.18 * r();
+      m.position.set(Math.cos(a) * off, baseY + 70 + f * (H - baseY - 110), Math.sin(a) * off);
+      m.scale.set(w, w * (storm ? 0.5 : 0.4), w * (0.85 + r() * 0.3));
+      g.add(m);
+    }
+    // Amboss: weit ausladende, flache Schirmwolke oben (in Windrichtung verschoben)
+    if (storm) for (let k = 0; k < 3; k++) {
+      const m = new THREE.Mesh(sph, top);
+      m.position.set(R * (0.2 + k * 0.3), H - k * 8, (r() - 0.5) * R * 0.3);
+      m.scale.set(R * (0.75 - k * 0.12), 22 + r() * 10, R * (0.6 - k * 0.08));
+      g.add(m);
+    }
+    // Regenvorhang unter der Zelle: Schlieren, oben dicht, zum Boden hin lichter
+    if (!this.rainTex) this.rainTex = canvasTex(128, 64, (gx, w, h) => {
+      const rr = rng(31);
+      for (let x = 0; x < w; x++) {
+        const a = 0.35 + rr() * 0.65;
+        const gr = gx.createLinearGradient(0, 0, 0, h);
+        gr.addColorStop(0, `rgba(255,255,255,${a})`);
+        gr.addColorStop(0.7, `rgba(255,255,255,${a * 0.6})`);
+        gr.addColorStop(1, 'rgba(255,255,255,0.05)');
+        gx.fillStyle = gr;
+        gx.fillRect(x, 0, 1, h);
+      }
+    }, false);
+    const rainMat = new THREE.MeshBasicMaterial({ color: storm ? 0x5b6573 : 0x8a95a3, map: this.rainTex, transparent: true, opacity: 0.3, depthWrite: false, fog: false, side: THREE.DoubleSide });
+    const rain = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.5, R * 0.62, baseY + 40, 20, 1, true), rainMat);
+    rain.position.y = (baseY + 40) / 2;
+    g.add(rain);
+    // Blitz: dünne Röhre (auch aus der Ferne sichtbar), wird bei jedem Blitz neu geformt
+    const boltObj = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xf5f3ff, fog: false, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
+    boltObj.visible = false;
+    boltObj.frustumCulled = false;
+    g.add(boltObj);
+    return { g, body, top, base, base2, rain: rainMat, boltObj, boltT: 0, baseY };
+  }
+
+  bolt(C, p, R) {
+    const top = C.baseY + 20;
+    const pts = [];
+    let x = (Math.random() - 0.5) * R * 0.6, z = (Math.random() - 0.5) * R * 0.6;
+    const steps = 12;
+    for (let k = 0; k <= steps; k++) {
+      pts.push(new THREE.Vector3(x, top - (top * k) / steps, z));
+      x += (Math.random() - 0.5) * 16;
+      z += (Math.random() - 0.5) * 16;
+    }
+    const geos = [new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.1), 48, 1.8, 4)];
+    // Seitenast
+    const b0 = pts[3].clone(), br = [b0];
+    for (let k = 1; k <= 5; k++) br.push(b0.clone().add(new THREE.Vector3(k * (6 + Math.random() * 4), -k * (7 + Math.random() * 5), (Math.random() - 0.5) * 10)));
+    geos.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(br, false, 'catmullrom', 0.1), 20, 0.6, 4));
+    const old = C.boltObj.geometry;
+    C.boltObj.geometry = mergeGeos(geos);
+    old.dispose();
+    for (const g of geos) g.dispose();
+    C.boltT = 0.32;
+    // nahe Blitze erhellen die ganze Szene; Donner nach Entfernung verzögert und leiser
+    const d = C.d || 1000;
+    if (d < 900) this.flash = Math.max(this.flash, 1 - d / 1200);
+    soundscape.thunder(clamp(1.2 - d / 2500, 0.2, 1.2), Math.min(4500, (d * 20) / 343 / 6 * 1000));
+  }
+
   // Regen (Striche) und Schnee (Flocken) in einem Würfel um die Kamera
   precip(kind, dt) {
     const want = kind === 'rain' || kind === 'storm' ? 'rain' : kind === 'snow' ? 'snow' : null;
@@ -1226,7 +1372,7 @@ export class View3D {
     top.lerp(mk, murk * 0.85);
     hor.lerp(mk, murk * 0.8);
     // Blitz bei Gewitter
-    if (wx === 'storm' && Math.random() < dt * 0.12) this.flash = 1;
+    if (wx === 'storm' && !(state.weather.cells || []).length && Math.random() < dt * 0.12) this.flash = 1;
     this.flash = Math.max(0, this.flash - dt * 5);
     const fl = this.flash > 0.5 || (this.flash > 0.2 && this.flash < 0.3) ? 1 : 0;
     if (fl) (top.lerp(C(0xe0e7ff), 0.7), hor.lerp(C(0xe0e7ff), 0.6));
@@ -1263,6 +1409,7 @@ export class View3D {
     for (const p of this.nightLights) p.visible = lightsOn;
     this.clouds(wx);
     this.precip(wx, dt);
+    this.stormCells(state, dt, hor);
     if (this.termGlow) this.termGlow.material.opacity = clamp(0.8 - dayK * 1.1, 0, 0.8);
     if (this.townMat) this.townMat.emissiveIntensity = clamp(0.9 - dayK * 1.2, 0, 0.9);
     setNight(clamp(1 - dayK * 1.4, 0, 1));

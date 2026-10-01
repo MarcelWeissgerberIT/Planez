@@ -374,6 +374,11 @@ export const soundscape = {
     set(L.crickets.g.gain, night && calm ? 0.004 : 0, 1.5);
     set(L.cricketLfo.gain, night && calm ? 0.004 : 0, 1.5);
   },
+  // Donner (3D-Ansicht: zu einem sichtbaren Blitz, nach Entfernung verzögert und leiser)
+  thunder(strength = 1, delayMs = 0) {
+    if (!A || !this.on) return;
+    setTimeout(() => A && thunder(clamp(strength, 0.15, 1.3)), delayMs);
+  },
   // Ereignisse beim Mitfliegen: Aufsetzen (Schlag + Reifen), Fahrwerk ein- bzw. ausfahren
   touchdown(strength = 0.6) {
     if (!A || !this.on) return;
