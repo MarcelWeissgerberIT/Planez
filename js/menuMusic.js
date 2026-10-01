@@ -1,3 +1,4 @@
+import { tracks } from './trackMusic.js';
 // Menümusik (synthetisch, WebAudio): ruhige Flächenklänge mit langsamer Akkordfolge, Filterbewegung und Echo.
 // Startet nach der ersten Nutzeraktion im Hauptmenü und blendet beim Spielstart aus.
 let A = null, out = null, timer = null, playing = false, step = 0;
@@ -85,17 +86,26 @@ function schedule() {
   timer = setTimeout(schedule, BAR * 1000);
 }
 
+// Liegt das Menü-Thema als Audiodatei vor, spielt es statt der Synth-Klänge (die dann stumm mitlaufen)
+let lastVol = 0.5;
+tracks.onFail((k) => {
+  if (k === 'menu' && playing && out) out.gain.setTargetAtTime(lastVol, A.currentTime, 1.2);
+});
+
 export const menuMusic = {
   start(vol = 0.5) {
     if (!init()) return;
+    lastVol = vol;
     if (A.state === 'suspended') A.resume();
+    const file = tracks.play('menu', Math.min(1, vol * 1.2));
     out.gain.cancelScheduledValues(A.currentTime);
-    out.gain.setTargetAtTime(vol, A.currentTime, 1.2);
+    out.gain.setTargetAtTime(file ? 0 : vol, A.currentTime, 1.2);
     if (playing) return;
     playing = true;
     schedule();
   },
   stop() {
+    tracks.stop('menu');
     if (!A || !playing) return;
     out.gain.cancelScheduledValues(A.currentTime);
     out.gain.setTargetAtTime(0, A.currentTime, 0.5);

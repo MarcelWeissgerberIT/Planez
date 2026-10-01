@@ -1748,3 +1748,25 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 #ride .rd-bar { top: 64px; }
 #ride .rd-help { top: 110px; }
 @media (max-width: 700px) { #game.riding #hud { z-index: 46; } #ride.cockpit .rd-bar { top: 118px; } }
+
+/* Turmblick 3D: 3D-Sicht hinter Panel, Funk, Radar und Streifen – das Spiel bleibt bedienbar */
+#game.towerview #view3d { z-index: 1; }
+#game.towerview #ride { z-index: 2; }
+#game.towerview #map { visibility: hidden; }
+#ride .rd-tw, #ride .rd-labels { display: none; }
+#ride.tower .rd-tw { display: inline-flex; }
+#ride.tower .rd-labels { display: block; position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#ride.tower .rd-modes, #ride.tower .rd-belt { display: none; }
+#ride.tower .rd-bar { top: calc(var(--hud-h, 56px) + 8px); }
+#ride.tower .rd-help { top: calc(var(--hud-h, 56px) + 54px); transition: opacity .6s; }
+#ride.tower.nohelp .rd-help { opacity: 0; }
+#ride .rd-tw button { border: 1px solid var(--line-2, #475569); background: rgba(255,255,255,.06); color: #cbd5e1; border-radius: 8px; padding: 4px 8px; font-size: 12px; white-space: nowrap; }
+#ride .rd-tw button.on { color: #fff; border-color: #38d6f5; background: rgba(56,214,245,.18); }
+#ride .rd-tw .ico { width: 14px; height: 14px; vertical-align: -2px; }
+#ride .rl { position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer; font: 600 11px var(--mono, ui-monospace, monospace); color: #e2e8f0; background: rgba(6,12,22,.72); border: 1px solid rgba(148,163,184,.45); border-radius: 6px; padding: 1px 6px; white-space: nowrap; margin-top: -8px; }
+#ride .rl::after { content: ''; position: absolute; left: 50%; top: 100%; width: 1px; height: 8px; background: rgba(226,232,240,.6); }
+#ride .rl small { color: #94a3b8; font-weight: 500; margin-left: 5px; }
+#ride .rl.sel { border-color: #38d6f5; color: #fff; box-shadow: 0 0 0 1px #38d6f5, 0 0 12px rgba(56,214,245,.45); z-index: 2; }
+#ride .rl.emg { border-color: #f87171; color: #fecaca; }
+#map-ctrls #t-tower3d.on { color: #38d6f5; border-color: #38d6f5; }
+@media (max-width: 700px) { #ride.tower .rd-bar { top: auto; bottom: 10px; } }

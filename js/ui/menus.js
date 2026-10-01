@@ -39,7 +39,7 @@ export const PREF_ROWS = [
   ['sound', 'Sound-Effekte', 'Funk, Warnungen, Kasse'],
   ['perf', 'Leistungsmodus', 'weniger Details und Belebung, geringere Auflösung – flüssiger auf langsamen Rechnern'],
   ['ambience', 'Klangkulisse', 'Triebwerke, Wind, Regen, Donner, Vögel und Grillen'],
-  ['gameMusic', 'Musik im Spiel', 'leise Klangflächen – passend zu Tageszeit, Wetter und Lage (Hochbetrieb, Notfall, Gewitter)'],
+  ['gameMusic', 'Musik im Spiel', 'Musikstücke für Tag und Nacht, bei Notfall, Gewitter und Schnee passende Klangflächen'],
   ['tts', 'Echter Funk (Sprachausgabe)', 'Tower: Lotse und Piloten sprechen – Vorfeld: Betriebsfunk der Bodencrews auf Deutsch'],
   ['glossary', 'Abkürzungen erklären', 'Tooltips für ILS, TOBT, CTOT, RVR …'],
   ['hints', 'Tipps anzeigen', 'Hinweise zur nächsten sinnvollen Aktion'],
@@ -107,6 +107,9 @@ const SIDE = {
     <ul><li>Kurze Einsätze mit festem Start: Morgenwelle, Nebel, Gewitterfront, Notfälle, Streik, Winterchaos, Sanierungsfall …</li><li>Jedes Ziel bringt 1–3 Sterne – der Bestwert bleibt gespeichert</li><li>Mit einem Stern schaltest du die nächste Stufe deiner Station frei</li></ul></div></div>`,
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
+      <li>🗼 <b>Turmblick 3D</b>: echte Sicht aus der Tower-Kanzel mit Fernglas, Rufzeichen-Schildern und Verfolgen – Funk, Radar und Streifen bleiben bedienbar</li>
+      <li>✈️ <b>3D in neuer Qualität</b>: detaillierte Flugzeuge mit Airline-Lackierung, Schatten, Himmel mit Sonnenstand und Sternen, Pisten- und Anflugbefeuerung mit <b>PAPI</b>, Landelichter, Regen, Schnee, Gewitterblitze, Reifenrauch</li>
+      <li>🎵 <b>Neue Musik</b>: Menü-Thema sowie Tag- und Nachtmusik als echte Musikstücke, nahtlos geloopt und weich überblendet</li>
       <li>🧊 <b>Mitfliegen in echtem 3D</b> (WebGL): Cockpit, Fenster oder Außenkamera, frei drehbar – mit Instrumenten und Höhenansagen</li>
       <li>🛡️ <b>Sicherheitsnetz</b> gegen gefährliche Freigaben · 🎙️ natürlichere <b>englische Funkstimmen</b> mit Akzent je Airline</li>
       <li>🎨 <b>Eigene Icons</b> im Spiel-Look · 🦺 <b>Einwinker</b>, Andockanzeige, Wing Walker · 🚑 <b>Rettungswagen</b></li>
@@ -279,7 +282,7 @@ export function initMainMenu(api) {
 
   const renderPrefs = () => {
     const p = loadPrefs();
-    root.querySelector('#mm-prefs').innerHTML = [...PREF_ROWS.slice(0, 1), ['music', 'Menümusik', 'ruhige Klangflächen im Hauptmenü'], ...PREF_ROWS.slice(1), ['briefing', 'Schichtbriefing', 'zu Tagesbeginn: Wetter, Verkehrsspitzen, Lage und Ziele der Schicht']].map(([k, n, sub]) => switchRow(k, n, sub, !!p[k])).join('');
+    root.querySelector('#mm-prefs').innerHTML = [...PREF_ROWS.slice(0, 1), ['music', 'Menümusik', 'das Planez-Thema im Hauptmenü'], ...PREF_ROWS.slice(1), ['briefing', 'Schichtbriefing', 'zu Tagesbeginn: Wetter, Verkehrsspitzen, Lage und Ziele der Schicht']].map(([k, n, sub]) => switchRow(k, n, sub, !!p[k])).join('');
   };
 
   root.addEventListener('click', (e) => {

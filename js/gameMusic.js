@@ -1,3 +1,4 @@
+import { tracks } from './trackMusic.js';
 // Spielmusik (synthetisch, WebAudio): leise Klangflächen unter Funk und Klangkulisse, die sich der Lage anpassen –
 // Tag (hell, Glocken), Nacht (dunkel, langsam), Hochbetrieb (dazu ein leises Arpeggio), Schnee (hohe, spärliche
 // Glocken) und Spannung bei Notfällen, Treibstoffnot, Gewitter oder Windscherung (tiefer Puls, Reibung im Akkord).
@@ -135,18 +136,33 @@ export function moodOf(state) {
   return busy >= 9 ? 'busy' : 'day';
 }
 
+// Tag und Nacht gibt es als Musikstücke (Audiodateien); Hochbetrieb nutzt das Tag-Stück. Für Notfall/Gewitter
+// und Schnee bleiben die passenderen Synth-Stimmungen. Die Synth-Spur läuft immer mit und wird nur stummgeschaltet.
+const FILE_OF = { day: 'day', busy: 'day', night: 'night' };
+let paused0 = false;
+function mix(slow = 1.5) {
+  if (!playing) return;
+  const k = FILE_OF[mood];
+  const g = paused0 ? vol * 0.55 : mood === 'tension' ? vol * 1.15 : vol;
+  const file = k && tracks.play(k, Math.min(1, g * 1.3));
+  if (!file && tracks.current && tracks.current !== 'menu') tracks.stop();
+  out.gain.setTargetAtTime(file ? 0 : g, A.currentTime, slow);
+}
+tracks.onFail(() => mix(1));
+
 export const gameMusic = {
   start(v = vol) {
     if (!init()) return;
     vol = v;
     if (A.state === 'suspended') A.resume();
     out.gain.cancelScheduledValues(A.currentTime);
-    out.gain.setTargetAtTime(vol, A.currentTime, 2.5);
-    if (playing) return;
+    if (playing) return mix(2.5);
     playing = true;
+    mix(2.5);
     schedule();
   },
   stop() {
+    if (tracks.current && tracks.current !== 'menu') tracks.stop();
     if (!A || !playing) return;
     out.gain.cancelScheduledValues(A.currentTime);
     out.gain.setTargetAtTime(0, A.currentTime, 0.8);
@@ -157,7 +173,8 @@ export const gameMusic = {
   update(state, paused) {
     if (!playing) return;
     mood = moodOf(state);
-    out.gain.setTargetAtTime(paused ? vol * 0.55 : mood === 'tension' ? vol * 1.15 : vol, A.currentTime, 1.5);
+    paused0 = paused;
+    mix();
   },
   get mood() {
     return mood;

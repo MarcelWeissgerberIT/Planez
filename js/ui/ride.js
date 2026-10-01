@@ -30,7 +30,7 @@ export class Ride {
       <div class="rd-cockpit"><div class="rd-pillar l"></div><div class="rd-pillar r"></div><div class="rd-pillar c"></div>
         <div class="rd-glare"><div class="rd-pfd"><div class="rd-tape spd"><small>KT</small><b data-r="spd">0</b></div><div class="rd-ai"><div class="rd-hor"></div><i></i><span data-r="fma">TAXI</span></div><div class="rd-tape alt"><small>FT</small><b data-r="alt">0</b><em data-r="vs"></em></div></div>
         <div class="rd-nd"><div class="rd-rose" data-r="rose"></div><b data-r="hdg">000</b><small data-r="nd"></small></div></div></div>
-      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><button class="rd-x" data-rd="x" title="Aussteigen (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div>`;
+      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button></span><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-labels"></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
     this.tEl = el.querySelector('.rd-t');
@@ -39,6 +39,7 @@ export class Ride {
       const b = e.target.closest('[data-rd]');
       if (!b) return;
       if (b.dataset.rd === 'x') this.stop();
+      else if (b.dataset.rd === 'track') this.setTrack(!this.track);
       else this.setMode(b.dataset.rd);
     });
     // frei drehbare Kamera: Ziehen dreht (Gier) und neigt, Mausrad ändert den Abstand
@@ -46,8 +47,10 @@ export class Ride {
     let last = null;
     const touches = new Map(); // für Pinch-Zoom mit zwei Fingern
     let pinch = 0;
+    let down = null;
     drag.addEventListener('pointerdown', (e) => {
       last = { x: e.clientX, y: e.clientY };
+      down = { x: e.clientX, y: e.clientY };
       touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
       drag.setPointerCapture && drag.setPointerCapture(e.pointerId);
     });
@@ -61,7 +64,12 @@ export class Ride {
         return;
       }
       if (!last) return;
-      if (this.use3d) {
+      if (this.mode === 'tower') {
+        const k = (this.fov || 55) / 55;
+        this.yaw += (last.x - e.clientX) * 0.18 * k;
+        this.pitch = clamp(this.pitch + (last.y - e.clientY) * -0.15 * k, -25, 60);
+        if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) this.setTrack(false);
+      } else if (this.use3d) {
         this.yaw += (e.clientX - last.x) * 0.3;
         this.pitch = this.mode === 'chase' ? clamp(this.pitch + (e.clientY - last.y) * 0.25, 2, 85) : clamp(this.pitch + (e.clientY - last.y) * 0.2, -25, 70);
       } else {
@@ -71,6 +79,11 @@ export class Ride {
       last = { x: e.clientX, y: e.clientY };
     });
     const up = (e) => {
+      if (this.mode === 'tower' && down && e && e.type === 'pointerup' && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 6 && this.v3d) {
+        const id = this.v3d.pick(e.clientX, e.clientY);
+        if (id) this.game.select(id, false);
+      }
+      down = null;
       last = null;
       if (e && e.pointerId !== undefined) touches.delete(e.pointerId);
       if (touches.size < 2) pinch = 0;
@@ -79,9 +92,14 @@ export class Ride {
     drag.addEventListener('pointercancel', up);
     drag.addEventListener('wheel', (e) => {
       e.preventDefault();
+      if (this.mode === 'tower') {
+        this.fov = clamp((this.fov || 55) * (e.deltaY > 0 ? 1.12 : 0.89), 5, 70);
+        this.autoZoom = false;
+        return;
+      }
       this.zoomK = clamp(this.zoomK * (e.deltaY > 0 ? 0.9 : 1.1), 0.45, 2.4);
     }, { passive: false });
-    drag.addEventListener('dblclick', () => this.setMode(this.mode));
+    drag.addEventListener('dblclick', () => (this.mode === 'tower' ? this.resetTower() : this.setMode(this.mode)));
     window.addEventListener('keydown', (e) => {
       if (this.on && e.key === 'Escape') {
         e.preventDefault();
@@ -96,6 +114,7 @@ export class Ride {
     const ac = s && s.acs.find((a) => a.id === acId);
     const inbound = ac && ac.mode === 'air' && ac.arr && ARR_PH.has(ac.phase);
     if (!ac || (ac.mode !== 'map' && !inbound)) return toast('Einsteigen geht im Anflug oder am Flughafen', 'info', 2400);
+    if (this.on && this.mode === 'tower') this.stop();
     this.on = true;
     this.id = acId;
     this.called = new Set();
@@ -108,22 +127,31 @@ export class Ride {
     this.el.classList.remove('hidden');
     document.getElementById('game').classList.add('riding');
     this.setMode(mode);
-    // echte 3D-Ansicht (WebGL) nachladen; bis dahin bzw. ohne WebGL die gekippte Karte
+    this.load3d();
+    // Begrüßung durch den Kapitän (Terminal-/Kabinenstimme, nur mit Echter Funk)
+    this.greet(s, ac, mode);
+  }
+
+  // echte 3D-Ansicht (WebGL) nachladen; bis dahin bzw. ohne WebGL die gekippte Karte
+  load3d(onFail) {
     import('../render/view3d.js').then((m) => {
-      if (!this.on || !m.View3D.supported()) return;
+      if (!this.on) return;
+      if (!m.View3D.supported()) return onFail && onFail();
       try {
         this.v3d = this.v3d || new m.View3D(this.game);
       } catch (e) {
-        return;
+        return onFail && onFail();
       }
       this.use3d = true;
       this.v3d.show();
       this.el.classList.add('v3d');
       const map = document.getElementById('map');
       map.style.transform = '';
-      this.setMode(this.mode);
-    }).catch(() => {});
-    // Begrüßung durch den Kapitän (Terminal-/Kabinenstimme, nur mit Echter Funk)
+      if (this.mode !== 'tower') this.setMode(this.mode);
+    }).catch(() => onFail && onFail());
+  }
+
+  greet(s, ac, mode) {
     const rot = s.rots[ac.rot];
     const city = rot && CITIES[rot.city] ? CITIES[rot.city].name : '';
     const al = AIRLINES[ac.airline];
@@ -137,8 +165,8 @@ export class Ride {
   setMode(mode) {
     this.mode = mode;
     // Grundeinstellung je Ansicht: Blickrichtung (relativ zur Flugrichtung), Neigung, Abstand
-    this.yaw = mode === 'window' ? (this.use3d ? 75 : 90) : 0; // am Fenster leicht nach vorn auf die Tragfläche
-    this.pitch = this.use3d ? (mode === 'cockpit' ? 5 : mode === 'window' ? 9 : 16) : mode === 'cockpit' ? 70 : mode === 'window' ? 66 : 56;
+    this.yaw = mode === 'window' ? (this.use3d ? 95 : 90) : 0; // am Fenster leicht nach vorn auf die Tragfläche
+    this.pitch = this.use3d ? (mode === 'cockpit' ? 5 : mode === 'window' ? 3 : 16) : mode === 'cockpit' ? 70 : mode === 'window' ? 66 : 56;
     this.zoomK = 1;
     for (const b of this.el.querySelectorAll('.rd-modes [data-rd]')) b.classList.toggle('on', b.dataset.rd === mode);
     // im Cockpit sitzt man im Flugzeug – es selbst wird nicht gezeichnet
@@ -146,18 +174,127 @@ export class Ride {
     this.el.classList.toggle('cockpit', mode === 'cockpit');
     this.el.classList.toggle('window', mode === 'window');
     this.el.classList.toggle('chase', mode === 'chase');
+    this.el.classList.toggle('tower', false);
+  }
+
+  // Turmblick: echte 3D-Sicht aus der Tower-Kanzel. Ziehen = umsehen, Mausrad = Fernglas, Klick = Flugzeug wählen,
+  // „Verfolgen“ schwenkt (und zoomt) auf das ausgewählte Flugzeug. Panel, Funk, Radar und Streifen bleiben bedienbar.
+  startTower() {
+    if (this.on) this.stop();
+    this.on = true;
+    this.id = null;
+    this.mode = 'tower';
+    this.resetTower();
+    this.track = false;
+    this.lbl = new Map();
+    this.el.classList.remove('hidden', 'cockpit', 'window', 'chase');
+    this.el.classList.add('tower');
+    this.el.querySelector('.rd-help').textContent = 'Ziehen = umsehen · Mausrad = Fernglas · Klick auf ein Flugzeug = auswählen · Doppelklick = zurücksetzen';
+    this.tEl.textContent = 'Turmblick';
+    clearTimeout(this.helpT);
+    this.el.classList.remove('nohelp');
+    this.helpT = setTimeout(() => this.el.classList.add('nohelp'), 7000);
+    document.getElementById('game').classList.add('towerview');
+    document.getElementById('t-tower3d')?.classList.add('on');
+    this.setTrack(!!this.game.ui.selected);
+    this.load3d(() => {
+      toast('Der Turmblick braucht WebGL – dein Browser bietet es gerade nicht an', 'warn', 3200);
+      this.stop();
+    });
+  }
+
+  resetTower() {
+    this.yaw = 146; // Blick vom Tower (Nordosten) auf die Bahnmitte
+    this.pitch = 8;
+    this.fov = 50;
+    this.autoZoom = true;
+  }
+
+  setTrack(on) {
+    this.track = !!on;
+    this.autoZoom = this.track;
+    const b = this.el.querySelector('[data-rd=track]');
+    if (b) b.classList.toggle('on', this.track);
+  }
+
+  updateTower(dt) {
+    const s = this.game.state;
+    if (!this.use3d) return;
+    const sel = this.game.ui.selected;
+    const ac = sel && s.acs.find((a) => a.id === sel);
+    // Verfolgen: Blick und Fernglas sanft auf das ausgewählte Flugzeug
+    if (this.track && ac) {
+      const p = this.v3d.acPos(ac.id), c = this.v3d.towerEye();
+      if (p) {
+        const dx = p.x - c.x, dz = p.z - c.z, dist = Math.hypot(dx, dz);
+        let dy = ((Math.atan2(dz, dx) * 180) / Math.PI - this.yaw) % 360;
+        if (dy > 180) dy -= 360;
+        if (dy < -180) dy += 360;
+        const k = 1 - Math.exp(-dt * 4);
+        this.yaw += dy * k;
+        this.pitch += ((Math.atan2(c.y - p.y, dist) * 180) / Math.PI - this.pitch) * k;
+        if (this.autoZoom) this.fov += (clamp((2 * Math.atan((ac.len || 2.4) * 3.2 / Math.max(1, dist)) * 180) / Math.PI, 6, 55) - this.fov) * k;
+      }
+    }
+    this.v3d.render(s, this, null);
+    this.drawLabels(s, sel);
+    const wx = s.weather;
+    const txt = `Turmblick · ${s.name} · RWY ${s.rwy}${ac ? ` · ${ac.cs}` : ''} · Fernglas ${Math.round(55 / (this.fov || 55) * 10) / 10}×`;
+    if (this.tEl.textContent !== txt) this.tEl.textContent = txt;
+    void wx;
+  }
+
+  // Rufzeichen-Schilder über den Flugzeugen (anklickbar)
+  drawLabels(s, sel) {
+    const box = this.el.querySelector('.rd-labels');
+    const seen = new Set();
+    for (const ac of s.acs) {
+      const p = this.v3d.screenOf(ac.id);
+      if (!p) continue;
+      seen.add(ac.id);
+      let d = this.lbl.get(ac.id);
+      if (!d) {
+        d = document.createElement('div');
+        d.className = 'rl';
+        d.dataset.id = ac.id;
+        d.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          this.game.select(ac.id, false);
+        });
+        box.appendChild(d);
+        this.lbl.set(ac.id, d);
+      }
+      const alt = ac.mode === 'air' ? Math.round((ac.alt || 0) / 100) * 100 : Math.round((ac.z || 0) * 500 / 10) * 10;
+      const html = `<b>${esc(ac.cs)}</b><small>${esc(ac.type)}${alt > 0 ? ` · ${alt} ft` : ''}</small>`;
+      if (d._h !== html) (d.innerHTML = html, (d._h = html));
+      d.classList.toggle('sel', ac.id === sel);
+      d.classList.toggle('emg', !!(ac.emergency || ac.fuelEmergency));
+      d.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
+      d.style.opacity = p.far ? 0.75 : 1;
+    }
+    for (const [id, d] of this.lbl) if (!seen.has(id)) (d.remove(), this.lbl.delete(id));
   }
 
   stop() {
     if (!this.on) return;
     this.on = false;
+    if (this.mode === 'tower') {
+      document.getElementById('game').classList.remove('towerview');
+      document.getElementById('t-tower3d')?.classList.remove('on');
+      this.el.classList.remove('tower');
+      this.el.querySelector('.rd-labels').innerHTML = '';
+      this.el.querySelector('.rd-help').textContent = 'Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen';
+      this.lbl = new Map();
+      this.mode = null;
+    }
     if (this.game.map) this.game.map.hideAc = null;
     if (this.v3d) this.v3d.hide();
     this.use3d = false;
     this.el.classList.remove('v3d');
     this.el.classList.add('hidden');
     document.getElementById('game').classList.remove('riding');
-    this.game.ui.labels = this.labels !== false;
+    if (this.labels !== undefined) this.game.ui.labels = this.labels !== false;
+    this.labels = undefined;
     this.game.cam.tx = null;
     const map = document.getElementById('map');
     map.style.transform = '';
@@ -212,6 +349,7 @@ export class Ride {
     if (!this.on) return;
     const g = this.game, s = g.state, cam = g.cam;
     if (g.cinema && g.cinema.on) return this.stop();
+    if (this.mode === 'tower') return this.updateTower(dt);
     const ac = s && s.acs.find((a) => a.id === this.id);
     // noch im Anflug außerhalb der Karte: Kamera wartet am Anfang des Endanflugs, Instrumente mit echten Luftdaten
     if (ac && ac.mode === 'air' && ac.arr && ARR_PH.has(ac.phase)) return this.updateAir(s, ac, dt);
@@ -259,7 +397,7 @@ export class Ride {
     this.belt = belt;
     this.el.querySelector('.rd-belt').classList.toggle('on', !!belt);
     const where = `${esc(ac.cs)} · ${esc(AC_TYPES[ac.type].name)}${city ? ` · ${arrNow ? 'aus' : 'nach'} ${esc(city)}` : ''}`;
-    const txt = this.mode === 'window' ? `Platz ${12 + (ac.id.length * 7) % 18}F · ${where} · ${PHASE_DE[ac.phase] || ''}${alt > 0 ? ` · ${alt} ft` : ''}` : `Cockpit · ${where}`;
+    const txt = this.mode === 'window' ? `Platz ${12 + (ac.id.length * 7) % 18}F · ${where} · ${PHASE_DE[ac.phase] || ''}${alt > 0 ? ` · ${alt} ft` : ''}` : `${this.mode === 'chase' ? 'Außenkamera' : 'Cockpit'} · ${where} · ${PHASE_DE[ac.phase] || ''}${alt > 0 ? ` · ${alt} ft` : ''}`;
     if (this.tEl.innerHTML !== txt) this.tEl.innerHTML = txt;
     if (this.mode === 'cockpit') {
       this.R.spd.textContent = kt;
@@ -302,7 +440,7 @@ Ride.prototype.updateAir = function (s, ac, dt) {
   const rot = s.rots[ac.rot];
   const city = rot && CITIES[rot.city] ? CITIES[rot.city].name : '';
   const where = `${esc(ac.cs)} · ${esc(AC_TYPES[ac.type].name)}${city ? ` · aus ${esc(city)}` : ''}`;
-  const txt = `${this.mode === 'window' ? `Platz ${12 + (ac.id.length * 7) % 18}F` : 'Cockpit'} · ${where} · ${PHASE_DE[ac.phase] || ''} · noch ${d.toFixed(1)} NM`;
+  const txt = `${this.mode === 'window' ? `Platz ${12 + (ac.id.length * 7) % 18}F` : this.mode === 'chase' ? 'Außenkamera' : 'Cockpit'} · ${where} · ${PHASE_DE[ac.phase] || ''} · noch ${d.toFixed(1)} NM`;
   if (this.tEl.innerHTML !== txt) this.tEl.innerHTML = txt;
   this.arriving = true;
   this.el.querySelector('.rd-belt').classList.add('on');
