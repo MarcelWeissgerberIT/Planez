@@ -94,9 +94,24 @@ export class View3D {
     for (let x = R.x0; x <= R.x1; x += 1.5) pts.push(x, 0.06, R.y - R.hw, x, 0.06, R.y + R.hw);
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    const lights = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xfff2c4, size: 0.22, sizeAttenuation: true, fog: true }));
+    const lights = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xfff2c4, size: 0.3, sizeAttenuation: true, fog: true, map: this.dot(), transparent: true, depthWrite: false }));
     this.static.add(lights);
     this.nightLights.push(lights);
+  }
+
+  // runder, weicher Lichtpunkt für die Befeuerung
+  dot() {
+    if (this._dot) return this._dot;
+    const c = document.createElement('canvas');
+    c.width = c.height = 32;
+    const g = c.getContext('2d');
+    const r = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    r.addColorStop(0, 'rgba(255,255,255,1)');
+    r.addColorStop(0.35, 'rgba(255,240,200,0.9)');
+    r.addColorStop(1, 'rgba(255,220,150,0)');
+    g.fillStyle = r;
+    g.fillRect(0, 0, 32, 32);
+    return (this._dot = new THREE.CanvasTexture(c));
   }
 
   build(state) {
@@ -130,6 +145,10 @@ export class View3D {
     this.box(T.x0, T.x1, T.y0, T.y1, 1.0, 0x5b87b0);
     this.box(T.x0 - 0.1, T.x1 + 0.1, T.y0 - 0.1, T.y1 + 0.1, 0.08, 0xd9dee4, 1.0);
     for (let x = T.x0 + 0.5; x < T.x1; x += 1.2) this.box(x, x + 0.06, T.y1, T.y1 + 0.02, 1.0, 0xcbd5e1);
+    // Fensterband, das nachts warm leuchtet
+    this.termGlow = new THREE.Mesh(new THREE.PlaneGeometry(T.x1 - T.x0 - 0.4, 0.55), new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0 }));
+    this.termGlow.position.set((T.x0 + T.x1) / 2, 0.5, T.y1 + 0.025);
+    this.static.add(this.termGlow);
     // Fluggastbrücken an Kontaktpositionen
     for (const st of state.stands) if (st.built && st.kind === 'contact') this.box(st.x - 1.55, st.x - 1.2, T.y1, LY.STAND_NOSE + 0.3, 0.16, 0xc7ccd1, 0.25);
     // übrige Gebäude
@@ -371,6 +390,7 @@ export class View3D {
     this.sun.intensity = 0.1 + 1.6 * day * (1 - murk * 0.7);
     for (const p of this.nightLights) p.visible = day < 0.6 || wx === 'fog';
     this.clouds(wx);
+    if (this.termGlow) this.termGlow.material.opacity = Math.max(0, 0.75 - day * 0.9);
     // Flugzeuge
     const seen = new Set();
     for (const ac of state.acs) {

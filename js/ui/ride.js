@@ -44,11 +44,22 @@ export class Ride {
     // frei drehbare Kamera: Ziehen dreht (Gier) und neigt, Mausrad ändert den Abstand
     const drag = el.querySelector('.rd-drag');
     let last = null;
+    const touches = new Map(); // für Pinch-Zoom mit zwei Fingern
+    let pinch = 0;
     drag.addEventListener('pointerdown', (e) => {
       last = { x: e.clientX, y: e.clientY };
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
       drag.setPointerCapture && drag.setPointerCapture(e.pointerId);
     });
     drag.addEventListener('pointermove', (e) => {
+      if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.size === 2) {
+        const [a, b] = [...touches.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinch) this.zoomK = clamp(this.zoomK * (d / pinch), 0.45, 2.4);
+        pinch = d;
+        return;
+      }
       if (!last) return;
       if (this.use3d) {
         this.yaw += (e.clientX - last.x) * 0.3;
@@ -59,7 +70,11 @@ export class Ride {
       }
       last = { x: e.clientX, y: e.clientY };
     });
-    const up = () => (last = null);
+    const up = (e) => {
+      last = null;
+      if (e && e.pointerId !== undefined) touches.delete(e.pointerId);
+      if (touches.size < 2) pinch = 0;
+    };
     drag.addEventListener('pointerup', up);
     drag.addEventListener('pointercancel', up);
     drag.addEventListener('wheel', (e) => {
