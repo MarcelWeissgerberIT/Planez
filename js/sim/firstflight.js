@@ -73,6 +73,12 @@ export function updateFirstFlight(state) {
     const rot = state.rots[ac.rot];
     const c = rot && rot.contract && state.contracts.find((x) => x.id === rot.contract);
     if (!c || !c.firstFlight) continue;
+    // Sportflieger und Partner am kleinen Platz (Flugschule, Rundflug, Lufttaxi …) bekommen keine Wassertaufe
+    const al = AIRLINES[rot.airline];
+    if (al && (al.ga || al.partner)) {
+      c.firstFlight = false;
+      continue;
+    }
     state.salute = { ac: ac.id, contract: c.id, t: state.time, until: state.time + 40 * 60, p: null, done: false, city: rot.city, airline: rot.airline };
     return;
   }
