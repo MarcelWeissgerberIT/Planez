@@ -9,6 +9,7 @@ import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowyS
 import { updateWetness, drawWetGround, drawWetReflections } from './wet.js';
 import { Wildlife } from './wildlife.js';
 import { StandCrew } from './standcrew.js';
+import { spotterHillItems } from './spotters.js';
 import { seasonalTree, seasonalGrass } from './seasonal.js';
 import { season as seasonOf } from '../sim/winter.js';
 import { HALF_W, HALF_H } from './camera.js';
@@ -349,6 +350,7 @@ export class MapRenderer {
     this.ambient.update(state, dtReal);
     this.ambient.items(this, state, items, lights, night, sites, (x, y) => inView(view, x, y, 1.5));
     this.standCrew.items(this, state, items, lights, night, (x, y) => inView(view, x, y, 1.5));
+    spotterHillItems(this, state, items, (x, y) => inView(view, x, y, 4));
     const flying = [];
     for (const ac of state.acs) {
       if (ac.mode !== 'map') continue;
