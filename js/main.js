@@ -225,7 +225,10 @@ function wireMenu() {
     const density = Number($('#inp-density').value) || 1;
     const slot = Number(($('#inp-slot') || {}).value) || 1;
     const difficulty = ($('#inp-diff') || {}).value || 'normal';
-    const st = applyPrefs(newGame({ role, name, density, slot, difficulty }));
+    const seasonOffset = Number(($('#inp-season') || {}).value) || 0;
+    const cash = Number(($('#inp-cash') || {}).value) || 5000000;
+    const events = (($('#inp-events') || {}).value || '1') !== '0';
+    const st = applyPrefs(newGame({ role, name, density, slot, difficulty, seasonOffset, cash, events }));
     startGame(st);
     try {
       localStorage.setItem('planez_help_seen', '1');

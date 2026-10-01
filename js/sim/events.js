@@ -113,7 +113,7 @@ export function updateEvents(state, dt) {
   state.eventTimer = (state.eventTimer ?? 3 * 3600) - dt;
   if (state.eventTimer <= 0) {
     state.eventTimer = randRange(state, 2.5, 6) * 3600 * diff(state).events;
-    randomEvent(state);
+    if (state.settings.events !== false) randomEvent(state);
   }
 }
 

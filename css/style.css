@@ -1394,3 +1394,9 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .sid-SUDEN { color: #fcd34d; background: rgba(245,158,11,.14); }
 .sid-RIMOS { color: #f9a8d4; background: rgba(236,72,153,.14); }
 .sid-WELDA { color: #86efac; background: rgba(34,197,94,.14); }
+@media (max-width: 760px) {
+  .mm-setup { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; padding: 0 12px 4px; }
+  .mm-setup label { min-width: 0; font-size: 10px; letter-spacing: .12em; gap: 3px; }
+  .mm-setup label:first-child { grid-column: 1 / -1; }
+  .mm-setup input, .mm-setup select { min-width: 0; width: 100%; padding: 7px 8px; font-size: 14px; }
+}

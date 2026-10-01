@@ -65,6 +65,27 @@
               <option value="1.4">Hektisch</option>
             </select>
           </label>
+          <label><span>Jahreszeit</span>
+            <select id="inp-season" title="Mit welcher Jahreszeit das Spiel beginnt – danach wechselt sie alle 4 Spieltage">
+              <option value="0" selected>Herbst</option>
+              <option value="1">Winter</option>
+              <option value="2">Frühling</option>
+              <option value="3">Sommer</option>
+            </select>
+          </label>
+          <label><span>Startkapital</span>
+            <select id="inp-cash">
+              <option value="2000000">Knapp · 2 Mio €</option>
+              <option value="5000000" selected>Normal · 5 Mio €</option>
+              <option value="15000000">Großzügig · 15 Mio €</option>
+            </select>
+          </label>
+          <label><span>Zwischenfälle</span>
+            <select id="inp-events" title="Aus: keine zufälligen Notfälle, Pannen und Entscheidungskarten – zum ruhigen Bauen und Üben">
+              <option value="1" selected>An</option>
+              <option value="0">Aus (ruhiges Spiel)</option>
+            </select>
+          </label>
         </div>
         <div class="mm-sub">Station wählen – den Rest erledigen KI-Kollegen</div>
         <button class="mm-item role-card" data-role="tower" data-side="tower"><span class="n"></span><span class="l"><b>Tower-Lotse</b><small>Radar, Pistenfolge, Freigaben, Slots</small></span></button>

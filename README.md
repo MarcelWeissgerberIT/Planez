@@ -69,6 +69,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 - Ereignisse: Notfälle (Squawk 7700 + Feuerwehr; bei Triebwerksbrand oder Rauch zieht das Flugzeug eine Rauchfahne, hält auf der Piste an, die Löschfahrzeuge umstellen es und löschen mit Schaum – die Bahn ist währenddessen gesperrt), Vogelschlag, VIP-Jets, Streik, Fahrzeugdefekte, Winddrehungen
 - Hauptmenü und Pausenmenü mit großem Titel, nummerierten Einträgen (Maus oder ↑↓/Enter/Esc) und Status-Panel; im Hintergrund ein nahtloser Video-Loop durch fünf Flughafenszenen (Anflug im Morgengrauen, Tower, Vorfeld bei Nacht, Frachtverladung im Regen, Start in den Sonnenuntergang)
 - 🎚️ Schwierigkeitsgrad beim neuen Spiel: Entspannt (mehr Treibstoffreserve, seltener Zwischenfälle, milde Strafen, keine Fahrzeugdefekte), Normal oder Profi (knappe Reserven, häufige Zwischenfälle, harte Strafen)
+- 🧭 Freies Spiel mit Startoptionen: Jahreszeit (Herbst, Winter, Frühling, Sommer – danach Wechsel alle 4 Spieltage), Startkapital (2 / 5 / 15 Mio €) und Zwischenfälle an/aus (ohne zufällige Notfälle, Pannen und Entscheidungskarten – zum ruhigen Bauen und Üben).
 - 💾 Drei Speicherplätze: „Weiterspielen“ lädt den zuletzt gespielten Flughafen, „Spielstände“ zeigt Name, Spieltag, Station, Kasse und Speicherzeit mit Laden und Löschen; beim neuen Spiel wird der Platz gewählt (freier Platz zuerst)
 - Speichern im Browser, Funkprotokoll (englische Phraseologie, optional per Sprachausgabe)
 
