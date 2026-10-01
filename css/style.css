@@ -1569,3 +1569,5 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .sb-motif.done { color: #86efac; border-color: rgba(52,211,153,.45); background: rgba(52,211,153,.1); }
 .dock-motif { font-size: 12px; color: #fde68a; margin: -4px 2px 10px; }
 .dock-motif .ok { color: var(--good); }
+/* Kopfleiste bei Laptop-Breiten: Rang nur als Symbol, damit der Rollen-Knopf Platz hat */
+@media (max-width: 1400px) { .rank-btn .rk-t { display: none; } .rank-btn { padding: 4px 6px; } }
