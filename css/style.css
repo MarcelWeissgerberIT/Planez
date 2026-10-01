@@ -1768,5 +1768,6 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 #ride .rl small { color: #94a3b8; font-weight: 500; margin-left: 5px; }
 #ride .rl.sel { border-color: #38d6f5; color: #fff; box-shadow: 0 0 0 1px #38d6f5, 0 0 12px rgba(56,214,245,.45); z-index: 2; }
 #ride .rl.emg { border-color: #f87171; color: #fecaca; }
+#ride .rl.ga { border-color: rgba(250,204,21,.6); color: #fde68a; cursor: default; }
 #map-ctrls #t-tower3d.on { color: #38d6f5; border-color: #38d6f5; }
 @media (max-width: 700px) { #ride.tower .rd-bar { top: auto; bottom: 10px; } }

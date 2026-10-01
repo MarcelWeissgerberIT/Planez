@@ -272,6 +272,23 @@ export class Ride {
       d.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
       d.style.opacity = p.far ? 0.75 : 1;
     }
+    // Rettungshubschrauber und Cessna in der Platzrunde
+    for (const [key, obj, name] of [['heli', s.heli && s.heli.h, 'Rescue 7'], ['vfr', s.vfr && s.vfr.p, s.vfr && s.vfr.p && s.vfr.p.cs]]) {
+      const p = obj && this.v3d.screenOfGA(key);
+      if (!p) continue;
+      const id = '#' + key;
+      seen.add(id);
+      let d = this.lbl.get(id);
+      if (!d) {
+        d = document.createElement('div');
+        d.className = 'rl ga';
+        box.appendChild(d);
+        this.lbl.set(id, d);
+      }
+      const html = `<b>${esc(name || '')}</b><small>${key === 'heli' ? 'Hubschrauber' : 'C172'}</small>`;
+      if (d._h !== html) (d.innerHTML = html, (d._h = html));
+      d.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
+    }
     for (const [id, d] of this.lbl) if (!seen.has(id)) (d.remove(), this.lbl.delete(id));
   }
 
@@ -353,6 +370,8 @@ export class Ride {
     const ac = s && s.acs.find((a) => a.id === this.id);
     // noch im Anflug außerhalb der Karte: Kamera wartet am Anfang des Endanflugs, Instrumente mit echten Luftdaten
     if (ac && ac.mode === 'air' && ac.arr && ARR_PH.has(ac.phase)) return this.updateAir(s, ac, dt);
+    // nach dem Start: im Steigflug mitfliegen, bis die Maschine hoch und weit genug weg ist
+    if (ac && ac.mode === 'air' && !this.arriving && this.use3d && (ac.alt || 0) < 9000 && Math.hypot(ac.pos.x, ac.pos.y) < 22) return this.updateAirDep(s, ac, dt);
     if (!ac || ac.mode !== 'map' || ac.phase === PH.GONE) {
       toast(ac && !this.arriving ? '✈️ Gute Reise! Das Flugzeug hat den Flughafen verlassen.' : 'Ausgestiegen', 'info', 2600);
       return this.stop();
@@ -455,6 +474,34 @@ Ride.prototype.updateAir = function (s, ac, dt) {
     this.el.querySelector('.rd-hor').style.transform = `translateY(${ac.tAlt < ac.alt - 150 ? -5 : 0}px)`;
     this.R.nd.textContent = `RWY ${s.rwy} · ${d.toFixed(1)} NM`;
   }
+};
+
+// Steigflug nach dem Start (3D): Instrumente mit den echten Luftdaten, SID im Navigationsdisplay
+Ride.prototype.updateAirDep = function (s, ac, dt) {
+  this.v3d.render(s, this, ac);
+  const rot = s.rots[ac.rot];
+  const city = rot && CITIES[rot.city] ? CITIES[rot.city].name : '';
+  const alt = Math.round((ac.alt || 0) / 10) * 10;
+  const where = `${esc(ac.cs)} · ${esc(AC_TYPES[ac.type].name)}${city ? ` · nach ${esc(city)}` : ''}`;
+  const txt = `${this.mode === 'window' ? `Platz ${12 + (ac.id.length * 7) % 18}F` : this.mode === 'chase' ? 'Außenkamera' : 'Cockpit'} · ${where} · Steigflug · ${alt} ft`;
+  if (this.tEl.innerHTML !== txt) this.tEl.innerHTML = txt;
+  // Anschnallzeichen aus ab 3.000 ft
+  const belt = alt < 3000;
+  if (this.belt !== undefined && this.belt !== belt) sfx.chime && sfx.chime();
+  this.belt = belt;
+  this.el.querySelector('.rd-belt').classList.toggle('on', belt);
+  if (this.mode === 'cockpit') {
+    this.R.spd.textContent = Math.round(ac.spd || 0);
+    this.R.alt.textContent = alt;
+    this.R.vs.textContent = ac.tAlt > ac.alt + 150 ? '↑' : '';
+    const hdg = Math.round(((ac.crs || 0) + 360) % 360);
+    this.R.hdg.textContent = String(hdg).padStart(3, '0');
+    this.R.rose.style.transform = `rotate(${-hdg}deg)`;
+    this.R.fma.textContent = 'CLB · NAV';
+    this.el.querySelector('.rd-hor').style.transform = 'translateY(14px)';
+    this.R.nd.textContent = rot && rot.sid ? rot.sid : '';
+  }
+  void dt;
 };
 
 // grobe Restdistanz zur Schwelle im Endanflug (Kacheln), aus der Höhe abgeleitet (3°-Gleitpfad ≈ 1 Kachel je 0,05 z)

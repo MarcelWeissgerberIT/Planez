@@ -609,3 +609,106 @@ function vehTemplate(type) {
   g.add(bc);
   return g;
 }
+
+// ---------- Kleinverkehr: Cessna (Platzrunden) und Rettungshubschrauber ----------
+export function buildCessna() {
+  const L = 0.42, R = 0.028;
+  const g = new THREE.Group();
+  const white = [], red = [], dark = [];
+  white.push([tube([[-L / 2, R * 0.7, R * 0.15, R * 0.15], [-L * 0.3, R * 0.5, R * 0.45, R * 0.4], [-L * 0.05, R * 0.15, R * 0.95, R * 0.8], [L * 0.2, 0, R, R * 0.85], [L * 0.38, -R * 0.1, R * 0.8, R * 0.7], [L * 0.47, -R * 0.15, R * 0.4, R * 0.4], [L * 0.5, -R * 0.15, 0.001, 0.001]], 14), M4()]);
+  // Hochdecker mit Streben
+  const wy = R * 1.05, b = L * 0.62;
+  white.push([slab([[L * 0.16, wy, -b], [L * 0.16, wy, b], [L * 0.0, wy, b], [L * 0.0, wy, -b]], 0.012, 0.012), M4()]);
+  for (const s of [-1, 1]) dark.push([new THREE.CylinderGeometry(0.003, 0.003, b * 0.6, 4), M4(L * 0.08, wy * 0.1, s * b * 0.3, s * 1.2, 0, 0)]);
+  // Leitwerk
+  red.push([slab([[-L * 0.32, R * 0.5, 0], [-L * 0.46, R * 0.5 + 0.075, 0], [-L * 0.52, R * 0.5 + 0.075, 0], [-L * 0.5, R * 0.5, 0]], 0.006, 0.004, 'z'), M4()]);
+  for (const s of [-1, 1]) white.push([slab([[-L * 0.4, R * 0.55, 0], [-L * 0.42, R * 0.55, s * L * 0.19], [-L * 0.5, R * 0.55, s * L * 0.19], [-L * 0.5, R * 0.55, 0]], 0.006, 0.004), M4()]);
+  // Zierstreifen und Fenster
+  red.push([tube([[-L * 0.3, R * 0.3, R * 0.62, R * 0.56], [L * 0.3, -R * 0.02, R * 1.0, R * 0.88]], 14).scale(1, 0.22, 1).translate(0, -R * 0.15, 0), M4()]);
+  dark.push([tube([[-L * 0.02, R * 0.55, R * 0.5, R * 0.86], [L * 0.16, R * 0.45, R * 0.55, R * 0.88]], 14), M4()]);
+  // Fahrwerk
+  for (const [x, z] of [[L * 0.36, 0], [-L * 0.02, R * 1.6], [-L * 0.02, -R * 1.6]]) dark.push([new THREE.CylinderGeometry(0.012, 0.012, 0.01, 8), M4(x, -R * 1.6, z, Math.PI / 2, 0, 0)]);
+  const add = (arr, m) => {
+    const mesh = new THREE.Mesh(merge(arr), m);
+    mesh.castShadow = true;
+    g.add(mesh);
+  };
+  add(white, phong(0xf8fafc, 50));
+  add(red, phong(0xc81e1e, 40));
+  add(dark, lamb(0x1f2937));
+  // Propeller an der Nase
+  const pg = new THREE.Group();
+  pg.name = 'prop';
+  pg.position.set(L * 0.5, -R * 0.15, 0);
+  const blade = new THREE.BoxGeometry(0.002, 0.085, 0.008);
+  for (let i = 0; i < 2; i++) {
+    const m = new THREE.Mesh(blade, phong(0x1f2937, 10));
+    m.rotation.x = i * Math.PI;
+    m.position.y = 0;
+    pg.add(m);
+  }
+  g.add(pg);
+  const nav = (c, z) => {
+    const sp = new THREE.Sprite(spriteMat(c));
+    sp.position.set(L * 0.08, wy, z);
+    sp.scale.setScalar(0.08);
+    g.add(sp);
+  };
+  nav(0xff2a2a, -b - 0.005);
+  nav(0x2aff6a, b + 0.005);
+  const bc = new THREE.Sprite(spriteMat(0xffffff));
+  bc.name = 'strobe';
+  bc.position.set(-L * 0.5, R * 0.5 + 0.075, 0);
+  bc.scale.setScalar(0.14);
+  g.add(bc);
+  g.userData = { H: R * 1.6 + 0.012 };
+  return g;
+}
+
+export function buildHeli() {
+  const g = new THREE.Group();
+  const L = 0.6, R = 0.07;
+  const body = [], dark = [], glass = [];
+  body.push([tube([[-L * 0.12, R * 0.3, R * 0.55, R * 0.45], [L * 0.05, R * 0.1, R, R * 0.8], [L * 0.22, 0, R, R * 0.8], [L * 0.32, -R * 0.15, R * 0.7, R * 0.6], [L * 0.37, -R * 0.2, 0.001, 0.001]], 14), M4()]);
+  // Heckausleger und Seitenleitwerk
+  body.push([tube([[-L * 0.62, R * 0.6, R * 0.12, R * 0.12], [-L * 0.12, R * 0.35, R * 0.28, R * 0.24]], 10), M4()]);
+  body.push([slab([[-L * 0.55, R * 0.6, 0], [-L * 0.62, R * 1.8, 0], [-L * 0.68, R * 1.8, 0], [-L * 0.64, R * 0.6, 0]], 0.01, 0.006, 'z'), M4()]);
+  glass.push([tube([[L * 0.18, R * 0.35, R * 0.62, R * 0.78], [L * 0.33, R * 0.05, R * 0.5, R * 0.62]], 12), M4()]);
+  // Kufen
+  for (const s of [-1, 1]) {
+    dark.push([new THREE.CylinderGeometry(0.006, 0.006, L * 0.6, 6), M4(L * 0.05, -R * 1.3, s * R * 0.9, 0, 0, Math.PI / 2)]);
+    for (const x of [-L * 0.05, L * 0.18]) dark.push([new THREE.CylinderGeometry(0.004, 0.004, R * 0.6, 4), M4(x, -R * 1.0, s * R * 0.85)]);
+  }
+  const add = (arr, m) => {
+    const mesh = new THREE.Mesh(merge(arr), m);
+    mesh.castShadow = true;
+    g.add(mesh);
+  };
+  add(body, phong(0xe11d48, 50));
+  add(dark, lamb(0x1f2937));
+  add(glass, phong(0x1e293b, 90));
+  // Hauptrotor (zwei Blätter + Unschärfe-Scheibe) und Heckrotor
+  const rot = new THREE.Group();
+  rot.name = 'rotor';
+  rot.position.set(L * 0.05, R * 1.25, 0);
+  for (let i = 0; i < 4; i++) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(L * 0.95, 0.003, 0.025), phong(0x1f2937, 10));
+    m.rotation.y = (i / 4) * Math.PI;
+    rot.add(m);
+  }
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(L * 0.48, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }));
+  rot.add(disc);
+  g.add(rot);
+  const tr = new THREE.Group();
+  tr.name = 'tail';
+  tr.position.set(-L * 0.64, R * 1.5, R * 0.12);
+  tr.add(new THREE.Mesh(new THREE.BoxGeometry(0.004, L * 0.18, 0.012), phong(0x1f2937, 10)));
+  g.add(tr);
+  const bc = new THREE.Sprite(spriteMat(0xff3020));
+  bc.name = 'bcn';
+  bc.position.set(0, R * 1.05, 0);
+  bc.scale.setScalar(0.18);
+  g.add(bc);
+  g.userData = { H: R * 1.3 + 0.006 };
+  return g;
+}

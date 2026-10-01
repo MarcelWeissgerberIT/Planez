@@ -12,7 +12,7 @@ import * as LY from '../layout.js';
 import { PH } from '../sim/aircraft.js';
 import { NM_PER_TILE } from '../config.js';
 import { Q } from './quality.js';
-import { buildAircraft, buildVehicle, glowTex, spriteMat } from './model3d.js';
+import { buildAircraft, buildVehicle, buildCessna, buildHeli, glowTex, spriteMat } from './model3d.js';
 
 const ALT_CLIMB = 2.0; // Spielhöhe z -> Kacheln für Steigflug/Durchstarten auf der Karte (≈ 12° statt 40° Bahnneigung)
 const FT = 0.3048 / 20; // Fuß -> Kacheln
@@ -74,7 +74,7 @@ export class View3D {
 
   constructor(game) {
     this.game = game;
-    const r = (this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }));
+    const r = (this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true }));
     r.setPixelRatio(Math.min(Q.perf ? 1 : 2, window.devicePixelRatio || 1));
     r.shadowMap.enabled = !Q.perf;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -136,7 +136,7 @@ export class View3D {
       top: { value: SKY.day.top.clone() }, hor: { value: SKY.day.hor.clone() }, bot: { value: C(0x55603f) },
       sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: C(0xfff1d0) }, sunK: { value: 1 }, glowK: { value: 1 },
     };
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(4800, 32, 16), new THREE.ShaderMaterial({ uniforms: this.skyU, vertexShader: SKY_VS, fragmentShader: SKY_FS, side: THREE.BackSide, depthWrite: false, fog: false }));
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(4800, 32, 16), new THREE.ShaderMaterial({ uniforms: this.skyU, vertexShader: SKY_VS, fragmentShader: SKY_FS, side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false }));
     dome.renderOrder = -10;
     dome.frustumCulled = false;
     this.dome = dome;
@@ -374,6 +374,8 @@ export class View3D {
     const ground = this.flat(LY.W / 2 - 20000, LY.W / 2 + 20000, LY.H / 2 - 20000, LY.H / 2 + 20000, gm, 0, 6);
     ground.position.y = 0;
     this.landscape();
+    this.snowMat = new THREE.MeshLambertMaterial({ color: 0xf4f7fb, transparent: true, opacity: 0, depthWrite: false });
+    this.snowPlane = this.flat(LY.W / 2 - 3000, LY.W / 2 + 3000, LY.H / 2 - 3000, LY.H / 2 + 3000, this.snowMat, 0.0045);
     // Vorfeld und Rollwege
     const apron = new THREE.MeshLambertMaterial({ map: T.apron });
     const twy = new THREE.MeshLambertMaterial({ map: T.asphalt, color: 0xc9cdd2 });
@@ -848,12 +850,40 @@ export class View3D {
       for (const n of ['strL', 'strR', 'strT']) set(n, strobe, 0.6 * glow + 0.15);
       const land = g.getObjectByName('landing');
       land.visible = (onRwy && (ac.mode === 'map' || (ac.alt || 0) < 10000)) && (lightsOn || ac.phase === PH.FINAL || ac.phase === PH.TAKEOFF);
-      for (const o of land.children) if (o.isGroup) o.visible = lightsOn;
+      for (const o of land.children) if (o.isGroup) o.visible = lightsOn && v.y < 3;
       g.getObjectByName('taxi').visible = lightsOn && !onRwy && ac.mode === 'map' && (ac.phase === PH.TAXI_IN || ac.phase === PH.TAXI_OUT || ac.phase === PH.TAXI_WAIT || ac.phase === PH.VACATED || ac.phase === PH.HOLDING);
       g.visible = !(ride.mode === 'cockpit' && ac.id === ride.id);
       g.name = ac.id;
     }
     for (const [id, g] of this.acs) if (!seen.has(id)) (this.scene.remove(g), this.acs.delete(id), this.vis.delete(id));
+  }
+
+  // Cessna in der Platzrunde und Rettungshubschrauber (Höhe wie der übrige Verkehr auf der Karte gestaucht)
+  updateGA(state, dt, now, lightsOn) {
+    const p = state.vfr && state.vfr.p;
+    if (p) {
+      if (!this.cessna) this.scene.add((this.cessna = buildCessna()));
+      const c = this.cessna;
+      c.visible = true;
+      const y = (p.z || 0) * ALT_CLIMB;
+      c.position.set(p.x, y + c.userData.H, p.y);
+      c.rotation.set(0, -(p.hdg || 0), y > 0.05 ? 0.05 : 0, 'YXZ');
+      c.getObjectByName('prop').rotation.x += dt * 45;
+      c.getObjectByName('strobe').visible = Math.floor(now * 1.1) % 2 === 0 && (now % 1) < 0.08;
+    } else if (this.cessna) this.cessna.visible = false;
+    const h = state.heli && state.heli.h;
+    if (h) {
+      if (!this.heli) this.scene.add((this.heli = buildHeli()));
+      const c = this.heli;
+      c.visible = true;
+      const y = (h.z || 0) * ALT_CLIMB;
+      c.position.set(h.x, y + c.userData.H, h.y);
+      c.rotation.set(0, -(h.hdg || 0), 0, 'YXZ');
+      c.getObjectByName('rotor').rotation.y += dt * 30;
+      c.getObjectByName('tail').rotation.z += dt * 50;
+      c.getObjectByName('bcn').visible = Math.floor(now * 1.4) % 2 === 0;
+    } else if (this.heli) this.heli.visible = false;
+    void lightsOn;
   }
 
   touch(g, u) {
@@ -874,8 +904,11 @@ export class View3D {
     this.lastT = now;
     // Tageszeit: Sonnenstand (Aufgang im Osten, mittags im Süden), Himmel, Licht, Nebel
     const hr = ((state.time / 3600) % 24 + 24) % 24;
-    const th = ((hr - 6) / 12) * Math.PI;
-    const elev = Math.sin(th) * 52; // Grad
+    // wie die Karte: hell von 6 bis 21 Uhr (Dämmerung bis 22 Uhr), nachts unter dem Horizont im Norden
+    const night = hr >= 21 || hr < 6;
+    const u = night ? (((hr - 21) % 24) + 24) % 24 / 9 : 0;
+    const th = night ? Math.PI + u * Math.PI : ((hr - 6) / 15) * Math.PI;
+    const elev = night ? -Math.sin(u * Math.PI) * 35 : Math.sin(th) * 55; // Grad
     const hx = Math.cos(th), hz = 0.55 + 0.25 * Math.sin(th);
     const hl = Math.hypot(hx, hz);
     const sunDir = new THREE.Vector3((hx / hl) * Math.cos(elev * DEG), Math.sin(elev * DEG), (hz / hl) * Math.cos(elev * DEG)).normalize();
@@ -983,6 +1016,11 @@ export class View3D {
       if (b) b.visible = (lightsOn || v.state !== 'idle') && Math.floor(now * 2.2 + (v.id.length || 0)) % 2 === 0;
     }
     for (const [id, m] of this.vehs) if (!vs.has(id)) (this.scene.remove(m), this.vehs.delete(id));
+    this.updateGA(state, dt, now, lightsOn);
+    // Schneedecke auf Gras und Feldern (Bahnen und Vorfeld sind geräumt)
+    const snow = state.snow || 0;
+    this.snowMat.opacity = snow * 0.85;
+    this.snowPlane.visible = snow > 0.02;
     this.stepPuffs(dt);
     // Kamera am Flugzeug bzw. im Tower
     this.camera3d(state, ride, follow, dt, lightsOn);
@@ -1019,6 +1057,17 @@ export class View3D {
   towerEye() {
     const p = this.towerPos || new THREE.Vector3(76.4, 6.1, 7.45);
     return new THREE.Vector3(p.x, p.y + 0.06, p.z);
+  }
+  // Schild-Position für Kleinverkehr (Hubschrauber, Cessna)
+  screenOfGA(kind) {
+    const g = kind === 'heli' ? this.heli : this.cessna;
+    if (!g || !g.visible) return null;
+    const v = g.position.clone();
+    v.y += 0.18;
+    v.project(this.camera);
+    if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) return null;
+    const r = this.renderer.domElement;
+    return { x: ((v.x + 1) / 2) * r.clientWidth, y: ((1 - v.y) / 2) * r.clientHeight };
   }
   acPos(id) {
     const g = this.acs.get(id);
