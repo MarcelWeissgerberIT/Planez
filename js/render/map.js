@@ -379,6 +379,7 @@ export class MapRenderer {
     this.stateVisitItems(state, items, lights, night);
     this.festiveLights(state, lights, night);
     this.evacItems(state, items, lights, night);
+    this.medicalItems(state, items, lights, night);
     const sal = saluteView(state);
     if (sal) for (const t of sal.trucks) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
     plowItems(this, state, items, lights);
@@ -1036,6 +1037,16 @@ export class MapRenderer {
           lights.push({ x: p.x, y: p.y, z: 0.12, c: on ? '#3b82f6' : '#93c5fd', s: on ? 16 : 9, a: 0.95, day: true });
         }
       }
+      if (c.kind === 'ambulance') {
+        // Kastenaufbau, rote Leuchtstreifen, Blaulicht auf dem Dach
+        rect(-0.2, 0.06, 0.088, 0.02, 0.07, [248, 250, 252], [226, 232, 240], [203, 213, 225]);
+        rect(-0.2, 0.06, 0.088, 0.07, 0.095, [220, 38, 38], [200, 30, 30], [170, 24, 24]);
+        rect(-0.2, 0.06, 0.088, 0.095, 0.15, [248, 250, 252], [226, 232, 240], [203, 213, 225]);
+        if (c.siren) {
+          const on = (this.time * 3.2) % 1 < 0.5;
+          lights.push({ x: p.x + fx * 0.04, y: p.y + fy * 0.04, z: 0.17, c: on ? '#2563eb' : '#93c5fd', s: on ? 18 : 9, a: 0.95, day: true });
+        }
+      }
       if (c.kind === 'followme') {
         rect(-0.1, 0.1, 0.066, 0.059, 0.062, [20, 20, 20], [20, 20, 20], [20, 20, 20]);
         if ((this.ambient.vt * 2) % 1 < 0.5) lights.push({ x: p.x, y: p.y, z: 0.12, c: '#ffae00', s: 14, a: 0.9, day: true });
@@ -1398,6 +1409,75 @@ export class MapRenderer {
 
   // Evakuierung bei Rauch in der Kabine: Notrutschen an beiden Seiten, Reisende laufen zum Sammelpunkt nördlich
   // der Bahn, ein Bus holt sie ab – nur Darstellung, solange das Flugzeug mit der Feuerwehr auf der Bahn steht
+  // Medizinischer Notfall: Ein Rettungswagen fährt mit Blaulicht über die Vorfeldstraße an die Parkposition,
+  // zwei Sanitäter tragen den Patienten auf der Trage von der vorderen rechten Tür zum Wagen, danach fährt er ab.
+  // Nur Darstellung, zeitlich an die Spielzeit gekoppelt (Pause hält alles an).
+  medicalItems(state, items, lights, night) {
+    const M = this.medics || (this.medics = new Map());
+    const now = state.time;
+    const DRIVE = 240, HANDOVER = 420;
+    for (const ac of state.acs) {
+      if (ac.mode !== 'map' || !(ac.emgKind === 'medical' || ac.medical) || !ac.arr) continue;
+      if (!M.has(ac.id) && [PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN, PH.STAND].includes(ac.phase)) M.set(ac.id, { t0: now, tStand: null, ac: ac.id, stand: ac.stand });
+      const m = M.get(ac.id);
+      if (m && ac.phase === PH.STAND && m.tStand == null) m.tStand = now;
+    }
+    for (const [id, m] of M) {
+      const ac = state.acs.find((a) => a.id === id);
+      const st = state.stands.find((s) => s.id === (ac && ac.stand != null ? ac.stand : m.stand));
+      if (!st || now < m.t0 || now - m.t0 > 3 * 3600) {
+        M.delete(id);
+        continue;
+      }
+      const atStand = ac && ac.phase === PH.STAND;
+      // Abfahrt: nach der Übergabe oder sobald das Flugzeug die Position verlässt
+      if (m.tLeave == null && ((m.tStand != null && now - m.tStand > HANDOVER) || (m.tStand != null && !atStand))) m.tLeave = now;
+      const y0 = LY.SERVICE + 0.25, parkX = st.x + 1.05, yEnd = LY.STAND_NOSE + 0.85;
+      const L1 = 84 - parkX, Ltot = L1 + (yEnd - y0);
+      const at = (s) => (s <= L1 ? { x: 84 - s, y: y0, h: Math.PI } : { x: parkX, y: y0 + Math.min(s - L1, yEnd - y0), h: Math.PI / 2 });
+      const ease = (u) => 1 - (1 - u) * (1 - u);
+      let p, moving;
+      if (m.tLeave != null) {
+        const u = clamp((now - m.tLeave) / DRIVE, 0, 1);
+        if (u >= 1) {
+          M.delete(id);
+          continue;
+        }
+        p = at(Ltot * (1 - u * u));
+        p.h += Math.PI;
+        moving = true;
+      } else {
+        const u = clamp((now - m.t0) / DRIVE, 0, 1);
+        p = at(ease(u) * Ltot);
+        moving = u < 1;
+      }
+      items.push({ d: p.x + p.y, f: () => this.drawAmbientCar({ kind: 'ambulance', col: '#f8fafc', siren: moving || m.tLeave == null }, p, night, lights) });
+      // Sanitäter mit Trage: vordere rechte Tür -> Heck des Rettungswagens
+      if (atStand && m.tLeave == null && m.tStand != null) {
+        const k = (now - m.tStand - 90) / (HANDOVER - 150);
+        if (k > 0 && k < 1) {
+          const door = { x: st.x + 0.3, y: LY.STAND_NOSE + ac.len * 0.13 };
+          const dst = { x: parkX, y: yEnd + 0.32 };
+          const wx = door.x + (dst.x - door.x) * k, wy = door.y + (dst.y - door.y) * k;
+          const ph = this.time * 3;
+          items.push({ d: wx + wy, f: () => {
+            const ctx = this.ctx, cam = this.cam;
+            cam.setScreen(ctx);
+            const a = cam.toScreen(wx - 0.09, wy, 0.07), b = cam.toScreen(wx + 0.09, wy, 0.07);
+            ctx.strokeStyle = '#f1f5f9';
+            ctx.lineWidth = Math.max(2, 3.2 * cam.zoom);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+            drawPerson(this, wx - 0.14, wy, '#dc2626', 1, false, ph, true, true);
+            drawPerson(this, wx + 0.14, wy, '#dc2626', 1, false, ph + 1, true, true);
+          } });
+        }
+      }
+    }
+  }
+
   evacItems(state, items, lights, night) {
     for (const ac of state.acs) {
       if (ac.mode !== 'map' || ac.emgKind !== 'smoke' || !ac.fireStop || ac.fireDone) continue;
