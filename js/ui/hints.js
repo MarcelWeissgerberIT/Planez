@@ -10,6 +10,8 @@ import { forecastInfo } from '../sim/events.js';
 import { inspConflict } from '../sim/inspect.js';
 import { heliConflict } from '../sim/heli.js';
 import { vfrConflict } from '../sim/vfr.js';
+import { smallField } from '../sim/career.js';
+import * as LY from '../layout.js';
 
 function towerHint(s) {
   const conf = s.acs.find((a) => a.conflict);
@@ -89,6 +91,15 @@ function groundHint(s) {
 
 function managerHint(s) {
   const fu = fuelState(s);
+  // am Grasplatz/Verkehrslandeplatz: kein Kerosinlager, Graspflege statt Gummiabrieb, keine Shops
+  const small = smallField(s);
+  if (small) {
+    if (s.cash < 0) return `Kasse im Minus – Management-Zentrale (O) → <b>Finanzen &amp; Kredite</b>.`;
+    if (rwyCond(s) < 50 && !(s.projects || []).some((p) => p.kind === 'rwy')) return `Bahnzustand nur ${Math.round(rwyCond(s))} % – Zentrale (O) → <b>${LY.RWY.grass ? 'Graspiste' : 'Piste &amp; Rollwege'}</b>: ${LY.RWY.grass ? 'mähen und walzen' : 'Pflege beauftragen'}.`;
+    if (s.offers.length) return `Neue Anfrage – Management-Zentrale (O) → <b>Airlines &amp; Verträge</b>.`;
+    if (s.acs.some((a) => (a.phase === PH.VACATED || a.phase === PH.TAXI_WAIT) && !a.stand)) return `Die Wiese ist voll – Gäste warten. Weniger Werbung oder ausbauen (Zentrale → <b>Aufbau</b>).`;
+    return null;
+  }
   if (fu.stock + fu.orders.reduce((t, o) => t + o.qty, 0) < FUEL.cap * 0.3) return `⛽ Kerosin wird knapp (${Math.round(fu.stock)} t) – Management-Zentrale (O) → <b>Kerosin</b>.`;
   if (s.cash < 0) return `Kasse im Minus – Management-Zentrale (O) → <b>Finanzen &amp; Kredite</b>.`;
   if (rwyCond(s) < 50 && !(s.projects || []).some((p) => p.kind === 'rwy')) return `Pistenzustand nur ${Math.round(rwyCond(s))} % – Management-Zentrale (O) → <b>Pisten &amp; Rollwege</b>: Gummiabrieb entfernen (läuft nachts).`;

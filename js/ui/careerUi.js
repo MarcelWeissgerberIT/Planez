@@ -32,8 +32,11 @@ function actionTiles(s, compact = false) {
       const r = actionReady(s, k);
       const C = careerState(s);
       const live = k === 'fest' && C.fest && s.time < C.fest.until && s.time >= C.fest.from - 86400;
-      return `<button class="cr-act${r.ok ? '' : ' off'}" data-cact="${k}" ${r.ok ? '' : 'disabled'} title="${esc(a.desc)}" style="background-image:url(${ACT_PIC[k]})">
-        <span class="cr-act-t"><b>${a.icon} ${esc(a.name(st))}</b><small>${r.ok ? fmtShort(actionCost(s, k)) : esc(r.why)}</small></span>${live ? '<span class="cr-live">● ' + (s.time >= C.fest.from ? 'läuft' : 'geplant') + '</span>' : ''}${compact ? '' : `<span class="cr-act-d">${esc(a.desc)}</span>`}</button>`;
+      // in der schmalen Leiste kurze Namen und Wartezeit als „⟳ 6 T“
+      const name = compact ? { fest: 'Fest', ad: st <= 1 ? 'Anzeige' : 'Kampagne', flyin: 'Fly-In' }[k] || a.name(st) : a.name(st);
+      const why = compact && r.why ? r.why.replace(/^wieder in (\d+) Tag(en)?$/, '⟳ $1 T').replace('zu wenig Geld', 'Geld fehlt') : r.why;
+      return `<button class="cr-act${r.ok ? '' : ' off'}" data-cact="${k}" ${r.ok ? '' : 'disabled'} title="${esc(a.name(st))} – ${esc(a.desc)}" style="background-image:url(${ACT_PIC[k]})">
+        <span class="cr-act-t"><b>${a.icon} ${esc(name)}</b><small>${r.ok ? fmtShort(actionCost(s, k)) : esc(why)}</small></span>${live ? '<span class="cr-live">● ' + (s.time >= C.fest.from ? 'läuft' : 'geplant') + '</span>' : ''}${compact ? '' : `<span class="cr-act-d">${esc(a.desc)}</span>`}</button>`;
     })
     .join('');
 }
