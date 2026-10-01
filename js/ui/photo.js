@@ -19,12 +19,13 @@ export class PhotoMode {
     const el = document.createElement('div');
     el.id = 'photo';
     el.className = 'hidden';
-    el.innerHTML = `<div class="ph-frame"></div>
+    el.innerHTML = `<div class="ph-tilt top"></div><div class="ph-tilt bot"></div><div class="ph-frame"></div>
       <div class="ph-bar">
         <span class="ph-k">📷 Fotomodus</span>
         <div class="ph-f">${FILTERS.map(([k, n]) => `<button data-pf="${k}">${n}</button>`).join('')}</div>
         <button class="ph-t" data-pt="freeze" title="Zeit anhalten">⏸ Zeit anhalten</button>
         <button class="ph-t" data-pt="labels" title="Beschriftungen">🏷️ Beschriftungen</button>
+        <button class="ph-t" data-pt="tilt" title="Tilt-Shift: oben und unten unscharf – der Flughafen wirkt wie ein Modell">🔍 Miniatur</button>
         <button class="ph-shot" data-pt="shot">● Aufnehmen</button>
         <button class="ph-x" data-pt="close" title="Beenden (Esc)">✕</button>
       </div>
@@ -45,6 +46,9 @@ export class PhotoMode {
           this.resumeSpeed = s.speed;
           s.speed = 0;
         } else s.speed = this.resumeSpeed || 1;
+        this.sync();
+      } else if (k === 'tilt') {
+        this.tilt = !this.tilt;
         this.sync();
       } else if (k === 'labels') {
         this.game.ui.labels = !this.game.ui.labels;
@@ -86,6 +90,8 @@ export class PhotoMode {
     const s = this.game.state;
     this.el.querySelector('[data-pt=freeze]').classList.toggle('on', !!s && !s.speed);
     this.el.querySelector('[data-pt=labels]').classList.toggle('on', !!this.game.ui.labels);
+    this.el.querySelector('[data-pt=tilt]').classList.toggle('on', !!this.tilt);
+    this.el.classList.toggle('tilt', !!this.tilt);
   }
   shot() {
     const src = document.getElementById('map');
@@ -98,6 +104,25 @@ export class PhotoMode {
     if (f[2] !== 'none') g.filter = f[2];
     g.drawImage(src, 0, 0);
     g.filter = 'none';
+    // Miniatur: unscharfe Kopie nur oben und unten darüberlegen (weicher Übergang zur scharfen Mitte)
+    if (this.tilt) {
+      const b = document.createElement('canvas');
+      b.width = c.width;
+      b.height = c.height;
+      const bg = b.getContext('2d');
+      bg.filter = `${f[2] !== 'none' ? f[2] + ' ' : ''}blur(${Math.max(2, Math.round(3.5 * (c.width / 1600)))}px) saturate(1.15)`;
+      bg.drawImage(src, 0, 0);
+      bg.filter = 'none';
+      const m = bg.createLinearGradient(0, 0, 0, c.height);
+      m.addColorStop(0, 'rgba(0,0,0,1)');
+      m.addColorStop(0.3, 'rgba(0,0,0,0)');
+      m.addColorStop(0.62, 'rgba(0,0,0,0)');
+      m.addColorStop(1, 'rgba(0,0,0,1)');
+      bg.globalCompositeOperation = 'destination-in';
+      bg.fillStyle = m;
+      bg.fillRect(0, 0, b.width, b.height);
+      g.drawImage(b, 0, 0);
+    }
     // Wasserzeichen
     const sc = c.width / 1600;
     g.font = `800 ${Math.round(22 * sc)}px Orbitron, sans-serif`;
