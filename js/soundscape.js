@@ -214,6 +214,20 @@ function squeal(strength, pan) {
 }
 const prevPhase = new Map();
 
+// dumpfer Schlag (Aufsetzen, Fahrwerk ein/aus): kurzes, tiefes Rauschen
+function thud(vol, lp = 140, dur = 0.35) {
+  const src = A.createBufferSource();
+  src.buffer = noiseBuf(A, dur + 0.1, true);
+  const f = filt(A, 'lowpass', lp);
+  const g = A.createGain();
+  const t = A.currentTime + 0.01;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(bus);
+  src.start(t);
+}
+
 export const soundscape = {
   on: true,
   vol: 0.7,
@@ -231,6 +245,31 @@ export const soundscape = {
     if (!want) return;
     const h = hourOf(state.time);
     const night = h < 5.5 || h > 21;
+    // Mitfliegen innen (Cockpit/Fenster): der Klang des eigenen Flugzeugs statt der Umgebung – Triebwerke, Rollen,
+    // Fahrtwind; beim Startlauf laufen die Triebwerke hörbar hoch
+    const c = this.cabin;
+    if (c) {
+      const thrust = c.phase === PH.TAKEOFF || c.phase === PH.MISSED || c.climb ? 1 : c.phase === PH.ROLLOUT ? 0.55 : c.air ? 0.42 : c.moving ? 0.3 : c.phase === PH.STAND || c.phase === PH.PUSH ? 0.08 : 0.22;
+      const spd = clamp(c.kt / 160, 0, 1.5);
+      set(L.rumble.g.gain, 0.04 + 0.12 * thrust + (c.ground ? 0.09 * Math.min(1, spd) : 0), 0.6);
+      set(L.roar.g.gain, (c.prop ? 0.03 : 0.07) * thrust, 0.9);
+      set(L.wind.g.gain, 0.008 + 0.045 * Math.min(1.3, spd), 0.8);
+      set(L.jet.g.gain, c.prop ? 0.004 : 0.012 + 0.03 * thrust, 0.8);
+      set(L.whine.g.gain, c.prop ? 0 : 0.0012 + 0.0028 * thrust, 0.8);
+      set(L.whine.o.frequency, 2300 + 1500 * thrust, 2.2);
+      set(L.prop.g.gain, c.prop ? 0.025 + 0.05 * thrust : 0, 0.6);
+      set(L.prop.o.frequency, 78 + 26 * thrust, 1.2);
+      for (const k of ['rotor', 'heli']) set(L[k].g.gain, 0, 0.4);
+      set(L.rotorLfo.gain, 0, 0.4);
+      set(L.heliLfo.gain, 0, 0.4);
+      set(L.siren.g.gain, 0, 0.2);
+      set(L.crickets.g.gain, 0, 0.5);
+      set(L.cricketLfo.gain, 0, 0.5);
+      const w = state.weather.kind;
+      set(L.rain.g.gain, w === 'rain' ? 0.05 : w === 'storm' ? 0.08 : 0, 1);
+      this.levels = { jet: thrust, roar: thrust, ctx: A.state, cabin: true };
+      return;
+    }
     // Triebwerke: Summe über Flugzeuge in Bildnähe, gewichtet mit Abstand zur Bildmitte und Zoom
     let jet = 0, roar = 0, prop = 0, panSum = 0, wsum = 0;
     const zoomF = clamp((cam.zoom - 0.3) / 1.4, 0.15, 1.2);
@@ -334,6 +373,17 @@ export const soundscape = {
     }
     set(L.crickets.g.gain, night && calm ? 0.004 : 0, 1.5);
     set(L.cricketLfo.gain, night && calm ? 0.004 : 0, 1.5);
+  },
+  // Ereignisse beim Mitfliegen: Aufsetzen (Schlag + Reifen), Fahrwerk ein- bzw. ausfahren
+  touchdown(strength = 0.6) {
+    if (!A || !this.on) return;
+    thud(0.35 + 0.4 * strength, 120, 0.45);
+    squeal(clamp(strength * 0.6, 0.15, 0.7), 0);
+  },
+  gear() {
+    if (!A || !this.on) return;
+    thud(0.12, 220, 0.25);
+    setTimeout(() => A && thud(0.18, 160, 0.3), 1400);
   },
   mute() {
     if (A && bus) set(bus.gain, 0, 0.2);

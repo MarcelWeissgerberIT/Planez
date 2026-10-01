@@ -10,6 +10,7 @@ import { voice } from '../voice.js';
 import { icon } from './icons.js';
 import { toast } from './dom.js';
 import { sfx } from '../audio.js';
+import { soundscape } from '../soundscape.js';
 import * as AS from '../sim/airspace.js';
 import * as LY from '../layout.js';
 
@@ -191,6 +192,7 @@ export class Ride {
   startTower() {
     if (this.on) this.stop();
     this.on = true;
+    this.cam0 = { x: this.game.cam.x, y: this.game.cam.y, zoom: this.game.cam.zoom };
     this.id = null;
     this.mode = 'tower';
     this.resetTower();
@@ -246,6 +248,7 @@ export class Ride {
       }
     }
     this.v3d.render(s, this, null);
+    this.hearAt(Math.max(0.6, Math.min(3, 55 / (this.fov || 55) * 0.8)));
     this.drawLabels(s, sel);
     const wx = s.weather;
     const txt = `Turmblick · ${s.name} · RWY ${s.rwy}${ac ? ` · ${ac.cs}` : ''} · Fernglas ${Math.round(55 / (this.fov || 55) * 10) / 10}×`;
@@ -301,9 +304,20 @@ export class Ride {
     for (const [id, d] of this.lbl) if (!seen.has(id)) (d.remove(), this.lbl.delete(id));
   }
 
+  // Kabinenklang (nur Cockpit/Fenster): Daten des eigenen Flugzeugs an die Klangkulisse
+  cabinSound(ac, kt, air, climb) {
+    const inside = this.mode === 'cockpit' || this.mode === 'window';
+    soundscape.cabin = inside && ac ? { phase: ac.phase, kt: kt || 0, air, climb, ground: !air, moving: (ac.v || 0) > 0.02, prop: AC_TYPES[ac.type].sprite === 'plane_prop' } : null;
+  }
+
   stop() {
     if (!this.on) return;
     this.on = false;
+    soundscape.cabin = null;
+    if (this.cam0) {
+      Object.assign(this.game.cam, this.cam0);
+      this.cam0 = null;
+    }
     if (this.mode === 'cine3d') {
       this.el.classList.remove('cine3d');
       this.el.querySelector('.rd-cap').innerHTML = '';
@@ -419,6 +433,11 @@ export class Ride {
     cam.tx = null;
     if (this.use3d) this.v3d.render(s, this, ac);
     else this.perspective(ac);
+    // Klang: innen der Kabinenmix des eigenen Flugzeugs; Aufsetzen und Fahrwerk als Ereignis
+    this.cabinSound(ac, ac.v * KT, z > 0.02, ac.phase === PH.TAKEOFF && z > 0.02);
+    if (this.lastPh === PH.FINAL && ac.phase === PH.ROLLOUT) soundscape.touchdown(clamp((ac.tdFpm || 250) / 600, 0.2, 1));
+    if (ac.phase === PH.TAKEOFF && z > 0.3 && !this.called.has('gearUp')) (this.called.add('gearUp'), soundscape.gear());
+    this.lastPh = ac.phase;
     // Instrumente und Anzeige
     const kt = Math.round((ac.v || 0) * KT), alt = Math.round((z * FT) / 10) * 10;
     const vs = dt > 0 ? ((z - this.lastZ) * FT * 60) / Math.max(dt * (s.speed || 1) * 15, 1e-3) : 0;
@@ -462,6 +481,8 @@ export class Ride {
 
 Ride.prototype.updateAir = function (s, ac, dt) {
   const cam = this.game.cam;
+  this.cabinSound(ac, ac.spd || 0, true, false);
+  if (!this.called.has('gearDn') && (ac.alt || 0) < 1800 && ac.phase === PH.APPROACH) (this.called.add('gearDn'), soundscape.gear());
   const dir = s.rwy === '27' ? 1 : -1; // Anflug auf die 27 kommt von Osten
   const tx = (dir > 0 ? LY.RWY.x1 + 8 : LY.RWY.x0 - 8), ty = LY.RWY.y - 1.5;
   const k = 1 - Math.pow(0.02, dt);
@@ -492,9 +513,30 @@ Ride.prototype.updateAir = function (s, ac, dt) {
   }
 };
 
+// Klangkulisse hört dort, wohin die 3D-Kamera schaut (Bodenpunkt in Blickrichtung), Fernglas = näher dran
+Ride.prototype.hearAt = function (zoom) {
+  const c = this.v3d && this.v3d.camera;
+  if (!c) return;
+  const d = { x: 0, y: 0, z: 0 };
+  const e = c.matrixWorld.elements;
+  d.x = -e[8];
+  d.y = -e[9];
+  d.z = -e[10];
+  const t = d.y < -0.03 ? Math.min(60, c.position.y / -d.y) : 25;
+  this.game.cam.x = c.position.x + d.x * t;
+  this.game.cam.y = c.position.z + d.z * t;
+  this.game.cam.zoom = zoom;
+  this.game.cam.tx = null;
+};
+
 // Steigflug nach dem Start (3D): Instrumente mit den echten Luftdaten, SID im Navigationsdisplay
 Ride.prototype.updateAirDep = function (s, ac, dt) {
   this.v3d.render(s, this, ac);
+  this.cabinSound(ac, ac.spd || 0, true, (ac.tAlt || 0) > (ac.alt || 0) + 150);
+  // die 2D-Kamera (Klangkulisse) folgt dem Flugzeug auch außerhalb der Karte
+  const p = LY.nmToTile(ac.pos.x, ac.pos.y);
+  this.game.cam.x = p.x;
+  this.game.cam.y = p.y;
   const rot = s.rots[ac.rot];
   const city = rot && CITIES[rot.city] ? CITIES[rot.city].name : '';
   const alt = Math.round((ac.alt || 0) / 10) * 10;
@@ -534,6 +576,7 @@ const CINE_SUB = { land: 'Landung', takeoff: 'Start', climb: 'Steigflug', app: '
 Ride.prototype.startCine3d = function () {
   if (this.on) this.stop();
   this.on = true;
+  this.cam0 = { x: this.game.cam.x, y: this.game.cam.y, zoom: this.game.cam.zoom };
   this.id = null;
   this.mode = 'cine3d';
   this.shot = null;
@@ -673,6 +716,7 @@ Ride.prototype.updateCine3d = function (dt) {
     v.render(s, this, null);
   }
   this.lastShot = sh;
+  this.hearAt(1.4);
   // Einblendung unten links
   const cap = this.el.querySelector('.rd-cap');
   let html = '';
