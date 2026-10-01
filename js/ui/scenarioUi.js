@@ -3,6 +3,8 @@ import { SCENARIOS, scenarioById, scenarioLive, loadBest, unlocked, goalValue, g
 import { ROLES } from '../state.js';
 import { esc } from '../util.js';
 import { TIME_SCALE } from '../config.js';
+import { CHAPTERS, chapterOf, chapterDone, chapterOpen, campaignProgress } from '../sim/campaign.js';
+import { CHAIR } from '../sim/board.js';
 
 const DIFF = ['', 'Leicht', 'Mittel', 'Schwer'];
 const starStr = (n, max = 3) => '★'.repeat(n) + '☆'.repeat(Math.max(0, max - n));
@@ -23,6 +25,16 @@ export function scenarioListHtml() {
   const db = best[dd.id];
   const di = dailyInfo();
   const streak = di.last === dailyKey() || di.last === dailyKey(new Date(Date.now() - 864e5)) ? di.streak || 0 : 0;
+  // Kampagne: geschaffte Kapitel, das nächste offene und ein Ausblick
+  const cp = campaignProgress();
+  const showTo = cp.next == null ? CHAPTERS.length - 1 : Math.min(CHAPTERS.length - 1, cp.next + 1);
+  html += `<div class="mm-sub">📖 Kampagne · ${cp.done}/${cp.total} Kapitel${cp.next == null ? ' · 🏆 abgeschlossen' : ''}</div>`;
+  CHAPTERS.forEach((c, i) => {
+    if (i > showTo) return;
+    const d = scenarioById(c.scn);
+    const open = chapterOpen(i, best), done = chapterDone(i, best);
+    html += `<button class="mm-item scn-item camp ${open ? '' : 'locked'}${done ? ' done' : ''}${i === cp.next ? ' cur' : ''}" data-scn="camp-${i}" data-side="scn:camp-${i}"><span class="n"></span><span class="l"><b>${i + 1}. ${esc(c.title)}</b><small>${ROLES[d.role].icon} ${esc(ROLES[d.role].short)} · ${d.icon} ${esc(d.title)}${open ? '' : ' · 🔒 erst Kapitel ' + i}</small></span><span class="scn-st ${done ? 'got' : ''}">${done ? '✓' : open ? '▶' : ''}</span></button>`;
+  });
   html += `<div class="mm-sub">📅 Heute · ${dailyLabel(dd.daily)}</div><button class="mm-item scn-item daily" data-scn="${dd.id}" data-side="scn:${dd.id}"><span class="n"></span><span class="l"><b>📅 ${esc(dd.sub)} ${dd.muts.map((m) => MUTATORS[m].icon).join('')}</b><small>${ROLES[dd.role].icon} ${esc(ROLES[dd.role].short)} · jeden Tag neu${streak ? ` · 🔥 Serie ${streak} Tag${streak > 1 ? 'e' : ''}` : ''}</small></span><span class="scn-st ${db && db.stars ? 'got' : ''}">${starStr(db ? db.stars : 0)}</span></button>`;
   for (const role of ['tower', 'ground', 'manager']) {
     html += `<div class="mm-sub">${ROLES[role].icon} ${esc(ROLES[role].name)}</div>`;
@@ -36,6 +48,8 @@ export function scenarioListHtml() {
 }
 
 export function scenarioSide(id) {
+  const ch = chapterOf(id);
+  if (ch != null) return chapterSide(ch);
   const def = scenarioById(id);
   if (!def) return '';
   const b = loadBest()[def.id];
@@ -49,6 +63,23 @@ export function scenarioSide(id) {
     <table class="scn-goals">${def.goals.map((g) => `<tr><td>${esc(g.text)}</td>${[0, 1, 2].map((i) => `<td><span class="st">${'★'.repeat(i + 1)}</span> ${goalNeed(g, i)}</td>`).join('')}</tr>`).join('')}</table>
     ${def.daily ? `<div class="ms-sec">Serie</div><div class="scn-streak">${(() => { const di = dailyInfo(); const days = []; for (let i = 6; i >= 0; i--) { const k = dailyKey(new Date(Date.now() - i * 864e5)); const st = (di.days || {})[k] || 0; days.push(`<i class="${st ? 'on' : ''}" title="${dailyLabel(k)}: ${st}★">${st ? '★' : '·'}</i>`); } return days.join('') + ` <small>🔥 ${di.last === dailyKey() || di.last === dailyKey(new Date(Date.now() - 864e5)) ? di.streak || 0 : 0} Tage in Folge · Rekord ${di.best || 0}</small>`; })()}</div>` : ''}
     <div class="ms-auto">${b ? `🏆 Bestwert: <b class="scn-gold">${starStr(b.stars)}</b>${b.pts ? ` · ⭐ ${b.pts.toLocaleString('de-DE')} Punkte` : ''}` : open ? '▶ Klicken zum Starten' : '🔒 Gesperrt – hol erst einen Stern in der vorigen Herausforderung dieser Station'}</div></div></div>`;
+}
+
+function storyBox(ch, text, kick) {
+  return `<div class="scn-story"><span class="bd-face">👩‍💼</span><div><small>${kick || `Kapitel ${ch + 1} · ${esc(CHAPTERS[ch].title)}`} · ${CHAIR}</small><p>„${esc(text)}“</p></div></div>`;
+}
+function chapterSide(ch) {
+  const c = CHAPTERS[ch];
+  const def = scenarioById(c.scn);
+  const open = chapterOpen(ch), done = chapterDone(ch);
+  const b = loadBest()[def.id];
+  return `<div class="ms-card scn-card"><div class="ms-img" style="background-image:url(${def.img})"></div>
+    <div class="ms-body"><div class="ms-h">📖 Kapitel ${ch + 1}: ${esc(c.title)}</div>
+    <div class="ms-subt">${ROLES[def.role].icon} ${esc(ROLES[def.role].short)} · ${def.icon} ${esc(def.title)} · ${DIFF[def.diff]} · ${durText(def)}</div>
+    ${open ? storyBox(ch, c.intro) : '<p class="scn-brief">🔒 Dieses Kapitel öffnet sich, sobald das vorige mit mindestens einem Stern geschafft ist.</p>'}
+    <div class="ms-sec">Ziele</div>
+    <table class="scn-goals">${def.goals.map((g) => `<tr><td>${esc(g.text)}</td>${[0, 1, 2].map((i) => `<td><span class="st">${'★'.repeat(i + 1)}</span> ${goalNeed(g, i)}</td>`).join('')}</tr>`).join('')}</table>
+    <div class="ms-auto">${done ? `✓ Geschafft · Bestwert <b class="scn-gold">${starStr(b.stars)}</b>` : open ? '▶ Klicken zum Starten – ein Stern genügt für das nächste Kapitel' : '🔒 Gesperrt'}</div></div></div>`;
 }
 
 // ---------- Im Spiel ----------
@@ -71,7 +102,7 @@ export class ScenarioUi {
       if (!b) return;
       const a = b.dataset.so;
       if (a === 'go') this.go();
-      else if (a === 'retry') this.api.start(this.def.id);
+      else if (a === 'retry') this.api.start(this.camp != null ? `camp-${this.camp}` : this.def.id);
       else if (a === 'next') this.api.start(b.dataset.id);
       else if (a === 'menu') this.api.menu();
     });
@@ -93,13 +124,14 @@ export class ScenarioUi {
   }
 
   // Einsatzbesprechung vor dem Start (Spiel pausiert)
-  brief(def) {
+  brief(def, ch = null) {
     const s = this.game.state;
     this.def = def;
+    this.camp = ch;
     this.speed = s.speed || 1;
     s.speed = 0;
-    this.ov.innerHTML = `<div class="scn-box brief"><div class="scn-hero" style="background-image:url(${def.img})"><div class="scn-k">Herausforderung · ${ROLES[def.role].icon} ${esc(ROLES[def.role].short)} · ${DIFF[def.diff]}</div><h2>${def.icon} ${esc(def.title)}</h2></div>
-      <div class="scn-in"><p class="scn-brief">${esc(def.brief)}</p>
+    this.ov.innerHTML = `<div class="scn-box brief"><div class="scn-hero" style="background-image:url(${def.img})"><div class="scn-k">${ch != null ? `📖 Kampagne · Kapitel ${ch + 1}/${CHAPTERS.length}` : 'Herausforderung'} · ${ROLES[def.role].icon} ${esc(ROLES[def.role].short)} · ${DIFF[def.diff]}</div><h2>${def.icon} ${esc(def.title)}</h2></div>
+      <div class="scn-in">${ch != null ? storyBox(ch, CHAPTERS[ch].intro) : ''}<p class="scn-brief">${esc(def.brief)}</p>
       <div class="scn-cols"><div><div class="scn-h">Ziele</div><table class="scn-goals">${def.goals.map((g) => `<tr><td>${esc(g.text)}</td>${[0, 1, 2].map((i) => `<td><span class="st">${'★'.repeat(i + 1)}</span> ${goalNeed(g, i)}</td>`).join('')}</tr>`).join('')}</table>
       <p class="scn-note">⏱️ ${durText(def)} – bei normalem Tempo etwa ${realMin(def)} Minuten. Alle anderen Stationen laufen automatisch.</p></div>
       <div><div class="scn-h">Tipps</div><ul>${(def.tips || []).map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div></div>
@@ -132,10 +164,17 @@ export class ScenarioUi {
     this.def = def;
     const nextDef = SCENARIOS.filter((d) => d.role === def.role)[SCENARIOS.filter((d) => d.role === def.role).indexOf(def) + 1] || SCENARIOS[(SCENARIOS.indexOf(def) + 1) % SCENARIOS.length];
     const canNext = !def.daily && nextDef && unlocked(nextDef);
+    const ch = this.camp;
+    let story = '', nextBtn = canNext && res.stars ? `<button class="btn btn-primary" data-so="next" data-id="${nextDef.id}">Weiter: ${nextDef.icon} ${esc(nextDef.title)} ▶</button>` : '';
+    if (ch != null) {
+      const last = ch + 1 >= CHAPTERS.length;
+      story = res.stars ? storyBox(ch, CHAPTERS[ch].outro, last ? '🏆 Kampagne abgeschlossen' : null) : storyBox(ch, 'Das war noch nicht genug. Atmen Sie durch und versuchen Sie es noch einmal – ein Stern reicht mir.');
+      nextBtn = res.stars && !last ? `<button class="btn btn-primary" data-so="next" data-id="camp-${ch + 1}">Kapitel ${ch + 2}: ${esc(CHAPTERS[ch + 1].title)} ▶</button>` : '';
+    }
     const title = res.failed ? 'Abgebrochen' : res.stars === 3 ? 'Perfekt!' : res.stars === 2 ? 'Sehr gut!' : res.stars === 1 ? 'Geschafft' : 'Nicht geschafft';
     this.ov.innerHTML = `<div class="scn-box res ${res.stars ? 'win' : 'lose'}"><div class="scn-hero sm" style="background-image:url(${def.img})"><div class="scn-k">${def.icon} ${esc(def.title)}</div><h2>${title}</h2>
       <div class="scn-big">${[0, 1, 2].map((i) => `<span class="${i < res.stars ? 'on' : ''}" style="animation-delay:${0.25 + i * 0.35}s">★</span>`).join('')}</div></div>
-      <div class="scn-in">${res.failed ? `<p class="scn-fail">⚠️ ${esc(res.failed)}</p>` : ''}
+      <div class="scn-in">${story}${res.failed ? `<p class="scn-fail">⚠️ ${esc(res.failed)}</p>` : ''}
       <table class="scn-res">${def.goals.map((g, i) => {
         const r = res.rows[i];
         return `<tr class="s${r.stars}"><td>${esc(g.text)}</td><td class="v">${goalValue(g, r.v == null ? null : Math.round(r.v))}</td><td class="st">${starStr(r.stars)}</td><td class="nx">${r.stars < 3 ? `nächster Stern ${goalNeed(g, r.stars)}` : '✓ Bestwert'}</td></tr>`;
@@ -143,7 +182,7 @@ export class ScenarioUi {
       ${res.pts && def.role !== 'manager' ? `<p class="scn-pts">⭐ ${res.pts.toLocaleString('de-DE')} Schichtpunkte${res.best && res.best.ptsNew ? ' · <b>neuer Punkte-Rekord!</b>' : res.best && res.best.prev && res.best.prev.pts ? ` · Rekord ${res.best.prev.pts.toLocaleString('de-DE')}` : ''}</p>` : ''}
       ${res.daily ? `<p class="scn-pts">📅 Tagesherausforderung ${dailyLabel(def.daily)}${res.stars ? ` · 🔥 Serie ${res.daily.streak} Tag${res.daily.streak > 1 ? 'e' : ''}` : ' · für die Serie zählt mindestens ein Stern'} · morgen gibt es eine neue</p>` : ''}
       <p class="scn-note">${[res.best && res.best.isNew && res.stars ? '🏆 <b>Neuer Bestwert!</b>' : res.best && res.best.prev ? `Bisheriger Bestwert: ${starStr(res.best.prev.stars)}` : '', `Gesamt ⭐ ${totalStars()} / ${SCENARIOS.length * 3}`].filter(Boolean).join(' · ')}</p>
-      <div class="scn-acts"><button class="btn" data-so="menu">Hauptmenü</button><button class="btn ${res.stars ? '' : 'btn-primary'}" data-so="retry">↻ Nochmal</button>${canNext && res.stars ? `<button class="btn btn-primary" data-so="next" data-id="${nextDef.id}">Weiter: ${nextDef.icon} ${esc(nextDef.title)} ▶</button>` : ''}</div></div></div>`;
+      <div class="scn-acts"><button class="btn" data-so="menu">Hauptmenü</button><button class="btn ${res.stars ? '' : 'btn-primary'}" data-so="retry">↻ Nochmal</button>${nextBtn}</div></div></div>`;
     this.ov.classList.remove('hidden');
   }
 

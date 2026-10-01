@@ -10,6 +10,7 @@ import { SPEEDS, AC_TYPES, dayMinutes } from './config.js';
 import { TowerPanel, REQ_DE, fixReadback } from './ui/tower.js';
 import { boardMeetingHtml } from './ui/board.js';
 import { chooseStrategy, STRATEGIES } from './sim/board.js';
+import { CHAPTERS, chapterOf } from './sim/campaign.js';
 import { GroundPanel } from './ui/groundPanel.js';
 import { ManagerPanel } from './ui/managerPanel.js';
 import { $, toast, openModal, closeModal, modalOpen, setHTML } from './ui/dom.js';
@@ -220,14 +221,15 @@ function applyPrefs(st) {
 
 // Herausforderung starten: frischer Flughafen mit Szenario-Vorgaben, dann Einsatzbesprechung
 function startScenario(id) {
-  const def = scenarioById(id);
+  const ch = chapterOf(id);
+  const def = scenarioById(ch != null ? CHAPTERS[ch].scn : id);
   if (!def) return;
   unlock();
   closeModal();
   const st = applyPrefs(newGame({ role: def.role, name: 'Planez International', density: def.density, hour: def.hour, seed: def.seed }));
   applyScenario(st, def);
   startGame(st);
-  game.scn.brief(def);
+  game.scn.brief(def, ch);
 }
 scenarioListeners.push((s, def, res) => {
   if (game.state === s && game.scn) {
@@ -1485,6 +1487,8 @@ function helpGuide(first) {
     <p>Besondere Szenen – ein A380, eine Notlandung, eine Landung per Lichtsignal, eine Sonderlackierung, ein Start im Gewitter oder in der goldenen Stunde – fotografiert das Spiel automatisch. Die drei besten zeigt der Tagesbericht als Fotostreifen.</p>
     <h3>📋 Schichtbriefing</h3>
     <p>Zu Beginn jedes Tages (Tower, Vorfeld, Manager) fasst ein Briefing die Schicht zusammen: Wetter und Vorhersage, geplanter Verkehr je Stunde mit Spitzenstunde, besondere Flüge (A380, VIP), die Lage deiner Station (Betriebsrichtung und Heavys, Positionen und Tanklager, Kasse, auslaufende Verträge und Marktanteil) und die Ziele der Schicht. <kbd>Enter</kbd> beginnt die Schicht; abschaltbar im Briefing oder unter Einstellungen.</p>
+    <h3>📖 Kampagne</h3>
+    <p>Unter „Kampagne &amp; Szenarien“ führt eine Geschichte in neun Kapiteln durch alle Stationen – vom ersten Arbeitstag im Tower über Vorfeld und Geschäftsführung bis zum Drehkreuz. Vor jedem Kapitel erklärt die Aufsichtsratsvorsitzende Dr. Helene Brandt die Lage, danach kommentiert sie dein Ergebnis. Ein Stern genügt, um das nächste Kapitel zu öffnen; die Sterne zählen auch für die Herausforderungen.</p>
     <h3>♿ Barrierefreiheit</h3>
     <p>Unter Einstellungen (Hauptmenü oder Pause): <b>Große Schrift</b> vergrößert Seitenleiste, Info-Karte, Funk, Fenster und Meldungen, ohne dass die Karte schrumpft. Der <b>Farbsehschwäche-Modus</b> nutzt Blau für gut/frei und Orange für schlecht/Konflikt statt Grün/Rot – in Leisten, Karten, Effekten und im Radar. <b>Bewegung reduzieren</b> schaltet pulsierende Hinweise, Übergänge und das Menü-Video ab.</p>
     <h3>🎵 Musik im Spiel</h3>

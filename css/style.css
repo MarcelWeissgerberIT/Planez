@@ -1511,3 +1511,11 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .a11y-calm #menu-video { display: none; }
 .lane-h { min-width: 0; overflow: hidden; }
 .lane-h small { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* ---------- Kampagne ---------- */
+.scn-story { display: flex; gap: 10px; align-items: flex-start; background: linear-gradient(135deg, rgba(56,189,248,.12), rgba(255,255,255,.03)); border: 1px solid rgba(56,189,248,.35); border-radius: 12px; padding: 10px 12px; margin: 0 0 10px; }
+.scn-story .bd-face { font-size: 30px; line-height: 1; }
+.scn-story small { display: block; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: 3px; }
+.scn-story p { margin: 0; font-style: italic; color: #dbeafe; line-height: 1.45; font-size: 13.5px; }
+.scn-item.camp.done .scn-st { color: var(--good); }
+.scn-item.camp.cur { box-shadow: inset 3px 0 0 var(--mm-amber, #f5a623); }

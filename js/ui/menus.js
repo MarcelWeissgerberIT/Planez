@@ -106,6 +106,7 @@ const SIDE = {
     <ul><li>Kurze Einsätze mit festem Start: Morgenwelle, Nebel, Gewitterfront, Notfälle, Streik, Winterchaos, Sanierungsfall …</li><li>Jedes Ziel bringt 1–3 Sterne – der Bestwert bleibt gespeichert</li><li>Mit einem Stern schaltest du die nächste Stufe deiner Station frei</li></ul></div></div>`,
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
+      <li>📖 <b>Kampagne</b>: 9 Kapitel mit Story vom Regionalflughafen zum Drehkreuz</li>
       <li>🏛️ <b>Aufsichtsrat</b>: Wochenziele, Vertrauen, Zuschuss und Strategie für Manager</li>
       <li>⛈️ <b>Wetterumflüge</b> mit <kbd>Y</kbd> genehmigen · 🚙 <b>Pistenkontrolle</b> in Verkehrslücken</li>
       <li>🎵 <b>Musik im Spiel</b>, die auf die Lage reagiert · ♿ <b>Barrierefreiheit</b>: große Schrift, Farbsehschwäche, ruhige Bewegung</li>
