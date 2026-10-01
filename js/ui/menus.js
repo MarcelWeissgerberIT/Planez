@@ -14,7 +14,7 @@ const SEG = 9.6;
 
 // ---------- Voreinstellungen (auch ohne laufendes Spiel) ----------
 const PREFS_KEY = 'planez_prefs';
-const PREF_DEF = { sound: true, music: true, briefing: true, perf: false, ambience: true, tts: true, glossary: true, hints: true, voiceVol: 0.9 };
+const PREF_DEF = { sound: true, music: true, gameMusic: true, briefing: true, perf: false, ambience: true, tts: true, glossary: true, hints: true, voiceVol: 0.9 };
 export function loadPrefs() {
   try {
     const p = { ...PREF_DEF, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') };
@@ -38,6 +38,7 @@ export const PREF_ROWS = [
   ['sound', 'Sound-Effekte', 'Funk, Warnungen, Kasse'],
   ['perf', 'Leistungsmodus', 'weniger Details und Belebung, geringere Auflösung – flüssiger auf langsamen Rechnern'],
   ['ambience', 'Klangkulisse', 'Triebwerke, Wind, Regen, Donner, Vögel und Grillen'],
+  ['gameMusic', 'Musik im Spiel', 'leise Klangflächen – passend zu Tageszeit, Wetter und Lage (Hochbetrieb, Notfall, Gewitter)'],
   ['tts', 'Echter Funk (Sprachausgabe)', 'Tower: Lotse und Piloten sprechen – Vorfeld: Betriebsfunk der Bodencrews auf Deutsch'],
   ['glossary', 'Abkürzungen erklären', 'Tooltips für ILS, TOBT, CTOT, RVR …'],
   ['hints', 'Tipps anzeigen', 'Hinweise zur nächsten sinnvollen Aktion'],
@@ -97,6 +98,7 @@ const SIDE = {
     <div class="ms-sec">Ganz frisch</div><ul>
       <li>🏛️ <b>Aufsichtsrat</b>: Wochenziele, Vertrauen, Zuschuss und Strategie für Manager</li>
       <li>⛈️ <b>Wetterumflüge</b> mit <kbd>Y</kbd> genehmigen · 🚙 <b>Pistenkontrolle</b> in Verkehrslücken</li>
+      <li>🎵 <b>Musik im Spiel</b>, die auf Tageszeit, Wetter, Hochbetrieb und Notfälle reagiert</li>
       <li>✈️ <b>Neue Typen</b> A220, CRJ900, Dash 8-400, A330 · <b>Lumen Air</b> und <b>Fjordwing</b></li>
       <li>📅 <b>Tagesherausforderung</b> mit Zusatzregeln und 🔥 Serie · 🎖️ <b>Karriere</b> über alle Spielstände</li>
       <li>👂 <b>Readback-Fehler</b> hören und mit <kbd>Q</kbd> korrigieren · 📻✖ <b>Funkausfall</b> mit Lichtsignalen</li>

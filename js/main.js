@@ -18,6 +18,7 @@ import { currentHint } from './ui/hints.js';
 import { initMarkMenu, openMarkMenu, closeMarkMenu, markMenuOpen, cycleMark, clearMark, setMark, MARKS } from './ui/marks.js';
 import { sfx, setSound, setTTS, unlock } from './audio.js';
 import { menuMusic } from './menuMusic.js';
+import { gameMusic } from './gameMusic.js';
 import { voice } from './voice.js';
 import { initPTT } from './ui/ptt.js';
 import { DecisionCard } from './ui/decision.js';
@@ -170,11 +171,23 @@ async function boot() {
 
 // Menümusik: erst nach einer Nutzeraktion (Autoplay-Regeln), nur solange das Hauptmenü offen ist
 let menuGesture = false;
+// Spielmusik: passt sich der Lage an (alle 2 s), leiser bei Pause oder offenem Fenster
+function syncGameMusic() {
+  const p = loadPrefs();
+  const s = game.state;
+  const inGame = !!s && $('#menu').classList.contains('hidden');
+  if (inGame && p.gameMusic !== false && s.settings.sound !== false) gameMusic.start(0.16);
+  else gameMusic.stop();
+}
+setInterval(() => {
+  if (game.state && gameMusic.playing) gameMusic.update(game.state, !game.state.speed || modalOpen());
+}, 2000);
 function syncMenuMusic() {
   const p = loadPrefs();
   const inMenu = !$('#menu').classList.contains('hidden');
   if (inMenu && menuGesture && p.sound !== false && p.music !== false) menuMusic.start(0.45);
   else menuMusic.stop();
+  if (inMenu) gameMusic.stop();
 }
 for (const ev of ['pointerdown', 'keydown'])
   window.addEventListener(ev, () => {
@@ -285,6 +298,7 @@ function startGame(state) {
   $('#menu-video').pause();
   menuMusic.stop();
   $('#game').classList.remove('hidden');
+  setTimeout(syncGameMusic, 50);
   $('#log').innerHTML = '';
   for (const m of state.log.slice(-40)) addLog(m, true);
   setSound(state.settings.sound);
@@ -1358,12 +1372,17 @@ function showGameMenu() {
   const s = game.state;
   const prefsSync = () => savePrefs({ sound: !!s.settings.sound, ambience: s.settings.ambience !== false, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false });
   showPauseMenu(game, {
-    settings: () => ({ perf: Q.perf, sound: !!s.settings.sound, ambience: s.settings.ambience !== false, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false, labels: game.ui.labels }),
+    settings: () => ({ perf: Q.perf, gameMusic: loadPrefs().gameMusic !== false, sound: !!s.settings.sound, ambience: s.settings.ambience !== false, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false, labels: game.ui.labels }),
     toggle: (k) => {
       if (k === 'perf') {
         Q.perf = !Q.perf;
         savePrefs({ perf: Q.perf });
         resize();
+        return;
+      }
+      if (k === 'gameMusic') {
+        savePrefs({ gameMusic: loadPrefs().gameMusic === false });
+        syncGameMusic();
         return;
       }
       if (k === 'labels') {
@@ -1376,6 +1395,7 @@ function showGameMenu() {
       syncVoice();
       setGlossaryEnabled(s.settings.glossary !== false);
       prefsSync();
+      syncGameMusic();
     },
     save: () => {
       saveGame(s);
@@ -1458,6 +1478,8 @@ function helpGuide(first) {
     <p>Besondere Szenen – ein A380, eine Notlandung, eine Landung per Lichtsignal, eine Sonderlackierung, ein Start im Gewitter oder in der goldenen Stunde – fotografiert das Spiel automatisch. Die drei besten zeigt der Tagesbericht als Fotostreifen.</p>
     <h3>📋 Schichtbriefing</h3>
     <p>Zu Beginn jedes Tages (Tower, Vorfeld, Manager) fasst ein Briefing die Schicht zusammen: Wetter und Vorhersage, geplanter Verkehr je Stunde mit Spitzenstunde, besondere Flüge (A380, VIP), die Lage deiner Station (Betriebsrichtung und Heavys, Positionen und Tanklager, Kasse, auslaufende Verträge und Marktanteil) und die Ziele der Schicht. <kbd>Enter</kbd> beginnt die Schicht; abschaltbar im Briefing oder unter Einstellungen.</p>
+    <h3>🎵 Musik im Spiel</h3>
+    <p>Leise Klangflächen unter Funk und Klangkulisse, die sich der Lage anpassen: hell am Tag, dunkel und langsam in der Nacht, mit leisem Arpeggio im Hochbetrieb, mit hohen Glocken bei Schnee – und mit tiefem Puls und Reibung im Akkord bei Notfällen, Treibstoffnot, Gewitter oder Windscherung. Bei Pause und offenen Fenstern wird sie leiser. Ein- und ausschalten unter Einstellungen › Musik im Spiel.</p>
     <h3>📒 Spotterbuch</h3>
     <p>Klicke ein Flugzeug auf der Karte an und drücke <b>📷 Spotten</b> (außerhalb des Towers auch <kbd>F</kbd>): Das Foto landet im Spotterbuch (<kbd>J</kbd> oder 📒). Punkte gibt es nach Seltenheit des Typs (häufig bis legendär – der A380), für neue Typen und Airlines, für seltene <b>Sonderlackierungen</b> (Regenbogen, Retro, 50 Jahre … – etwa jede 18. Maschine) und für <b>Momente</b> im Bild: Landung, Start, Pushback, Nacht, goldene Stunde, Regen, Gewitter, Schnee, Nebel, Enteisung, Durchstarten, Notfall. Dasselbe Flugzeug zählt erneut, sobald ein neuer Moment dazukommt. Jedes Flugzeug trägt ein eigenes Kennzeichen (z.B. D-AXYZ). Insgesamt gibt es 16 Typen – vom Turboprop (ATR 72, Dash 8-400) über Regionaljets (CRJ900, E190, A220) bis zu A330, 777, Frachtern, dem Geschäftsreisejet und dem A380. Das Spotterbuch gilt für alle Spielstände.</p>
     <h3>Steuerung</h3>
