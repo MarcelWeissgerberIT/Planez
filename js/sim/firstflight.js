@@ -73,10 +73,13 @@ export function updateFirstFlight(state) {
     const rot = state.rots[ac.rot];
     const c = rot && rot.contract && state.contracts.find((x) => x.id === rot.contract);
     if (!c || !c.firstFlight) continue;
-    // Sportflieger und Partner am kleinen Platz (Flugschule, Rundflug, Lufttaxi …) bekommen keine Wassertaufe
+    // Sportflieger und Partner am kleinen Platz (Flugschule, Rundflug, Lufttaxi …) bekommen keine Wassertaufe –
+    // die Lokalzeitung meldet den Start des Flugbetriebs (gleicher kleiner Ansehensbonus)
     const al = AIRLINES[rot.airline];
     if (al && (al.ga || al.partner)) {
       c.firstFlight = false;
+      state.reputation = clamp(state.reputation + 0.5, 0, 100);
+      pushNews(state, T`${al.name} hat den Flugbetrieb aufgenommen – willkommen am Platz!`, 'good', '🛩️');
       continue;
     }
     state.salute = { ac: ac.id, contract: c.id, t: state.time, until: state.time + 40 * 60, p: null, done: false, city: rot.city, airline: rot.airline };

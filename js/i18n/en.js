@@ -3263,4 +3263,5 @@ export default {
   "Fallschirmclub Freifall": "Freifall Skydiving Club",
   "Rundflug-Service Panorama": "Panorama Sightseeing Flights",
   "Alpenblick Lufttaxi": "Alpenblick Air Taxi",
+  "{0} hat den Flugbetrieb aufgenommen – willkommen am Platz!": "{0} has started flying here – welcome to the airfield!",
 };
