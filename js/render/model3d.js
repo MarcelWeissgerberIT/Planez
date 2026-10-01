@@ -756,7 +756,7 @@ export function buildCessna() {
   bc.position.set(-L * 0.5, R * 0.5 + 0.075, 0);
   bc.scale.setScalar(0.14);
   g.add(bc);
-  g.userData = { H: R * 1.6 + 0.012 };
+  g.userData = { H: R * 1.6 + 0.012, L, R, ry: R, eye: { cockpitX: L * 0.12, cockpitY: R * 0.75, winX: L * 0.06, winY: R * 0.6, winZ: R * 1.05 } };
   return g;
 }
 
@@ -804,6 +804,6 @@ export function buildHeli() {
   bc.position.set(0, R * 1.05, 0);
   bc.scale.setScalar(0.18);
   g.add(bc);
-  g.userData = { H: R * 1.3 + 0.006 };
+  g.userData = { H: R * 1.3 + 0.006, L, R, ry: R, eye: { cockpitX: L * 0.22, cockpitY: R * 0.45, winX: L * 0.12, winY: R * 0.4, winZ: R * 0.85 } };
   return g;
 }

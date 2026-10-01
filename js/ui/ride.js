@@ -295,10 +295,15 @@ export class Ride {
       if (!d) {
         d = document.createElement('div');
         d.className = 'rl ga';
+        d.title = key === 'heli' ? 'Im Rettungshubschrauber mitfliegen' : 'Rundflug: in der Cessna mitfliegen';
+        d.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          this.startGA(key === 'heli' ? 'heli' : 'vfr');
+        });
         box.appendChild(d);
         this.lbl.set(id, d);
       }
-      const html = `<b>${esc(name || '')}</b><small>${key === 'heli' ? 'Hubschrauber' : 'C172'}</small>`;
+      const html = `<b>${esc(name || '')}</b><small>${key === 'heli' ? 'Hubschrauber' : 'C172'} · mitfliegen</small>`;
       if (d._h !== html) (d.innerHTML = html, (d._h = html));
       d.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
     }
@@ -315,6 +320,7 @@ export class Ride {
     if (!this.on) return;
     this.on = false;
     soundscape.cabin = null;
+    this.ga = null;
     if (this.cam0) {
       Object.assign(this.game.cam, this.cam0);
       this.cam0 = null;
@@ -396,6 +402,7 @@ export class Ride {
     if (!this.on) return;
     const g = this.game, s = g.state, cam = g.cam;
     if (g.cinema && g.cinema.on) return this.stop();
+    if (this.ga) return this.updateGA(dt);
     if (this.mode === 'tower') return this.updateTower(dt);
     if (this.mode === 'cine3d') return this.updateCine3d(dt);
     const ac = s && s.acs.find((a) => a.id === this.id);
@@ -810,5 +817,70 @@ Ride.prototype.windshield = function (dt, wx, kt) {
     g.strokeStyle = '#2b3038';
     g.stroke();
     g.strokeStyle = '#0b0d11';
+  }
+};
+
+// ---------- Rundflug: in der Cessna (Platzrunden) oder im Rettungshubschrauber mitfliegen ----------
+Ride.prototype.startGA = function (kind) {
+  const s = this.game.state;
+  const o = kind === 'heli' ? s.heli && s.heli.h : s.vfr && s.vfr.p;
+  if (!o) return toast('Gerade ist niemand unterwegs', 'info', 2000);
+  const back = this.mode === 'tower' ? 'tower' : null;
+  const cam0 = this.cam0;
+  if (this.on) this.stop();
+  this.on = true;
+  this.ga = kind;
+  this.gaBack = back;
+  this.cam0 = cam0 || { x: this.game.cam.x, y: this.game.cam.y, zoom: this.game.cam.zoom };
+  this.id = null;
+  this.called = new Set();
+  this.el.classList.remove('hidden', 'tower', 'cine3d');
+  document.getElementById('game').classList.add('riding');
+  this.setMode('cockpit');
+  this.load3d(() => {
+    toast('Mitfliegen in 3D braucht WebGL', 'warn', 2600);
+    this.stop();
+  });
+  toast(kind === 'heli' ? 'Willkommen an Bord von Rescue 7 – es geht zur Klinik' : `Rundflug mit ${o.cs}: Platzrunden über ${s.name}`, 'good', 2600);
+};
+
+Ride.prototype.updateGA = function (dt) {
+  const s = this.game.state;
+  const heli = this.ga === 'heli';
+  const o = heli ? s.heli && s.heli.h : s.vfr && s.vfr.p;
+  if (!o) {
+    toast(heli ? 'Rescue 7 ist außer Sicht – danke fürs Mitfliegen' : 'Gelandet und abgestellt – danke für den Rundflug', 'good', 2600);
+    const back = this.gaBack;
+    this.stop();
+    if (back === 'tower') this.startTower();
+    return;
+  }
+  if (!this.use3d) return;
+  // Klangkulisse und 2D-Kamera fliegen mit
+  this.game.cam.x = o.x;
+  this.game.cam.y = o.y;
+  this.game.cam.tx = null;
+  const alt = Math.round(((o.z || 0) * 500) / 10) * 10;
+  const kt = heli ? (o.st === 'hold' ? 0 : 110) : (o.z || 0) > 0.05 ? 90 : 45;
+  const air = (o.z || 0) > 0.03;
+  const phase = !air ? PH.TAXI_OUT : (this.lastAlt ?? alt) < alt - 1 ? PH.TAKEOFF : PH.FINAL;
+  this.lastAlt = alt;
+  const inside = this.mode === 'cockpit' || this.mode === 'window';
+  soundscape.cabin = inside ? { phase, kt, air, climb: phase === PH.TAKEOFF, ground: !air, moving: true, prop: true } : null;
+  this.v3d.render(s, this, null);
+  this.windshield(dt, s.weather.kind, kt);
+  const hdg = Math.round((((o.hdg || 0) * 180) / Math.PI + 90 + 360) % 360);
+  const what = heli ? `Rescue 7 · Rettungshubschrauber${o.st === 'hold' ? ' · wartet auf Querungsfreigabe' : o.st === 'cross' ? ' · quert die Bahnen' : ''}` : `${esc(o.cs)} · Cessna 172 · ${{ join: 'Einflug in die Platzrunde', circuit: 'Platzrunde', ga: 'Durchstarten', orbit: 'Warteschleife', leave: 'Abflug aus der Kontrollzone' }[o.mode] || 'Platzrunde'}`;
+  const txt = `${this.mode === 'chase' ? 'Außenkamera' : heli ? 'Rettungsflug' : 'Rundflug'} · ${what}${alt > 0 ? ` · ${alt} ft` : ''}`;
+  if (this.tEl.innerHTML !== txt) this.tEl.innerHTML = txt;
+  this.el.querySelector('.rd-belt').classList.toggle('on', true);
+  if (this.mode === 'cockpit') {
+    this.R.spd.textContent = kt;
+    this.R.alt.textContent = alt;
+    this.R.vs.textContent = phase === PH.TAKEOFF ? '↑' : '';
+    this.R.hdg.textContent = String(hdg).padStart(3, '0');
+    this.R.rose.style.transform = `rotate(${-hdg}deg)`;
+    this.R.fma.textContent = heli ? 'HOVER · NAV' : air ? 'VFR' : 'TAXI';
+    this.R.nd.textContent = heli ? 'Klinik Nord' : `RWY ${o.rwy || s.rwy}`;
   }
 };

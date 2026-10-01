@@ -1030,7 +1030,9 @@ export class View3D {
       c.visible = true;
       const y = (p.z || 0) * ALT_CLIMB;
       c.position.set(p.x, y + c.userData.H, p.y);
-      c.rotation.set(0, -(p.hdg || 0), y > 0.05 ? 0.05 : 0, 'YXZ');
+      const bank = this.gaBank('vfr', p.hdg || 0, dt, y > 0.05);
+      c.rotation.set(-bank, -(p.hdg || 0), y > 0.05 ? 0.05 : 0, 'YXZ');
+      c.visible = !(this.gaRide === 'vfr' && this.gaMode === 'cockpit');
       c.getObjectByName('prop').rotation.x += dt * 45;
       c.getObjectByName('strobe').visible = Math.floor(now * 1.1) % 2 === 0 && (now % 1) < 0.08;
     } else if (this.cessna) this.cessna.visible = false;
@@ -1041,12 +1043,27 @@ export class View3D {
       c.visible = true;
       const y = (h.z || 0) * ALT_CLIMB;
       c.position.set(h.x, y + c.userData.H, h.y);
-      c.rotation.set(0, -(h.hdg || 0), 0, 'YXZ');
+      const bank = this.gaBank('heli', h.hdg || 0, dt, y > 0.05);
+      c.rotation.set(-bank * 0.6, -(h.hdg || 0), y > 0.05 ? -0.08 : 0, 'YXZ');
+      c.visible = !(this.gaRide === 'heli' && this.gaMode === 'cockpit');
       c.getObjectByName('rotor').rotation.y += dt * 30;
       c.getObjectByName('tail').rotation.z += dt * 50;
       c.getObjectByName('bcn').visible = Math.floor(now * 1.4) % 2 === 0;
     } else if (this.heli) this.heli.visible = false;
     void lightsOn;
+  }
+
+  // Querlage aus der Kursänderung (Kleinverkehr)
+  gaBank(k, hdg, dt, air) {
+    this.gaB = this.gaB || {};
+    const b = (this.gaB[k] = this.gaB[k] || { h: hdg, v: 0 });
+    let dh = hdg - b.h;
+    while (dh > Math.PI) dh -= Math.PI * 2;
+    while (dh < -Math.PI) dh += Math.PI * 2;
+    b.h = hdg;
+    const want = air ? clamp((dh / Math.max(dt, 1e-3)) * 1.2, -0.5, 0.5) : 0;
+    b.v += (want - b.v) * (1 - Math.exp(-dt / 0.5));
+    return b.v;
   }
 
   touch(g, u) {
@@ -1315,8 +1332,10 @@ export class View3D {
       cam.updateProjectionMatrix();
       return;
     }
-    if (!ac) return;
-    const g = this.acs.get(ac.id);
+    this.gaRide = ride.ga || null;
+    this.gaMode = ride.mode;
+    if (!ac && !ride.ga) return;
+    const g = ride.ga ? (ride.ga === 'heli' ? this.heli : this.cessna) : this.acs.get(ac.id);
     const yaw = (ride.yaw || 0) * DEG, pit = (ride.pitch || 0) * DEG;
     if (!g) return;
     g.updateMatrixWorld();
@@ -1330,7 +1349,7 @@ export class View3D {
       cam.quaternion.copy(q);
       cam.fov = ride.mode === 'cockpit' ? 64 : 58;
       // Rütteln auf der Bahn und beim Aufsetzen
-      const v = this.vis.get(ac.id);
+      const v = ac && this.vis.get(ac.id);
       const ground = v && v.y < 0.02 && ac.mode === 'map';
       const sh = (ground ? Math.min(0.006, (ac.v || 0) * 0.008) : 0) + (this.bump || 0) * 0.02;
       this.bump = Math.max(0, (this.bump || 0) - dt * 1.4);
