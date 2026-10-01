@@ -7,7 +7,7 @@ import { newGame, loadGame, saveGame, hasSave, setRole, ROLES } from './state.js
 import { run, hooks } from './sim/sim.js';
 import { listeners } from './sim/messages.js';
 import { SPEEDS, AC_TYPES, dayMinutes } from './config.js';
-import { TowerPanel, REQ_DE, fixReadback } from './ui/tower.js';
+import { TowerPanel, REQ_DE, fixReadback, guardedCommand } from './ui/tower.js';
 import { boardMeetingHtml } from './ui/board.js';
 import { playIntro } from './ui/intro.js';
 import { isNight } from './sim/finance.js';
@@ -1077,7 +1077,8 @@ function wireGame() {
     const c = e.target.closest('[data-cmd]');
     if (c) {
       const ac = s.acs.find((a) => a.id === c.dataset.ac);
-      const r = ac ? command(s, ac, c.dataset.cmd) : { ok: false, msg: '' };
+      const r = ac ? guardedCommand(s, ac, c.dataset.cmd) : { ok: false, msg: '' };
+      if (r.held) return;
       if (!r.ok && r.msg) toast(r.msg, 'warn');
       else sfx.click();
       info._html = null;
@@ -1519,6 +1520,7 @@ function helpGuide(first) {
       <li><b>Landefreigabe</b> <kbd>L</kbd> nur bei freier Piste – sonst startet der Flieger durch. Ohne Freigabe bei 1 NM: Durchstarten. Bei Sperrung (FOD-Kontrolle, Bauarbeiten) gibt es keine Freigaben.</li>
       <li><b>Slots (A-CDM):</b> manche Abflüge haben einen <b>CTOT</b> – Start nur im Fenster −5/+10 min. Meldet sich so ein Flug zu früh zum Pushback, sag <b>Warten bis TSAT</b> <kbd>E</kbd>: dann schiebt er erst zur TSAT und wartet nicht mit laufenden Triebwerken am Rollhalt. Verpasste Slots kosten Ansehen und Airline-Zufriedenheit.</li>
       <li>Am Boden: <b>Rollen zur Position</b> <kbd>R</kbd>, <b>Pushback</b> <kbd>P</kbd>, <b>Rollen zum Rollhalt</b> <kbd>R</kbd>, <b>Line up</b> <kbd>U</kbd>, <b>Startfreigabe</b> <kbd>T</kbd>, <b>Halt</b> <kbd>X</kbd>.</li>
+      <li><b>🛡️ Sicherheitsnetz:</b> Wäre eine Freigabe gerade gefährlich – Landung auf eine belegte Bahn, Start oder Line-up, während jemand im kurzen Endanflug ist oder mit Landefreigabe kurz davor –, ist der Knopf rot mit ⚠ markiert (Grund im Tooltip). Der erste Druck gibt nur einen Warnton und Hinweis; erst ein zweiter Druck innerhalb von vier Sekunden erteilt die Freigabe trotzdem.</li>
       <li><b>Echter Funk:</b> Lotse und Piloten sprechen (🔊 im Funkfenster, jedes Flugzeug mit eigener Stimme, Funkrauschen, eine Frequenz – niemand spricht gleichzeitig). <b>Sprechtaste:</b> <kbd>V</kbd> gedrückt halten (oder 🎙) und auf Englisch funken, z.&nbsp;B. „Aurora five four two, runway two seven, cleared to land“, „Rheinjet four one two, line up and wait“, „… cleared for take-off“, „… cleared ILS approach“, „… hold as published“, „… reduce speed one six zero“, „… taxi to stand“, „… pushback approved“. Auch der Nebenverkehr hört aufs Wort: „Rescue seven, cross runways“ / „… hold south“, die Cessna mit ihrem abgekürzten Rufzeichen („Delta Lima Mike, cleared touch and go“ / „… extend downwind“) und die Pistenkontrolle („Check one, enter runway“ / „… hold short“). Funktioniert in Chrome und Edge (Mikrofon erlauben).</li>
       <li><b>Arbeitsplatz:</b> rechts Radar, Pistenstatus und Funk in einem Fenster (⤢ bzw. <kbd>F</kbd> macht das Radar groß), unten die <b>Flugstreifen</b>: links Landungen, rechts Starts, Filter <b>An / Beide / Ab</b>. Die ausgewählte Karte wird groß und zeigt alle Befehle; kleine Karten zeigen nur den gerade fälligen Befehl.</li>
       <li><b>Reihenfolge &amp; Auto-Staffelung:</b> Karten <b>ziehen</b> (oder ◀ ▶, <kbd>W</kbd>/<kbd>S</kbd>) – die Staffelung passt sich an: Anflugfreigaben kommen in deiner Reihenfolge, Anflüge werden auf 180/160 kt gebremst, Vorgezogene bekommen „Direkt FAF“, notfalls geht einer in die Warteschleife; vor eine Landung gezogene Starts bekommen eine Lücke („Startfenster in …“). Aus der Warteliste in die Pistenfolge ziehen = Anflug frei. Du gibst weiter Lande- und Startfreigaben. „⇅ zurücksetzen“ plant wieder automatisch. Farben auf Karte und Radar: <span style="color:#22d3ee">■ Landung</span> <span style="color:#a5f3fc">■ Landung frei</span> <span style="color:#f59e0b">■ Start</span> <span style="color:#e879f9">■ Startfreigabe</span>.</li>

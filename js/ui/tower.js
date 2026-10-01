@@ -1,5 +1,5 @@
 // Tower-Arbeitsplatz: Flugstreifen & Befehle
-import { CMDS, command, validCommands, tailwind, preferredRunway, requestRunwayChange, drainCount, primaryCommand, departureWait } from '../sim/atc.js';
+import { CMDS, command, validCommands, tailwind, preferredRunway, requestRunwayChange, drainCount, primaryCommand, departureWait, clearanceRisk } from '../sim/atc.js';
 import { correctReadback, RB_WINDOW, RB_HINT } from '../sim/readback.js';
 import { SIDS } from '../sim/sid.js';
 import { WX_WINDOW } from '../sim/wxdev.js';
@@ -136,7 +136,9 @@ export function cmdButtons(state, ac, compact = false, showSpd = true) {
     .map((k) => {
       const c = CMDS[k];
       const cls = c.big ? 'big' : c.danger ? 'danger' : '';
-      return `<button class="cmd ${cls}" data-cmd="${k}" data-ac="${ac.id}">${c.label}${c.key && !compact ? ` <kbd>${c.key}</kbd>` : ''}</button>`;
+      // gefährliche Freigabe schon vorher sichtbar machen
+      const risk = state.role === 'tower' && (k === 'land' || k === 'takeoff' || k === 'lineup') ? clearanceRisk(state, ac, k) : null;
+      return `<button class="cmd ${cls}${risk ? ' risk' : ''}" data-cmd="${k}" data-ac="${ac.id}"${risk ? ` title="⚠ ${esc(risk)}"` : ''}>${risk ? '⚠ ' : ''}${c.label}${c.key && !compact ? ` <kbd>${c.key}</kbd>` : ''}</button>`;
     })
     .join('');
   if (spd.length && showSpd) h += spd.map((k) => `<button class="cmd spd ${ac.spdOverride === CMDS[k].spd ? 'on' : ''}" data-cmd="${k}" data-ac="${ac.id}">${CMDS[k].label}</button>`).join('');
@@ -154,6 +156,25 @@ export function acRoute(state, ac) {
 const Q_PH = new Set([PH.INBOUND, PH.HOLD, PH.GOAROUND, PH.MISSED]);
 const ARR_GND = new Set([PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN]);
 const DEP_APRON = new Set([PH.PUSH]);
+// Sicherheitsabfrage: Eine gefährliche Freigabe (Landung auf belegte Bahn, Start/Line-up mit Verkehr im kurzen
+// Endanflug) wird erst beim zweiten Druck innerhalb von vier Sekunden erteilt – vorher Warnton und Hinweis.
+// In den Einstellungen abschaltbar (settings.safetyNet === false).
+let pendingRisk = null;
+export function guardedCommand(state, ac, key) {
+  if (state.role === 'tower' && state.settings.safetyNet !== false) {
+    const risk = clearanceRisk(state, ac, key);
+    const again = pendingRisk && pendingRisk.id === ac.id && pendingRisk.key === key && performance.now() - pendingRisk.t < 4000;
+    if (risk && !again) {
+      pendingRisk = { id: ac.id, key, t: performance.now() };
+      sfx.alert();
+      toast(`⚠ ${ac.cs}: ${risk}. Nochmal drücken, um trotzdem freizugeben.`, 'bad', 4000);
+      return { ok: false, held: true };
+    }
+  }
+  pendingRisk = null;
+  return command(state, ac, key);
+}
+
 // Start/Line-up vor dem Startfenster: erlaubt, aber mit Warnung (der nächste Anflug muss evtl. durchstarten)
 function earlyWarning(state, ac, key) {
   if ((key !== 'takeoff' && key !== 'lineup') || ac.phase === PH.LINED) return null;
@@ -273,7 +294,8 @@ export class TowerPanel {
       const ac = s.acs.find((a) => a.id === b.dataset.ac);
       if (!ac) return;
       const early = earlyWarning(s, ac, b.dataset.cmd);
-      const r = command(s, ac, b.dataset.cmd);
+      const r = guardedCommand(s, ac, b.dataset.cmd);
+      if (r.held) return;
       if (!r.ok) toast(r.msg, 'warn');
       else {
         sfx.click();
@@ -627,7 +649,8 @@ export class TowerPanel {
     for (const key of validCommands(state, ac)) {
       if (CMDS[key].key === k) {
         const early = earlyWarning(state, ac, key);
-        const r = command(state, ac, key);
+        const r = guardedCommand(state, ac, key);
+        if (r.held) return true;
         if (!r.ok) toast(r.msg, 'warn');
         else {
           sfx.click();

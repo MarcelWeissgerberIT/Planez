@@ -268,6 +268,31 @@ export function primaryCommand(state, ac) {
 }
 // Kann ein Start vom Rollhalt jetzt sicher los? Sonst ungefähre Wartezeit (s) und Grund – wie beim automatischen Lotsen:
 // Piste frei, nächste Landung weit genug weg, Wirbelschleppen-Abstand zum letzten Start
+// Sicherheitsnetz für den Lotsen: Wäre diese Freigabe gerade gefährlich? Liefert den Grund oder null.
+// Landung auf belegte Bahn; Start/Line-up, während ein Anflug mit Landefreigabe kurz vor der Schwelle ist
+// oder noch jemand auf der Bahn steht/ausrollt.
+export function clearanceRisk(state, ac, key) {
+  const strip = ac.strip || 'N';
+  if (key === 'land') {
+    const b = runwayBlocker(state, ac);
+    if (b) return `Bahn belegt – ${b.cs || 'Verkehr'} ${b.phase === PH.ROLLOUT ? 'rollt noch aus' : b.phase === PH.TAKEOFF ? 'startet gerade' : b.crossing ? 'kreuzt die Bahn' : 'steht auf der Bahn'}`;
+    return null;
+  }
+  if (key !== 'takeoff' && key !== 'lineup') return null;
+  const occ = runwayOccupants(state, strip).filter((o) => o !== ac && !(o.phase === PH.FINAL));
+  if (occ.length) return `Bahn belegt – ${occ[0].cs || 'Verkehr'} ${occ[0].phase === PH.ROLLOUT ? 'rollt noch aus' : 'ist auf der Bahn'}`;
+  const lim = key === 'takeoff' && (ac.phase === PH.LINED || ac.phase === PH.LINEUP) ? 2 : 3.5;
+  for (const a of state.acs) {
+    if (a === ac || !a.arr || (a.strip || 'N') !== strip) continue;
+    if (a.mode === 'map' && a.phase === PH.FINAL) return `${a.cs} ist im kurzen Endanflug`;
+    if (a.mode === 'air' && a.phase === PH.APPROACH && a.clr && a.clr.land) {
+      const d = distToLand(a);
+      if (d < lim) return `${a.cs} hat Landefreigabe und ist nur ${d.toFixed(1)} NM entfernt`;
+    }
+  }
+  return null;
+}
+
 export function departureWait(state, ac) {
   const strip = ac.strip || 'N';
   const occ = runwayOccupants(state, strip).filter((o) => o !== ac);
