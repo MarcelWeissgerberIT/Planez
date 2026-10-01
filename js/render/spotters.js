@@ -31,7 +31,7 @@ export function spotterCount(state) {
   return Math.max(0, Math.min(16, n));
 }
 
-export function spotterHillItems(r, state, items, visible) {
+export function spotterHillItems(r, state, items, visible, lights) {
   if (!visible(HILL.x, HILL.y)) return;
   // flacher Grashügel
   items.push({
@@ -94,6 +94,8 @@ export function spotterHillItems(r, state, items, visible) {
     const kind = i % 4 === 0 ? 'ladder' : i % 4 === 1 ? 'tripod' : 'hand';
     const col = COLS[Math.floor(h01(i, 3) * COLS.length)];
     items.push({ d: x + y, f: () => drawSpotter(r, x, y, col, kind, close, wet && i % 2 === 0, i) });
+    // ab und zu ein Blitz, wenn ein Flugzeug nah vorbeizieht
+    if (close && lights && ((r.time * 2.3 + i * 0.17) % 1) < 0.035) lights.push({ x, y, z: 0.15, c: '#ffffff', s: 9, a: 0.95, day: true });
   }
 }
 

@@ -209,17 +209,18 @@ export class Ambient {
         }
       }
     }
-    // Planespotter auf den Hügeln an beiden Bahnenden – bei schönem Wetter mehr, bei Superjumbo oder Sonderlackierung viele
+    // Planespotter am Westende der Bahn (Ostende: eigener Spotterhügel mit Zaun, Leitern und Stativen, render/spotters.js)
+    // – bei schönem Wetter mehr, bei Superjumbo oder Sonderlackierung viele
     const hr = hourOf(state.time), wk = state.weather.kind;
     let nSp = hr > 7.5 && hr < 20.5 ? ({ clear: 4, clouds: 3, rain: 1 }[wk] || 0) : 0;
     if (nSp && state.acs.some((a) => a.type === 'A388' || a.special)) nSp += 6;
     if (zoom >= 0.55 && nSp) {
       const near = state.acs.filter((a) => a.mode === 'map' && [PH.FINAL, PH.TAKEOFF, PH.ROLLOUT].includes(a.phase));
-      // hinter den Bahnenden, seitlich der Anflugachse (Ost: unter dem Anflug auf 27, West: unter den Abflügen)
-      [{ x: 76.4, y: 28.6 }, { x: 0.8, y: 35.4 }].forEach((g, gi) => {
+      // hinter dem Westende, seitlich unter den Abflügen
+      [{ x: 0.8, y: 35.4 }].forEach((g, gi) => {
         const close = near.some((a) => Math.hypot(a.x - g.x, a.y - g.y) < 16);
         for (let k = 0; k < nSp; k++) {
-          const s = hash('spot' + gi, k);
+          const s = hash('spot' + (gi + 1), k);
           const x = g.x + (k % 5) * 0.5 + Math.sin(vt * 0.2 + s) * 0.04, y = g.y + Math.floor(k / 5) * 0.45;
           if (!vis(x, y)) continue;
           items.push({ d: x + y, f: () => drawPerson(r, x, y, SHIRTS[s % SHIRTS.length], 1, k % 2 === 0, vt + s, false) });

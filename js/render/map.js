@@ -350,7 +350,7 @@ export class MapRenderer {
     this.ambient.update(state, dtReal);
     this.ambient.items(this, state, items, lights, night, sites, (x, y) => inView(view, x, y, 1.5));
     this.standCrew.items(this, state, items, lights, night, (x, y) => inView(view, x, y, 1.5));
-    spotterHillItems(this, state, items, (x, y) => inView(view, x, y, 4));
+    spotterHillItems(this, state, items, (x, y) => inView(view, x, y, 4), lights);
     const flying = [];
     for (const ac of state.acs) {
       if (ac.mode !== 'map') continue;
