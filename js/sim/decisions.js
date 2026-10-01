@@ -124,6 +124,23 @@ export const CATALOG = {
       };
     },
   },
+  bagAlarm: {
+    role: 'ground', weight: (s) => (s.scenario ? 0 : 0.35), timeout: 4 * MIN,
+    crew: () => ['Sicherheitsdienst', 'Vorfeld, Sicherheitsdienst, herrenloser Koffer im Abflugbereich, wir brauchen eine Entscheidung zur Räumung.'],
+    cond: (s) => {
+      const n = s.acs.filter((a) => a.phase === PH.STAND && task(a, 'board') && task(a, 'board').st !== 'done').length;
+      return n >= 2 && (s.time - (s.bagAlarmT || -1e9)) > 6 * H ? { n } : null;
+    },
+    card: (s, p) => ({
+      icon: '🧳', title: 'Herrenloser Koffer im Terminal',
+      text: `Im Abflugbereich steht ein Koffer ohne Besitzer. ${p.n} Maschinen sind gerade im Boarding. Räumen kostet überall Zeit, der Sprengstoffhund ist schneller, aber teuer – und Ignorieren ist keine gute Idee.`,
+      options: [
+        { label: 'Sprengstoffhund anfordern', detail: '6.000 € · Boarding überall +4 min', run: (st) => { st.bagAlarmT = st.time; spend(st, 'other', 6000); for (const a of st.acs) { const t = task(a, 'board'); if (a.phase === PH.STAND && t && t.st !== 'done') t.dur += 4 * MIN; } log(st, 'gnd', '🐕 Sprengstoffhund gibt Entwarnung – vergessener Koffer, Boarding geht weiter.'); } },
+        { label: 'Bereich räumen', detail: 'Boarding überall +12 min · Ansehen +0,5 (Sicherheit zuerst)', run: (st) => { st.bagAlarmT = st.time; repDelta(st, 0.5); for (const a of st.acs) { const t = task(a, 'board'); if (a.phase === PH.STAND && t && t.st !== 'done') t.pausedUntil = st.time + 12 * MIN; } log(st, 'gnd', '🚨 Abflugbereich geräumt – Boarding ruht 12 Minuten, dann Entwarnung.'); pushNews(st, 'Herrenloser Koffer: Abflugbereich kurzzeitig geräumt – Entwarnung nach zwölf Minuten.', 'info', '🧳'); } },
+        { label: 'Ignorieren', detail: '20 %: Bundespolizei greift ein – Ansehen −4, Boarding +15 min', run: (st) => { st.bagAlarmT = st.time; if (rand(st) < 0.2) { repDelta(st, -4); for (const a of st.acs) { const t = task(a, 'board'); if (a.phase === PH.STAND && t && t.st !== 'done') t.pausedUntil = st.time + 15 * MIN; } notify(st, '🚨 Die Polizei räumt den Abflugbereich – der Flughafen hatte nicht reagiert', 'bad'); pushNews(st, 'Herrenloser Koffer: Polizei kritisiert späte Reaktion des Flughafens.', 'bad', '🧳'); } } },
+      ],
+    }),
+  },
   heat: {
     role: 'ground', weight: (s) => (s.scenario ? 0 : 0.6), timeout: 5 * MIN,
     crew: (s, p) => { const a = byId(s, p.ac); return a && [`Gate ${a.stand}`, `Vorfeld, Gate an Position ${a.stand}, in der Kabine von ${a.cs} sind es über dreißig Grad, die Passagiere beschweren sich.`]; },
