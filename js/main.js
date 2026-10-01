@@ -569,12 +569,28 @@ function updateHUD(force) {
 
 // Anfragen / Konflikte akustisch melden
 // Momente des Tages: besondere Szenen automatisch fotografieren (für den Tagesbericht)
-const MOMENT_PRIO = { state: 5, a380: 5, emergency: 5, nordo: 4, special: 3, storm: 2, golden: 1, night: 1 };
+const MOMENT_PRIO = { salute: 5, evac: 5, state: 5, a380: 5, emergency: 5, nordo: 4, special: 3, storm: 2, golden: 1, night: 1 };
 function watchMoments(s) {
   if (!game.map || s.scenario || (game.photo && game.photo.on) || (game.cinema && game.cinema.on)) return;
   const M = game.moments || (game.moments = []);
   if (M.length >= 8) return;
   const h = hourOf(s.time);
+  // Wassertaufe und Evakuierung als Momente des Tages (je Ereignis ein Foto)
+  const sal = s.salute;
+  if (sal && sal.p && !sal.done && !sal.photo) {
+    const ac = s.acs.find((a) => a.id === sal.ac);
+    if (ac && Math.hypot(ac.x - sal.p.x, ac.y - sal.p.y) < 1.2) {
+      sal.photo = true;
+      const img = spotter().capture(ac);
+      if (img) return M.push({ kind: 'salute', text: `💦 Wassertaufe für den Erstflug ${ac.cs}`, img, t: s.time, prio: MOMENT_PRIO.salute });
+    }
+  }
+  const ev = s.acs.find((a) => a.emgKind === 'smoke' && a.fireStop && !a.fireDone && s.time - a.fireStop > 70 && !(a.moments && a.moments.includes('evac')));
+  if (ev) {
+    (ev.moments = ev.moments || []).push('evac');
+    const img = spotter().capture(ev);
+    if (img) return M.push({ kind: 'evac', text: `🛟 Evakuierung von ${ev.cs} über die Notrutschen`, img, t: s.time, prio: MOMENT_PRIO.evac });
+  }
   for (const ac of s.acs) {
     if (ac.mode !== 'map') continue;
     const landing = ac.phase === PH.ROLLOUT && ac.v > 0.12;
