@@ -14,13 +14,42 @@ const CONE_S = 3; // Pylonen erscheinen kurz nach dem Anhalten
 export class StandCrew {
   constructor() {
     this.arr = new Map(); // Flugzeug -> Zeitpunkt (Darstellungszeit), seit dem es an der Position steht
+    this.wave = new Map(); // Flugzeug -> Beginn des Abschiedswinkens
+    this.pin = new Map(); // Flugzeug -> Standort des Mitarbeiters mit dem Bolzen
   }
 
   items(r, state, items, lights, night, visible) {
     const now = r.time;
     const seen = new Set();
     for (const ac of state.acs) {
-      if (ac.mode !== 'map' || ac.stand == null) continue;
+      if (ac.mode !== 'map') continue;
+      // Pushback: Wing Walker läuft an der Flügelspitze mit; Triebwerksstart: Mitarbeiter zeigt den Bugrad-Bolzen
+      // mit roter Fahne, beim Losrollen winkt er zum Abschied
+      if (ac.phase === PH.PUSH || ac.phase === PH.STARTUP || (ac.phase === PH.TAXI_OUT && (this.wave.get(ac.id) ?? now) > now - 6)) {
+        const L = ac.len;
+        const img = IMG[AC_TYPES[ac.type].sprite];
+        const span = img ? (L * img.width) / img.height : L;
+        const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg), rx = -fy, ry = fx;
+        if (ac.phase === PH.PUSH) {
+          const wx = ac.x + rx * (span * 0.5 + 0.15) - fx * L * 0.05, wy = ac.y + ry * (span * 0.5 + 0.15) - fy * L * 0.05;
+          if (visible(wx, wy)) items.push({ d: wx + wy, f: () => drawPerson(r, wx, wy, '#facc15', 1, false, now * 2, true, true) });
+        } else {
+          if (ac.phase === PH.TAXI_OUT && !this.wave.has(ac.id)) this.wave.set(ac.id, now);
+          if (ac.phase !== PH.TAXI_OUT) this.wave.delete(ac.id);
+          // fester Standort links vor der Nase (beim Losrollen bleibt er stehen)
+          let P = this.pin.get(ac.id);
+          if (ac.phase === PH.STARTUP) {
+            const side = span * 0.5 + 0.35; // außerhalb der Flügelspitze, damit die Tragfläche nicht über ihn streicht
+            P = { x: ac.x + fx * (L * 0.5 + 0.6) - rx * side, y: ac.y + fy * (L * 0.5 + 0.6) - ry * side };
+            this.pin.set(ac.id, P);
+          }
+          if (!P) continue; // erst beim Triebwerksstart gesehen (z. B. nach dem Laden): niemand da
+          const waving = ac.phase === PH.TAXI_OUT;
+          if (visible(P.x, P.y)) items.push({ d: P.x + P.y, f: () => this.pinMan(r, P.x, P.y, waving, now) });
+        }
+        continue;
+      }
+      if (ac.stand == null) continue;
       const st = state.stands.find((s) => s.id === ac.stand);
       if (!st) continue;
       const mx = st.x, my = LY.STAND_NOSE - 0.55;
@@ -57,6 +86,35 @@ export class StandCrew {
       for (const [x, y] of cones) if (visible(x, y)) items.push({ d: x + y, f: () => cone(r, x, y) });
     }
     for (const id of this.arr.keys()) if (!seen.has(id)) this.arr.delete(id);
+    if (this.pin.size > 40) this.pin.clear();
+    if (this.wave.size > 40) this.wave.clear();
+  }
+
+  // Mitarbeiter mit Bugrad-Bolzen: hält die rote Fahne hoch (Pilot sieht: Schlepper ist ab), winkt beim Losrollen
+  pinMan(r, x, y, waving, t) {
+    const { ctx, cam } = r;
+    drawPerson(r, x, y, '#facc15', 1, false, 0, false, true, false);
+    const z = cam.zoom;
+    const b = cam.toScreen(x, y, 0);
+    const H = 0.12 * ZS * z;
+    const w = Math.max(1, 0.035 * ZS * z);
+    const sx = b.x + w * 0.55, sy = b.y - H * 0.8;
+    const sw = waving ? Math.sin(t * 7) * 0.5 : 0;
+    const hx = sx + w * (0.4 + sw * 0.6), hy = sy - H * 0.42;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = Math.max(1.2, w * 0.32);
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(hx, hy);
+    ctx.stroke();
+    if (!waving) {
+      // rote „Remove before flight“-Fahne am Bolzen
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(hx, hy - H * 0.05, Math.max(2, w * 0.9), Math.max(2, H * 0.3));
+    }
+    ctx.restore();
   }
 
   // Andockanzeige an der Fassade: dunkles Gehäuse mit leuchtender Schrift und Annäherungsbalken
