@@ -5,11 +5,17 @@ import { AIRLINES } from './config.js';
 const DIGIT = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'niner'];
 const digits = (s) => String(s).split('').map((c) => (/\d/.test(c) ? DIGIT[+c] : c === '.' ? 'decimal' : c)).join(' ');
 const SIDE = { L: 'left', R: 'right', C: 'center' };
+const PHONETIC = { A: 'Alpha', B: 'Bravo', C: 'Charlie', D: 'Delta', E: 'Echo', F: 'Foxtrot', G: 'Golf', H: 'Hotel', I: 'India', J: 'Juliett', K: 'Kilo', L: 'Lima', M: 'Mike', N: 'November', O: 'Oscar', P: 'Papa', Q: 'Quebec', R: 'Romeo', S: 'Sierra', T: 'Tango', U: 'Uniform', V: 'Victor', W: 'Whiskey', X: 'X-ray', Y: 'Yankee', Z: 'Zulu' };
+// Namen, die englische Stimmen sonst falsch aussprechen
+const SAY = [[/\bPlanez\b/g, 'Planes'], [/\bRheinjet\b/g, 'Rhine jet'], [/\bFjordwing\b/g, 'Fyord wing'], [/\bNordstern\b/g, 'Nord-stern'], [/\bNM\b/g, 'miles'], [/\bkts?\b/g, 'knots']];
 
 // Zahlen so sprechen, wie es Lotsen und Piloten tun
 export function spoken(text) {
   let t = ' ' + text + ' ';
   t = t.replace(/MAYDAY MAYDAY MAYDAY/g, 'Mayday, Mayday, Mayday');
+  for (const [re, w] of SAY) t = t.replace(re, w);
+  // Rollwege und ATIS-Kennung im ICAO-Alphabet („via A and L“ -> „via Alpha and Lima“, „information K“)
+  t = t.replace(/\b(via|and|taxiway|then|information) ([A-Z])\b(?!-)/g, (_, w, l) => `${w} ${PHONETIC[l]}`);
   t = t.replace(/\bFL\s?(\d{2,3})\b/g, (_, n) => `flight level ${digits(n)}`);
   t = t.replace(/\b(runway|rwy|RWY)\s+(\d{2})([LRC])?\b/gi, (_, w, n, sd) => `runway ${digits(n)}${sd ? ' ' + SIDE[sd.toUpperCase()] : ''}`);
   t = t.replace(/\b(\d{1,2})(\d{3}) (feet|ft)\b/g, (_, th, rest, u) => `${spokenThousands(+(th + rest))} feet`);
@@ -110,11 +116,17 @@ export function micClick(vol = 0.9) {
 // ---------------- Stimmen ----------------
 let voices = [];
 let deVoices = [];
+// Spaß- und Effektstimmen (v. a. macOS) taugen nicht für den Funk
+const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|wobble|zarvox|trinoids|whisper|jester|organ|superstar|good news|deranged|hysterical|junior|ralph|\bfred\b|kathy|princess|grandma|grandpa|\beddy\b|\bflo\b|\breed\b|rocko|\bsandy\b|shelley|novelty/i;
+// natürlich klingende Stimmen zuerst (Edge „Online (Natural)“, Google, Siri/Premium/Enhanced)
+const quality = (v) => (/natural|neural|online|premium|enhanced|siri/i.test(v.name) ? 4 : 0) + (/google/i.test(v.name) ? 3 : 0) + (/microsoft/i.test(v.name) ? 1 : 0) + (v.localService === false ? 1 : 0) + (/daniel|samantha|karen|moira|tessa|serena|arthur|oliver/i.test(v.name) ? 2 : 0);
 function loadVoices() {
   if (!window.speechSynthesis) return;
   const all = speechSynthesis.getVoices();
-  voices = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith('en'));
-  deVoices = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith('de'));
+  const en = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith('en'));
+  const good = en.filter((v) => !NOVELTY.test(v.name));
+  voices = (good.length ? good : en).slice().sort((a, b) => quality(b) - quality(a));
+  deVoices = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith('de') && !NOVELTY.test(v.name)).sort((a, b) => quality(b) - quality(a));
 }
 // Bodencrew (Betriebsfunk, Deutsch): feste Stimme je Fahrzeug
 function crewVoice(from) {
@@ -130,21 +142,30 @@ const hash = (s) => {
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return Math.abs(h);
 };
+// Lotse: ruhige, gut verständliche Stimme (bevorzugt britisch, männlich, natürlich klingend); einmal gewählt, bleibt sie
+let atcCache = null;
 function atcVoice() {
-  const pref = [/en-GB/i, /en-US/i];
-  for (const p of pref) {
-    const v = voices.find((x) => p.test(x.lang) && /male|daniel|ryan|george|guy|david|google uk english male/i.test(x.name));
-    if (v) return v;
+  if (atcCache && voices.includes(atcCache)) return atcCache;
+  const male = /\bmale\b|daniel|ryan|george|guy|david|arthur|oliver|thomas|christopher|eric|brian|william|aaron/i;
+  for (const p of [/en-GB/i, /en-US/i, /en-/i]) {
+    const v = voices.find((x) => p.test(x.lang) && male.test(x.name) && !/female/i.test(x.name));
+    if (v) return (atcCache = v);
   }
-  return voices.find((x) => /en-GB/i.test(x.lang)) || voices[0] || null;
+  return (atcCache = voices.find((x) => /en-GB/i.test(x.lang)) || voices[0] || null);
 }
-// Pilotenstimme: nach Rufzeichen fest, andere als die des Lotsen; Airline prägt den Akzent
+// Pilotenstimme: nach Rufzeichen fest, andere als die des Lotsen; die Airline prägt den Akzent
+const ACCENT = { AUR: ['en-US'], RHJ: ['en-GB', 'en-IE'], ALP: ['en-GB', 'en-IE'], NST: ['en-GB', 'en-ZA'], SKB: ['en-IE', 'en-GB'], OPL: ['en-IN', 'en-GB'], TGC: ['en-US', 'en-CA'], BWG: ['en-GB', 'en-AU'], LUM: ['en-AU', 'en-NZ'], FJW: ['en-GB', 'en-IE'], VIP: ['en-US', 'en-GB'], GOV: ['en-GB'] };
 function pilotVoice(from) {
   if (!voices.length) return null;
   const atc = atcVoice();
   const pool = voices.filter((v) => v !== atc);
   const list = pool.length ? pool : voices;
-  return list[hash(from) % list.length];
+  const al = String(from).replace(/[^A-Z].*$/, '');
+  const acc = ACCENT[al];
+  const byAccent = acc ? list.filter((v) => acc.some((a) => v.lang.replace('_', '-').toLowerCase().startsWith(a.toLowerCase()))) : [];
+  // die besseren Stimmen bevorzugen: aus der oberen Hälfte der Liste wählen, sofern vorhanden
+  const cand = byAccent.length ? byAccent : list.slice(0, Math.max(2, Math.ceil(list.length / 2)));
+  return cand[hash(from) % cand.length];
 }
 
 // ---------------- Sender / Warteschlange ----------------
@@ -230,11 +251,20 @@ export const voice = {
       startHiss(this.vol);
       this.emit();
     };
-    u.onend = done;
-    u.onerror = done;
+    // lange Durchsagen (ATIS) satzweise sprechen – manche Online-Stimmen brechen sonst nach etwa 15 Sekunden ab
+    const parts = u.text.length > 150 ? u.text.split(/(?<=[.!?])\s+/).filter(Boolean) : [u.text];
+    const utts = parts.map((txt, i) => {
+      if (parts.length === 1) return u;
+      const x = new SpeechSynthesisUtterance(txt);
+      for (const k of ['voice', 'lang', 'rate', 'pitch', 'volume']) x[k] = u[k];
+      if (i === 0) x.onstart = u.onstart;
+      return x;
+    });
+    utts[utts.length - 1].onend = done;
+    for (const x of utts) x.onerror = done;
     squelch(this.vol);
     setTimeout(() => {
-      if (this.current === m) speechSynthesis.speak(u);
+      if (this.current === m) for (const x of utts) speechSynthesis.speak(x);
     }, 90);
     // Sicherheitsnetz, falls ein Browser onend verschluckt
     setTimeout(done, 1500 + u.text.length * 95);
