@@ -159,6 +159,9 @@ Wörterbuch ergänzen – fehlt ein Eintrag, erscheint der deutsche Text. Die Sp
 `PLANEZ_LANG=en node tools/simtest.mjs`).
 
 ## Shop-Material
+Shop-Texte auf Deutsch und Englisch (Kurz- und Langbeschreibung, Features, Systemanforderungen, Tags, Hinweis zur
+KI-Offenlegung): `store/STORE_TEXT.md`.
+
 `store/art/` enthält das Titelbild (Quer- und Hochformat, ohne Schrift). `node tools/capsules.mjs` setzt daraus Logo und
 Slogan zusammen und schreibt alle Formate nach `store/capsules/` (nicht im Repository): Steam Header 920×430, Small 462×174,
 Main 1232×706, Vertical 748×896, Library Capsule 600×900, Library Hero 3840×1240 (ohne Schrift), Library Logo 1280×720
