@@ -1,7 +1,7 @@
 // Ereigniskarten mit Entscheidungen für die gespielte Rolle (Tower, Vorfeld, Manager).
 // Jede Karte hat 2–3 Optionen mit echten Auswirkungen; ohne Antwort gilt nach Ablauf die erste Option.
 // Rollen, die die KI spielt, entscheiden still selbst.
-import { AIRLINES, CITIES, AC_TYPES } from '../config.js';
+import { AIRLINES, CITIES, AC_TYPES, SIZE_RANK } from '../config.js';
 import { rand, randRange, randInt, pick, pickWeighted, clamp, fmtMoney } from '../util.js';
 import { log, notify, fx } from './messages.js';
 import { earn, spend } from './economy.js';
@@ -78,6 +78,76 @@ export const CATALOG = {
         options: [
           { label: 'Neue Mahlzeiten', detail: '3.000 € · Catering +12 min', run: (st) => { spend(st, 'other', 3000); const t = task(byId(st, p.ac), 'cater'); if (t) t.dur += 12 * MIN; } },
           { label: 'Ohne warmes Essen', detail: 'Zufriedenheit der Airline −4', run: (st) => { const a = byId(st, p.ac); const t = task(a, 'cater'); if (t) t.dur = Math.max(60, t.dur * 0.4); satDelta(contractOfAc(st, a), -4); } },
+        ],
+      };
+    },
+  },
+  aog: {
+    role: 'ground', weight: 0.5, timeout: 6 * MIN,
+    cond: (s) => {
+      const c = s.acs.filter((a) => a.phase === PH.STAND && a.ta && task(a, 'board') && task(a, 'board').st !== 'done' && !a.aogDone);
+      return c.length ? { ac: pick(s, c).id } : null;
+    },
+    card: (s, p) => {
+      const ac = byId(s, p.ac);
+      return {
+        icon: '🔧', title: `Technischer Defekt an ${ac?.cs}`,
+        text: 'Beim Außencheck meldet der Mechaniker eine defekte Positionsleuchte. Reparieren kostet Zeit – laut Mindestausrüstungsliste (MEL) darf die Maschine bei Tag auch so fliegen, aber die Airline sieht das nicht gern.',
+        options: [
+          { label: 'Reparieren', detail: '6.000 € · Abfertigung 15 min angehalten', run: (st) => { const a = byId(st, p.ac); if (!a) return; a.aogDone = true; spend(st, 'other', 6000); for (const t of Object.values(a.ta?.tasks || {})) if (t.st !== 'done') t.pausedUntil = st.time + 15 * MIN; log(st, 'gnd', `🔧 ${a.cs}: Positionsleuchte wird getauscht – Abfertigung ruht 15 Minuten.`); } },
+          { label: 'Mit MEL-Freigabe fliegen', detail: '30 %: Airline verärgert, Ansehen −2', run: (st) => { const a = byId(st, p.ac); if (!a) return; a.aogDone = true; if (rand(st) < 0.3) { satDelta(contractOfAc(st, a), -6); repDelta(st, -2); log(st, 'gnd', `🔧 ${a.cs} fliegt mit MEL-Freigabe – die Airline beschwert sich über die Wartungsqualität.`); } else log(st, 'gnd', `🔧 ${a.cs} fliegt mit MEL-Freigabe, Reparatur am Zielflughafen.`); } },
+        ],
+      };
+    },
+  },
+  wrongBag: {
+    role: 'ground', weight: 0.5, timeout: 5 * MIN,
+    cond: (s) => {
+      const c = s.acs.filter((a) => a.phase === PH.STAND && task(a, 'load') && ['active', 'done'].includes(task(a, 'load').st) && task(a, 'board') && task(a, 'board').st !== 'done');
+      return c.length ? { ac: pick(s, c).id } : null;
+    },
+    card: (s, p) => {
+      const ac = byId(s, p.ac);
+      return {
+        icon: '🧳', title: `Koffer im falschen Flugzeug (${ac?.cs})`,
+        text: 'Der Gepäckabgleich meldet einen Koffer an Bord, dessen Passagier eine andere Maschine nimmt. Umladen kostet ein paar Minuten, nachsenden kostet Geld und Nerven.',
+        options: [
+          { label: 'Umladen', detail: 'Beladen +6 min', run: (st) => { const t = task(byId(st, p.ac), 'load'); if (t) { t.dur += 6 * MIN; if (t.st === 'done') { t.st = 'ready'; t.prog = 0.8; t.readyT = st.time; } } } },
+          { label: 'Per Kurier nachsenden', detail: '1.500 € · Passagier verärgert', run: (st) => { spend(st, 'other', 1500); repDelta(st, -0.5); } },
+        ],
+      };
+    },
+  },
+  noStand: {
+    role: 'ground', weight: 0, urgent: 2 * H, timeout: 4 * MIN,
+    cond: (s) => {
+      const w = s.acs.find((a) => a.arr && !a.stand && [PH.VACATED, PH.TAXI_WAIT].includes(a.phase) && s.time - (a.reqT || s.time) > 3 * MIN);
+      if (!w) return null;
+      const t = AC_TYPES[w.type];
+      const fits = (st) => st.built && !st.closed && SIZE_RANK[st.size] >= SIZE_RANK[t.size] && !(t.cargo && st.kind !== 'cargo');
+      // Abflug an einer passenden Position, der am weitesten ist
+      let best = null, bestDone = -1;
+      for (const st of s.stands) {
+        if (!fits(st) || !st.occ) continue;
+        const d = s.acs.find((a) => a.id === st.occ && a.phase === PH.STAND && a.ta);
+        if (!d) continue;
+        const tk = Object.values(d.ta.tasks);
+        const done = tk.filter((x) => x.st === 'done').length / Math.max(1, tk.length);
+        if (done > bestDone) {
+          bestDone = done;
+          best = d;
+        }
+      }
+      return best ? { ac: w.id, dep: best.id } : null;
+    },
+    card: (s, p) => {
+      const ac = byId(s, p.ac), dep = byId(s, p.dep);
+      return {
+        icon: '🅿️', title: `${ac?.cs} wartet auf eine Position`,
+        text: `Alle passenden Positionen sind belegt, ${ac?.cs} steht mit laufenden Triebwerken auf dem Rollweg. Am weitesten ist ${dep?.cs} an P${dep?.stand} – mit Extra-Personal ginge es dort schneller.`,
+        options: [
+          { label: 'Warten lassen', detail: 'Airline von ' + (ac?.cs || '') + ' unzufrieden', run: (st) => satDelta(contractOfAc(st, byId(st, p.ac)), -3) },
+          { label: `${dep?.cs || 'Abflug'} beschleunigen`, detail: '4.000 € Extra-Personal · Restarbeiten halb so lang', run: (st) => { const d = byId(st, p.dep); if (!d || !d.ta) return; spend(st, 'other', 4000); for (const [k, t] of Object.entries(d.ta.tasks)) if (t.st !== 'done' && k !== 'push') t.dur = Math.max(60, t.dur * 0.5); log(st, 'gnd', `🅿️ Extra-Personal an P${d.stand}: ${d.cs} wird schneller fertig, damit ${byId(st, p.ac)?.cs || 'die Ankunft'} einparken kann.`); } },
         ],
       };
     },
