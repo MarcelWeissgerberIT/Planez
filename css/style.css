@@ -1976,3 +1976,23 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 #game::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 52%, transparent 55%, rgba(2, 6, 14, 0.38) 100%); }
 #game.riding::before, #game.photo::before, #game.cinema::before { display: none; }
 @media (max-width: 1000px) { #hud { padding: 6px 8px; gap: 6px; height: auto; min-height: 58px; } #info .i-btns { justify-content: flex-start; margin-left: 0; } }
+
+/* ---------- Dialoge im neuen Look (Ziele, Tagesbericht, Station, Hilfe …) ---------- */
+#modal { background: radial-gradient(ellipse at 50% 40%, rgba(6, 12, 24, 0.55), rgba(2, 5, 12, 0.78)); backdrop-filter: blur(6px) saturate(0.9); }
+.modal-box { position: relative; border: 0; background: linear-gradient(180deg, rgba(24, 35, 58, 0.97), rgba(10, 16, 30, 0.98)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(148, 178, 214, 0.2), 0 30px 80px rgba(0, 0, 0, 0.65); border-radius: 18px; padding: 20px 22px; animation: modalIn 0.28s cubic-bezier(0.2, 1.1, 0.4, 1); scrollbar-width: thin; scrollbar-color: rgba(148, 178, 214, 0.28) transparent; }
+.modal-box::before { content: ''; position: sticky; display: block; top: -20px; margin: -20px -22px 16px; height: 3px; background: linear-gradient(90deg, var(--mm-cyan, #38d6f5), color-mix(in srgb, var(--mm-cyan, #38d6f5) 20%, transparent) 70%, transparent); border-radius: 18px 18px 0 0; z-index: 2; }
+@keyframes modalIn { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
+.modal-box h2 { font-family: var(--ui-font); font-weight: 700; font-size: 22px; letter-spacing: 0.03em; color: #f8fafc; }
+.modal-box h3 { font-family: var(--ui-font); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 13px; color: var(--mm-cyan, #38d6f5); margin-top: 20px; }
+.report-grid { gap: 8px; }
+.report-grid div { border: 0; background: linear-gradient(180deg, rgba(148, 178, 214, 0.09), rgba(148, 178, 214, 0.03)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(148, 178, 214, 0.14); border-radius: 11px; padding: 9px 11px; }
+.report-grid span { font-family: var(--ui-font); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #8ea3bd; }
+.report-grid b { font-size: 17px; color: #f1f5f9; }
+.role-pick button { border: 0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(148, 178, 214, 0.18); background: linear-gradient(180deg, rgba(148, 178, 214, 0.08), rgba(148, 178, 214, 0.02)); transition: transform 0.15s, box-shadow 0.15s; }
+.role-pick button:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px var(--mm-cyan, #38d6f5), 0 8px 20px rgba(0, 0, 0, 0.35); }
+.role-pick button.cur { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px var(--good), 0 0 18px rgba(52, 211, 153, 0.2); }
+.role-pick .rp-t { font-family: var(--ui-font); letter-spacing: 0.03em; font-size: 15px; }
+.ach { border: 0; box-shadow: 0 0 0 1px rgba(148, 178, 214, 0.14); background: linear-gradient(180deg, rgba(148, 178, 214, 0.06), rgba(148, 178, 214, 0.02)); }
+.ach.on { box-shadow: 0 0 0 1px rgba(253, 224, 71, 0.5), 0 0 16px rgba(253, 224, 71, 0.12); }
+.ach b { font-family: var(--ui-font); letter-spacing: 0.02em; }
+.modal-acts .btn { font-family: var(--ui-font); letter-spacing: 0.06em; }
