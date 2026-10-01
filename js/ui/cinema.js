@@ -124,6 +124,7 @@ export class Cinema {
       if (AC_TYPES[ac.type].size === 'L') w *= 1.6;
       if (ac.type === 'A388') w *= 3;
       if (ac.protocol) w *= 3;
+      if (s.salute && s.salute.ac === ac.id && s.salute.p) w *= 4;
       if (recent.includes(ac.id)) w *= 0.15;
       out.push({ kind, id: ac.id, w });
     }
@@ -291,6 +292,7 @@ function commentary(s, sh, ac) {
     const pax = rot ? (arriving ? rot.paxIn : rot.paxOut) : 0;
     const wet = ['rain', 'storm', 'snow'].includes(s.weather.kind);
     if (ac.emergency) return pickC([`Hier läuft ein Notfall: ${who} landet, die Feuerwehr steht bereit.`, `Spannung am Platz – ${who} hat einen Notfall gemeldet und bekommt Vorrang.`]);
+    if (s.salute && s.salute.ac === ac.id && s.salute.p) return pickC([`Ein Erstflug! ${who} kommt zum ersten Mal aus ${cn} – und die Feuerwehr schießt den Wasserbogen.`, `Wassertaufe für ${who}: So begrüßt ein Flughafen eine neue Strecke.`]);
     if (ac.protocol && s.sv) return pickC([`Staatsbesuch! ${s.sv.guest} an Bord der Regierungsmaschine – ${sh.kind === 'land' ? 'unten wartet schon der rote Teppich' : sh.kind === 'dep' ? 'die Delegation verabschiedet sich' : 'die Kolonne steht bereit'}.`, `Protokoll auf die Minute: ${who} mit ${s.sv.guest} – heute schaut das ganze Land auf ${s.name}.`]);
     if (ac.nordo) return `Ohne Funk unterwegs: ${who} bekommt vom Tower nur Lichtsignale.`;
     if (ac.type === 'A388' && (sh.kind === 'land' || sh.kind === 'dep')) return pickC([`Der Superjumbo! Die A380 von ${al.name} – über 500 Tonnen ${sh.kind === 'land' ? 'auf dem Weg zur Bahn' : 'heben gleich ab'}.`, `Das größte Passagierflugzeug der Welt – ${who} mit ${pax || 'über 500'} Menschen an Bord.`]);

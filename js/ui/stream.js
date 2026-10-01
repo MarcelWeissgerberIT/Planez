@@ -134,6 +134,10 @@ export class Stream {
       if (h < 5.5 || h > 21) I += 0.8;
     }
     if (s.fire) I += 3;
+    if (s.salute && s.salute.p) {
+      const p = cam.toScreen(s.salute.p.x, s.salute.p.y, 0);
+      if (p.x > 0 && p.y > 0 && p.x < W && p.y < H) I += 3;
+    }
     return { I: Math.min(14, I), inView };
   }
 
@@ -193,6 +197,15 @@ export class Stream {
       else if (ac.phase === PH.FINAL && AC_TYPES[ac.type].size === 'L' && Math.random() < 0.5) this.say(r(L.big), 1);
     }
     if (this.seen.size > 300) this.seen.clear();
+    // Wassertaufe im Bild
+    const sal = s.salute;
+    if (sal && sal.p && !sal.chat) {
+      const p = this.game.cam.toScreen(sal.p.x, sal.p.y, 0);
+      if (p.x > 0 && p.y > 0 && p.x < this.game.cam.w && p.y < this.game.cam.h) {
+        sal.chat = true;
+        this.say(r(['Wassertaufe!! 💦', 'Erstflug mit Wasserbogen 😍', 'Die Feuerwehr gibt alles 💦🚒', 'Gänsehaut, Erstflug!']), 3);
+      }
+    }
     // Plaudern zwischendurch
     this.next -= dt;
     if (this.next <= 0) {

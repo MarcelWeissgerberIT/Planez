@@ -166,6 +166,7 @@ function processHub(state) {
     c.feeMult = p.mult;
     c.sat = 85;
     c.hub = true;
+    c.firstFlight = true;
     state.contracts.push(c);
     generateDay(state, Math.floor(state.time / 86400) + 2, c);
     n++;
@@ -224,6 +225,7 @@ export function acceptOffer(state, offerId, feeMult = 1) {
   const c = makeContract(state, o.airline, o.type, o.city, o.perDay, o.days);
   c.sat = feeMult > 1 ? 70 : 78;
   if (feeMult !== 1) c.feeMult = feeMult;
+  c.firstFlight = true; // Erstflug bekommt eine Wassertaufe
   state.contracts.push(c);
   state.life = state.life || {};
   state.life.contractsAll = (state.life.contractsAll || 0) + 1;

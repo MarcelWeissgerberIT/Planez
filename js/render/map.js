@@ -19,6 +19,7 @@ import { MARKS } from '../ui/marks.js';
 import { siteGeom, drawSiteGround, siteItems, permanentItems, drawSiteLabel } from './sites.js';
 import { runwayClosed, stripGeom } from '../sim/runway.js';
 import { motorcade } from '../sim/statevisit.js';
+import { saluteView } from '../sim/firstflight.js';
 const markOf = (ac) => (ac.mark && MARKS[ac.mark.c] ? MARKS[ac.mark.c] : null);
 
 const BH = { hall: 1.3, tower: 5, hangar: 1.8, cargo: 0.9, depot: 0.7, fire: 0.8, fuel: 0.9, parking: 1.1, hotel: 3.2, radar: 2.6 };
@@ -373,12 +374,15 @@ export class MapRenderer {
     this.runwayWorkItems(state, items, lights);
     this.followMeItems(state, items, lights);
     this.stateVisitItems(state, items, lights, night);
+    const sal = saluteView(state);
+    if (sal) for (const t of sal.trucks) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
     plowItems(this, state, items, lights);
     infraItems(this, state, items, lights, night);
     deiceFx(this, state, items);
     items.sort((a, b) => a.d - b.d);
     for (const it of items) it.f();
     this.drawFireSpray(state);
+    if (sal && sal.spray) this.drawSalute(sal);
     flying.sort((a, b) => a.x + a.y - (b.x + b.y));
     for (const ac of flying) this.drawAircraft(state, ac, lights, night, ui);
     this.drawLightBeam(state);
@@ -1350,6 +1354,34 @@ export class MapRenderer {
       g.addColorStop(1, 'rgba(240,244,250,0)');
       ctx.fillStyle = g;
       ctx.fillRect(p.x - 22 * cam.zoom, p.y - 22 * cam.zoom, 44 * cam.zoom, 44 * cam.zoom);
+    }
+  }
+
+  // Wassertaufe: zwei Bögen von den Löschfahrzeugen, die sich hoch über dem Rollweg kreuzen
+  drawSalute(sal) {
+    const { ctx, cam } = this;
+    cam.setScreen(ctx);
+    const [A, B] = sal.trucks;
+    for (const [s, e] of [[A, B], [B, A]]) {
+      const tx = s.x + (e.x - s.x) * 0.62, ty = s.y + (e.y - s.y) * 0.62;
+      for (let k = 0; k < 34; k++) {
+        const ph = (this.time * 0.9 + k / 34) % 1;
+        const x = s.x + (tx - s.x) * ph, y = s.y + (ty - s.y) * ph;
+        const z = 0.36 + ph * (1 - ph) * 4.4 - ph * 0.3;
+        const p = cam.toScreen(x, y, z);
+        const r = (1.9 + ph * 5) * cam.zoom;
+        ctx.fillStyle = k % 3 ? `rgba(225,240,255,${0.72 * (1 - ph * 0.5)})` : `rgba(170,205,240,${0.55 * (1 - ph * 0.7)})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Sprühnebel, wo der Strahl herunterkommt
+      const p = cam.toScreen(tx, ty, 0.25);
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 26 * cam.zoom);
+      g.addColorStop(0, 'rgba(235,242,252,0.45)');
+      g.addColorStop(1, 'rgba(235,242,252,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(p.x - 26 * cam.zoom, p.y - 26 * cam.zoom, 52 * cam.zoom, 52 * cam.zoom);
     }
   }
 
