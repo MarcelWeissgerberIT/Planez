@@ -339,6 +339,23 @@ export class Radar {
       ctx.fillText(HH.st === 'req' ? 'HELI X?' : 'HELI X', p.x + 6, p.y + 8);
     }
     const VV = state.vfr && state.vfr.p;
+    // Platzrunde als gestrichelte Linie
+    if (VV && VV.C && VV.mode !== 'leave') {
+      ctx.save();
+      ctx.setLineDash([3, 4]);
+      ctx.strokeStyle = 'rgba(186,230,253,0.35)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      VV.C.forEach((c, i) => {
+        const q = LY.tileToNm(c.x, c.y);
+        const p = this.toScreen(q.x, q.y);
+        if (i) ctx.lineTo(p.x, p.y);
+        else ctx.moveTo(p.x, p.y);
+      });
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
     if (VV) {
       const q = LY.tileToNm(VV.x, VV.y);
       const p = this.toScreen(q.x, q.y);
