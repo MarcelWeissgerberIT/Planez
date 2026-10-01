@@ -1519,3 +1519,18 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .scn-story p { margin: 0; font-style: italic; color: #dbeafe; line-height: 1.45; font-size: 13.5px; }
 .scn-item.camp.done .scn-st { color: var(--good); }
 .scn-item.camp.cur { box-shadow: inset 3px 0 0 var(--mm-amber, #f5a623); }
+
+/* ---------- Kino-Intro ---------- */
+#game.intro-on > *:not(#map):not(#intro) { opacity: 0 !important; pointer-events: none !important; transition: opacity .4s; }
+#intro { position: absolute; inset: 0; z-index: 60; cursor: pointer; }
+#intro .in-bar { position: absolute; left: 0; right: 0; height: 11vh; background: #000; transition: transform .8s ease; }
+#intro .in-bar.top { top: 0; } #intro .in-bar.bot { bottom: 0; }
+#intro.out .in-bar.top { transform: translateY(-100%); } #intro.out .in-bar.bot { transform: translateY(100%); }
+#intro .in-t { position: absolute; left: 6vw; bottom: calc(11vh + 5vh); color: #fff; opacity: 0; transform: translateY(12px); transition: opacity 1s, transform 1.2s; text-shadow: 0 2px 18px rgba(0,0,0,.7); }
+#intro.show .in-t { opacity: 1; transform: none; }
+#intro.fade .in-t, #intro.out .in-t { opacity: 0; transition: opacity .9s; }
+#intro .in-t small { display: block; font-family: var(--mm-font, var(--sans)); letter-spacing: .28em; text-transform: uppercase; font-size: 12px; color: var(--mm-cyan, #38d6f5); margin-bottom: 6px; }
+#intro .in-t b { display: block; font-family: var(--mm-title, var(--sans)); font-size: clamp(30px, 5vw, 64px); letter-spacing: .06em; text-transform: uppercase; line-height: 1; }
+#intro .in-t em { display: block; font-style: normal; font-family: var(--mm-font, var(--sans)); letter-spacing: .3em; text-transform: uppercase; font-size: 12px; color: var(--mm-amber, #f5a623); margin-top: 10px; }
+#intro .in-skip { position: absolute; right: 3vw; bottom: calc(11vh / 2 - 14px); background: none; border: 1px solid rgba(255,255,255,.35); color: #e2e8f0; border-radius: 20px; padding: 5px 14px; font: 600 12px var(--sans); cursor: pointer; z-index: 2; }
+#intro.out { pointer-events: none; }

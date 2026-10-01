@@ -9,6 +9,7 @@ import { listeners } from './sim/messages.js';
 import { SPEEDS, AC_TYPES, dayMinutes } from './config.js';
 import { TowerPanel, REQ_DE, fixReadback } from './ui/tower.js';
 import { boardMeetingHtml } from './ui/board.js';
+import { playIntro } from './ui/intro.js';
 import { chooseStrategy, STRATEGIES } from './sim/board.js';
 import { CHAPTERS, chapterOf } from './sim/campaign.js';
 import { GroundPanel } from './ui/groundPanel.js';
@@ -250,6 +251,7 @@ function wireMenu() {
     const cash = Number(($('#inp-cash') || {}).value) || 5000000;
     const events = (($('#inp-events') || {}).value || '1') !== '0';
     const st = applyPrefs(newGame({ role, name, density, slot, difficulty, seasonOffset, cash, events }));
+    game.introNext = !loadPrefs().calm; // Kino-Intro für neue Spiele (nicht bei „Bewegung reduzieren“)
     startGame(st);
     try {
       localStorage.setItem('planez_help_seen', '1');
@@ -338,9 +340,14 @@ function startGame(state) {
   applyRole();
   syncVoice();
   if (!game.tutorial) game.tutorial = new Tutorial(game);
-  if (!state.scenario) game.tutorial.maybeStart();
-  // neues Spiel (ohne Einführung): gleich mit dem Schichtbriefing beginnen
-  if (!state.scenario && state.time < 7 * 3600 && tutSeen(state.role)) setTimeout(() => game.state === state && !modalOpen() && showBriefing(state.speed || 1), 600);
+  const afterIntro = () => {
+    if (!state.scenario) game.tutorial.maybeStart();
+    // neues Spiel (ohne Einführung): gleich mit dem Schichtbriefing beginnen
+    if (!state.scenario && state.time < 7 * 3600 && tutSeen(state.role)) setTimeout(() => game.state === state && !modalOpen() && showBriefing(state.speed || 1), 600);
+  };
+  if (game.introNext && !state.scenario) playIntro(game, afterIntro);
+  else afterIntro();
+  game.introNext = false;
   lastSpeed = state.speed || lastSpeed;
   game.running = true;
   game.lastTs = performance.now();
