@@ -2,14 +2,15 @@
 import { RANKS } from '../sim/goals.js';
 import { esc } from '../util.js';
 import { sfx } from '../audio.js';
+import { T, LOCALE } from '../i18n.js';
 
 const MEDAL = ['🥉', '🥈', '🥇', '🏆', '🌍'];
 const PERKS = [
   [],
-  ['Airlines melden sich öfter mit Angeboten', 'Größere Ziele mit höheren Prämien', 'Bessere Chancen bei Vertragsverhandlungen', '+3 Ansehen'],
-  ['Noch mehr Airline-Interesse, auch für Langstrecke', 'Ziele der dritten Stufe', 'Verhandlungen werden leichter', '+3 Ansehen'],
-  ['Drehkreuz-Status: Airlines suchen dich aktiv', 'Höchste Ziel-Stufe mit Top-Prämien', '+3 Ansehen'],
-  ['Weltflughafen – der Gipfel!', 'Maximale Anziehungskraft auf Airlines', '+3 Ansehen'],
+  [T('Airlines melden sich öfter mit Angeboten'), T('Größere Ziele mit höheren Prämien'), T('Bessere Chancen bei Vertragsverhandlungen'), T('+3 Ansehen')],
+  [T('Noch mehr Airline-Interesse, auch für Langstrecke'), T('Ziele der dritten Stufe'), T('Verhandlungen werden leichter'), T('+3 Ansehen')],
+  [T('Drehkreuz-Status: Airlines suchen dich aktiv'), T('Höchste Ziel-Stufe mit Top-Prämien'), T('+3 Ansehen')],
+  [T('Weltflughafen – der Gipfel!'), T('Maximale Anziehungskraft auf Airlines'), T('+3 Ansehen')],
 ];
 
 export class RankUp {
@@ -39,13 +40,13 @@ export class RankUp {
     this.speed = state.speed || 1;
     state.speed = 0;
     const conf = Array.from({ length: 70 }, (_, i) => `<i style="left:${(i * 37) % 100}%;background:hsl(${(i * 47) % 360},90%,60%);animation-delay:${((i * 13) % 20) / 10}s;animation-duration:${2.6 + ((i * 7) % 10) / 6}s;--r:${(i * 53) % 360}deg"></i>`).join('');
-    this.el.innerHTML = `<div class="ru-conf">${conf}</div><div class="ru-box">
+    this.el.innerHTML = T`<div class="ru-conf">${conf}</div><div class="ru-box">
       <div class="ru-k">Aufstieg · ${esc(state.name)}</div>
       <div class="ru-medal">${MEDAL[Math.min(MEDAL.length - 1, rank)]}</div>
       <h2>${esc(r.name)}</h2>
       <div class="ru-steps">${RANKS.map((x, i) => `<span class="${i < rank ? 'done' : i === rank ? 'cur' : ''}" title="${esc(x.name)}"></span>`).join('')}</div>
       <ul>${(PERKS[rank] || []).map((p) => `<li>✦ ${esc(p)}</li>`).join('')}</ul>
-      <p class="ru-next">${next ? `Nächster Rang: <b>${esc(next.name)}</b> ab ${next.xp.toLocaleString('de-DE')} XP` : 'Höchster Rang erreicht.'}</p>
+      <p class="ru-next">${next ? T`Nächster Rang: <b>${esc(next.name)}</b> ab ${next.xp.toLocaleString(LOCALE)} XP` : T('Höchster Rang erreicht.')}</p>
       <button class="btn btn-primary" data-ru>Weiter ▶</button></div>`;
     this.el.classList.remove('hidden');
     sfx.fanfare();

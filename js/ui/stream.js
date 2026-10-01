@@ -7,6 +7,7 @@ import { PH } from '../sim/aircraft.js';
 import { clamp, esc, hourOf } from '../util.js';
 import { listeners } from '../sim/messages.js';
 import * as LY from '../layout.js';
+import { T, LOCALE } from '../i18n.js';
 
 const USERS = ['spotter_kai', 'AV38fan', 'ILS_Ina', 'Rollweg_Rudi', 'flugfeldfoto', 'PlaneSpotterHH', 'reverse_thrust', 'Maike_fliegt', 'TowerTom', 'jetlag_jonas',
   'Nordhafenhasser', 'kerosinkeks', 'MetarMia', 'butterlandung', 'Fensterplatz_Fred', 'Squawk7000', 'gate_gabi', 'propeller_paul', 'Heavy_Hanna', 'Taxiway_Tim'];
@@ -14,25 +15,25 @@ const COLORS = ['#38bdf8', '#a3e635', '#fbbf24', '#c084fc', '#fb7185', '#34d399'
 const r = (a) => a[Math.floor(Math.random() * a.length)];
 
 const L = {
-  land: ['Butterweich 🧈', 'Schöner Flare!', 'Landung 10/10', 'Hört ihr den Umkehrschub? 🔊', 'Sauber aufgesetzt 👏', 'Und unten ist er', 'Smooth!', 'Die Reifen qualmen 😍'],
-  landWet: ['Die Gischt bei Regen 😍', 'Nasse Bahn, trotzdem sauber', 'Wischer an, Landung top'],
-  dep: ['Rotate! 🛫', 'Und weg ist er', 'Die Triebwerke 🔊🔊', 'Steigt wie ne Eins', 'Gute Reise! 👋', 'Abheben ist immer wieder geil'],
-  depCity: (c) => [`Gute Reise nach ${c}! 👋`, `${c}, wir kommen`, `Nimmt mich wer mit nach ${c}?`],
-  ga: ['DURCHSTARTEN 😱', 'Go-around! Spannend', 'Nochmal ne Ehrenrunde', 'Puh, gute Entscheidung vom Piloten', 'Clip das!! 🎬'],
-  push: ['Pushback läuft', 'Schlepper-Fahrer heute in Topform', 'Gleich geht\'s los', 'Beacon an, Triebwerke kommen'],
-  taxi: ['Rollt schön', 'Follow the greens', 'Wohin geht\'s?'],
-  a380: ['AV-38!!! 🐋', 'DER WAL IST DA 🐋🐋', 'Clip das!!', 'Vier Triebwerke, Gänsehaut', 'Endlich mal eine AV-38'],
-  state: ['Staatsbesuch 🎖️ roter Teppich!', 'Wer ist da drin??', 'Polizeikolonne 🚓🚓', 'Ehrenformation, wie im Fernsehen', 'Protokoll on point'],
-  emg: ['Feuerwehr steht bereit 🚒', 'Daumen drücken 🙏', 'Hoffentlich geht alles gut', 'Notfall, alle ruhig bleiben'],
-  emgDone: ['Alle sicher unten ❤️', 'Puh. Respekt an die Crew 👏', 'Applaus für den Tower 👏👏'],
-  special: ['Die Sonderlackierung 😍', 'Was für ein Lack!', 'Muss ich fürs Spotterbuch haben'],
-  big: ['Großraumjet, schön', 'Heavy im Anflug', 'So ein Brummer'],
-  bored: ['Langweilig hier 😴', 'Kamera auf die Bahn bitte', 'Zeig mal was', 'Wann kommt der nächste?', 'Leeres Vorfeld… 🦗', 'Schwenk mal zur Bahn!'],
-  chat: ['Grüße aus Leipzig 👋', 'Erster!', 'Bester Stream', 'Läuft heute', 'Wer ist auch am Zaun?', 'Das Wetter heute 👌', 'Wie heißt das Kennzeichen?', 'Tower macht heute einen guten Job', 'Mehr AV-38 bitte', 'Nordhafen könnte das nicht'],
-  night: ['Die Lichter nachts 😍', 'Anflugbefeuerung 🔥', 'Nachtschicht-Gang hier?', 'Blaue Rollwegbefeuerung ist so schön'],
-  storm: ['Blitz!! ⚡', 'Gewitterlandung, mutig', 'Lieber nicht am Zaun stehen jetzt'],
-  snow: ['Enteisung ist so satisfying', 'Schneepflüge im Konvoi ❄️', 'Winter-Spotting ❄️'],
-  fog: ['Ich sehe nix 🌫️', 'CAT III, Respekt', 'Nebelsuppe'],
+  land: [T('Butterweich 🧈'), T('Schöner Flare!'), T('Landung 10/10'), T('Hört ihr den Umkehrschub? 🔊'), T('Sauber aufgesetzt 👏'), T('Und unten ist er'), 'Smooth!', T('Die Reifen qualmen 😍')],
+  landWet: [T('Die Gischt bei Regen 😍'), T('Nasse Bahn, trotzdem sauber'), T('Wischer an, Landung top')],
+  dep: ['Rotate! 🛫', T('Und weg ist er'), T('Die Triebwerke 🔊🔊'), T('Steigt wie ne Eins'), T('Gute Reise! 👋'), T('Abheben ist immer wieder geil')],
+  depCity: (c) => [T`Gute Reise nach ${c}! 👋`, T`${c}, wir kommen`, T`Nimmt mich wer mit nach ${c}?`],
+  ga: [T('DURCHSTARTEN 😱'), T('Go-around! Spannend'), T('Nochmal ne Ehrenrunde'), T('Puh, gute Entscheidung vom Piloten'), T('Clip das!! 🎬')],
+  push: [T('Pushback läuft'), T('Schlepper-Fahrer heute in Topform'), T('Gleich geht\'s los'), T('Beacon an, Triebwerke kommen')],
+  taxi: [T('Rollt schön'), 'Follow the greens', T('Wohin geht\'s?')],
+  a380: ['AV-38!!! 🐋', T('DER WAL IST DA 🐋🐋'), T('Clip das!!'), T('Vier Triebwerke, Gänsehaut'), T('Endlich mal eine AV-38')],
+  state: [T('Staatsbesuch 🎖️ roter Teppich!'), T('Wer ist da drin??'), T('Polizeikolonne 🚓🚓'), T('Ehrenformation, wie im Fernsehen'), T('Protokoll on point')],
+  emg: [T('Feuerwehr steht bereit 🚒'), T('Daumen drücken 🙏'), T('Hoffentlich geht alles gut'), T('Notfall, alle ruhig bleiben')],
+  emgDone: [T('Alle sicher unten ❤️'), T('Puh. Respekt an die Crew 👏'), T('Applaus für den Tower 👏👏')],
+  special: [T('Die Sonderlackierung 😍'), T('Was für ein Lack!'), T('Muss ich fürs Spotterbuch haben')],
+  big: [T('Großraumjet, schön'), T('Heavy im Anflug'), T('So ein Brummer')],
+  bored: [T('Langweilig hier 😴'), T('Kamera auf die Bahn bitte'), T('Zeig mal was'), T('Wann kommt der nächste?'), T('Leeres Vorfeld… 🦗'), T('Schwenk mal zur Bahn!')],
+  chat: [T('Grüße aus Leipzig 👋'), T('Erster!'), T('Bester Stream'), T('Läuft heute'), T('Wer ist auch am Zaun?'), T('Das Wetter heute 👌'), T('Wie heißt das Kennzeichen?'), T('Tower macht heute einen guten Job'), T('Mehr AV-38 bitte'), T('Nordhafen könnte das nicht')],
+  night: [T('Die Lichter nachts 😍'), T('Anflugbefeuerung 🔥'), T('Nachtschicht-Gang hier?'), T('Blaue Rollwegbefeuerung ist so schön')],
+  storm: [T('Blitz!! ⚡'), T('Gewitterlandung, mutig'), T('Lieber nicht am Zaun stehen jetzt')],
+  snow: [T('Enteisung ist so satisfying'), T('Schneepflüge im Konvoi ❄️'), T('Winter-Spotting ❄️')],
+  fog: [T('Ich sehe nix 🌫️'), T('CAT III, Respekt'), T('Nebelsuppe')],
 };
 
 export class Stream {
@@ -49,7 +50,7 @@ export class Stream {
     const el = document.createElement('div');
     el.id = 'stream';
     el.className = 'hidden';
-    el.innerHTML = `<div class="st-head"><span class="st-live">LIVE</span><b class="st-v">0</b><small>Zuschauer</small><span class="st-pk"></span><button class="st-x" title="Livestream beenden (L)">✕</button></div>
+    el.innerHTML = T`<div class="st-head"><span class="st-live">LIVE</span><b class="st-v">0</b><small>Zuschauer</small><span class="st-pk"></span><button class="st-x" title="Livestream beenden (L)">✕</button></div>
       <div class="st-meter"><i></i></div><div class="st-wish"></div><div class="st-quiz"></div><div class="st-hint"></div><div class="st-chat"></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
@@ -70,9 +71,13 @@ export class Stream {
     // Ereignisse aus dem Funk/Log, die nicht im Bild sein müssen
     listeners.radio.push((m) => {
       if (!this.on) return;
-      if (/Staatsbesuch angekündigt/.test(m.text)) this.say(r(['Staatsbesuch angekündigt!! 🎖️', 'Gleich kommt die Regierungsmaschine', 'Kamera zum Vorfeld, schnell']), 3);
-      else if (/MAYDAY/.test(m.text)) this.say(r(['MAYDAY gehört?! 😳', 'Notfall im Anflug!', 'Kamera auf die Bahn!!']), 3);
-      else if (/Superjumbo .* angekündigt/.test(m.text)) this.say(r(['AV-38 kommt!!! 🐋', 'Leute, der Wal ist angekündigt']), 3);
+      // Ankündigungen am Spielzustand bzw. an der Ereignis-Kennung erkennen, nicht am (übersetzten) Text
+      const s = this.game.state;
+      if (s && s.sv && m.kind === 'sys' && m.t === s.sv.t && this.svSeen !== s.sv.t) {
+        this.svSeen = s.sv.t; // Staatsbesuch gerade angekündigt
+        this.say(r([T('Staatsbesuch angekündigt!! 🎖️'), T('Gleich kommt die Regierungsmaschine'), T('Kamera zum Vorfeld, schnell')]), 3);
+      } else if (/MAYDAY/.test(m.text)) this.say(r([T('MAYDAY gehört?! 😳'), T('Notfall im Anflug!'), T('Kamera auf die Bahn!!')]), 3);
+      else if (m.ev === 'a380') this.say(r([T('AV-38 kommt!!! 🐋'), T('Leute, der Wal ist angekündigt')]), 3);
     });
   }
 
@@ -85,7 +90,7 @@ export class Stream {
     const s = this.game.state;
     this.viewers = Math.round(60 + (s ? s.reputation : 50) * 2);
     this.chatEl.innerHTML = '';
-    this.say('Stream läuft! 🔴 Willkommen am Zaun', 1, 'Planez TV');
+    this.say(T('Stream läuft! 🔴 Willkommen am Zaun'), 1, 'Planez TV');
     this.peak = Math.max(this.peak, (s && s.life && s.life.streamPeak) || 0);
   }
   stop() {
@@ -116,14 +121,14 @@ export class Stream {
   pickWish(s) {
     const map = s.acs.filter((a) => a.mode === 'map');
     const W = [];
-    if (s.acs.some((a) => a.arr && (a.phase === PH.APPROACH || a.phase === PH.FINAL))) W.push({ k: 'land', t: 'Zeig mal eine Landung!', ok: (a) => a.phase === PH.ROLLOUT || (a.phase === PH.FINAL && a.z < 1) });
-    if (s.acs.some((a) => [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(a.phase))) W.push({ k: 'dep', t: 'Ich will einen Start sehen! 🛫', ok: (a) => a.phase === PH.TAKEOFF });
-    if (map.some((a) => a.phase === PH.STAND && a.ta && a.ta.tasks.push)) W.push({ k: 'push', t: 'Zeigt mal einen Pushback', ok: (a) => a.phase === PH.PUSH });
+    if (s.acs.some((a) => a.arr && (a.phase === PH.APPROACH || a.phase === PH.FINAL))) W.push({ k: 'land', t: T('Zeig mal eine Landung!'), ok: (a) => a.phase === PH.ROLLOUT || (a.phase === PH.FINAL && a.z < 1) });
+    if (s.acs.some((a) => [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(a.phase))) W.push({ k: 'dep', t: T('Ich will einen Start sehen! 🛫'), ok: (a) => a.phase === PH.TAKEOFF });
+    if (map.some((a) => a.phase === PH.STAND && a.ta && a.ta.tasks.push)) W.push({ k: 'push', t: T('Zeigt mal einen Pushback'), ok: (a) => a.phase === PH.PUSH });
     const big = map.find((a) => a.type === 'A388' || a.protocol || a.special || AC_TYPES[a.type].size === 'L');
-    if (big) W.push({ k: 'ac', id: big.id, t: big.type === 'A388' ? 'Wo ist die AV-38?? Zeig her! 🐋' : big.protocol ? 'Kamera auf die Regierungsmaschine!' : `Zoom mal auf ${big.cs}, den ${AC_TYPES[big.type].name}!`, ok: (a) => a.id === big.id, zoom: 1.1 });
-    W.push({ k: 'tower', t: 'Zeig mal den Tower von nah', pt: (() => { const b = LY.BUILDINGS.find((x) => x.id === 'tower'); return { x: b.fx - b.w / 2, y: b.fy - b.d / 2 }; })(), zoom: 1.4 });
-    if (s.heli && s.heli.h) W.push({ k: 'heli', t: 'Wo ist der Heli? 🚁', obj: () => s.heli.h, zoom: 1 });
-    if (s.vfr && s.vfr.p) W.push({ k: 'vfr', t: 'Zeig die kleine Alcedo! 🛩️', obj: () => s.vfr.p, zoom: 1 });
+    if (big) W.push({ k: 'ac', id: big.id, t: big.type === 'A388' ? T('Wo ist die AV-38?? Zeig her! 🐋') : big.protocol ? T('Kamera auf die Regierungsmaschine!') : T`Zoom mal auf ${big.cs}, den ${AC_TYPES[big.type].name}!`, ok: (a) => a.id === big.id, zoom: 1.1 });
+    W.push({ k: 'tower', t: T('Zeig mal den Tower von nah'), pt: (() => { const b = LY.BUILDINGS.find((x) => x.id === 'tower'); return { x: b.fx - b.w / 2, y: b.fy - b.d / 2 }; })(), zoom: 1.4 });
+    if (s.heli && s.heli.h) W.push({ k: 'heli', t: T('Wo ist der Heli? 🚁'), obj: () => s.heli.h, zoom: 1 });
+    if (s.vfr && s.vfr.p) W.push({ k: 'vfr', t: T('Zeig die kleine Alcedo! 🛩️'), obj: () => s.vfr.p, zoom: 1 });
     if (!W.length) return null;
     const w = W[Math.floor(Math.random() * W.length)];
     return { ...w, left: 60, user: r(USERS), hold: 0 };
@@ -160,20 +165,20 @@ export class Stream {
       this.viewers *= 1.18;
       const L = s.life || (s.life = {});
       L.streamWishes = (L.streamWishes || 0) + 1;
-      this.post({ sub: true, text: `✅ Wunsch von ${w.user} erfüllt – die Zuschauerzahl springt hoch!` });
-      this.say(r(['Danke!! 🙏', 'Genau das wollte ich sehen 😍', 'Bester Kameramann', 'Wunsch erfüllt, Abo dagelassen ⭐']), 3);
+      this.post({ sub: true, text: T`✅ Wunsch von ${w.user} erfüllt – die Zuschauerzahl springt hoch!` });
+      this.say(r([T('Danke!! 🙏'), T('Genau das wollte ich sehen 😍'), T('Bester Kameramann'), T('Wunsch erfüllt, Abo dagelassen ⭐')]), 3);
       this.wish = null;
       this.wEl.innerHTML = '';
       return;
     }
     if (w.left <= 0) {
       this.viewers *= 0.95;
-      this.say(r(['Schade 😕', 'Naja, dann halt nicht', 'Hallo? Kamera?']), 2);
+      this.say(r([T('Schade 😕'), T('Naja, dann halt nicht'), T('Hallo? Kamera?')]), 2);
       this.wish = null;
       this.wEl.innerHTML = '';
       return;
     }
-    this.wEl.innerHTML = `<b>💬 Zuschauerwunsch</b> ${esc(w.t)}<i style="width:${Math.round((w.left / 60) * 100)}%"></i>`;
+    this.wEl.innerHTML = T`<b>💬 Zuschauerwunsch</b> ${esc(w.t)}<i style="width:${Math.round((w.left / 60) * 100)}%"></i>`;
   }
 
   // Spotter-Quiz: Der Chat fragt nach dem Typ eines Flugzeugs nahe der Bildmitte; drei Antworten zur Wahl.
@@ -183,7 +188,7 @@ export class Stream {
       const q = this.quiz;
       q.left -= dt;
       if (q.left <= 0) {
-        this.say(`Das ist ${q.cs}, ein ${AC_TYPES[q.type].name} – zu spät 😄`, 3);
+        this.say(T`Das ist ${q.cs}, ein ${AC_TYPES[q.type].name} – zu spät 😄`, 3);
         this.endQuiz();
         return;
       }
@@ -212,8 +217,8 @@ export class Stream {
     }
     opts.sort(() => Math.random() - 0.5);
     this.quiz = { id: a.id, cs: a.cs, type: a.type, opts, left: 25, user: r(USERS) };
-    this.say(`Welcher Typ ist ${a.cs}? 🤔`, 3, this.quiz.user);
-    this.qEl.innerHTML = `<b>🔎 Spotter-Quiz</b> Welcher Typ ist <b>${esc(a.cs)}</b>?<div class="st-qo">${opts.map((k) => `<button data-q="${k}">${esc(AC_TYPES[k].name)}</button>`).join('')}</div><i></i>`;
+    this.say(T`Welcher Typ ist ${a.cs}? 🤔`, 3, this.quiz.user);
+    this.qEl.innerHTML = T`<b>🔎 Spotter-Quiz</b> Welcher Typ ist <b>${esc(a.cs)}</b>?<div class="st-qo">${opts.map((k) => `<button data-q="${k}">${esc(AC_TYPES[k].name)}</button>`).join('')}</div><i></i>`;
   }
   answer(k) {
     const q = this.quiz;
@@ -223,11 +228,11 @@ export class Stream {
       this.viewers *= 1.12;
       const L = s.life || (s.life = {});
       L.quizOk = (L.quizOk || 0) + 1;
-      this.post({ sub: true, text: `✅ Richtig: ${AC_TYPES[q.type].name} – der Chat ist beeindruckt` });
-      this.say(r(['Profi! 👏', 'Woher weißt du das so schnell?', 'Spotter-Level: Experte', 'Stimmt, sieht man an den Triebwerken']), 3);
+      this.post({ sub: true, text: T`✅ Richtig: ${AC_TYPES[q.type].name} – der Chat ist beeindruckt` });
+      this.say(r([T('Profi! 👏'), T('Woher weißt du das so schnell?'), T('Spotter-Level: Experte'), T('Stimmt, sieht man an den Triebwerken')]), 3);
     } else {
       this.viewers *= 0.97;
-      this.say(`Nee, das ist ein ${AC_TYPES[q.type].name} 😅`, 3);
+      this.say(T`Nee, das ist ein ${AC_TYPES[q.type].name} 😅`, 3);
     }
     this.endQuiz();
   }
@@ -275,7 +280,7 @@ export class Stream {
         I += vv.z < 0.5 ? 1.6 : 0.7;
         if (this.vfrSeen !== vv.cs) {
           this.vfrSeen = vv.cs;
-          this.say(r(['Kleine Alcedo 😍', 'Flugschüler unterwegs, viel Erfolg!', 'Touch and Go, love it', 'Die kleine zwischen den Großen 😄']), 1);
+          this.say(r([T('Kleine Alcedo 😍'), T('Flugschüler unterwegs, viel Erfolg!'), 'Touch and Go, love it', T('Die kleine zwischen den Großen 😄')]), 1);
         }
       }
     }
@@ -286,7 +291,7 @@ export class Stream {
         I += 2;
         if (this.heliSeen !== s.heli.n) {
           this.heliSeen = s.heli.n;
-          this.say(r(['Heli! 🚁', 'Rettungshubschrauber, gute Besserung an den Patienten 🙏', 'Der Sound vom Rotor 🚁🔊', 'Ab in die Klinik, schnell 🚑']), 2);
+          this.say(r([T('Heli! 🚁'), T('Rettungshubschrauber, gute Besserung an den Patienten 🙏'), T('Der Sound vom Rotor 🚁🔊'), T('Ab in die Klinik, schnell 🚑')]), 2);
         }
       }
     }
@@ -311,18 +316,18 @@ export class Stream {
     const k = target > this.viewers ? 0.22 : 0.08;
     this.viewers += (target - this.viewers) * Math.min(1, k * dt);
     const v = Math.max(1, Math.round(this.viewers * (1 + Math.sin(performance.now() / 900) * 0.01)));
-    this.vEl.textContent = v.toLocaleString('de-DE');
+    this.vEl.textContent = v.toLocaleString(LOCALE);
     this.mEl.style.width = `${Math.round(clamp(I / 9, 0, 1) * 100)}%`;
     this.mEl.className = I > 6 ? 'hot' : I > 2 ? 'ok' : 'cold';
-    this.hEl.textContent = I < 1 ? '📉 Nichts los im Bild – schwenk zur Bahn oder zu einem besonderen Flugzeug' : I > 6 ? '🔥 Topszene!' : '';
+    this.hEl.textContent = I < 1 ? T('📉 Nichts los im Bild – schwenk zur Bahn oder zu einem besonderen Flugzeug') : I > 6 ? T('🔥 Topszene!') : '';
     if (v > this.peak) {
       const step = Math.floor(v / 1000);
-      if (step > Math.floor(this.peak / 1000) && this.peak > 0) this.post({ sub: true, text: `🎉 Neuer Rekord: ${(step * 1000).toLocaleString('de-DE')} Zuschauer!` });
+      if (step > Math.floor(this.peak / 1000) && this.peak > 0) this.post({ sub: true, text: T`🎉 Neuer Rekord: ${(step * 1000).toLocaleString(LOCALE)} Zuschauer!` });
       this.peak = v;
       const Lf = s.life || (s.life = {});
       Lf.streamPeak = Math.max(Lf.streamPeak || 0, v);
     }
-    this.pkEl.textContent = `Rekord ${this.peak.toLocaleString('de-DE')}`;
+    this.pkEl.textContent = T`Rekord ${this.peak.toLocaleString(LOCALE)}`;
     if (paused) return;
     this.updateWish(s, dt);
     this.updateQuiz(s, dt, inView);
@@ -330,11 +335,11 @@ export class Stream {
     for (const ac of inView) {
       if (ac.emgKind === 'smoke' && ac.fireStop && !ac.fireDone && this.evacSeen !== ac.id) {
         this.evacSeen = ac.id;
-        this.say(r(['NOTRUTSCHEN!! 😱', 'Evakuierung, alle raus 🛟', 'Hoffentlich sind alle okay 🙏', 'Die Feuerwehr ist schon da 🚒']), 3);
+        this.say(r([T('NOTRUTSCHEN!! 😱'), T('Evakuierung, alle raus 🛟'), T('Hoffentlich sind alle okay 🙏'), T('Die Feuerwehr ist schon da 🚒')]), 3);
       }
       if ((ac.emgKind === 'medical' || ac.medical) && ac.phase === PH.STAND && this.medSeen !== ac.id) {
         this.medSeen = ac.id;
-        this.say(r(['Rettungswagen am Gate 🚑', 'Gute Besserung an den Passagier 🙏', 'Sanitäter mit Trage, hoffentlich ist es nichts Schlimmes', 'Respekt an die Crew 👏🚑']), 2);
+        this.say(r([T('Rettungswagen am Gate 🚑'), T('Gute Besserung an den Passagier 🙏'), T('Sanitäter mit Trage, hoffentlich ist es nichts Schlimmes'), T('Respekt an die Crew 👏🚑')]), 2);
       }
       const prev = this.seen.get(ac.id);
       if (prev === ac.phase) continue;
@@ -350,8 +355,8 @@ export class Stream {
       if (ac.phase === PH.ROLLOUT) {
         const f = ac.tdFpm;
         if (ac.emergency) this.say(r(L.emgDone), 3);
-        else if (f && f < 110) this.say(r([`Butter!! 🧈 ${f} ft/min`, `${f} fpm, Wahnsinn 🧈`, 'Die hat er gestreichelt 🧈']), 3);
-        else if (f && f >= 600) this.say(r([`Autsch, ${f} ft/min 😬`, 'Flugzeugträger-Style 😅', 'Fahrwerk hat\'s überlebt?', 'Rums! 😬']), 3);
+        else if (f && f < 110) this.say(r([`Butter!! 🧈 ${f} ft/min`, T`${f} fpm, Wahnsinn 🧈`, T('Die hat er gestreichelt 🧈')]), 3);
+        else if (f && f >= 600) this.say(r([T`Autsch, ${f} ft/min 😬`, T('Flugzeugträger-Style 😅'), T('Fahrwerk hat\'s überlebt?'), T('Rums! 😬')]), 3);
         else this.say(wet && Math.random() < 0.5 ? r(L.landWet) : r(L.land), 2);
       }
       else if (ac.phase === PH.TAKEOFF) {
@@ -367,13 +372,13 @@ export class Stream {
     const od = s.openDay;
     if (od && s.time > od.from && s.time < od.until && this.odSeen !== od.from) {
       this.odSeen = od.from;
-      this.say(r(['Tag der offenen Tür! Wer ist auch auf der Terrasse? 👋', 'Ich steh oben bei den Ballons 🎈', 'Hüpfburg und Flieger, perfekter Tag', 'Winkt mal in die Kamera 👋🎈']), 2);
+      this.say(r([T('Tag der offenen Tür! Wer ist auch auf der Terrasse? 👋'), T('Ich steh oben bei den Ballons 🎈'), T('Hüpfburg und Flieger, perfekter Tag'), T('Winkt mal in die Kamera 👋🎈')]), 2);
     }
     // Regenbogen nach dem Schauer
     const mp = this.game.map;
     if (mp && mp.rainbowOn && this.rainbowSeen !== mp.rainbowT) {
       this.rainbowSeen = mp.rainbowT;
-      this.say(r(['REGENBOGEN 🌈', 'Wie schön ist das denn 🌈😍', 'Screenshot!! 🌈', 'Nach dem Regen kommt der Regenbogen 🌈']), 3);
+      this.say(r([T('REGENBOGEN 🌈'), T('Wie schön ist das denn 🌈😍'), 'Screenshot!! 🌈', T('Nach dem Regen kommt der Regenbogen 🌈')]), 3);
     }
     // Wassertaufe im Bild
     const sal = s.salute;
@@ -381,7 +386,7 @@ export class Stream {
       const p = this.game.cam.toScreen(sal.p.x, sal.p.y, 0);
       if (p.x > 0 && p.y > 0 && p.x < this.game.cam.w && p.y < this.game.cam.h) {
         sal.chat = true;
-        this.say(r(['Wassertaufe!! 💦', 'Erstflug mit Wasserbogen 😍', 'Die Feuerwehr gibt alles 💦🚒', 'Gänsehaut, Erstflug!']), 3);
+        this.say(r([T('Wassertaufe!! 💦'), T('Erstflug mit Wasserbogen 😍'), T('Die Feuerwehr gibt alles 💦🚒'), T('Gänsehaut, Erstflug!')]), 3);
       }
     }
     // Hasen im Bild (nah herangezoomt)
@@ -394,7 +399,7 @@ export class Stream {
       });
       if (seenHare) {
         this.hareT = performance.now();
-        this.say(r(['Ein Hase!! 🐇', 'Da hoppelt was 🐇', 'Der Hase ist der wahre Star hier', 'Hasen-Cam bitte 🐇🐇']), 2);
+        this.say(r([T('Ein Hase!! 🐇'), T('Da hoppelt was 🐇'), T('Der Hase ist der wahre Star hier'), T('Hasen-Cam bitte 🐇🐇')]), 2);
       }
     }
     // Plaudern zwischendurch
@@ -409,7 +414,7 @@ export class Stream {
       else if (wk === 'fog' && Math.random() < 0.4) pool = L.fog;
       else if ((h < 5.5 || h > 21) && Math.random() < 0.4) pool = L.night;
       this.say(r(pool), 0);
-      if (Math.random() < 0.08 + I * 0.01) this.post({ sub: true, text: `⭐ ${r(USERS)} hat den Kanal abonniert` });
+      if (Math.random() < 0.08 + I * 0.01) this.post({ sub: true, text: T`⭐ ${r(USERS)} hat den Kanal abonniert` });
     }
     // Chat-Tempo begrenzen
     this.gap -= dt;

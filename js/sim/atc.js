@@ -17,7 +17,9 @@ import { depGap } from './sid.js';
 import { lightSignal, callNordo } from './nordo.js';
 import { approveWx, denyWx } from './wxdev.js';
 import { qnh } from './atis.js';
+import { T } from '../i18n.js';
 
+import { smallField } from './career.js';
 const numTxt = (s, ac, suffix = '') => {
   updateSequence(s);
   const n = seqNumber(s, ac);
@@ -33,7 +35,7 @@ const say = (state, ac, atc, readback) => {
 // Befehlskatalog
 export const CMDS = {
   approach: {
-    label: 'Anflug frei', key: 'A', air: true,
+    label: T('Anflug frei'), key: 'A', air: true,
     valid: (s, ac) => [PH.INBOUND, PH.HOLD].includes(ac.phase) && !ac.missedPending,
     run: (s, ac) => {
       ac.rwy = s.rwy;
@@ -47,11 +49,13 @@ export const CMDS = {
       ac.altRestr = undefined;
       ac.stackAlt = ac.stackFix = null;
       const rn = rwyName(s, ac.strip);
-      say(s, ac, `${tel(ac)}, ${numTxt(s, ac)}cleared ILS approach runway ${rn}, descend 5000 feet.`, `Cleared ILS ${rn}, ${tel(ac)}.`);
+      // am Gras- und Verkehrslandeplatz gibt es kein ILS: Sichtanflug
+      if (smallField(s)) say(s, ac, `${tel(ac)}, ${numTxt(s, ac)}cleared visual approach runway ${rn}, descend 2000 feet.`, `Cleared visual approach ${rn}, ${tel(ac)}.`);
+      else say(s, ac, `${tel(ac)}, ${numTxt(s, ac)}cleared ILS approach runway ${rn}, descend 5000 feet.`, `Cleared ILS ${rn}, ${tel(ac)}.`);
     },
   },
   direct: {
-    label: 'Direkt FAF', key: 'D', air: true,
+    label: T('Direkt FAF'), key: 'D', air: true,
     valid: (s, ac) => [PH.INBOUND, PH.HOLD].includes(ac.phase) || (ac.phase === PH.APPROACH && !onFinal(ac) && ac.route.length > 2),
     run: (s, ac) => {
       ac.rwy = s.rwy;
@@ -64,11 +68,12 @@ export const CMDS = {
       ac.req = null;
       ac.altRestr = undefined;
       const rn = rwyName(s, ac.strip);
-      say(s, ac, `${tel(ac)}, turn direct final approach fix, ${numTxt(s, ac)}cleared ILS runway ${rn}.`, `Direct FAF, cleared ILS ${rn}, ${tel(ac)}.`);
+      if (smallField(s)) say(s, ac, `${tel(ac)}, proceed direct final, ${numTxt(s, ac)}cleared visual approach runway ${rn}.`, `Direct final, cleared visual ${rn}, ${tel(ac)}.`);
+      else say(s, ac, `${tel(ac)}, turn direct final approach fix, ${numTxt(s, ac)}cleared ILS runway ${rn}.`, `Direct FAF, cleared ILS ${rn}, ${tel(ac)}.`);
     },
   },
   hold: {
-    label: 'Warteschleife', key: 'H', air: true,
+    label: T('Warteschleife'), key: 'H', air: true,
     valid: (s, ac) => (ac.phase === PH.APPROACH && !onFinal(ac)) || ac.phase === PH.INBOUND,
     run: (s, ac) => {
       const fix = AS.FIXES[s.rwy][AS.sideOf(ac.pos)];
@@ -79,7 +84,7 @@ export const CMDS = {
     },
   },
   land: {
-    label: 'Landefreigabe', key: 'L', air: true, big: true,
+    label: T('Landefreigabe'), key: 'L', air: true, big: true,
     valid: (s, ac) => (ac.phase === PH.APPROACH || ac.phase === PH.FINAL) && !ac.clr.land && !runwayClosed(s, ac.strip || 'N'),
     run: (s, ac) => {
       ac.clr.land = true;
@@ -88,15 +93,15 @@ export const CMDS = {
       ac.req = null;
       const ba = brakingAction(s, ac.strip || 'N');
       const rn = rwyName(s, ac.strip || 'N');
-      say(s, ac, `${tel(ac)}, ${numTxt(s, ac)}runway ${rn}, cleared to land, ${windStr(s)}${ba !== 'good' ? `, braking action ${BRAKE_EN[ba]}` : ''}.`, readbackText(s, ac, 'land', `Cleared to land ${rn}, ${tel(ac)}.`));
+      say(s, ac, T`${tel(ac)}, ${numTxt(s, ac)}runway ${rn}, cleared to land, ${windStr(s)}${ba !== 'good' ? `, braking action ${BRAKE_EN[ba]}` : ''}.`, readbackText(s, ac, 'land', T`Cleared to land ${rn}, ${tel(ac)}.`));
     },
   },
   goaround: {
-    label: 'Durchstarten', key: 'G', air: true, danger: true,
+    label: T('Durchstarten'), key: 'G', air: true, danger: true,
     valid: (s, ac) => onFinal(ac) || (ac.phase === PH.FINAL && ac.z > 0.15),
     run: (s, ac) => {
       say(s, ac, `${tel(ac)}, go around, I say again, go around.`, null);
-      goAround(s, ac, 'Anweisung Tower');
+      goAround(s, ac, T('Anweisung Tower'));
     },
   },
   spd160: { label: '160 kt', air: true, spd: 160, valid: (s, ac) => spdValid(ac), run: (s, ac) => setSpeed(s, ac, 160) },
@@ -104,10 +109,10 @@ export const CMDS = {
   spd210: { label: '210 kt', air: true, spd: 210, valid: (s, ac) => spdValid(ac), run: (s, ac) => setSpeed(s, ac, 210) },
   spd250: { label: '250 kt', air: true, spd: 250, valid: (s, ac) => spdValid(ac) && ac.alt > 5500, run: (s, ac) => setSpeed(s, ac, 250) },
   taxiIn: {
-    label: 'Rollen zur Position', key: 'R', big: true,
+    label: T('Rollen zur Position'), key: 'R', big: true,
     valid: (s, ac) => (ac.phase === PH.VACATED || ac.phase === PH.ROLLOUT || ac.phase === PH.TAXI_WAIT) && !ac.clr.taxi && !ac.crossX,
     run: (s, ac) => {
-      if (!ac.stand) return { ok: false, msg: 'Keine Parkposition zugewiesen (Vorfeld)' };
+      if (!ac.stand) return { ok: false, msg: T('Keine Parkposition zugewiesen (Vorfeld)') };
       ac.clr.taxi = true;
       ac.req = null;
       say(s, ac, `${tel(ac)}, taxi to stand ${ac.stand} via A and L.`, `Taxi stand ${ac.stand}, ${tel(ac)}.`);
@@ -115,7 +120,7 @@ export const CMDS = {
     },
   },
   cross: {
-    label: 'Bahn kreuzen & rollen', key: 'R', big: true,
+    label: T('Bahn kreuzen & rollen'), key: 'R', big: true,
     valid: (s, ac) => ac.phase === PH.VACATED && !!ac.crossX && !ac.clr.taxi && !!ac.stand && crossingSafe(s),
     run: (s, ac) => {
       ac.clr.taxi = true;
@@ -126,27 +131,27 @@ export const CMDS = {
     },
   },
   push: {
-    label: 'Pushback frei', key: 'P', big: true,
+    label: T('Pushback frei'), key: 'P', big: true,
     valid: (s, ac) => ac.phase === PH.STAND && ac.req === 'push',
     run: (s, ac) => {
       const face = s.rwy === '27' ? 'east' : 'west';
-      if (AC_TYPES[ac.type].selfTaxi) say(s, ac, `${tel(ac)}, start-up approved, runway ${s.rwy}, QNH ${qnh(s)}.`, `Start-up approved, ${tel(ac)}.`);
-      else say(s, ac, `${tel(ac)}, pushback and start-up approved, facing ${face}.`, `Pushback approved, ${tel(ac)}.`);
+      if (AC_TYPES[ac.type].selfTaxi) say(s, ac, T`${tel(ac)}, start-up approved, runway ${s.rwy}, QNH ${qnh(s)}.`, T`Start-up approved, ${tel(ac)}.`);
+      else say(s, ac, T`${tel(ac)}, pushback and start-up approved, facing ${face}.`, `Pushback approved, ${tel(ac)}.`);
       startPushback(s, ac);
     },
   },
   startWait: {
-    label: 'Warten bis TSAT', key: 'E',
+    label: T('Warten bis TSAT'), key: 'E',
     valid: (s, ac) => ac.phase === PH.STAND && ac.req === 'push' && s.rots[ac.rot] && s.rots[ac.rot].tsat > s.time + 150,
     run: (s, ac) => {
       const rot = s.rots[ac.rot];
       ac.req = null;
       ac.pushWaitUntil = rot.tsat - 90;
-      say(s, ac, `${tel(ac)}, expect start-up at ${fmtClock(rot.tsat).replace(':', '')}, remain on stand.`, `Expect start-up ${fmtClock(rot.tsat).replace(':', '')}, ${tel(ac)}.`);
+      say(s, ac, T`${tel(ac)}, expect start-up at ${fmtClock(rot.tsat).replace(':', '')}, remain on stand.`, T`Expect start-up ${fmtClock(rot.tsat).replace(':', '')}, ${tel(ac)}.`);
     },
   },
   taxiOut: {
-    label: 'Rollen zum Rollhalt', key: 'R', big: true,
+    label: T('Rollen zum Rollhalt'), key: 'R', big: true,
     valid: (s, ac) => (ac.phase === PH.STARTUP || ac.phase === PH.PUSH) && !ac.clr.taxiOut,
     run: (s, ac) => {
       ac.clr.taxiOut = true;
@@ -168,7 +173,7 @@ export const CMDS = {
     },
   },
   takeoff: {
-    label: 'Startfreigabe', key: 'T', big: true,
+    label: T('Startfreigabe'), key: 'T', big: true,
     valid: (s, ac) => [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(ac.phase) && !ac.clr.takeoff && !runwayClosed(s),
     run: (s, ac) => {
       ac.clr.takeoff = true;
@@ -178,15 +183,15 @@ export const CMDS = {
     },
   },
   holdpos: {
-    label: 'Halt!', key: 'X', danger: true,
+    label: T('Halt!'), key: 'X', danger: true,
     valid: (s, ac) => [PH.TAXI_IN, PH.TAXI_OUT].includes(ac.phase) && !ac.holdPos,
     run: (s, ac) => {
       ac.holdPos = true;
-      say(s, ac, `${tel(ac)}, hold position.`, `Holding position, ${tel(ac)}.`);
+      say(s, ac, T`${tel(ac)}, hold position.`, T`Holding position, ${tel(ac)}.`);
     },
   },
   cont: {
-    label: 'Weiterrollen', key: 'C',
+    label: T('Weiterrollen'), key: 'C',
     valid: (s, ac) => !!ac.holdPos,
     run: (s, ac) => {
       ac.holdPos = false;
@@ -195,28 +200,28 @@ export const CMDS = {
   },
   // Wetterumflug um eine Gewitterzelle
   wxOk: {
-    label: '⛈️ Umweg genehmigen', key: 'Y', air: true, big: true,
+    label: T('⛈️ Umweg genehmigen'), key: 'Y', air: true, big: true,
     valid: (s, ac) => !!ac.wxReq,
     run: (s, ac) => approveWx(s, ac),
   },
   wxNo: {
-    label: 'Ablehnen (Verkehr)', air: true, danger: true,
+    label: T('Ablehnen (Verkehr)'), air: true, danger: true,
     valid: (s, ac) => !!ac.wxReq,
     run: (s, ac) => denyWx(s, ac),
   },
   // Lichtsignale bei Funkausfall (Squawk 7600)
   lightGreen: {
-    label: '💡 Grün: Landung frei', key: 'L', big: true, air: true, nordo: true,
+    label: T('💡 Grün: Landung frei'), key: 'L', big: true, air: true, nordo: true,
     valid: (s, ac) => ac.nordo && (ac.phase === PH.APPROACH || ac.phase === PH.FINAL) && !ac.clr.land && !runwayClosed(s, ac.strip || 'N'),
     run: (s, ac) => lightSignal(s, ac, 'green'),
   },
   lightRed: {
-    label: '💡 Rot: nicht landen', key: 'G', air: true, danger: true, nordo: true,
+    label: T('💡 Rot: nicht landen'), key: 'G', air: true, danger: true, nordo: true,
     valid: (s, ac) => ac.nordo && (onFinal(ac) || (ac.phase === PH.FINAL && ac.z > 0.15)),
     run: (s, ac) => lightSignal(s, ac, 'red'),
   },
   lightTaxi: {
-    label: '💡 Grün blinkend: Rollen', key: 'R', big: true, nordo: true,
+    label: T('💡 Grün blinkend: Rollen'), key: 'R', big: true, nordo: true,
     valid: (s, ac) => ac.nordo && (ac.phase === PH.VACATED || ac.phase === PH.TAXI_WAIT || (ac.phase === PH.ROLLOUT && ac.vacated)) && !ac.clr.taxi && !!ac.stand && (!ac.crossX || crossingSafe(s)),
     run: (s, ac) => lightSignal(s, ac, 'taxi'),
   },
@@ -241,15 +246,15 @@ export function command(state, ac, key) {
     if (alt && CMDS[alt].valid(state, ac)) return command(state, ac, alt);
     if (state._autoCmd) return { ok: false, msg: '' };
     callNordo(state, ac);
-    return { ok: false, msg: `📻✖ ${ac.cs} antwortet nicht (Funkausfall, 7600) – Lichtsignal benutzen` };
+    return { ok: false, msg: T`📻✖ ${ac.cs} antwortet nicht (Funkausfall, 7600) – Lichtsignal benutzen` };
   }
   // KI-Pilot: Flugzeuge, die der Spieler gerade selbst führt, lässt die KI in Ruhe
   if (state._autoCmd && state.aiPlay && state.role === 'tower' && manualLocked(state, ac)) return { ok: false, msg: '' };
   if (!c || !c.valid(state, ac)) {
     const rc = runwayClosed(state, key === 'land' ? ac.strip || 'N' : 'N');
-    if (key === 'cross' && ac.crossX && !crossingSafe(state)) return { ok: false, msg: `Bahn ${rwyName(state, 'N')} nicht frei – Kreuzen noch nicht möglich` };
-    if (key === 'cross' && !ac.stand) return { ok: false, msg: 'Keine Parkposition zugewiesen (Vorfeld)' };
-    return { ok: false, msg: rc && ['land', 'takeoff', 'lineup'].includes(key) ? `Piste gesperrt: ${rc}` : 'Befehl gerade nicht möglich' };
+    if (key === 'cross' && ac.crossX && !crossingSafe(state)) return { ok: false, msg: T`Bahn ${rwyName(state, 'N')} nicht frei – Kreuzen noch nicht möglich` };
+    if (key === 'cross' && !ac.stand) return { ok: false, msg: T('Keine Parkposition zugewiesen (Vorfeld)') };
+    return { ok: false, msg: rc && ['land', 'takeoff', 'lineup'].includes(key) ? T`Piste gesperrt: ${rc}` : T('Befehl gerade nicht möglich') };
   }
   const r = c.run(state, ac);
   if (state.aiPlay && state.role === 'tower' && ac && (!r || r.ok !== false)) {
@@ -286,19 +291,19 @@ export function clearanceRisk(state, ac, key) {
   const strip = ac.strip || 'N';
   if (key === 'land') {
     const b = runwayBlocker(state, ac);
-    if (b) return `Bahn belegt – ${b.cs || 'Verkehr'} ${b.phase === PH.ROLLOUT ? 'rollt noch aus' : b.phase === PH.TAKEOFF ? 'startet gerade' : b.crossing ? 'kreuzt die Bahn' : 'steht auf der Bahn'}`;
+    if (b) return T`Bahn belegt – ${b.cs || T('Verkehr')} ${b.phase === PH.ROLLOUT ? T('rollt noch aus') : b.phase === PH.TAKEOFF ? T('startet gerade') : b.crossing ? T('kreuzt die Bahn') : T('steht auf der Bahn')}`;
     return null;
   }
   if (key !== 'takeoff' && key !== 'lineup') return null;
   const occ = runwayOccupants(state, strip).filter((o) => o !== ac && !(o.phase === PH.FINAL));
-  if (occ.length) return `Bahn belegt – ${occ[0].cs || 'Verkehr'} ${occ[0].phase === PH.ROLLOUT ? 'rollt noch aus' : 'ist auf der Bahn'}`;
+  if (occ.length) return T`Bahn belegt – ${occ[0].cs || T('Verkehr')} ${occ[0].phase === PH.ROLLOUT ? T('rollt noch aus') : T('ist auf der Bahn')}`;
   const lim = key === 'takeoff' && (ac.phase === PH.LINED || ac.phase === PH.LINEUP) ? 2 : 3.5;
   for (const a of state.acs) {
     if (a === ac || !a.arr || (a.strip || 'N') !== strip) continue;
-    if (a.mode === 'map' && a.phase === PH.FINAL) return `${a.cs} ist im kurzen Endanflug`;
+    if (a.mode === 'map' && a.phase === PH.FINAL) return T`${a.cs} ist im kurzen Endanflug`;
     if (a.mode === 'air' && a.phase === PH.APPROACH && a.clr && a.clr.land) {
       const d = distToLand(a);
-      if (d < lim) return `${a.cs} hat Landefreigabe und ist nur ${d.toFixed(1)} NM entfernt`;
+      if (d < lim) return T`${a.cs} hat Landefreigabe und ist nur ${d.toFixed(1)} NM entfernt`;
     }
   }
   return null;
@@ -307,7 +312,7 @@ export function clearanceRisk(state, ac, key) {
 export function departureWait(state, ac) {
   const strip = ac.strip || 'N';
   const occ = runwayOccupants(state, strip).filter((o) => o !== ac);
-  if (occ.length) return { sec: 30, why: `Piste belegt (${occ[0].cs})` };
+  if (occ.length) return { sec: 30, why: T`Piste belegt (${occ[0].cs})` };
   const arrs = state.acs.filter((a) => (a.phase === PH.APPROACH || a.phase === PH.FINAL) && a.rwy === state.rwy && (a.strip || 'N') === strip);
   let next = null, nd = 99;
   for (const a of arrs) {
@@ -319,10 +324,10 @@ export function departureWait(state, ac) {
   }
   // vom Rollhalt braucht ein Start gut 1½ Minuten, bis die Piste wieder frei ist
   const need = ac.phase === PH.LINED || ac.phase === PH.LINEUP ? 2.8 : 6;
-  if (next && nd < need) return { sec: Math.round((nd / Math.max(120, next.spd || 140)) * 3600 + 45), why: `Landung ${next.cs} zuerst` };
+  if (next && nd < need) return { sec: Math.round((nd / Math.max(120, next.spd || 140)) * 3600 + 45), why: T`Landung ${next.cs} zuerst`, land: true };
   const dg = depGap(state, ac);
   const gap = dg.sec - dg.since - 20;
-  if (gap > 0) return { sec: Math.round(gap), why: dg.why };
+  if (gap > 0) return { sec: Math.round(gap), why: dg.why, wakeOnly: dg.byWake };
   return { sec: 0, why: '' };
 }
 
@@ -341,7 +346,7 @@ export function requestRunwayChange(state, to) {
   }
   state.rwyPending = to;
   state.rwyPendingSince = state.time;
-  log(state, 'sys', `Pistenwechsel auf ${to} angeordnet – laufende Bewegungen werden abgewickelt.`);
+  log(state, 'sys', T`Pistenwechsel auf ${to} angeordnet – laufende Bewegungen werden abgewickelt.`);
 }
 const DRAIN = new Set([PH.APPROACH, PH.FINAL, PH.ROLLOUT, PH.PUSH, PH.STARTUP, PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAKEOFF, PH.MISSED]);
 export function drainCount(state) {
@@ -363,8 +368,8 @@ function applyRunwayChange(state) {
       }
     }
   }
-  radio(state, 'TWR', `All stations, runway in use now ${to}, information ${String.fromCharCode(65 + (Math.floor(state.time / 3600) % 26))}.`, 'atc');
-  notify(state, `🧭 Betriebsrichtung jetzt ${to}`, 'info');
+  radio(state, 'TWR', T`All stations, runway in use now ${to}, information ${String.fromCharCode(65 + (Math.floor(state.time / 3600) % 26))}.`, 'atc');
+  notify(state, T`🧭 Betriebsrichtung jetzt ${to}`, 'info');
 }
 
 // ---------- Automatischer Lotse ----------
@@ -506,7 +511,7 @@ function towerSpacing(state) {
       a.spacingHoldUntil = state.time + 180;
       state.arrQ = [a.id, ...(state.arrQ || []).filter((x) => x !== a.id)];
       state.arrQManual = true;
-      log(state, 'sys', `Staffelung: ${a.cs} kann die gewünschte Reihenfolge nur über die Warteschleife einhalten.`);
+      log(state, 'sys', T`Staffelung: ${a.cs} kann die gewünschte Reihenfolge nur über die Warteschleife einhalten.`);
       continue;
     }
     const want = p.delay > absorb180 + 10 ? 160 : p.delay > 20 ? 180 : null;
@@ -677,8 +682,8 @@ export function updateConflicts(state, dt) {
           state.pairPen[key] = state.time;
           const severe = h < 1 && v < 500;
           penalize(state, severe ? 'airprox' : 'separation', a);
-          log(state, 'sys', `${severe ? 'AIRPROX' : 'Staffelungsunterschreitung'}: ${a.cs} / ${b.cs} (${h.toFixed(1)} NM, ${Math.round(v)} ft).`);
-          notify(state, `🚨 ${severe ? 'AIRPROX' : 'Staffelung unterschritten'}: ${a.cs} / ${b.cs}`, 'bad');
+          log(state, 'sys', `${severe ? 'AIRPROX' : T('Staffelungsunterschreitung')}: ${a.cs} / ${b.cs} (${h.toFixed(1)} NM, ${Math.round(v)} ft).`);
+          notify(state, `🚨 ${severe ? 'AIRPROX' : T('Staffelung unterschritten')}: ${a.cs} / ${b.cs}`, 'bad');
         }
       }
       // Vorhersage 90 s für Radar-Lotsen (außerhalb Tower-Verantwortung)
@@ -753,8 +758,8 @@ function checkWake(state) {
         state.stats.today.wakeInf = (state.stats.today.wakeInf || 0) + 1;
         foll.a.wakeBad = true;
         penalize(state, 'wake', foll.a);
-        log(state, 'sys', `Wirbelschleppen-Staffelung unterschritten: ${foll.a.cs} (${foll.a.wake}) nur ${gap.toFixed(1)} NM hinter ${lead.a.cs} (${lead.a.wake}) – Soll ${req} NM.`);
-        notify(state, `🌀 Wirbelschleppe: ${foll.a.cs} zu dicht hinter ${lead.a.cs} (${gap.toFixed(1)} statt ${req} NM)`, 'warn');
+        log(state, 'sys', T`Wirbelschleppen-Staffelung unterschritten: ${foll.a.cs} (${foll.a.wake}) nur ${gap.toFixed(1)} NM hinter ${lead.a.cs} (${lead.a.wake}) – Soll ${req} NM.`);
+        notify(state, T`🌀 Wirbelschleppe: ${foll.a.cs} zu dicht hinter ${lead.a.cs} (${gap.toFixed(1)} statt ${req} NM)`, 'warn');
       }
     }
   }

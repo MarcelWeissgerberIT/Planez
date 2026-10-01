@@ -2,6 +2,7 @@
 // Routen je Vertrag in Airline-Farbe, fliegende Punkte, Angebote gestrichelt, Tooltip je Ziel
 import { CITIES, AIRLINES, AC_TYPES } from '../config.js';
 import { esc } from '../util.js';
+import { T, LOCALE, EN } from '../i18n.js';
 
 // ungefähre Koordinaten der Ziele (Grad) – der eigene Flughafen liegt in Mitteldeutschland
 const HOME = [50.5, 9.0];
@@ -124,7 +125,7 @@ export class RouteMap {
       g.beginPath();
       g.arc(cx, cy, r, 0, Math.PI * 2);
       g.stroke();
-      g.fillText(`${d.toLocaleString('de-DE')} km`, cx + 4, cy - r - 3);
+      g.fillText(`${d.toLocaleString(LOCALE)} km`, cx + 4, cy - r - 3);
     }
     for (let b = 0; b < 360; b += 30) {
       const a = rad(b);
@@ -135,7 +136,7 @@ export class RouteMap {
     }
     g.fillStyle = 'rgba(56,214,245,0.7)';
     g.font = 'bold 11px Chakra Petch, sans-serif';
-    for (const [b, l] of [[0, 'N'], [90, 'O'], [180, 'S'], [270, 'W']]) g.fillText(l, cx + Math.sin(rad(b)) * (R + 10) - 4, cy - Math.cos(rad(b)) * (R + 10) + 4);
+    for (const [b, l] of [[0, 'N'], [90, EN ? 'E' : 'O'], [180, 'S'], [270, 'W']]) g.fillText(l, cx + Math.sin(rad(b)) * (R + 10) - 4, cy - Math.cos(rad(b)) * (R + 10) + 4);
     // Ziele
     const routes = this.routes(s);
     const served = new Set(routes.filter((r) => r.list.length).map((r) => r.code));
@@ -232,7 +233,7 @@ export class RouteMap {
         g.arc(p.x, p.y, sz + 2 + Math.sin(t * 2 + p.x) * 0.8, 0, Math.PI * 2);
         g.stroke();
       }
-      const label = CITIES[rt.code].name + (rt.list.length ? '' : ' · neu?');
+      const label = CITIES[rt.code].name + (rt.list.length ? '' : T(' · neu?'));
       labels.push({ label, p, hov, served: rt.list.length > 0, w: rt.perDay });
     }
     // Beschriftungen: wichtige zuerst, überlappende weglassen (beim Überfahren immer)
@@ -267,7 +268,7 @@ export class RouteMap {
     const flights = s.contracts.reduce((a, c) => a + c.perDay, 0);
     const als = new Set(s.contracts.map((c) => c.airline));
     const far = s.contracts.filter((c) => CITIES[c.city].cat === 'long').length;
-    const html = `<b>${served.size}</b> Ziele · <b>${flights}</b> Umläufe/Tag · <b>${als.size}</b> Airlines · <b>${far}</b> Langstrecke${s.offers.length ? ` · <span class="rm-new">${s.offers.length} Angebot${s.offers.length > 1 ? 'e' : ''}</span>` : ''}`;
+    const html = T`<b>${served.size}</b> Ziele · <b>${flights}</b> Umläufe/Tag · <b>${als.size}</b> Airlines · <b>${far}</b> Langstrecke${s.offers.length ? (s.offers.length > 1 ? T` · <span class="rm-new">${s.offers.length} Angebote</span>` : T` · <span class="rm-new">${s.offers.length} Angebot</span>`) : ''}`;
     if (this.legend._h !== html) {
       this.legend.innerHTML = html;
       this.legend._h = html;
@@ -280,9 +281,9 @@ export class RouteMap {
     const c = CITIES[p.code];
     const list = s.contracts.filter((k) => k.city === p.code);
     const offers = s.offers.filter((k) => k.city === p.code);
-    const rows = list.map((k) => `<div><i style="background:${AIRLINES[k.airline].color}"></i>${esc(AIRLINES[k.airline].name)} · ${k.perDay}× täglich · ${esc(AC_TYPES[k.type].name)} · ${Math.round(k.sat)} %</div>`).join('');
-    const orows = offers.map((k) => `<div class="o"><i style="background:${AIRLINES[k.airline].color}"></i>Angebot: ${esc(AIRLINES[k.airline].name)} · ${k.perDay}× täglich</div>`).join('');
-    this.tip.innerHTML = `<b>${esc(c.name)}</b> <small>${p.code} · ${Math.round(distKm(p.code)).toLocaleString('de-DE')} km · ${{ short: 'Kurzstrecke', mid: 'Mittelstrecke', long: 'Langstrecke' }[c.cat]}</small>${rows || orows ? rows + orows : '<div class="n">noch keine Verbindung</div>'}`;
+    const rows = list.map((k) => T`<div><i style="background:${AIRLINES[k.airline].color}"></i>${esc(AIRLINES[k.airline].name)} · ${k.perDay}× täglich · ${esc(AC_TYPES[k.type].name)} · ${Math.round(k.sat)} %</div>`).join('');
+    const orows = offers.map((k) => T`<div class="o"><i style="background:${AIRLINES[k.airline].color}"></i>Angebot: ${esc(AIRLINES[k.airline].name)} · ${k.perDay}× täglich</div>`).join('');
+    this.tip.innerHTML = `<b>${esc(c.name)}</b> <small>${p.code} · ${Math.round(distKm(p.code)).toLocaleString(LOCALE)} km · ${{ short: T('Kurzstrecke'), mid: T('Mittelstrecke'), long: T('Langstrecke') }[c.cat]}</small>${rows || orows ? rows + orows : T('<div class="n">noch keine Verbindung</div>')}`;
     this.tip.classList.remove('hidden');
     const W = this.el.clientWidth;
     this.tip.style.left = `${Math.min(W - 250, x + 14)}px`;

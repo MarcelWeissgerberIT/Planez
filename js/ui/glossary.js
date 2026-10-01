@@ -1,126 +1,127 @@
 // Glossar: Abkürzungen & Fachbegriffe, automatische Tooltips, Erklär-Popups
 import { AC_TYPES, AIRLINES, CITIES, AIRPORT, typeCode } from '../config.js';
 import { esc } from '../util.js';
+import { T, EN } from '../i18n.js';
 
 // cat: Kategorie für die Glossar-Liste; auto: im Text automatisch erklären
 const E = (t, long, desc, cat, auto = true) => ({ t, long, desc, cat, auto });
 export const GLOSSARY = [
   // Winterbetrieb
-  E('De-Icing', 'Enteisung', 'Vor dem Start werden Tragflächen und Leitwerk mit heißer Glykol-Lösung von Schnee und Eis befreit (Enteisungsfahrzeug). Danach läuft die Holdover-Zeit – in der Zeit muss das Flugzeug starten.', 'Winter'),
-  E('Enteisung', 'De-Icing', 'Letzte Abfertigungsaufgabe im Winter (❄️ Eis), braucht ein Enteisungsfahrzeug. Bei Schneefall oder Frost mit Feuchtigkeit darf ohne Enteisung nicht gestartet werden.', 'Winter', false),
-  E('Schneeräumung', 'Snow Clearing', 'Räumdienst: Pflüge und Kehrblasgeräte fahren in Staffelformation über die Piste. Die Bahn ist dafür einige Minuten gesperrt; danach ist die Bremswirkung wieder gut.', 'Winter', false),
-  E('Holdover', 'Holdover Time', 'Zeitspanne, in der das Enteisungsmittel vor neuem Eis schützt – bei starkem Schneefall nur wenige Minuten.', 'Winter', false),
+  E('De-Icing', T('Enteisung'), T('Vor dem Start werden Tragflächen und Leitwerk mit heißer Glykol-Lösung von Schnee und Eis befreit (Enteisungsfahrzeug). Danach läuft die Holdover-Zeit – in der Zeit muss das Flugzeug starten.'), 'Winter'),
+  E(T('Enteisung'), 'De-Icing', T('Letzte Abfertigungsaufgabe im Winter (❄️ Eis), braucht ein Enteisungsfahrzeug. Bei Schneefall oder Frost mit Feuchtigkeit darf ohne Enteisung nicht gestartet werden.'), 'Winter', false),
+  E(T('Schneeräumung'), 'Snow Clearing', T('Räumdienst: Pflüge und Kehrblasgeräte fahren in Staffelformation über die Piste. Die Bahn ist dafür einige Minuten gesperrt; danach ist die Bremswirkung wieder gut.'), 'Winter', false),
+  E('Holdover', 'Holdover Time', T('Zeitspanne, in der das Enteisungsmittel vor neuem Eis schützt – bei starkem Schneefall nur wenige Minuten.'), 'Winter', false),
   // Flugsicherung
-  E('ATC', 'Air Traffic Control', 'Flugverkehrskontrolle – die Lotsen, die Abstände zwischen Flugzeugen sicherstellen und Freigaben erteilen.', 'Flugsicherung'),
-  E('TWR', 'Tower', 'Platzkontrolle im Kontrollturm: zuständig für Starts, Landungen und den Rollverkehr auf dem Flughafen.', 'Flugsicherung'),
-  E('APP', 'Approach', 'Anflugkontrolle: führt Flugzeuge aus dem Streckennetz bis in den Endanflug.', 'Flugsicherung'),
-  E('STCA', 'Short Term Conflict Alert', 'Kurzfristige Konfliktwarnung des Radars: zwei Flugzeuge kommen sich näher als 3 NM seitlich und 1000 ft in der Höhe. Rot blinkend im Radar.', 'Flugsicherung'),
-  E('AIRPROX', 'Aircraft Proximity', 'Gefährliche Annäherung zweier Flugzeuge (hier: unter 1 NM und 500 ft). Schwerer Vorfall mit hoher Strafe.', 'Flugsicherung'),
-  E('Staffelung', 'Separation', 'Vorgeschriebener Mindestabstand zwischen Flugzeugen: im Radar 3 NM seitlich oder 1000 ft vertikal, hinter schweren Flugzeugen mehr (Wirbelschleppen).', 'Flugsicherung', false),
-  E('Squawk', 'Transpondercode', 'Vierstelliger Code, den das Flugzeug per Transponder sendet. 7700 = Notfall, 7600 = Funkausfall, 7500 = Entführung.', 'Flugsicherung'),
-  E('7700', 'Squawk 7700', 'Notfallcode: das Flugzeug hat eine Notlage (MAYDAY) und braucht absoluten Vorrang.', 'Flugsicherung'),
-  E('MAYDAY', 'Notruf', 'Notfall mit Gefahr für Leib und Leben (Triebwerksausfall, Feuer, Treibstoffnot). Absoluter Vorrang für Anflug und Landung.', 'Flugsicherung'),
-  E('PAN PAN', 'Dringlichkeitsmeldung', 'Dringlicher, aber (noch) kein lebensbedrohlicher Fall, z. B. Vogelschlag. Bevorzugt behandeln.', 'Flugsicherung'),
-  E('MINIMUM FUEL', 'Minimum Fuel', 'Der Pilot meldet: Treibstoff reicht für keine weitere Verzögerung. Noch kein Notfall, aber bald Anflug freigeben – sonst folgt MAYDAY FUEL.', 'Flugsicherung'),
-  E('MAYDAY FUEL', 'Treibstoffnotlage', 'Treibstoff unter der Endreserve – das Flugzeug muss sofort landen (Notfall, Squawk 7700).', 'Flugsicherung'),
-  E('MINFUEL', 'Minimum Fuel', 'Kurzform auf Radar und Streifen: das Flugzeug hat Minimum Fuel erklärt.', 'Flugsicherung'),
-  E('ATIS', 'Automatic Terminal Information Service', 'Bandansage mit Wetter, Wind und Piste in Betrieb. Jede neue Ausgabe hat einen Buchstaben (Alpha, Bravo, …), den Piloten beim Erstanruf nennen.', 'Flugsicherung'),
-  E('TAF', 'Terminal Aerodrome Forecast', 'Flugplatzwettervorhersage. Im Radar zeigt die TAF-Zeile die nächste Wetterlage, z. B. „ab 15:20 TSRA“ (Gewitter mit Regen).', 'Flugsicherung'),
-  E('TSRA', 'Thunderstorm with Rain', 'Wetterkürzel: Gewitter mit Regen. Weitere Kürzel: RA Regen, SN Schnee, FG Nebel, CAVOK klar.', 'Flugsicherung'),
-  E('SID', 'Standard Instrument Departure', 'Veröffentlichte Abflugroute. Im Spiel führt jede Route über einen der vier Fixe (NOLTA Nordost, SUDEN Südost, RIMOS Südwest, WELDA Nordwest). Zwei Starts auf derselben Route brauchen 100 Sekunden Abstand statt der üblichen 75 – auf verschiedenen Routen reicht der normale Abstand.', 'Flugsicherung'),
-  E('NORDO', 'No Radio', 'Flugzeug ohne Funkverbindung (Transponder-Code 7600). Es fliegt nach Flugplan weiter und bekommt Lichtsignale vom Tower: grünes Dauerlicht = Landung frei, rotes Dauerlicht = nicht landen/durchstarten, grünes Blinklicht am Boden = Rollen frei.', 'Flugsicherung'),
-  E('7600', 'Squawk 7600', 'Transponder-Code für Funkausfall (NORDO).', 'Flugsicherung'),
-  E('Readback', 'Rücklesung', 'Der Pilot wiederholt jede Freigabe (Piste, Line up, Start, Landung). Der Lotse muss hinhören: Stimmt der Readback nicht, sofort mit „negative …“ korrigieren (im Spiel Taste Q) – sonst handelt der Pilot nach seinem Missverständnis.', 'Flugsicherung'),
-  E('WS ALERT', 'Windshear Alert', 'Windscherungswarnung: plötzliche Wind- und Auftriebsänderung im kurzen Endanflug (meist durch eine Gewitterzelle). Anflüge können durchstarten müssen – ein Pistenwechsel hilft.', 'Flugsicherung'),
-  E('Windscherung', 'Windshear', 'Schnelle Änderung von Windrichtung oder -stärke auf kurzer Strecke, gefährlich im Endanflug. Wird als WS ALERT gemeldet.', 'Flugsicherung', false),
-  E('GS', 'Ground Speed', 'Geschwindigkeit über Grund in Knoten.', 'Flugsicherung'),
-  E('HDG', 'Heading', 'Steuerkurs in Grad (360 = Norden, 090 = Osten).', 'Flugsicherung'),
-  E('ALT', 'Altitude', 'Flughöhe in Fuß über dem Meeresspiegel.', 'Flugsicherung'),
-  E('AV-38', 'Aviora AV-38 (Superjumbo)', 'Größtes Passagierflugzeug im Spiel: zwei Decks, vier Triebwerke, rund 500 Sitze. Braucht eine Großraumposition (L).', 'Flugzeuge'),
-  E('Freigabe', 'Clearance', 'Erlaubnis des Lotsen für eine Handlung (Anflug, Landung, Rollen, Start). Ohne Freigabe darf der Pilot nicht handeln.', 'Flugsicherung', false),
-  E('Pistenfolge', 'Runway Sequence', 'Gemeinsame Reihenfolge aller Landungen und Starts auf der Piste, mit geplanten Pistenzeiten. Der Tower kann sie umsortieren.', 'Flugsicherung', false),
+  E('ATC', 'Air Traffic Control', T('Flugverkehrskontrolle – die Lotsen, die Abstände zwischen Flugzeugen sicherstellen und Freigaben erteilen.'), T('Flugsicherung')),
+  E('TWR', 'Tower', T('Platzkontrolle im Kontrollturm: zuständig für Starts, Landungen und den Rollverkehr auf dem Flughafen.'), T('Flugsicherung')),
+  E('APP', 'Approach', T('Anflugkontrolle: führt Flugzeuge aus dem Streckennetz bis in den Endanflug.'), T('Flugsicherung')),
+  E('STCA', 'Short Term Conflict Alert', T('Kurzfristige Konfliktwarnung des Radars: zwei Flugzeuge kommen sich näher als 3 NM seitlich und 1000 ft in der Höhe. Rot blinkend im Radar.'), T('Flugsicherung')),
+  E('AIRPROX', 'Aircraft Proximity', T('Gefährliche Annäherung zweier Flugzeuge (hier: unter 1 NM und 500 ft). Schwerer Vorfall mit hoher Strafe.'), T('Flugsicherung')),
+  E(T('Staffelung'), 'Separation', T('Vorgeschriebener Mindestabstand zwischen Flugzeugen: im Radar 3 NM seitlich oder 1000 ft vertikal, hinter schweren Flugzeugen mehr (Wirbelschleppen).'), T('Flugsicherung'), false),
+  E('Squawk', T('Transpondercode'), T('Vierstelliger Code, den das Flugzeug per Transponder sendet. 7700 = Notfall, 7600 = Funkausfall, 7500 = Entführung.'), T('Flugsicherung')),
+  E('7700', 'Squawk 7700', T('Notfallcode: das Flugzeug hat eine Notlage (MAYDAY) und braucht absoluten Vorrang.'), T('Flugsicherung')),
+  E('MAYDAY', T('Notruf'), T('Notfall mit Gefahr für Leib und Leben (Triebwerksausfall, Feuer, Treibstoffnot). Absoluter Vorrang für Anflug und Landung.'), T('Flugsicherung')),
+  E('PAN PAN', T('Dringlichkeitsmeldung'), T('Dringlicher, aber (noch) kein lebensbedrohlicher Fall, z. B. Vogelschlag. Bevorzugt behandeln.'), T('Flugsicherung')),
+  E('MINIMUM FUEL', 'Minimum Fuel', T('Der Pilot meldet: Treibstoff reicht für keine weitere Verzögerung. Noch kein Notfall, aber bald Anflug freigeben – sonst folgt MAYDAY FUEL.'), T('Flugsicherung')),
+  E('MAYDAY FUEL', T('Treibstoffnotlage'), T('Treibstoff unter der Endreserve – das Flugzeug muss sofort landen (Notfall, Squawk 7700).'), T('Flugsicherung')),
+  E('MINFUEL', 'Minimum Fuel', T('Kurzform auf Radar und Streifen: das Flugzeug hat Minimum Fuel erklärt.'), T('Flugsicherung')),
+  E('ATIS', 'Automatic Terminal Information Service', T('Bandansage mit Wetter, Wind und Piste in Betrieb. Jede neue Ausgabe hat einen Buchstaben (Alpha, Bravo, …), den Piloten beim Erstanruf nennen.'), T('Flugsicherung')),
+  E('TAF', 'Terminal Aerodrome Forecast', T('Flugplatzwettervorhersage. Im Radar zeigt die TAF-Zeile die nächste Wetterlage, z. B. „ab 15:20 TSRA“ (Gewitter mit Regen).'), T('Flugsicherung')),
+  E('TSRA', 'Thunderstorm with Rain', T('Wetterkürzel: Gewitter mit Regen. Weitere Kürzel: RA Regen, SN Schnee, FG Nebel, CAVOK klar.'), T('Flugsicherung')),
+  E('SID', 'Standard Instrument Departure', T('Veröffentlichte Abflugroute. Im Spiel führt jede Route über einen der vier Fixe (NOLTA Nordost, SUDEN Südost, RIMOS Südwest, WELDA Nordwest). Zwei Starts auf derselben Route brauchen 100 Sekunden Abstand statt der üblichen 75 – auf verschiedenen Routen reicht der normale Abstand.'), T('Flugsicherung')),
+  E('NORDO', 'No Radio', T('Flugzeug ohne Funkverbindung (Transponder-Code 7600). Es fliegt nach Flugplan weiter und bekommt Lichtsignale vom Tower: grünes Dauerlicht = Landung frei, rotes Dauerlicht = nicht landen/durchstarten, grünes Blinklicht am Boden = Rollen frei.'), T('Flugsicherung')),
+  E('7600', 'Squawk 7600', T('Transponder-Code für Funkausfall (NORDO).'), T('Flugsicherung')),
+  E('Readback', T('Rücklesung'), T('Der Pilot wiederholt jede Freigabe (Piste, Line up, Start, Landung). Der Lotse muss hinhören: Stimmt der Readback nicht, sofort mit „negative …“ korrigieren (im Spiel Taste Q) – sonst handelt der Pilot nach seinem Missverständnis.'), T('Flugsicherung')),
+  E('WS ALERT', 'Windshear Alert', T('Windscherungswarnung: plötzliche Wind- und Auftriebsänderung im kurzen Endanflug (meist durch eine Gewitterzelle). Anflüge können durchstarten müssen – ein Pistenwechsel hilft.'), T('Flugsicherung')),
+  E(T('Windscherung'), 'Windshear', T('Schnelle Änderung von Windrichtung oder -stärke auf kurzer Strecke, gefährlich im Endanflug. Wird als WS ALERT gemeldet.'), T('Flugsicherung'), false),
+  E('GS', 'Ground Speed', T('Geschwindigkeit über Grund in Knoten.'), T('Flugsicherung')),
+  E('HDG', 'Heading', T('Steuerkurs in Grad (360 = Norden, 090 = Osten).'), T('Flugsicherung')),
+  E('ALT', 'Altitude', T('Flughöhe in Fuß über dem Meeresspiegel.'), T('Flugsicherung')),
+  E('AV-38', 'Aviora AV-38 (Superjumbo)', T('Größtes Passagierflugzeug im Spiel: zwei Decks, vier Triebwerke, rund 500 Sitze. Braucht eine Großraumposition (L).'), T('Flugzeuge')),
+  E(T('Freigabe'), 'Clearance', T('Erlaubnis des Lotsen für eine Handlung (Anflug, Landung, Rollen, Start). Ohne Freigabe darf der Pilot nicht handeln.'), T('Flugsicherung'), false),
+  E(T('Pistenfolge'), 'Runway Sequence', T('Gemeinsame Reihenfolge aller Landungen und Starts auf der Piste, mit geplanten Pistenzeiten. Der Tower kann sie umsortieren.'), T('Flugsicherung'), false),
   // Anflug & Landung
-  E('ILS', 'Instrument Landing System', 'Instrumentenlandesystem: Funkleitstrahlen für Kurs (Localizer) und Gleitweg führen das Flugzeug präzise zur Piste – auch ohne Sicht.', 'Anflug & Landung'),
-  E('CAT I', 'ILS-Kategorie I', 'Landungen bis 550 m Pistensichtweite (RVR) und 200 ft Entscheidungshöhe.', 'Anflug & Landung'),
-  E('CAT III', 'ILS-Kategorie III', 'Präzisionsanflug bis fast null Sicht (RVR ab ca. 75 m) – mit Autoland. Ohne CAT III müssen Flüge bei dichtem Nebel ausweichen.', 'Anflug & Landung'),
-  E('IAF', 'Initial Approach Fix', 'Anfangspunkt des Anflugs; hier liegen die Warteschleifen (NOLTA, SUDEN für Piste 27, WELDA, RIMOS für Piste 09).', 'Anflug & Landung'),
-  E('IP', 'Intermediate Point', 'Zwischenpunkt 15 NM vor der Schwelle auf der verlängerten Pistenachse.', 'Anflug & Landung'),
-  E('FAF', 'Final Approach Fix', 'Endanflugpunkt 10 NM vor der Schwelle – ab hier fliegt das Flugzeug stabil auf dem ILS-Gleitweg.', 'Anflug & Landung'),
-  E('THR', 'Threshold', 'Pistenschwelle: Beginn des nutzbaren Landebereichs.', 'Anflug & Landung'),
-  E('NOLTA', 'Warteschleifen-Fix', 'IAF nordöstlich, für Anflüge auf Piste 27.', 'Anflug & Landung'),
-  E('SUDEN', 'Warteschleifen-Fix', 'IAF südöstlich, für Anflüge auf Piste 27.', 'Anflug & Landung'),
-  E('WELDA', 'Warteschleifen-Fix', 'IAF nordwestlich, für Anflüge auf Piste 09.', 'Anflug & Landung'),
-  E('RIMOS', 'Warteschleifen-Fix', 'IAF südwestlich, für Anflüge auf Piste 09.', 'Anflug & Landung'),
-  E('Warteschleife', 'Holding', 'Rennbahnförmige Schleife am Fix. Flugzeuge stapeln sich im Abstand von 1000 ft; der Unterste verlässt den Stapel zuerst.', 'Anflug & Landung', false),
-  E('Durchstarten', 'Go-around', 'Abgebrochene Landung: das Flugzeug steigt wieder und fliegt eine neue Runde – z. B. wenn die Piste belegt ist oder keine Landefreigabe vorliegt.', 'Anflug & Landung', false),
-  E('Wirbelschleppe', 'Wake Turbulence', 'Luftwirbel hinter jedem Flugzeug, besonders stark hinter schweren (H). Folgende Flugzeuge brauchen mehr Abstand: H→H 4 NM, H→M 5 NM, H→L 6 NM, M→L 5 NM; bei Starts bis 2 Minuten.', 'Anflug & Landung', false),
-  E('WTC', 'Wake Turbulence Category', 'Wirbelschleppen-Kategorie: L = Light (leicht, < 7 t), M = Medium (mittel), H = Heavy (schwer, > 136 t).', 'Anflug & Landung'),
-  E('Heavy', 'Wirbelschleppen-Kategorie H', 'Schweres Flugzeug über 136 t Höchstabfluggewicht (z. B. H-89, AV-35, H-77X, H-48F). Erzeugt starke Wirbelschleppen.', 'Anflug & Landung'),
-  E('Medium', 'Wirbelschleppen-Kategorie M', 'Mittleres Flugzeug zwischen 7 und 136 t (z. B. AV-32, H-38, S-19, VT-70).', 'Anflug & Landung'),
-  E('Light', 'Wirbelschleppen-Kategorie L', 'Leichtes Flugzeug unter 7 t bzw. kleine Businessjets – besonders empfindlich gegen Wirbelschleppen.', 'Anflug & Landung'),
-  E('Bremswirkung', 'Braking Action', 'Wie gut Flugzeuge auf der Piste bremsen: gut / mittel / schlecht. Hängt vom Gummiabrieb und von Nässe ab; schlecht = längere Ausrollstrecke, spätere Abrollwege.', 'Anflug & Landung', false),
+  E('ILS', 'Instrument Landing System', T('Instrumentenlandesystem: Funkleitstrahlen für Kurs (Localizer) und Gleitweg führen das Flugzeug präzise zur Piste – auch ohne Sicht.'), T('Anflug & Landung')),
+  E('CAT I', T('ILS-Kategorie I'), T('Landungen bis 550 m Pistensichtweite (RVR) und 200 ft Entscheidungshöhe.'), T('Anflug & Landung')),
+  E('CAT III', T('ILS-Kategorie III'), T('Präzisionsanflug bis fast null Sicht (RVR ab ca. 75 m) – mit Autoland. Ohne CAT III müssen Flüge bei dichtem Nebel ausweichen.'), T('Anflug & Landung')),
+  E('IAF', 'Initial Approach Fix', T('Anfangspunkt des Anflugs; hier liegen die Warteschleifen (NOLTA, SUDEN für Piste 27, WELDA, RIMOS für Piste 09).'), T('Anflug & Landung')),
+  E('IP', 'Intermediate Point', T('Zwischenpunkt 15 NM vor der Schwelle auf der verlängerten Pistenachse.'), T('Anflug & Landung')),
+  E('FAF', 'Final Approach Fix', T('Endanflugpunkt 10 NM vor der Schwelle – ab hier fliegt das Flugzeug stabil auf dem ILS-Gleitweg.'), T('Anflug & Landung')),
+  E('THR', 'Threshold', T('Pistenschwelle: Beginn des nutzbaren Landebereichs.'), T('Anflug & Landung')),
+  E('NOLTA', T('Warteschleifen-Fix'), T('IAF nordöstlich, für Anflüge auf Piste 27.'), T('Anflug & Landung')),
+  E('SUDEN', T('Warteschleifen-Fix'), T('IAF südöstlich, für Anflüge auf Piste 27.'), T('Anflug & Landung')),
+  E('WELDA', T('Warteschleifen-Fix'), T('IAF nordwestlich, für Anflüge auf Piste 09.'), T('Anflug & Landung')),
+  E('RIMOS', T('Warteschleifen-Fix'), T('IAF südwestlich, für Anflüge auf Piste 09.'), T('Anflug & Landung')),
+  E(T('Warteschleife'), 'Holding', T('Rennbahnförmige Schleife am Fix. Flugzeuge stapeln sich im Abstand von 1000 ft; der Unterste verlässt den Stapel zuerst.'), T('Anflug & Landung'), false),
+  E(T('Durchstarten'), 'Go-around', T('Abgebrochene Landung: das Flugzeug steigt wieder und fliegt eine neue Runde – z. B. wenn die Piste belegt ist oder keine Landefreigabe vorliegt.'), T('Anflug & Landung'), false),
+  E(T('Wirbelschleppe'), 'Wake Turbulence', T('Luftwirbel hinter jedem Flugzeug, besonders stark hinter schweren (H). Folgende Flugzeuge brauchen mehr Abstand: H→H 4 NM, H→M 5 NM, H→L 6 NM, M→L 5 NM; bei Starts bis 2 Minuten.'), T('Anflug & Landung'), false),
+  E('WTC', 'Wake Turbulence Category', T('Wirbelschleppen-Kategorie: L = Light (leicht, < 7 t), M = Medium (mittel), H = Heavy (schwer, > 136 t).'), T('Anflug & Landung')),
+  E('Heavy', T('Wirbelschleppen-Kategorie H'), T('Schweres Flugzeug über 136 t Höchstabfluggewicht (z. B. H-89, AV-35, H-77X, H-48F). Erzeugt starke Wirbelschleppen.'), T('Anflug & Landung')),
+  E('Medium', T('Wirbelschleppen-Kategorie M'), T('Mittleres Flugzeug zwischen 7 und 136 t (z. B. AV-32, H-38, S-19, VT-70).'), T('Anflug & Landung')),
+  E('Light', T('Wirbelschleppen-Kategorie L'), T('Leichtes Flugzeug unter 7 t bzw. kleine Businessjets – besonders empfindlich gegen Wirbelschleppen.'), T('Anflug & Landung')),
+  E(T('Bremswirkung'), 'Braking Action', T('Wie gut Flugzeuge auf der Piste bremsen: gut / mittel / schlecht. Hängt vom Gummiabrieb und von Nässe ab; schlecht = längere Ausrollstrecke, spätere Abrollwege.'), T('Anflug & Landung'), false),
   // Abflug & Slots
-  E('A-CDM', 'Airport Collaborative Decision Making', 'Gemeinsame Planung von Abfertigung, Tower und Verkehrsflusssteuerung über Zielzeiten (TOBT, TSAT, CTOT). Ziel: pünktlich starten, ohne am Rollhalt mit laufenden Triebwerken zu warten.', 'Abflug & Slots'),
-  E('TOBT', 'Target Off-Block Time', 'Zielzeit, zu der die Abfertigung fertig ist und das Flugzeug abrollbereit sein wird. Wird automatisch nachgeführt, wenn der Turnaround länger dauert.', 'Abflug & Slots'),
-  E('TSAT', 'Target Start-up Approval Time', 'Zielzeit für Anlass- und Pushback-Freigabe. Bei Slot-Flügen: CTOT minus Rollzeit (EXOT). Früher schieben heißt: am Rollhalt warten und Treibstoff verbrennen.', 'Abflug & Slots'),
-  E('CTOT', 'Calculated Take-Off Time', 'Startslot der europäischen Verkehrsflusssteuerung. Start nur im Fenster −5/+10 Minuten erlaubt; verpasst = neuer, späterer Slot.', 'Abflug & Slots'),
-  E('EXOT', 'Estimated Taxi-Out Time', 'Geschätzte Zeit von der Parkposition bis zum Abheben (Pushback, Anlassen, Rollen).', 'Abflug & Slots'),
-  E('ATFM', 'Air Traffic Flow Management', 'Verkehrsflusssteuerung (z. B. Eurocontrol Network Manager): vergibt Slots, wenn Lufträume oder Zielflughäfen überlastet sind. ATFM-Verspätung zählt nicht gegen den Flughafen.', 'Abflug & Slots'),
-  E('Slot', 'Startslot', 'Zugeteilte Startzeit (CTOT) mit Toleranzfenster −5/+10 Minuten.', 'Abflug & Slots'),
-  E('Rollhalt', 'Holding Point', 'Haltelinie vor der Piste. Hier wartet das Flugzeug auf „Line up“ oder die Startfreigabe.', 'Abflug & Slots', false),
-  E('Line up', 'Line up and wait', 'Auf die Piste rollen, ausrichten und auf die Startfreigabe warten. Blockiert die Piste für Landungen!', 'Abflug & Slots'),
-  E('Pushback', 'Zurückschieben', 'Das Flugzeug wird vom Schlepper rückwärts von der Parkposition geschoben, danach werden die Triebwerke angelassen.', 'Abflug & Slots'),
+  E('A-CDM', 'Airport Collaborative Decision Making', T('Gemeinsame Planung von Abfertigung, Tower und Verkehrsflusssteuerung über Zielzeiten (TOBT, TSAT, CTOT). Ziel: pünktlich starten, ohne am Rollhalt mit laufenden Triebwerken zu warten.'), T('Abflug & Slots')),
+  E('TOBT', 'Target Off-Block Time', T('Zielzeit, zu der die Abfertigung fertig ist und das Flugzeug abrollbereit sein wird. Wird automatisch nachgeführt, wenn der Turnaround länger dauert.'), T('Abflug & Slots')),
+  E('TSAT', T('Target Start-up Approval Time'), T('Zielzeit für Anlass- und Pushback-Freigabe. Bei Slot-Flügen: CTOT minus Rollzeit (EXOT). Früher schieben heißt: am Rollhalt warten und Treibstoff verbrennen.'), T('Abflug & Slots')),
+  E('CTOT', 'Calculated Take-Off Time', T('Startslot der europäischen Verkehrsflusssteuerung. Start nur im Fenster −5/+10 Minuten erlaubt; verpasst = neuer, späterer Slot.'), T('Abflug & Slots')),
+  E('EXOT', 'Estimated Taxi-Out Time', T('Geschätzte Zeit von der Parkposition bis zum Abheben (Pushback, Anlassen, Rollen).'), T('Abflug & Slots')),
+  E('ATFM', 'Air Traffic Flow Management', T('Verkehrsflusssteuerung (z. B. Eurocontrol Network Manager): vergibt Slots, wenn Lufträume oder Zielflughäfen überlastet sind. ATFM-Verspätung zählt nicht gegen den Flughafen.'), T('Abflug & Slots')),
+  E('Slot', T('Startslot'), T('Zugeteilte Startzeit (CTOT) mit Toleranzfenster −5/+10 Minuten.'), T('Abflug & Slots')),
+  E(T('Rollhalt'), 'Holding Point', T('Haltelinie vor der Piste. Hier wartet das Flugzeug auf „Line up“ oder die Startfreigabe.'), T('Abflug & Slots'), false),
+  E('Line up', 'Line up and wait', T('Auf die Piste rollen, ausrichten und auf die Startfreigabe warten. Blockiert die Piste für Landungen!'), T('Abflug & Slots')),
+  E('Pushback', T('Zurückschieben'), T('Das Flugzeug wird vom Schlepper rückwärts von der Parkposition geschoben, danach werden die Triebwerke angelassen.'), T('Abflug & Slots')),
   // Boden & Abfertigung
-  E('Turnaround', 'Bodenabfertigung', 'Alle Arbeiten zwischen Ankunft und Abflug: Aussteigen, Entladen, Reinigung, Catering, Betankung, Einsteigen, Beladen, Pushback.', 'Boden & Abfertigung'),
-  E('GSE', 'Ground Support Equipment', 'Bodenfahrzeuge: Schlepper, Gepäckzüge, Tankwagen, Catering-LKW, Reinigung, Vorfeldbusse.', 'Boden & Abfertigung'),
-  E('Vorfeld', 'Apron', 'Abstellfläche für Flugzeuge mit Parkpositionen und Servicestraße.', 'Boden & Abfertigung', false),
-  E('Pos', 'Parkposition', 'Abstellplatz eines Flugzeugs (P1–P10). Gebäudepositionen haben eine Fluggastbrücke, Vorfeldpositionen brauchen Busse.', 'Boden & Abfertigung'),
-  E('Klasse', 'Positionsklasse S/M/L', 'Größe einer Parkposition: M für Kurz-/Mittelstrecke (bis AV-32L), L für Großraumflugzeuge (H-89, AV-35, H-77X, H-48F).', 'Boden & Abfertigung', false),
-  E('Mindestbodenzeit', 'Minimum Turnaround Time', 'Kürzeste planbare Abfertigungszeit je Flugzeugtyp (z. B. AV-32 40 min, H-77X 90 min).', 'Boden & Abfertigung', false),
-  E('Tankwagen', 'Fuel Truck', 'Fasst 36 t Kerosin. Große Flugzeuge brauchen mehrere Ladungen; leere Tankwagen fahren zum Tanklager nach.', 'Boden & Abfertigung', false),
-  E('FOD', 'Foreign Object Debris', 'Fremdkörper auf der Piste (Metallteile, Steine). Gefahr für Reifen und Triebwerke – die Piste wird für eine Kontrolle kurz gesperrt.', 'Boden & Abfertigung'),
-  E('Gummiabrieb', 'Rubber Deposits', 'Reifenabrieb im Aufsetzbereich macht die Piste glatt. Wird nachts per Hochdruck-Wasserstrahl entfernt.', 'Boden & Abfertigung', false),
+  E('Turnaround', T('Bodenabfertigung'), T('Alle Arbeiten zwischen Ankunft und Abflug: Aussteigen, Entladen, Reinigung, Catering, Betankung, Einsteigen, Beladen, Pushback.'), T('Boden & Abfertigung')),
+  E('GSE', 'Ground Support Equipment', T('Bodenfahrzeuge: Schlepper, Gepäckzüge, Tankwagen, Catering-LKW, Reinigung, Vorfeldbusse.'), T('Boden & Abfertigung')),
+  E(T('Vorfeld'), 'Apron', T('Abstellfläche für Flugzeuge mit Parkpositionen und Servicestraße.'), T('Boden & Abfertigung'), false),
+  E('Pos', T('Parkposition'), T('Abstellplatz eines Flugzeugs (P1–P10). Gebäudepositionen haben eine Fluggastbrücke, Vorfeldpositionen brauchen Busse.'), T('Boden & Abfertigung')),
+  E(T('Klasse'), T('Positionsklasse S/M/L'), T('Größe einer Parkposition: M für Kurz-/Mittelstrecke (bis AV-32L), L für Großraumflugzeuge (H-89, AV-35, H-77X, H-48F).'), T('Boden & Abfertigung'), false),
+  E(T('Mindestbodenzeit'), 'Minimum Turnaround Time', T('Kürzeste planbare Abfertigungszeit je Flugzeugtyp (z. B. AV-32 40 min, H-77X 90 min).'), T('Boden & Abfertigung'), false),
+  E(T('Tankwagen'), 'Fuel Truck', T('Fasst 36 t Kerosin. Große Flugzeuge brauchen mehrere Ladungen; leere Tankwagen fahren zum Tanklager nach.'), T('Boden & Abfertigung'), false),
+  E('FOD', 'Foreign Object Debris', T('Fremdkörper auf der Piste (Metallteile, Steine). Gefahr für Reifen und Triebwerke – die Piste wird für eine Kontrolle kurz gesperrt.'), T('Boden & Abfertigung')),
+  E(T('Gummiabrieb'), 'Rubber Deposits', T('Reifenabrieb im Aufsetzbereich macht die Piste glatt. Wird nachts per Hochdruck-Wasserstrahl entfernt.'), T('Boden & Abfertigung'), false),
   // Wirtschaft
-  E('MTOW', 'Maximum Take-Off Weight', 'Höchstabfluggewicht in Tonnen – Grundlage für das Landeentgelt.', 'Wirtschaft'),
-  E('Pax', 'Passengers', 'Passagiere (Fluggäste).', 'Wirtschaft'),
-  E('KPI', 'Key Performance Indicator', 'Kennzahl zur Leistungsmessung, z. B. Pünktlichkeit oder Slot-Einhaltung.', 'Wirtschaft'),
-  E('Tsd', 'Tausend', '1 Tsd € = 1 000 €.', 'Wirtschaft'),
-  E('Mio', 'Millionen', '1 Mio € = 1 000 000 €.', 'Wirtschaft'),
-  E('Marge', 'Kerosin-Aufschlag', 'Aufschlag auf den Einkaufspreis beim Verkauf an die Airlines. Zu hoch → Airlines tanken woanders (Tankering).', 'Wirtschaft', false),
-  E('Tankering', 'Fuel Tankering', 'Airlines tanken am günstigen Flughafen mehr, um am teuren weniger kaufen zu müssen.', 'Wirtschaft', false),
-  E('Kerosin', 'Jet A-1', 'Flugturbinenkraftstoff. Der Flughafen kauft am Markt ein, lagert im Tanklager und verkauft mit Aufschlag an die Airlines.', 'Wirtschaft', false),
-  E('Annuität', 'Kreditrate', 'Gleichbleibende Tagesrate aus Zins und Tilgung.', 'Wirtschaft', false),
-  E('Nachtflugverbot', 'Curfew', 'Zwischen 23 und 5 Uhr keine planmäßigen Flüge. Weniger Lärmbeschwerden, aber Frachtairlines verlieren Nachtslots.', 'Wirtschaft', false),
-  E('ICAO', 'International Civil Aviation Organization', 'UN-Organisation für die Zivilluftfahrt. ICAO-Codes: 4 Zeichen für Flugzeugtypen (im Spiel z. B. AV32), 3 Buchstaben für Airlines (AUR).', 'Wirtschaft'),
-  E('IATA', 'International Air Transport Association', 'Airline-Dachverband. IATA-Codes: 3 Buchstaben für Flughäfen (z. B. LHR = London Heathrow).', 'Wirtschaft'),
+  E('MTOW', 'Maximum Take-Off Weight', T('Höchstabfluggewicht in Tonnen – Grundlage für das Landeentgelt.'), T('Wirtschaft')),
+  E('Pax', 'Passengers', T('Passagiere (Fluggäste).'), T('Wirtschaft')),
+  E('KPI', 'Key Performance Indicator', T('Kennzahl zur Leistungsmessung, z. B. Pünktlichkeit oder Slot-Einhaltung.'), T('Wirtschaft')),
+  // deutsche Geld-Kürzel – im englischen Spiel steht €12k / €1.2m, dort braucht es sie nicht
+  ...(EN ? [] : [E('Tsd', T('Tausend'), T('1 Tsd € = 1 000 €.'), T('Wirtschaft')), E('Mio', T('Millionen'), T('1 Mio € = 1 000 000 €.'), T('Wirtschaft'))]),
+  E(T('Marge'), T('Kerosin-Aufschlag'), T('Aufschlag auf den Einkaufspreis beim Verkauf an die Airlines. Zu hoch → Airlines tanken woanders (Tankering).'), T('Wirtschaft'), false),
+  E('Tankering', 'Fuel Tankering', T('Airlines tanken am günstigen Flughafen mehr, um am teuren weniger kaufen zu müssen.'), T('Wirtschaft'), false),
+  E(T('Kerosin'), 'Jet A-1', T('Flugturbinenkraftstoff. Der Flughafen kauft am Markt ein, lagert im Tanklager und verkauft mit Aufschlag an die Airlines.'), T('Wirtschaft'), false),
+  E(T('Annuität'), T('Kreditrate'), T('Gleichbleibende Tagesrate aus Zins und Tilgung.'), T('Wirtschaft'), false),
+  E(T('Nachtflugverbot'), 'Curfew', T('Zwischen 23 und 5 Uhr keine planmäßigen Flüge. Weniger Lärmbeschwerden, aber Frachtairlines verlieren Nachtslots.'), T('Wirtschaft'), false),
+  E('ICAO', 'International Civil Aviation Organization', T('UN-Organisation für die Zivilluftfahrt. ICAO-Codes: 4 Zeichen für Flugzeugtypen (im Spiel z. B. AV32), 3 Buchstaben für Airlines (AUR).'), T('Wirtschaft')),
+  E('IATA', 'International Air Transport Association', T('Airline-Dachverband. IATA-Codes: 3 Buchstaben für Flughäfen (z. B. LHR = London Heathrow).'), T('Wirtschaft')),
   // Wetter
-  E('RVR', 'Runway Visual Range', 'Pistensichtweite in Metern. Unter 550 m reicht ILS CAT I nicht mehr – dann nur mit CAT III landen.', 'Wetter'),
-  E('LVP', 'Low Visibility Procedures', 'Verfahren bei schlechter Sicht: größere Abstände zwischen Anflügen, geschützte ILS-Zonen, weniger Kapazität.', 'Wetter'),
-  E('Rückenwind', 'Tailwind', 'Wind von hinten verlängert Start- und Landestrecke. Über 5 kt Rückenwind wird die Betriebsrichtung gewechselt.', 'Wetter', false),
-  E('Gegenwind', 'Headwind', 'Wind von vorne – erwünscht, verkürzt Start und Landung.', 'Wetter', false),
+  E('RVR', 'Runway Visual Range', T('Pistensichtweite in Metern. Unter 550 m reicht ILS CAT I nicht mehr – dann nur mit CAT III landen.'), T('Wetter')),
+  E('LVP', 'Low Visibility Procedures', T('Verfahren bei schlechter Sicht: größere Abstände zwischen Anflügen, geschützte ILS-Zonen, weniger Kapazität.'), T('Wetter')),
+  E(T('Rückenwind'), 'Tailwind', T('Wind von hinten verlängert Start- und Landestrecke. Über 5 kt Rückenwind wird die Betriebsrichtung gewechselt.'), T('Wetter'), false),
+  E(T('Gegenwind'), 'Headwind', T('Wind von vorne – erwünscht, verkürzt Start und Landung.'), T('Wetter'), false),
   // Einheiten & Kennungen
-  E('RWY', 'Runway', 'Start- und Landebahn. Die Nummer ist die Richtung in Zehnergrad: RWY 27 = Richtung 270° (Westen), RWY 09 = 90° (Osten).', 'Einheiten & Kennungen'),
-  E('NM', 'Nautische Meile', '1 NM = 1,852 km. Entfernungen in der Luftfahrt.', 'Einheiten & Kennungen'),
-  E('kt', 'Knoten', 'Geschwindigkeit in NM pro Stunde: 1 kt ≈ 1,85 km/h. 160 kt ≈ 300 km/h.', 'Einheiten & Kennungen'),
-  E('ft', 'Fuß', 'Höhenangabe: 1 ft = 0,3048 m. 5000 ft ≈ 1,5 km.', 'Einheiten & Kennungen'),
-  E('feet', 'Fuß', 'Höhenangabe: 1 ft = 0,3048 m.', 'Einheiten & Kennungen'),
-  E('FL', 'Flight Level', 'Flugfläche: Höhe in 100 ft bei Standard-Luftdruck. FL120 = 12 000 ft. Im Radar steht die Höhe in 100 ft (z. B. 050 = 5000 ft).', 'Einheiten & Kennungen'),
-  E('STA', 'Scheduled Time of Arrival', 'Planmäßige Ankunftszeit laut Flugplan.', 'Einheiten & Kennungen'),
-  E('STD', 'Scheduled Time of Departure', 'Planmäßige Abflugzeit laut Flugplan (Off-Block).', 'Einheiten & Kennungen'),
-  E('ETA', 'Estimated Time of Arrival', 'Voraussichtliche Ankunftszeit.', 'Einheiten & Kennungen'),
-  E('XP', 'Erfahrungspunkte', 'Für erreichte Ziele und gute Tage. Mehr XP = höherer Flughafen-Rang = mehr Airline-Interesse.', 'Einheiten & Kennungen'),
-  E(AIRPORT.code, AIRPORT.name, 'IATA-Code dieses Flughafens.', 'Einheiten & Kennungen'),
+  E('RWY', 'Runway', T('Start- und Landebahn. Die Nummer ist die Richtung in Zehnergrad: RWY 27 = Richtung 270° (Westen), RWY 09 = 90° (Osten).'), T('Einheiten & Kennungen')),
+  E('NM', T('Nautische Meile'), T('1 NM = 1,852 km. Entfernungen in der Luftfahrt.'), T('Einheiten & Kennungen')),
+  E('kt', T('Knoten'), T('Geschwindigkeit in NM pro Stunde: 1 kt ≈ 1,85 km/h. 160 kt ≈ 300 km/h.'), T('Einheiten & Kennungen')),
+  E('ft', T('Fuß'), T('Höhenangabe: 1 ft = 0,3048 m. 5000 ft ≈ 1,5 km.'), T('Einheiten & Kennungen')),
+  E('feet', T('Fuß'), T('Höhenangabe: 1 ft = 0,3048 m.'), T('Einheiten & Kennungen')),
+  E('FL', 'Flight Level', T('Flugfläche: Höhe in 100 ft bei Standard-Luftdruck. FL120 = 12 000 ft. Im Radar steht die Höhe in 100 ft (z. B. 050 = 5000 ft).'), T('Einheiten & Kennungen')),
+  E('STA', 'Scheduled Time of Arrival', T('Planmäßige Ankunftszeit laut Flugplan.'), T('Einheiten & Kennungen')),
+  E('STD', 'Scheduled Time of Departure', T('Planmäßige Abflugzeit laut Flugplan (Off-Block).'), T('Einheiten & Kennungen')),
+  E('ETA', 'Estimated Time of Arrival', T('Voraussichtliche Ankunftszeit.'), T('Einheiten & Kennungen')),
+  E('XP', T('Erfahrungspunkte'), T('Für erreichte Ziele und gute Tage. Mehr XP = höherer Flughafen-Rang = mehr Airline-Interesse.'), T('Einheiten & Kennungen')),
+  E(AIRPORT.code, AIRPORT.name, T('IATA-Code dieses Flughafens.'), T('Einheiten & Kennungen')),
 ];
 
 // Dynamische Einträge: Flugzeugtypen, Airlines, Flughäfen
 for (const t of Object.values(AC_TYPES)) {
-  GLOSSARY.push(E(t.code || t.id, t.name, `Typkürzel (fiktiver Hersteller). ${t.cargo ? `Frachter, ${t.cargo} t Fracht` : `${t.pax} Sitze`}, Wirbelschleppe ${t.wake}, Positionsklasse ${t.size}, MTOW ${t.mtow} t, Mindestbodenzeit ${t.turn} min, Anfluggeschwindigkeit ${t.vapp} kt.`, 'Flugzeugtypen'));
+  GLOSSARY.push(E(t.code || t.id, t.name, T`Typkürzel (fiktiver Hersteller). ${t.cargo ? T`Frachter, ${t.cargo} t Fracht` : T`${t.pax} Sitze`}, Wirbelschleppe ${t.wake}, Positionsklasse ${t.size}, MTOW ${t.mtow} t, Mindestbodenzeit ${t.turn} min, Anfluggeschwindigkeit ${t.vapp} kt.`, T('Flugzeugtypen')));
 }
 for (const a of Object.values(AIRLINES)) {
-  GLOSSARY.push(E(a.code, a.name, `ICAO-Airline-Code (fiktiv). Rufname im Funk: „${a.tel}“. Flotte: ${a.types.map((k) => typeCode(k)).join(', ')}.`, 'Airlines'));
+  GLOSSARY.push(E(a.code, a.name, T`ICAO-Airline-Code (fiktiv). Rufname im Funk: „${a.tel}“. Flotte: ${a.types.map((k) => typeCode(k)).join(', ')}.`, 'Airlines'));
 }
 for (const [code, c] of Object.entries(CITIES)) {
-  GLOSSARY.push(E(code, c.name, `IATA-Flughafencode. ${{ short: 'Kurzstrecke', mid: 'Mittelstrecke', long: 'Langstrecke' }[c.cat]}.`, 'Flughäfen'));
+  GLOSSARY.push(E(code, c.name, T`IATA-Flughafencode. ${{ short: T('Kurzstrecke'), mid: T('Mittelstrecke'), long: T('Langstrecke') }[c.cat]}.`, T('Flughäfen')));
 }
 
 const BY_T = new Map(GLOSSARY.map((g) => [g.t, g]));
@@ -128,22 +129,22 @@ export const glossaryEntry = (k) => BY_T.get(k);
 
 // ---------- Erklärungen für Panel-Abschnitte ----------
 export const EXPLAIN = {
-  seq: '<b>Flugstreifen</b>: unten links die Landungen, rechts die Starts – links steht, wer zuerst dran ist. Oben der Filter <b>An / Beide / Ab</b>. Die ausgewählte Karte wird groß und zeigt alle Befehle. <b>Ziehen</b> ändert die Reihenfolge (auch ◀ ▶ oder W/S): mit <b>Auto-Staffelung</b> gibt der Tower dann die Anflugfreigaben in dieser Reihenfolge, bremst Anflüge auf 180/160 kt, gibt Vorgezogenen „Direkt FAF“ und schickt notfalls einen in die Warteschleife. Starts, die du vor eine Landung ziehst, bekommen eine Lücke. Wer schon im Endanflug oder auf der Piste ist, bleibt vorn. Eine Karte aus der Warteliste in die Pistenfolge ziehen = Anflug frei; zurückziehen = Warteschleife.',
-  arr: '<b>Anflug</b>: Flüge im Luftraum ohne Anflugfreigabe. <i>A</i> = Anflug frei über IP und FAF, <i>D</i> = direkt zum FAF (kürzer), <i>H</i> = Warteschleife. ⛽ zeigt die Treibstoffreserve in Minuten – unter 12 min meldet der Pilot MINIMUM FUEL.',
-  gnd: '<b>Rollverkehr</b>: Flugzeuge auf Rollwegen und Anfragen für Pushback/Rollen. Bei Slot-Flügen erst zur TSAT schieben („Warten bis TSAT“), sonst warten sie mit laufenden Triebwerken am Rollhalt.',
-  dep: '<b>Abflug</b>: gerade gestartete Flüge im Nahbereich.',
-  rwy: '<b>Piste</b>: Betriebsrichtung nach dem Wind (max. 5 kt Rückenwind). Zustand = Gummiabrieb/Reibwert, daraus folgt die Bremswirkung (bei Nässe schlechter). Bei Sperrung (FOD-Kontrolle, Bauarbeiten) keine Landungen und Starts.',
-  inb: '<b>Ankünfte</b>: jede Ankunft braucht eine passende Parkposition (Klasse M/L, Fracht auf Frachtpositionen). Ohne Position wartet das Flugzeug am Rollweg-Ende.',
-  ta: '<b>Turnaround</b>: Aufgaben mit Abhängigkeiten. Gelbe Felder anklicken schickt das nächste freie Fahrzeug. TOBT = voraussichtlich fertig, CTOT = Startslot. Liegt die TOBT nach der STD, wird der Flug verspätet; ist ein Slot nicht mehr erreichbar, gibt es einen neuen.',
-  fleet: '<b>Fuhrpark</b>: Fahrzeuge je Typ, Schalter = automatische Disposition. Tankwagen fassen 36 t und fahren leer zum Tanklager nach (Balken = Ladung).',
-  build: '<b>Ausbau</b>: jedes Projekt hat Bauzeit und ist als Baustelle sichtbar. Pistenarbeiten laufen nur nachts in Verkehrspausen und sperren dann die Piste.',
-  fuel: '<b>Kerosin</b>: Einkauf zum Marktpreis (+2 % Transport), Lieferung nach 2–3,5 h. Verkauf an Airlines mit deiner Marge; hohe Marge → Airlines tanken weniger (Tankering). Leeres Tanklager = Betankungen stocken = Verspätungen.',
-  fees: '<b>Gebühren</b>: Landeentgelt je Tonne MTOW, Passagierentgelt je abfliegendem Passagier, Positionsentgelt je Stunde. Nachtentgelt je Bewegung zwischen 23 und 5 Uhr.',
-  loans: '<b>Kredite</b>: Auszahlung sofort, Rückzahlung in 30 gleichen Tagesraten (Annuität). Der Zins pro Tag hängt vom Ansehen ab. Sondertilgung jederzeit möglich.',
-  goals: '<b>Ziele</b>: drei Aufgaben je Station. Erreichen bringt Prämie und XP; XP heben den Flughafen-Rang – höhere Ränge locken mehr Airlines an.',
-  contracts: '<b>Verträge</b>: Airlines fliegen täglich nach Plan. Zufriedenheit sinkt bei Verspätungen, hohen Gebühren und verpassten Slots; unzufriedene Airlines verlängern nicht.',
+  seq: T('<b>Flugstreifen</b>: unten links die Landungen, rechts die Starts – links steht, wer zuerst dran ist. Oben der Filter <b>An / Beide / Ab</b>. Die ausgewählte Karte wird groß und zeigt alle Befehle. <b>Ziehen</b> ändert die Reihenfolge (auch ◀ ▶ oder W/S): mit <b>Auto-Staffelung</b> gibt der Tower dann die Anflugfreigaben in dieser Reihenfolge, bremst Anflüge auf 180/160 kt, gibt Vorgezogenen „Direkt FAF“ und schickt notfalls einen in die Warteschleife. Starts, die du vor eine Landung ziehst, bekommen eine Lücke. Wer schon im Endanflug oder auf der Piste ist, bleibt vorn. Eine Karte aus der Warteliste in die Pistenfolge ziehen = Anflug frei; zurückziehen = Warteschleife.'),
+  arr: T('<b>Anflug</b>: Flüge im Luftraum ohne Anflugfreigabe. <i>A</i> = Anflug frei über IP und FAF, <i>D</i> = direkt zum FAF (kürzer), <i>H</i> = Warteschleife. ⛽ zeigt die Treibstoffreserve in Minuten – unter 12 min meldet der Pilot MINIMUM FUEL.'),
+  gnd: T('<b>Rollverkehr</b>: Flugzeuge auf Rollwegen und Anfragen für Pushback/Rollen. Bei Slot-Flügen erst zur TSAT schieben („Warten bis TSAT“), sonst warten sie mit laufenden Triebwerken am Rollhalt.'),
+  dep: T('<b>Abflug</b>: gerade gestartete Flüge im Nahbereich.'),
+  rwy: T('<b>Piste</b>: Betriebsrichtung nach dem Wind (max. 5 kt Rückenwind). Zustand = Gummiabrieb/Reibwert, daraus folgt die Bremswirkung (bei Nässe schlechter). Bei Sperrung (FOD-Kontrolle, Bauarbeiten) keine Landungen und Starts.'),
+  inb: T('<b>Ankünfte</b>: jede Ankunft braucht eine passende Parkposition (Klasse M/L, Fracht auf Frachtpositionen). Ohne Position wartet das Flugzeug am Rollweg-Ende.'),
+  ta: T('<b>Turnaround</b>: Aufgaben mit Abhängigkeiten. Gelbe Felder anklicken schickt das nächste freie Fahrzeug. TOBT = voraussichtlich fertig, CTOT = Startslot. Liegt die TOBT nach der STD, wird der Flug verspätet; ist ein Slot nicht mehr erreichbar, gibt es einen neuen.'),
+  fleet: T('<b>Fuhrpark</b>: Fahrzeuge je Typ, Schalter = automatische Disposition. Tankwagen fassen 36 t und fahren leer zum Tanklager nach (Balken = Ladung).'),
+  build: T('<b>Ausbau</b>: jedes Projekt hat Bauzeit und ist als Baustelle sichtbar. Pistenarbeiten laufen nur nachts in Verkehrspausen und sperren dann die Piste.'),
+  fuel: T('<b>Kerosin</b>: Einkauf zum Marktpreis (+2 % Transport), Lieferung nach 2–3,5 h. Verkauf an Airlines mit deiner Marge; hohe Marge → Airlines tanken weniger (Tankering). Leeres Tanklager = Betankungen stocken = Verspätungen.'),
+  fees: T('<b>Gebühren</b>: Landeentgelt je Tonne MTOW, Passagierentgelt je abfliegendem Passagier, Positionsentgelt je Stunde. Nachtentgelt je Bewegung zwischen 23 und 5 Uhr.'),
+  loans: T('<b>Kredite</b>: Auszahlung sofort, Rückzahlung in 30 gleichen Tagesraten (Annuität). Der Zins pro Tag hängt vom Ansehen ab. Sondertilgung jederzeit möglich.'),
+  goals: T('<b>Ziele</b>: drei Aufgaben je Station. Erreichen bringt Prämie und XP; XP heben den Flughafen-Rang – höhere Ränge locken mehr Airlines an.'),
+  contracts: T('<b>Verträge</b>: Airlines fliegen täglich nach Plan. Zufriedenheit sinkt bei Verspätungen, hohen Gebühren und verpassten Slots; unzufriedene Airlines verlängern nicht.'),
 };
-export const qm = (key) => `<button class="qm" data-explain="${key}" aria-label="Erklärung" title="Erklärung">?</button>`;
+export const qm = (key) => T`<button class="qm" data-explain="${key}" aria-label="Erklärung" title="Erklärung">?</button>`;
 
 // ---------- automatische Tooltips ----------
 let enabled = true;
@@ -207,9 +208,9 @@ function tipHtml(key) {
     const cs = key.slice(3);
     const al = AIRLINES[cs.slice(0, 3)];
     const n = cs.slice(3);
-    return `<b>${esc(cs)}</b> · Rufzeichen<div class="gl-d">${esc(al.name)}, Flugnummer ${esc(n)}. Im Funk: „${esc(al.tel)} ${esc(n)}“. Ankunft und Abflug haben unterschiedliche Nummern.</div>`;
+    return T`<b>${esc(cs)}</b> · Rufzeichen<div class="gl-d">${esc(al.name)}, Flugnummer ${esc(n)}. Im Funk: „${esc(al.tel)} ${esc(n)}“. Ankunft und Abflug haben unterschiedliche Nummern.</div>`;
   }
-  if (key.startsWith('pos:')) return `<b>${esc(key.slice(4))}</b> · Parkposition ${esc(key.slice(5))}<div class="gl-d">Abstellplatz auf dem Vorfeld. P1–P7 am Terminal (Fluggastbrücke), P8 Vorfeldposition mit Bus, P9–P10 Fracht.</div>`;
+  if (key.startsWith('pos:')) return T`<b>${esc(key.slice(4))}</b> · Parkposition ${esc(key.slice(5))}<div class="gl-d">Abstellplatz auf dem Vorfeld. P1–P7 am Terminal (Fluggastbrücke), P8 Vorfeldposition mit Bus, P9–P10 Fracht.</div>`;
   const g = BY_T.get(key);
   if (!g) return null;
   return `<b>${esc(g.t)}</b> · ${esc(g.long)}<div class="gl-d">${esc(g.desc)}</div>`;
@@ -279,7 +280,7 @@ export function initGlossary() {
 function showExplain(btn) {
   const html = EXPLAIN[btn.dataset.explain];
   if (!html) return;
-  pop.innerHTML = `${html}<button class="mini ep-x" aria-label="Schließen">✕</button>`;
+  pop.innerHTML = T`${html}<button class="mini ep-x" aria-label="Schließen">✕</button>`;
   glossify(pop);
   pop.classList.remove('hidden');
   const r = btn.getBoundingClientRect();
@@ -297,7 +298,7 @@ export function glossaryHtml(filter = '') {
     if (f && !(`${g.t} ${g.long} ${g.desc}`.toLowerCase().includes(f))) continue;
     (cats[g.cat] = cats[g.cat] || []).push(g);
   }
-  const order = ['Flugsicherung', 'Anflug & Landung', 'Abflug & Slots', 'Boden & Abfertigung', 'Wirtschaft', 'Wetter', 'Einheiten & Kennungen', 'Flugzeugtypen', 'Airlines', 'Flughäfen'];
+  const order = [T('Flugsicherung'), T('Anflug & Landung'), T('Abflug & Slots'), T('Boden & Abfertigung'), T('Wirtschaft'), T('Wetter'), T('Einheiten & Kennungen'), T('Flugzeugtypen'), 'Airlines', T('Flughäfen')];
   let h = '';
   for (const c of order) {
     const list = cats[c];
@@ -306,5 +307,5 @@ export function glossaryHtml(filter = '') {
     for (const g of list) h += `<dt>${esc(g.t)}</dt><dd><b>${esc(g.long)}</b> – ${esc(g.desc)}</dd>`;
     h += `</dl>`;
   }
-  return h || '<p class="empty">Kein Eintrag gefunden.</p>';
+  return h || T('<p class="empty">Kein Eintrag gefunden.</p>');
 }

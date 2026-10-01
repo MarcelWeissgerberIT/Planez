@@ -9,13 +9,14 @@ import { nextId, uniqueFn } from './sim/schedule.js';
 import { AC_TYPES, SIZE_RANK } from './config.js';
 import { FUEL, fuelState } from './sim/fuel.js';
 import { applyStage, setupStands, careerState, STAGES } from './sim/career.js';
+import { T } from './i18n.js';
 
 export const SAVE_KEY = 'planez_save_v1';
 export const ROLES = {
-  tower: { name: 'Tower-Lotse', short: 'Tower', icon: '🎧', desc: 'Radar, Anflugsequenz, Lande- und Startfreigaben, Rollverkehr.' },
-  ground: { name: 'Vorfeld & Abfertigung', short: 'Vorfeld', icon: '🦺', desc: 'Parkpositionen, Turnaround, Fahrzeuge disponieren.' },
-  manager: { name: 'Flughafen-Manager', short: 'Manager', icon: '💼', desc: 'Verträge, Gebühren, Ausbau, Fuhrpark & Finanzen.' },
-  observer: { name: 'Beobachter', short: 'Beobachter', icon: '👁️', desc: 'Alles läuft automatisch – zurücklehnen und zuschauen.' },
+  tower: { name: T('Tower-Lotse'), short: T('Tower'), icon: '🎧', desc: T('Radar, Anflugsequenz, Lande- und Startfreigaben, Rollverkehr.') },
+  ground: { name: T('Vorfeld & Abfertigung'), short: T('Vorfeld'), icon: '🦺', desc: T('Parkpositionen, Turnaround, Fahrzeuge disponieren.') },
+  manager: { name: T('Flughafen-Manager'), short: T('Manager'), icon: '💼', desc: T('Verträge, Gebühren, Ausbau, Fuhrpark & Finanzen.') },
+  observer: { name: T('Beobachter'), short: T('Beobachter'), icon: '👁️', desc: T('Alles läuft automatisch – zurücklehnen und zuschauen.') },
 };
 
 export function autoFor(role) {
@@ -101,7 +102,7 @@ export function newGame(opts = {}) {
 function newCareer(state, opts) {
   state.career = { fame: 8, log: [] };
   state.stage = 0;
-  state.name = (opts.name || 'Flugplatz Planez').slice(0, 40);
+  state.name = (opts.name || T('Flugplatz Planez')).slice(0, 40);
   state.cash = 40000;
   state.reputation = 52;
   state.staff = STAGES[0].staff;
@@ -202,7 +203,7 @@ export function saveGame(state) {
     localStorage.setItem(META_KEY, JSON.stringify(meta));
     return true;
   } catch (e) {
-    console.warn('Speichern fehlgeschlagen', e);
+    console.warn(T('Speichern fehlgeschlagen'), e);
     return false;
   }
 }

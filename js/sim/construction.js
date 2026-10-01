@@ -4,11 +4,12 @@ import { log, notify } from './messages.js';
 import { nextId } from './schedule.js';
 import { canWorkRunway, rwyCond } from './runway.js';
 import { completeStage } from './career.js';
+import { T } from '../i18n.js';
 
 // Arbeiten an der Piste: nur nachts in Verkehrspausen, Piste dann gesperrt
 export const RWY_WORKS = {
-  clean: { name: 'Gummiabrieb entfernen', cost: 180000, hours: 2.5, desc: 'Hochdruck-Wasserstrahl entfernt Reifenabrieb: Zustand +35 % (max. 90 %).' },
-  resurface: { name: 'Pistensanierung', cost: 2400000, hours: 14, desc: 'Neue Deckschicht: Zustand 100 %.' },
+  clean: { name: T('Gummiabrieb entfernen'), cost: 180000, hours: 2.5, desc: T('Hochdruck-Wasserstrahl entfernt Reifenabrieb: Zustand +35 % (max. 90 %).') },
+  resurface: { name: T('Pistensanierung'), cost: 2400000, hours: 14, desc: T('Neue Deckschicht: Zustand 100 %.') },
 };
 
 // Bauzeiten in Spielstunden
@@ -71,8 +72,8 @@ export function startProject(state, kind, target, opts) {
       } else p.status = 'waiting';
     }
   }
-  log(state, 'mgr', `Baubeginn: ${p.name} (${p.hours} h Bauzeit).`);
-  notify(state, `🏗️ Baustelle eröffnet: ${p.name}`, 'info');
+  log(state, 'mgr', T`Baubeginn: ${p.name} (${p.hours} h Bauzeit).`);
+  notify(state, T`🏗️ Baustelle eröffnet: ${p.name}`, 'info');
   return p;
 }
 
@@ -94,7 +95,7 @@ export function updateConstruction(state, dt) {
       if (st && !st.occ && !st.resv) {
         st.closed = true;
         p.status = 'active';
-        log(state, 'mgr', `${p.name}: Position frei – Bauarbeiten beginnen.`);
+        log(state, 'mgr', T`${p.name}: Position frei – Bauarbeiten beginnen.`);
       }
       continue;
     }
@@ -133,19 +134,19 @@ function complete(state, p) {
     if (p.target === 'solar') state.reputation = Math.min(100, state.reputation + 4);
     if (p.target === 'rail') {
       state.reputation = Math.min(100, state.reputation + 5);
-      notify(state, '🚆 Der Flughafen-Bahnhof ist eröffnet – die ersten Züge rollen ein', 'good');
+      notify(state, T('🚆 Der Flughafen-Bahnhof ist eröffnet – die ersten Züge rollen ein'), 'good');
     }
     if (p.target === 'rwy2') {
       state.rwyMode = 'seg';
       state.rwyCondS = 100;
-      notify(state, '🛬 Parallelbahn in Betrieb: Landungen auf der Südbahn, Starts auf der Nordbahn', 'good');
-      log(state, 'mgr', 'Neue Parallelbahn eröffnet – getrennter Betrieb: Landungen Süd, Starts Nord. Ankünfte kreuzen die Startbahn.');
+      notify(state, T('🛬 Parallelbahn in Betrieb: Landungen auf der Südbahn, Starts auf der Nordbahn'), 'good');
+      log(state, 'mgr', T('Neue Parallelbahn eröffnet – getrennter Betrieb: Landungen Süd, Starts Nord. Ankünfte kreuzen die Startbahn.'));
     }
   }
   state.life = state.life || {};
   state.life.built = (state.life.built || 0) + 1;
-  log(state, 'mgr', `Fertiggestellt: ${p.name}.`);
-  notify(state, `✅ Fertiggestellt: ${p.name}`, 'good');
+  log(state, 'mgr', T`Fertiggestellt: ${p.name}.`);
+  notify(state, T`✅ Fertiggestellt: ${p.name}`, 'good');
 }
 
 // Abbruch: 50 % der noch nicht verbauten Kosten zurück
@@ -160,10 +161,10 @@ export function cancelProject(state, id) {
     if (st) st.closed = st.closing = false;
   }
   state.projects = projects(state).filter((x) => x !== p);
-  log(state, 'mgr', `Baustelle abgebrochen: ${p.name} (Erstattung ${Math.round(refund / 1000)} Tsd €).`);
-  notify(state, `Baustelle abgebrochen: ${p.name}`, 'warn');
+  log(state, 'mgr', T`Baustelle abgebrochen: ${p.name} (Erstattung ${Math.round(refund / 1000)} Tsd €).`);
+  notify(state, T`Baustelle abgebrochen: ${p.name}`, 'warn');
   return refund;
 }
 
-export const UPGRADE_NAMES = (key, level) => `${UPGRADES[key].name}${UPGRADES[key].max > 1 ? ` Stufe ${level}` : ''}`;
+export const UPGRADE_NAMES = (key, level) => `${UPGRADES[key].name}${UPGRADES[key].max > 1 ? T` Stufe ${level}` : ''}`;
 export { STAND_COSTS };

@@ -6,6 +6,7 @@ import { AIRLINES, CITIES } from '../config.js';
 import { radio, log, notify } from './messages.js';
 import { clamp } from '../util.js';
 import { pushNews } from './news.js';
+import { T } from '../i18n.js';
 
 // Bogenpunkt: ein langes gerades Stück auf der Vorfeld-Rollgasse (der Pfad ist dicht abgetastet), das noch vor dem
 // Flugzeug liegt – dort ist links und rechts Platz für die Löschfahrzeuge
@@ -48,11 +49,11 @@ export function updateFirstFlight(state) {
         if (c) c.firstFlight = false;
         state.saluteLast = { airline: S.airline, city: S.city };
         const city = CITIES[S.city] ? CITIES[S.city].name : '…';
-        radio(state, 'TWR', `${tel(ac)}, welcome to Planez on your first flight from ${city}, the fire brigade has a little surprise for you on the way in.`, 'atc');
+        radio(state, 'TWR', T`${tel(ac)}, welcome to Planez on your first flight from ${city}, the fire brigade has a little surprise for you on the way in.`, 'atc');
         radio(state, ac.cs, `Thank you very much, we'll enjoy it, ${tel(ac)}.`, 'pilot');
-        notify(state, `💦 Erstflug: ${AIRLINES[S.airline].name} aus ${city} – die Feuerwehr gibt die Wassertaufe`, 'good');
+        notify(state, T`💦 Erstflug: ${AIRLINES[S.airline].name} aus ${city} – die Feuerwehr gibt die Wassertaufe`, 'good');
         S.off = Math.max(1.7, ac.len * 0.6 + 0.4);
-        if (state.role === 'ground') log(state, 'crew', `Vorfeld, Feuerwehr, zwei Löschfahrzeuge in Position für die Wassertaufe von ${ac.cs}.`, 'Feuerwehr', { prio: 2 });
+        if (state.role === 'ground') log(state, 'crew', T`Vorfeld, Feuerwehr, zwei Löschfahrzeuge in Position für die Wassertaufe von ${ac.cs}.`, T('Feuerwehr'), { prio: 2 });
       }
       return;
     }
@@ -61,8 +62,8 @@ export function updateFirstFlight(state) {
       const L = state.life || (state.life = {});
       L.salutes = (L.salutes || 0) + 1;
       state.reputation = clamp(state.reputation + 0.5, 0, 100);
-      pushNews(state, `Neue Verbindung: ${AIRLINES[S.airline].name} fliegt jetzt ${CITIES[S.city] ? 'nach ' + CITIES[S.city].name : 'neu'} – Erstflug mit Wassertaufe begrüßt.`, 'good', '💦');
-      log(state, 'sys', `💦 Wassertaufe für ${ac.cs}: Der Erstflug von ${AIRLINES[S.airline].name} aus ${CITIES[S.city] ? CITIES[S.city].name : '…'} rollt durch den Wasserbogen der Feuerwehr.`);
+      pushNews(state, CITIES[S.city] ? T`Neue Verbindung: ${AIRLINES[S.airline].name} fliegt jetzt nach ${CITIES[S.city].name} – Erstflug mit Wassertaufe begrüßt.` : T`Neue Verbindung: ${AIRLINES[S.airline].name} fliegt jetzt neu – Erstflug mit Wassertaufe begrüßt.`, 'good', '💦');
+      log(state, 'sys', T`💦 Wassertaufe für ${ac.cs}: Der Erstflug von ${AIRLINES[S.airline].name} aus ${CITIES[S.city] ? CITIES[S.city].name : '…'} rollt durch den Wasserbogen der Feuerwehr.`);
     }
     return;
   }

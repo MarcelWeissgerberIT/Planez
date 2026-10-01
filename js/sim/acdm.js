@@ -5,10 +5,11 @@ import * as LY from '../layout.js';
 import { rand, randInt, pick, clamp, fmtClock } from '../util.js';
 import { log, notify, radio } from './messages.js';
 import { PH, tel } from './aircraft.js';
+import { T } from '../i18n.js';
 
 export const SLOT_EARLY = 300;
 export const SLOT_LATE = 600;
-const REASONS = ['ATC-Kapazität im Zielgebiet', 'Wetter am Zielflughafen', 'Luftraumbeschränkung (Militär)', 'Streik bei der Flugsicherung', 'Verkehrsspitze im oberen Luftraum', 'Personalmangel Kontrollzentrale'];
+const REASONS = [T('ATC-Kapazität im Zielgebiet'), T('Wetter am Zielflughafen'), T('Luftraumbeschränkung (Militär)'), T('Streik bei der Flugsicherung'), T('Verkehrsspitze im oberen Luftraum'), T('Personalmangel Kontrollzentrale')];
 
 const rotOf = (state, ac) => state.rots[ac.rot];
 const contractOf = (state, rot) => (rot && rot.contract ? state.contracts.find((c) => c.id === rot.contract) : null);
@@ -55,11 +56,11 @@ export function slotInfo(state, rot) {
   const t = state.time;
   if (rot.atd) {
     const ok = rot.atd >= rot.ctot - SLOT_EARLY && rot.atd <= rot.ctot + SLOT_LATE;
-    return { cls: ok ? 'ok' : 'late', txt: ok ? 'Slot eingehalten' : 'Slot verfehlt' };
+    return { cls: ok ? 'ok' : 'late', txt: ok ? T('Slot eingehalten') : T('Slot verfehlt') };
   }
-  if (t < rot.ctot - SLOT_EARLY) return { cls: 'wait', txt: `Fenster ab ${fmtClock(rot.ctot - SLOT_EARLY)}` };
-  if (t <= rot.ctot + SLOT_LATE) return { cls: t > rot.ctot + SLOT_LATE - 180 ? 'soon' : 'ok', txt: `im Fenster bis ${fmtClock(rot.ctot + SLOT_LATE)}` };
-  return { cls: 'late', txt: 'Slot verpasst' };
+  if (t < rot.ctot - SLOT_EARLY) return { cls: 'wait', txt: T`Fenster ab ${fmtClock(rot.ctot - SLOT_EARLY)}` };
+  if (t <= rot.ctot + SLOT_LATE) return { cls: t > rot.ctot + SLOT_LATE - 180 ? 'soon' : 'ok', txt: T`im Fenster bis ${fmtClock(rot.ctot + SLOT_LATE)}` };
+  return { cls: 'late', txt: T('Slot verpasst') };
 }
 
 // beim Erreichen der Parkposition: TOBT setzen, evtl. Slot zuteilen
@@ -84,7 +85,7 @@ export function acdmOnBlock(state, ac) {
     rot.ctotReason = pick(state, REASONS);
     // Verspätung durch die Verkehrsflusssteuerung (ATFM) geht nicht aufs Konto des Flughafens
     rot.atfm = Math.max(0, rot.ctot - exot(state, ac) - rot.std);
-    log(state, 'sys', `Slot (CTOT) für ${ac.cs}: ${fmtClock(rot.ctot)} – ${rot.ctotReason}.`);
+    log(state, 'sys', T`Slot (CTOT) für ${ac.cs}: ${fmtClock(rot.ctot)} – ${rot.ctotReason}.`);
   }
   rot.tsat = tsatFor(state, ac, rot);
 }
@@ -105,12 +106,12 @@ function reslot(state, ac, rot, why, gnd) {
   // Gewitter: höhere Gewalt – neuer Slot ohne Strafe, Verspätung zählt als ATFM
   if (state.weather.kind === 'storm') {
     rot.atfm = Math.max(rot.atfm || 0, rot.ctot - exot(state, ac) - rot.std);
-    log(state, 'sys', `${ac.cs}: neuer Slot wegen Gewitter – CTOT ${fmtClock(rot.ctot)}.`);
+    log(state, 'sys', T`${ac.cs}: neuer Slot wegen Gewitter – CTOT ${fmtClock(rot.ctot)}.`);
     return;
   }
   // weitere Revisionen desselben Flugs: nur neuer Slot, keine zweite Strafe/Meldung
   if (rot.slotMissed > 1) {
-    log(state, 'sys', `${ac.cs}: Slot erneut angepasst – CTOT ${fmtClock(rot.ctot)}.`);
+    log(state, 'sys', T`${ac.cs}: Slot erneut angepasst – CTOT ${fmtClock(rot.ctot)}.`);
     return;
   }
   state.stats.today.slotMiss = (state.stats.today.slotMiss || 0) + 1;
@@ -118,8 +119,8 @@ function reslot(state, ac, rot, why, gnd) {
   const c = contractOf(state, rot);
   if (c) c.sat = clamp(c.sat - 3, 0, 100);
   state.reputation = clamp(state.reputation - 0.4, 0, 100);
-  log(state, 'sys', `${ac.cs}: Slot ${fmtClock(old)} verpasst (${why}) – neuer CTOT ${fmtClock(rot.ctot)}.`);
-  notify(state, `⏱️ ${ac.cs} hat den Slot verpasst – neuer CTOT ${fmtClock(rot.ctot)}`, 'warn');
+  log(state, 'sys', T`${ac.cs}: Slot ${fmtClock(old)} verpasst (${why}) – neuer CTOT ${fmtClock(rot.ctot)}.`);
+  notify(state, T`⏱️ ${ac.cs} hat den Slot verpasst – neuer CTOT ${fmtClock(rot.ctot)}`, 'warn');
   if (ac.mode === 'map' && ac.phase !== PH.STAND) radio(state, ac.cs, `${tel(ac)}, we missed our slot, new CTOT ${fmtClock(rot.ctot).replace(':', '')}.`);
 }
 
@@ -147,7 +148,7 @@ export function updateAcdm(state, dt) {
       if (!rot.tobt) rot.tobt = rot.std;
       if (Math.abs(want - rot.tobt) >= 300 && !ac.ta.ready) {
         if (want >= (rot.tobtLogged || rot.std) + 600) {
-          log(state, 'gnd', `TOBT ${ac.cs} verschoben auf ${fmtClock(want)} (STD ${fmtClock(rot.std)}).`);
+          log(state, 'gnd', T`TOBT ${ac.cs} verschoben auf ${fmtClock(want)} (STD ${fmtClock(rot.std)}).`);
           rot.tobtLogged = want;
         }
         rot.tobt = want;
@@ -155,13 +156,13 @@ export function updateAcdm(state, dt) {
       rot.tsat = tsatFor(state, ac, rot);
       // Slot mit neuer TOBT nicht mehr erreichbar -> Slot wird angepasst (Abfertigung verschuldet)
       if (rot.ctot && rot.tobt + exot(state, ac) > rot.ctot + SLOT_LATE) {
-        reslot(state, ac, rot, 'Abfertigung verspätet', true);
+        reslot(state, ac, rot, T('Abfertigung verspätet'), true);
         rot.tsat = tsatFor(state, ac, rot);
       }
     }
     // bereits auf der Piste: Slot-Toleranz, sonst neuer Slot (Freigaben erlöschen)
     if (rot.ctot && !rot.atd && [PH.PUSH, PH.STARTUP, PH.TAXI_OUT, PH.HOLDING].includes(ac.phase) && state.time > rot.ctot + SLOT_LATE) {
-      reslot(state, ac, rot, 'nicht rechtzeitig gestartet', false);
+      reslot(state, ac, rot, T('nicht rechtzeitig gestartet'), false);
       if (ac.phase === PH.HOLDING || ac.phase === PH.TAXI_OUT) {
         ac.clr.takeoff = false;
         ac.clr.lineup = false;

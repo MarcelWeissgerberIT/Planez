@@ -5,11 +5,12 @@ import * as AS from './airspace.js';
 import { PH, tel, goAround, startTaxiIn } from './aircraft.js';
 import { radio, log, notify, fx } from './messages.js';
 import { stripForArrival } from './runway.js';
+import { T } from '../i18n.js';
 
 export const LIGHTS = {
-  green: { name: 'grünes Dauerlicht', col: '#22c55e', blink: false },
-  red: { name: 'rotes Dauerlicht', col: '#ef4444', blink: false },
-  taxi: { name: 'grünes Blinklicht', col: '#22c55e', blink: true },
+  green: { name: T('grünes Dauerlicht'), col: '#22c55e', blink: false },
+  red: { name: T('rotes Dauerlicht'), col: '#ef4444', blink: false },
+  taxi: { name: T('grünes Blinklicht'), col: '#22c55e', blink: true },
 };
 
 // ohne Funk fliegt die Besatzung nach Flugplan: direkt in den Anflug (auch nach einem Fehlanflug erneut)
@@ -36,8 +37,8 @@ export function startNordo(state, ac) {
   ac.squawk = '7600';
   ac.nordoT = state.time;
   selfApproach(state, ac);
-  log(state, 'sys', `📻✖ ${ac.cs} squawkt 7600 – Funkausfall. Die Besatzung fliegt nach Flugplan den Anflug und achtet auf Lichtsignale vom Tower.`);
-  notify(state, `📻✖ Funkausfall: ${ac.cs} (Squawk 7600) – Landung nur mit Lichtsignal (grün)`, 'warn');
+  log(state, 'sys', T`📻✖ ${ac.cs} squawkt 7600 – Funkausfall. Die Besatzung fliegt nach Flugplan den Anflug und achtet auf Lichtsignale vom Tower.`);
+  notify(state, T`📻✖ Funkausfall: ${ac.cs} (Squawk 7600) – Landung nur mit Lichtsignal (grün)`, 'warn');
   return true;
 }
 
@@ -46,7 +47,7 @@ export function callNordo(state, ac) {
   if (state.time - (ac.nordoCallT || -999) < 90) return;
   ac.nordoCallT = state.time;
   radio(state, 'TWR', `${tel(ac)}, Tower, how do you read?`, 'atc');
-  log(state, 'sys', `${ac.cs} antwortet nicht (Squawk 7600).`);
+  log(state, 'sys', T`${ac.cs} antwortet nicht (Squawk 7600).`);
 }
 
 export function lightSignal(state, ac, kind) {
@@ -56,16 +57,16 @@ export function lightSignal(state, ac, kind) {
     ac.clr.land = true;
     ac.req = null;
     ac.lightLand = true;
-    fx(state, ac.x || 0, (ac.y || 0) - 0.8, '💡 grünes Licht – Flügel wackeln', 'good');
-    log(state, 'sys', `💡 Lichtsignal an ${ac.cs}: grünes Dauerlicht – Landung frei. Die Besatzung bestätigt mit Flügelwackeln.`);
+    fx(state, ac.x || 0, (ac.y || 0) - 0.8, T('💡 grünes Licht – Flügel wackeln'), 'good');
+    log(state, 'sys', T`💡 Lichtsignal an ${ac.cs}: grünes Dauerlicht – Landung frei. Die Besatzung bestätigt mit Flügelwackeln.`);
   } else if (kind === 'red') {
-    log(state, 'sys', `💡 Lichtsignal an ${ac.cs}: rotes Dauerlicht – nicht landen.`);
-    goAround(state, ac, 'Lichtsignal rot');
+    log(state, 'sys', T`💡 Lichtsignal an ${ac.cs}: rotes Dauerlicht – nicht landen.`);
+    goAround(state, ac, T('Lichtsignal rot'));
   } else if (kind === 'taxi') {
     ac.clr.taxi = true;
     ac.req = null;
-    fx(state, ac.x, ac.y - 0.6, '💡 grünes Blinklicht – Scheinwerfer blinken', 'good');
-    log(state, 'sys', `💡 Lichtsignal an ${ac.cs}: grünes Blinklicht – Rollen frei zur Position ${ac.stand}.`);
+    fx(state, ac.x, ac.y - 0.6, T('💡 grünes Blinklicht – Scheinwerfer blinken'), 'good');
+    log(state, 'sys', T`💡 Lichtsignal an ${ac.cs}: grünes Blinklicht – Rollen frei zur Position ${ac.stand}.`);
     if (ac.phase === PH.VACATED || ac.phase === PH.TAXI_WAIT) startTaxiIn(state, ac);
   }
   return { ok: true };
@@ -81,7 +82,7 @@ export function nordoOnBlock(state, ac) {
     L.nordoLanded = (L.nordoLanded || 0) + 1;
   }
   ac.lightLand = false;
-  log(state, 'gnd', `${ac.cs}: Funkgerät getauscht – für den Abflug wieder erreichbar.`);
+  log(state, 'gnd', T`${ac.cs}: Funkgerät getauscht – für den Abflug wieder erreichbar.`);
 }
 
 // Ereignis: ein anfliegendes Flugzeug verliert den Funk

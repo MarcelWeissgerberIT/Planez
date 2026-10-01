@@ -3,15 +3,16 @@
 import { AC_TYPES, AIRLINES } from '../config.js';
 import { PH } from './aircraft.js';
 import { hourOf } from '../util.js';
+import { T } from '../i18n.js';
 
 // Sonderlackierungen (selten): Leitwerk, Zierstreifen, Akzent
 export const SPECIALS = {
-  retro: { name: 'Retro-Lackierung', icon: '🕰️', fin: '#7c2d12', band: '#c2410c', accent: '#fef3c7' },
-  rainbow: { name: 'Regenbogen', icon: '🌈', fin: '#e11d48', band: '#7c3aed', accent: '#ffffff', stripes: ['#e11d48', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#8b5cf6'] },
-  silver: { name: 'Allianz-Silber', icon: '🥈', fin: '#475569', band: '#94a3b8', accent: '#e2e8f0' },
-  anniv: { name: '50 Jahre', icon: '🥂', fin: '#1f2937', band: '#d4af37', accent: '#d4af37' },
-  football: { name: 'Fußball-Sonderbemalung', icon: '⚽', fin: '#15803d', band: '#16a34a', accent: '#ffffff' },
-  stars: { name: 'Sternenhimmel', icon: '🌌', fin: '#0f172a', band: '#1e3a8a', accent: '#fde047' },
+  retro: { name: T('Retro-Lackierung'), icon: '🕰️', fin: '#7c2d12', band: '#c2410c', accent: '#fef3c7' },
+  rainbow: { name: T('Regenbogen'), icon: '🌈', fin: '#e11d48', band: '#7c3aed', accent: '#ffffff', stripes: ['#e11d48', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#8b5cf6'] },
+  silver: { name: T('Allianz-Silber'), icon: '🥈', fin: '#475569', band: '#94a3b8', accent: '#e2e8f0' },
+  anniv: { name: T('50 Jahre'), icon: '🥂', fin: '#1f2937', band: '#d4af37', accent: '#d4af37' },
+  football: { name: T('Fußball-Sonderbemalung'), icon: '⚽', fin: '#15803d', band: '#16a34a', accent: '#ffffff' },
+  stars: { name: T('Sternenhimmel'), icon: '🌌', fin: '#0f172a', band: '#1e3a8a', accent: '#fde047' },
 };
 export const SPECIAL_KEYS = Object.keys(SPECIALS);
 
@@ -22,17 +23,17 @@ export const RARITY = {
   B77W: 3, B748F: 3, B77F: 3, C68A: 3,
   A388: 4,
 };
-export const RARITY_DE = ['', 'häufig', 'gelegentlich', 'selten', 'legendär'];
+export const RARITY_DE = ['', T('häufig'), T('gelegentlich'), T('selten'), T('legendär')];
 const RARITY_PTS = [0, 10, 20, 40, 100];
 
 // Motiv des Tages: je Spieltag eine Fotoaufgabe (aus dem Tag abgeleitet, ohne Spielzufall), +150 Punkte
 export const MOTIF_PTS = 150;
 const MOTIFS = [
-  { type: 'DH8D', t: 'eine Borealis BR-40' }, { type: 'A223', t: 'eine Aviora AV-23' }, { type: 'AT76', t: 'eine Ventis VT-70' }, { type: 'CRJ9', t: 'eine Corvin KR-90' },
-  { type: 'B789', t: 'eine Halvard H-89' }, { type: 'A359', t: 'eine Aviora AV-35' }, { type: 'B77W', t: 'eine Halvard H-77X' }, { type: 'A333', t: 'eine Aviora AV-33' },
-  { airline: 'FJW', t: 'eine Maschine von Fjordwing' }, { airline: 'LUM', t: 'eine Maschine von Lumen Air' }, { airline: 'OPL', t: 'eine Maschine von Orient Pearl' }, { airline: 'BWG', t: 'eine Maschine von Balticwings' }, { airline: 'ALP', t: 'eine Maschine von Alpina Air' },
-  { moment: 'landing', t: 'eine Landung' }, { moment: 'takeoff', t: 'einen Start' }, { moment: 'push', t: 'einen Pushback' }, { moment: 'night', t: 'eine Nachtaufnahme' }, { moment: 'golden', t: 'ein Flugzeug in der goldenen Stunde' },
-  { size: 'L', moment: 'landing', t: 'einen Großraumjet bei der Landung' }, { size: 'L', moment: 'takeoff', t: 'einen Großraumjet beim Start' }, { size: 'S', moment: 'takeoff', t: 'einen Turboprop oder Regionaljet beim Start' },
+  { type: 'DH8D', t: T('eine Borealis BR-40') }, { type: 'A223', t: T('eine Aviora AV-23') }, { type: 'AT76', t: T('eine Ventis VT-70') }, { type: 'CRJ9', t: T('eine Corvin KR-90') },
+  { type: 'B789', t: T('eine Halvard H-89') }, { type: 'A359', t: T('eine Aviora AV-35') }, { type: 'B77W', t: T('eine Halvard H-77X') }, { type: 'A333', t: T('eine Aviora AV-33') },
+  { airline: 'FJW', t: T('eine Maschine von Fjordwing') }, { airline: 'LUM', t: T('eine Maschine von Lumen Air') }, { airline: 'OPL', t: T('eine Maschine von Orient Pearl') }, { airline: 'BWG', t: T('eine Maschine von Balticwings') }, { airline: 'ALP', t: T('eine Maschine von Alpina Air') },
+  { moment: 'landing', t: T('eine Landung') }, { moment: 'takeoff', t: T('einen Start') }, { moment: 'push', t: T('einen Pushback') }, { moment: 'night', t: T('eine Nachtaufnahme') }, { moment: 'golden', t: T('ein Flugzeug in der goldenen Stunde') },
+  { size: 'L', moment: 'landing', t: T('einen Großraumjet bei der Landung') }, { size: 'L', moment: 'takeoff', t: T('einen Großraumjet beim Start') }, { size: 'S', moment: 'takeoff', t: T('einen Turboprop oder Regionaljet beim Start') },
 ];
 export function motifOf(state) {
   const day = Math.floor(state.time / 86400);
@@ -49,18 +50,18 @@ export const motifDone = (state) => state.motifDone === Math.floor(state.time / 
 
 // Momente: Bedingungen im Bild
 export const MOMENTS = {
-  landing: { icon: '🛬', name: 'Landung' },
-  takeoff: { icon: '🛫', name: 'Start' },
-  push: { icon: '🚜', name: 'Pushback' },
-  night: { icon: '🌙', name: 'Nachtaufnahme' },
-  golden: { icon: '🌅', name: 'Goldene Stunde' },
-  rain: { icon: '🌧️', name: 'Im Regen' },
-  storm: { icon: '⛈️', name: 'Gewitter' },
-  snow: { icon: '🌨️', name: 'Schneetreiben' },
-  fog: { icon: '🌫️', name: 'Im Nebel' },
-  deice: { icon: '🧊', name: 'Enteisung' },
-  goaround: { icon: '↗️', name: 'Durchstarten' },
-  emergency: { icon: '🚨', name: 'Notfall' },
+  landing: { icon: '🛬', name: T('Landung') },
+  takeoff: { icon: '🛫', name: T('Start') },
+  push: { icon: '🚜', name: T('Pushback') },
+  night: { icon: '🌙', name: T('Nachtaufnahme') },
+  golden: { icon: '🌅', name: T('Goldene Stunde') },
+  rain: { icon: '🌧️', name: T('Im Regen') },
+  storm: { icon: '⛈️', name: T('Gewitter') },
+  snow: { icon: '🌨️', name: T('Schneetreiben') },
+  fog: { icon: '🌫️', name: T('Im Nebel') },
+  deice: { icon: '🧊', name: T('Enteisung') },
+  goaround: { icon: '↗️', name: T('Durchstarten') },
+  emergency: { icon: '🚨', name: T('Notfall') },
 };
 
 // Länderkennung je Airline
@@ -164,16 +165,16 @@ export function spotAircraft(state, ac, img) {
     lines.push([`${AC_TYPES[ac.type].name} · ${RARITY_DE[r]}`, RARITY_PTS[r]]);
     if (!b.types[ac.type]) {
       pts += RARITY_PTS[r] * 2;
-      lines.push([`Neuer Typ im Spotterbuch`, RARITY_PTS[r] * 2]);
+      lines.push([T`Neuer Typ im Spotterbuch`, RARITY_PTS[r] * 2]);
     }
     if (!b.airlines[ac.airline]) {
       pts += 30;
-      lines.push([`Neue Airline: ${AIRLINES[ac.airline].name}`, 30]);
+      lines.push([T`Neue Airline: ${AIRLINES[ac.airline].name}`, 30]);
     }
     if (ac.special) {
       const nw = !b.specials[ac.special];
       pts += nw ? 200 : 80;
-      lines.push([`${SPECIALS[ac.special].icon} Sonderlackierung ${SPECIALS[ac.special].name}${nw ? ' – neu!' : ''}`, nw ? 200 : 80]);
+      lines.push([T`${SPECIALS[ac.special].icon} Sonderlackierung ${SPECIALS[ac.special].name}${nw ? T(' – neu!') : ''}`, nw ? 200 : 80]);
     }
     b.types[ac.type] = (b.types[ac.type] || 0) + 1;
     b.airlines[ac.airline] = (b.airlines[ac.airline] || 0) + 1;
@@ -184,7 +185,7 @@ export function spotAircraft(state, ac, img) {
     seen.push(k);
     const nw = !b.moments[k];
     pts += nw ? 50 : 15;
-    lines.push([`${MOMENTS[k].icon} ${MOMENTS[k].name}${nw ? ' – neu!' : ''}`, nw ? 50 : 15]);
+    lines.push([`${MOMENTS[k].icon} ${MOMENTS[k].name}${nw ? T(' – neu!') : ''}`, nw ? 50 : 15]);
     b.moments[k] = (b.moments[k] || 0) + 1;
   }
   // Motiv des Tages
@@ -192,7 +193,7 @@ export function spotAircraft(state, ac, img) {
   if (!motifDone(state) && motifHit(mo, ac, moments)) {
     state.motifDone = mo.day;
     pts += MOTIF_PTS;
-    lines.push([`🎯 Motiv des Tages: ${mo.t}`, MOTIF_PTS]);
+    lines.push([T`🎯 Motiv des Tages: ${mo.t}`, MOTIF_PTS]);
     const L0 = state.life || (state.life = {});
     L0.motifs = (L0.motifs || 0) + 1;
   }
@@ -235,10 +236,10 @@ export function spotStats() {
 export function spotWorth(ac) {
   const b = spotBook();
   if (ac.spotted && ac.spotted.includes('_')) return null;
-  if (ac.special && !b.specials[ac.special]) return `${SPECIALS[ac.special].icon} Sonderlackierung „${SPECIALS[ac.special].name}“`;
-  if (!b.types[ac.type]) return `neuer Typ ${AC_TYPES[ac.type].name}`;
-  if ((RARITY[ac.type] || 1) >= 3) return `seltene ${AC_TYPES[ac.type].name}`;
-  if (ac.special) return `${SPECIALS[ac.special].icon} Sonderlackierung „${SPECIALS[ac.special].name}“`;
+  if (ac.special && !b.specials[ac.special]) return T`${SPECIALS[ac.special].icon} Sonderlackierung „${SPECIALS[ac.special].name}“`;
+  if (!b.types[ac.type]) return T`neuer Typ ${AC_TYPES[ac.type].name}`;
+  if ((RARITY[ac.type] || 1) >= 3) return T`seltene ${AC_TYPES[ac.type].name}`;
+  if (ac.special) return T`${SPECIALS[ac.special].icon} Sonderlackierung „${SPECIALS[ac.special].name}“`;
   return null;
 }
 

@@ -6,12 +6,13 @@
 import { pushNews } from './news.js';
 import { log, notify } from './messages.js';
 import { isCareer, stageOf } from './career.js';
+import { T as tr_ } from '../i18n.js';
 
 export const STRATEGIES = {
-  balanced: { name: 'Ausgewogen', icon: '⚖️', desc: 'Keine Schwerpunkte – moderate Ziele in allen Bereichen.', fx: 'keine Zusatzwirkung', pax: 1.03, profit: 1.03, punct: 85, rep: 0 },
-  growth: { name: 'Wachstum', icon: '📈', desc: 'Vertrieb und Streckenentwicklung: Airlines melden sich deutlich öfter.', fx: 'Airline-Angebote 35 % häufiger', pax: 1.1, profit: 0.95, punct: 83, rep: 0, offerF: 0.74 },
-  efficiency: { name: 'Effizienz', icon: '⚙️', desc: 'Kostenprogramm in Verwaltung, Technik und Energie.', fx: 'laufende Fixkosten −6 %', pax: 1.0, profit: 1.12, punct: 85, rep: 0, costF: 0.94 },
-  quality: { name: 'Qualität', icon: '⭐', desc: 'Service-Offensive: Beschilderung, Sauberkeit, Freundlichkeit.', fx: 'Ansehen +0,4 pro Tag', pax: 1.02, profit: 0.97, punct: 90, rep: 3, repDay: 0.4 },
+  balanced: { name: tr_('Ausgewogen'), icon: '⚖️', desc: tr_('Keine Schwerpunkte – moderate Ziele in allen Bereichen.'), fx: tr_('keine Zusatzwirkung'), pax: 1.03, profit: 1.03, punct: 85, rep: 0 },
+  growth: { name: tr_('Wachstum'), icon: '📈', desc: tr_('Vertrieb und Streckenentwicklung: Airlines melden sich deutlich öfter.'), fx: tr_('Airline-Angebote 35 % häufiger'), pax: 1.1, profit: 0.95, punct: 83, rep: 0, offerF: 0.74 },
+  efficiency: { name: tr_('Effizienz'), icon: '⚙️', desc: tr_('Kostenprogramm in Verwaltung, Technik und Energie.'), fx: tr_('laufende Fixkosten −6 %'), pax: 1.0, profit: 1.12, punct: 85, rep: 0, costF: 0.94 },
+  quality: { name: tr_('Qualität'), icon: '⭐', desc: tr_('Service-Offensive: Beschilderung, Sauberkeit, Freundlichkeit.'), fx: tr_('Ansehen +0,4 pro Tag'), pax: 1.02, profit: 0.97, punct: 90, rep: 3, repDay: 0.4 },
 };
 export const BOARD_DELTA = [-15, -10, -4, 3, 8, 14]; // Vertrauen je Zahl erreichter Ziele (0–5)
 export const BOARD_BONUS = [0, 0, 0, 100000, 250000, 500000];
@@ -73,11 +74,11 @@ export function goalRows(state, prog) {
   const T = boardState(state).targets;
   if (!T || !prog) return [];
   return [
-    { k: 'pax', label: 'Passagiere', icon: '🧳', v: prog.pax, t: T.pax, ok: prog.pax >= T.pax, fmt: 'n' },
-    { k: 'profit', label: 'Betriebsergebnis', icon: '💶', v: prog.profit, t: T.profit, ok: prog.profit >= T.profit, fmt: 'money' },
-    { k: 'punct', label: 'Pünktlichkeit', icon: '⏱️', v: prog.punct, t: T.punct, ok: prog.punct >= T.punct, fmt: '%' },
-    { k: 'rep', label: 'Ansehen', icon: '⭐', v: prog.rep, t: T.rep, ok: prog.rep >= T.rep, fmt: 'n' },
-    { k: 'inc', label: 'Sicherheit (Vorfälle höchstens)', icon: '🛡️', v: prog.inc, t: T.inc, ok: prog.inc <= T.inc, fmt: 'n', max: true },
+    { k: 'pax', label: tr_('Passagiere'), icon: '🧳', v: prog.pax, t: T.pax, ok: prog.pax >= T.pax, fmt: 'n' },
+    { k: 'profit', label: tr_('Betriebsergebnis'), icon: '💶', v: prog.profit, t: T.profit, ok: prog.profit >= T.profit, fmt: 'money' },
+    { k: 'punct', label: tr_('Pünktlichkeit'), icon: '⏱️', v: prog.punct, t: T.punct, ok: prog.punct >= T.punct, fmt: '%' },
+    { k: 'rep', label: tr_('Ansehen'), icon: '⭐', v: prog.rep, t: T.rep, ok: prog.rep >= T.rep, fmt: 'n' },
+    { k: 'inc', label: tr_('Sicherheit (Vorfälle höchstens)'), icon: '🛡️', v: prog.inc, t: T.inc, ok: prog.inc <= T.inc, fmt: 'n', max: true },
   ];
 }
 
@@ -128,8 +129,8 @@ export function boardDayEnd(state, rec) {
       }
       state.hub = null;
       state.reputation = Math.max(0, state.reputation - 3);
-      notify(state, '🌐 Der Basis-Partner zieht ab – Pünktlichkeitszusage zweimal verfehlt', 'bad');
-    } else if (!ok) notify(state, `🌐 Basis-Partner verwarnt: nur ${prog.punct} % pünktlich (Zusage ${H.min} %) – beim nächsten Mal zieht er ab`, 'warn');
+      notify(state, tr_('🌐 Der Basis-Partner zieht ab – Pünktlichkeitszusage zweimal verfehlt'), 'bad');
+    } else if (!ok) notify(state, tr_`🌐 Basis-Partner verwarnt: nur ${prog.punct} % pünktlich (Zusage ${H.min} %) – beim nächsten Mal zieht er ab`, 'warn');
   }
   const res = { week: B.week, day: rec.day, met, rows, conf: B.conf, before, bonus, audit, strategy: B.strategy, hub };
   B.hist.push({ week: B.week, met, conf: B.conf, strategy: B.strategy });
@@ -143,9 +144,9 @@ export function boardDayEnd(state, rec) {
   B.base = base.map((r) => ({ pax: r.pax, rev: r.rev, cost: r.cost }));
   B.targets = makeTargets(state, B.base, 7);
   B.pending = state.role === 'manager' && !state.auto.manager ? res : null; // sonst bleibt die Strategie
-  pushNews(state, met >= 4 ? `Aufsichtsrat zufrieden: ${met} von 5 Wochenzielen erreicht${bonus ? `, Zuschuss ${Math.round(bonus / 1000)} Tsd €` : ''}.` : met >= 3 ? `Aufsichtsrat: ${met} von 5 Wochenzielen – „solide, aber da geht mehr“.` : `Aufsichtsrat unzufrieden: nur ${met} von 5 Wochenzielen erreicht.`, met >= 4 ? 'good' : met >= 3 ? 'info' : 'bad', '🏛️');
-  log(state, 'mgr', `🏛️ Aufsichtsratssitzung Woche ${res.week}: ${met}/5 Ziele, Vertrauen ${before} → ${B.conf}${bonus ? `, Zuschuss ${Math.round(bonus / 1000)} Tsd €` : ''}${audit ? `, Sonderprüfung ${Math.round(audit / 1000)} Tsd €` : ''}.`);
-  if (audit) notify(state, `🏛️ Sonderprüfung durch den Aufsichtsrat – ${Math.round(audit / 1000)} Tsd € und Ansehen −2. Vertrauen zurückgewinnen!`, 'bad');
+  pushNews(state, met >= 4 ? tr_`Aufsichtsrat zufrieden: ${met} von 5 Wochenzielen erreicht${bonus ? tr_`, Zuschuss ${Math.round(bonus / 1000)} Tsd €` : ''}.` : met >= 3 ? tr_`Aufsichtsrat: ${met} von 5 Wochenzielen – „solide, aber da geht mehr“.` : tr_`Aufsichtsrat unzufrieden: nur ${met} von 5 Wochenzielen erreicht.`, met >= 4 ? 'good' : met >= 3 ? 'info' : 'bad', '🏛️');
+  log(state, 'mgr', tr_`🏛️ Aufsichtsratssitzung Woche ${res.week}: ${met}/5 Ziele, Vertrauen ${before} → ${B.conf}${bonus ? tr_`, Zuschuss ${Math.round(bonus / 1000)} Tsd €` : ''}${audit ? tr_`, Sonderprüfung ${Math.round(audit / 1000)} Tsd €` : ''}.`);
+  if (audit) notify(state, tr_`🏛️ Sonderprüfung durch den Aufsichtsrat – ${Math.round(audit / 1000)} Tsd € und Ansehen −2. Vertrauen zurückgewinnen!`, 'bad');
   return res;
 }
 
@@ -161,9 +162,9 @@ export function chooseStrategy(state, key) {
 
 // Zitat der Aufsichtsratsvorsitzenden zum Ergebnis
 export function chairQuote(met, conf) {
-  if (met === 5) return 'Hervorragend. Genau so stellen wir uns die Führung dieses Flughafens vor.';
-  if (met === 4) return 'Eine starke Woche. Bleiben Sie dran – der Markt schläft nicht.';
-  if (met === 3) return 'Solide. Aber die Gesellschafter erwarten mehr als Mittelmaß.';
-  if (conf < 25) return 'Das Vertrauen des Gremiums ist erschöpft. Wir ordnen eine Sonderprüfung an.';
-  return 'Das ist zu wenig. Ich erwarte in der nächsten Sitzung deutliche Verbesserungen.';
+  if (met === 5) return tr_('Hervorragend. Genau so stellen wir uns die Führung dieses Flughafens vor.');
+  if (met === 4) return tr_('Eine starke Woche. Bleiben Sie dran – der Markt schläft nicht.');
+  if (met === 3) return tr_('Solide. Aber die Gesellschafter erwarten mehr als Mittelmaß.');
+  if (conf < 25) return tr_('Das Vertrauen des Gremiums ist erschöpft. Wir ordnen eine Sonderprüfung an.');
+  return tr_('Das ist zu wenig. Ich erwarte in der nächsten Sitzung deutliche Verbesserungen.');
 }

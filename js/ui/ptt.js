@@ -12,6 +12,7 @@ import { radio } from '../sim/messages.js';
 import { tel } from '../sim/aircraft.js';
 import { correctReadback } from '../sim/readback.js';
 import { callNordo } from '../sim/nordo.js';
+import { T } from '../i18n.js';
 
 const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
@@ -34,8 +35,8 @@ export function initPTT(game) {
   function start() {
     const s = game.state;
     if (!s || active) return;
-    if (s.role !== 'tower') return toast('Sprechtaste gibt es in der Tower-Rolle', 'info', 2000);
-    if (!SR) return toast('Spracherkennung wird von diesem Browser nicht unterstützt – bitte Chrome oder Edge nutzen', 'warn', 4200);
+    if (s.role !== 'tower') return toast(T('Sprechtaste gibt es in der Tower-Rolle'), 'info', 2000);
+    if (!SR) return toast(T('Spracherkennung wird von diesem Browser nicht unterstützt – bitte Chrome oder Edge nutzen'), 'warn', 4200);
     active = true;
     final = '';
     interim = '';
@@ -43,7 +44,7 @@ export function initPTT(game) {
     micClick(voice.vol);
     // eigener Funkspruch hat Vorrang: laufende Ansage abbrechen
     if (window.speechSynthesis) speechSynthesis.cancel();
-    show('Sprich jetzt … (z. B. „Aurora five four two, cleared to land“)', 'on');
+    show(T('Sprich jetzt … (z. B. „Aurora five four two, cleared to land“)'), 'on');
     try {
       rec = new SR();
       rec.lang = 'en-US';
@@ -59,8 +60,8 @@ export function initPTT(game) {
         show(`„${(final + interim).trim()}“`, 'on');
       };
       rec.onerror = (e) => {
-        if (e.error === 'not-allowed') toast('Mikrofon nicht freigegeben – im Browser erlauben', 'warn', 4000);
-        else if (e.error !== 'aborted' && e.error !== 'no-speech') toast('Spracherkennung: ' + e.error, 'warn', 2500);
+        if (e.error === 'not-allowed') toast(T('Mikrofon nicht freigegeben – im Browser erlauben'), 'warn', 4000);
+        else if (e.error !== 'aborted' && e.error !== 'no-speech') toast(T`Spracherkennung: ${e.error}`, 'warn', 2500);
       };
       rec.onend = () => {
         if (!active) finish();
@@ -103,26 +104,26 @@ export function initPTT(game) {
       if (tgt) {
         voice.muteAtcUntil = performance.now() + 2500;
         const res = correctReadback(s, tgt);
-        show(`✓ ${tgt.cs} · Readback korrigiert`, 'ok');
+        show(T`✓ ${tgt.cs} · Readback korrigiert`, 'ok');
         s.life = s.life || {};
         s.life.voiceCmd = (s.life.voiceCmd || 0) + 1;
         if (res.ok) game.select(tgt.id, false);
         return hide(2200);
       }
       if (!r.ac) {
-        show(`„${said}“ – kein falscher Readback offen`, 'bad');
+        show(T`„${said}“ – kein falscher Readback offen`, 'bad');
         return hide(2400);
       }
     }
     if (!r.ac) {
-      show(`„${said}“ – Rufzeichen nicht erkannt`, 'bad');
+      show(T`„${said}“ – Rufzeichen nicht erkannt`, 'bad');
       // wie im echten Funk: irgendwer hat etwas gehört, aber nicht verstanden
       const near = s.acs.find((a) => a.mode === 'air' || a.mode === 'map');
       if (near) radio(s, '', 'Station calling Tower, say again.', 'pilot');
       return hide(2600);
     }
     if (!r.cmd) {
-      show(`„${said}“ – ${r.ac.cs}: Freigabe nicht erkannt`, 'bad');
+      show(T`„${said}“ – ${r.ac.cs}: Freigabe nicht erkannt`, 'bad');
       radio(s, r.ac.cs, `Say again, ${tel(r.ac)}.`, 'pilot');
       return hide(2600);
     }
@@ -130,7 +131,7 @@ export function initPTT(game) {
     // Funkausfall: keine Antwort – nur Lichtsignale helfen
     if (r.ac.nordo) {
       callNordo(s, r.ac);
-      show(`📻✖ ${r.ac.cs} antwortet nicht (7600) – Lichtsignal auf dem Streifen benutzen`, 'bad');
+      show(T`📻✖ ${r.ac.cs} antwortet nicht (7600) – Lichtsignal auf dem Streifen benutzen`, 'bad');
       return hide(3000);
     }
     // Sicherheitsnetz im Funk: Bei einer gefährlichen Freigabe fragt der Pilot nach; erst die Wiederholung gilt
@@ -138,10 +139,12 @@ export function initPTT(game) {
     const again = this_confirm && this_confirm.id === r.ac.id && this_confirm.cmd === r.cmd && performance.now() - this_confirm.t < 10000;
     if (risk && !again) {
       this_confirm = { id: r.ac.id, cmd: r.cmd, t: performance.now() };
-      const what = { land: 'cleared to land', takeoff: 'cleared for take-off', lineup: 'line up and wait' }[r.cmd] || 'that clearance';
-      const why = /Endanflug|Landefreigabe/.test(risk) ? 'we have traffic on short final' : 'the runway is not clear';
+      const what = { land: T('cleared to land'), takeoff: 'cleared for take-off', lineup: 'line up and wait' }[r.cmd] || 'that clearance';
+      // sprachunabhängig: Grund aus den festen Teilen der (übersetzten) Texte von clearanceRisk erkennen
+      const fromTpl = (tpl) => tpl.split('\u0001').every((part) => risk.includes(part));
+      const why = fromTpl(T`${'\u0001'} ist im kurzen Endanflug`) || fromTpl(T`${'\u0001'} hat Landefreigabe und ist nur ${'\u0001'} NM entfernt`) ? 'we have traffic on short final' : 'the runway is not clear';
       radio(s, r.ac.cs, `Tower, ${tel(r.ac)}, confirm ${what}? ${why[0].toUpperCase() + why.slice(1)}.`, 'pilot');
-      show(`⚠ ${r.ac.cs} fragt nach: ${risk} – Freigabe wiederholen, um sie trotzdem zu erteilen`, 'bad');
+      show(T`⚠ ${r.ac.cs} fragt nach: ${risk} – Freigabe wiederholen, um sie trotzdem zu erteilen`, 'bad');
       return hide(4000);
     }
     this_confirm = null;
@@ -163,7 +166,7 @@ export function initPTT(game) {
   function sideCmd(s, sd, said) {
     const name = { heli: 'Rescue 7', vfr: s.vfr && s.vfr.p ? s.vfr.p.cs : 'Alcedo', insp: 'Check 1' }[sd.side];
     if (!sd.cmd) {
-      show(`„${said}“ – ${name}: Freigabe nicht erkannt`, 'bad');
+      show(T`„${said}“ – ${name}: Freigabe nicht erkannt`, 'bad');
       const who = { heli: 'Rescue 7', vfr: s.vfr && s.vfr.p ? vfrTel(s.vfr.p.cs) : 'Alcedo', insp: 'Check 1' }[sd.side];
       radio(s, sd.side === 'heli' ? 'RESCUE7' : sd.side === 'insp' ? 'CHECK1' : s.vfr.p.cs, `Say again, ${who}.`, 'pilot');
       return hide(2600);
@@ -172,12 +175,12 @@ export function initPTT(game) {
     const ok = sd.cmd === 'ok';
     const r = sd.side === 'heli' ? (ok ? approveHeli(s) : holdHeli(s)) : sd.side === 'vfr' ? (ok ? clearVfr(s) : extendVfr(s)) : ok ? approveInspection(s) : deferInspection(s);
     if (!r.ok) {
-      show(`${name}: ${ok ? 'nichts freizugeben' : 'wartet bereits'}`, 'info');
+      show(`${name}: ${ok ? T('nichts freizugeben') : T('wartet bereits')}`, 'info');
       return hide(2200);
     }
-    const label = { heli: ok ? 'Querung frei' : 'warten südlich', vfr: ok ? 'Touch and Go frei' : 'Gegenanflug verlängern', insp: ok ? 'Bahn frei zur Kontrolle' : 'vor der Bahn warten' }[sd.side];
-    if (r.bad) show(`⚠ ${name} · ${label} – Konflikt mit dem Linienverkehr!`, 'bad');
-    else show(`✓ ${name} · ${label}${r.soft ? ` – knapp, ${r.soft.ac.cs} ist ${r.soft.why}` : ''}`, 'ok');
+    const label = { heli: ok ? T('Querung frei') : T('warten südlich'), vfr: ok ? T('Touch and Go frei') : T('Gegenanflug verlängern'), insp: ok ? T('Bahn frei zur Kontrolle') : T('vor der Bahn warten') }[sd.side];
+    if (r.bad) show(T`⚠ ${name} · ${label} – Konflikt mit dem Linienverkehr!`, 'bad');
+    else show(`✓ ${name} · ${label}${r.soft ? T` – knapp, ${r.soft.ac.cs} ist ${r.soft.why}` : ''}`, 'ok');
     s.life = s.life || {};
     s.life.voiceCmd = (s.life.voiceCmd || 0) + 1;
     game.refreshUi && game.refreshUi();

@@ -10,9 +10,10 @@ import { scenarioListHtml, scenarioSide } from './scenarioUi.js';
 import { careerSummary, careerRank } from '../career.js';
 import { SCENARIOS, totalStars } from '../sim/scenarios.js';
 import { campaignProgress } from '../sim/campaign.js';
+import { T, LOCALE, LANG, setLang } from '../i18n.js';
 
 // Szenen des Hintergrund-Loops (je ~9,6 s, nahtlos ineinander übergehend)
-const SCENES = ['Anflug im Morgengrauen', 'Tower zur blauen Stunde', 'Vorfeld bei Nacht', 'Frachtverladung im Regen', 'Start in den Sonnenuntergang'];
+const SCENES = [T('Anflug im Morgengrauen'), T('Tower zur blauen Stunde'), T('Vorfeld bei Nacht'), T('Frachtverladung im Regen'), T('Start in den Sonnenuntergang')];
 const SEG = 9.6;
 
 // ---------- Voreinstellungen (auch ohne laufendes Spiel) ----------
@@ -38,16 +39,16 @@ export function savePrefs(p) {
   } catch (e) {}
 }
 export const PREF_ROWS = [
-  ['sound', 'Sound-Effekte', 'Funk, Warnungen, Kasse'],
-  ['perf', 'Leistungsmodus', 'weniger Details und Belebung, geringere Auflösung – flüssiger auf langsamen Rechnern'],
-  ['ambience', 'Klangkulisse', 'Triebwerke, Wind, Regen, Donner, Vögel und Grillen'],
-  ['gameMusic', 'Musik im Spiel', 'Musikstücke für Tag und Nacht, bei Notfall, Gewitter und Schnee passende Klangflächen'],
-  ['tts', 'Echter Funk (Sprachausgabe)', 'Tower: Lotse und Piloten sprechen – Vorfeld: Betriebsfunk der Bodencrews auf Deutsch'],
-  ['glossary', 'Abkürzungen erklären', 'Tooltips für ILS, TOBT, CTOT, RVR …'],
-  ['hints', 'Tipps anzeigen', 'Hinweise zur nächsten sinnvollen Aktion'],
-  ['bigText', 'Große Schrift', 'Barrierefreiheit: Seitenleiste, Info-Karte, Funk, Fenster und Meldungen größer'],
-  ['cbMode', 'Farbsehschwäche-Modus', 'Barrierefreiheit: Blau/Orange statt Grün/Rot für gut/schlecht, Konflikte und Status'],
-  ['calm', 'Bewegung reduzieren', 'Barrierefreiheit: keine pulsierenden Hinweise, kein Menü-Video, ruhigere Effekte'],
+  ['sound', T('Sound-Effekte'), T('Funk, Warnungen, Kasse')],
+  ['perf', T('Leistungsmodus'), T('weniger Details und Belebung, geringere Auflösung – flüssiger auf langsamen Rechnern')],
+  ['ambience', T('Klangkulisse'), T('Triebwerke, Wind, Regen, Donner, Vögel und Grillen')],
+  ['gameMusic', T('Musik im Spiel'), T('Musikstücke für Tag und Nacht, bei Notfall, Gewitter und Schnee passende Klangflächen')],
+  ['tts', T('Echter Funk (Sprachausgabe)'), T('Tower: Lotse und Piloten sprechen – Vorfeld: Betriebsfunk der Bodencrews auf Deutsch')],
+  ['glossary', T('Abkürzungen erklären'), T('Tooltips für ILS, TOBT, CTOT, RVR …')],
+  ['hints', T('Tipps anzeigen'), T('Hinweise zur nächsten sinnvollen Aktion')],
+  ['bigText', T('Große Schrift'), T('Barrierefreiheit: Seitenleiste, Info-Karte, Funk, Fenster und Meldungen größer')],
+  ['cbMode', T('Farbsehschwäche-Modus'), T('Barrierefreiheit: Blau/Orange statt Grün/Rot für gut/schlecht, Konflikte und Status')],
+  ['calm', T('Bewegung reduzieren'), T('Barrierefreiheit: keine pulsierenden Hinweise, kein Menü-Video, ruhigere Effekte')],
 ];
 // Barrierefreiheit: Klassen am Dokument (wirken sofort, im Menü wie im Spiel)
 export function applyA11y(p = loadPrefs()) {
@@ -60,22 +61,22 @@ const switchRow = (k, name, sub, on) => `<button class="mm-toggle" data-pref="${
 
 // ---------- Seitenpanel-Inhalte ----------
 const ROLE_INFO = {
-  tower: { img: 'assets/ui/role_tower.jpg', you: ['Anflüge vom Fix auf den Endanflug schicken', 'Lande- und Startfreigaben, Durchstarten', 'Pistenfolge mit Wirbelschleppen-Abständen', 'Slots (CTOT) einhalten, Treibstoffreserven im Blick'], auto: 'Vorfeld, Abfertigung und Management laufen automatisch.' },
-  ground: { img: 'assets/ui/role_ground.jpg', you: ['Parkpositionen passend zu Typ und Größe vergeben', 'Turnaround: Fahrzeuge rechtzeitig losschicken', 'Tankwagen-Logistik und TOBT halten', 'Pünktlich zum Pushback fertig werden'], auto: 'Tower und Management laufen automatisch.' },
-  manager: { img: 'assets/ui/role_manager.jpg', you: ['Airline-Verträge und Gebühren', 'Ausbau mit Baustellen, Pistenwartung', 'Kerosin einkaufen und verkaufen', 'Fuhrpark, Personal, Kredite, Nachtflugregeln'], auto: 'Tower und Vorfeld laufen automatisch.' },
-  observer: { img: 'assets/ui/menu_poster.jpg', you: ['Zurücklehnen und den Betrieb beobachten', 'Jederzeit eine Station übernehmen'], auto: 'Alles läuft automatisch.' },
+  tower: { img: 'assets/ui/role_tower.jpg', you: [T('Anflüge vom Fix auf den Endanflug schicken'), T('Lande- und Startfreigaben, Durchstarten'), T('Pistenfolge mit Wirbelschleppen-Abständen'), T('Slots (CTOT) einhalten, Treibstoffreserven im Blick')], auto: T('Vorfeld, Abfertigung und Management laufen automatisch.') },
+  ground: { img: 'assets/ui/role_ground.jpg', you: [T('Parkpositionen passend zu Typ und Größe vergeben'), T('Turnaround: Fahrzeuge rechtzeitig losschicken'), T('Tankwagen-Logistik und TOBT halten'), T('Pünktlich zum Pushback fertig werden')], auto: T('Tower und Management laufen automatisch.') },
+  manager: { img: 'assets/ui/role_manager.jpg', you: [T('Airline-Verträge und Gebühren'), T('Ausbau mit Baustellen, Pistenwartung'), T('Kerosin einkaufen und verkaufen'), T('Fuhrpark, Personal, Kredite, Nachtflugregeln')], auto: T('Tower und Vorfeld laufen automatisch.') },
+  observer: { img: 'assets/ui/menu_poster.jpg', you: [T('Zurücklehnen und den Betrieb beobachten'), T('Jederzeit eine Station übernehmen')], auto: T('Alles läuft automatisch.') },
 };
 
 function sideRole(key) {
   const r = ROLES[key];
   const info = ROLE_INFO[key];
-  return `<div class="ms-card ms-role r-${key}"><div class="ms-img" style="background-image:url(${info.img})"></div>
+  return T`<div class="ms-card ms-role r-${key}"><div class="ms-img" style="background-image:url(${info.img})"></div>
     <div class="ms-body"><div class="ms-h">${r.icon} ${esc(r.name)}</div>
     <div class="ms-sec">Deine Aufgaben</div><ul>${info.you.map((x) => `<li>${x}</li>`).join('')}</ul>
     <div class="ms-auto">⚙️ ${info.auto}</div></div></div>`;
 }
 
-export function statusPanel(s, title = 'Status') {
+export function statusPanel(s, title = T('Status')) {
   const G = s.goals || { xp: 0, rank: 0, done: 0 };
   const t = (s.stats && s.stats.today) || {};
   const deps = (t.onTime || 0) + (t.delayed || 0);
@@ -86,28 +87,28 @@ export function statusPanel(s, title = 'Status') {
   try {
     if (s.goals) goals = activeGoals(s).map((g) => `<div class="ms-goal"><small>${esc(goalText(g))}</small><span class="ms-bar"><i style="width:${Math.round(goalFraction(s, g) * 100)}%"></i></span></div>`).join('');
   } catch (e) {}
-  return `<div class="ms-card ms-status"><div class="ms-body">
+  return T`<div class="ms-card ms-status"><div class="ms-body">
     <div class="ms-h">${esc(title)}</div><div class="ms-subt">${esc(s.name)} · ${esc(ROLES[s.role]?.name || '')}</div>
-    <div class="ms-tiles">${tile('Spielzeit', `Tag ${dayOf(s.time)} · ${fmtClock(s.time)}`)}${tile('Kasse', fmtMoney(s.cash), s.cash < 0 ? 'neg' : '')}${tile('Ansehen', `${Math.round(s.reputation)}/100`)}${tile('Rang', `${esc(rank.name)}<small>${G.xp || 0} XP</small>`, 'rank')}</div>
+    <div class="ms-tiles">${tile(T('Spielzeit'), T`Tag ${dayOf(s.time)} · ${fmtClock(s.time)}`)}${tile(T('Kasse'), fmtMoney(s.cash), s.cash < 0 ? 'neg' : '')}${tile(T('Ansehen'), `${Math.round(s.reputation)}/100`)}${tile(T('Rang'), `${esc(rank.name)}<small>${G.xp || 0} XP</small>`, 'rank')}</div>
     <div class="ms-sec">Heute</div>
-    <div class="ms-rows">${row('✈️', t.mov || 0, 'Bewegungen')}${row('🧳', (t.pax || 0).toLocaleString('de-DE'), 'Passagiere')}${row('⏱️', deps ? Math.round((t.onTime / deps) * 100) + ' %' : '—', 'pünktlich')}${row('🎯', t.slotOk || 0, 'Slots eingehalten')}${row('⛽', `${Math.round(t.fuelSold || 0)} t`, 'Kerosin vertankt')}${row('⚠️', t.incidents || 0, 'Vorfälle')}</div>
-    ${goals ? `<div class="ms-sec">Ziele</div>${goals}` : ''}
+    <div class="ms-rows">${row('✈️', t.mov || 0, T('Bewegungen'))}${row('🧳', (t.pax || 0).toLocaleString(LOCALE), T('Passagiere'))}${row('⏱️', deps ? Math.round((t.onTime / deps) * 100) + ' %' : '—', T('pünktlich'))}${row('🎯', t.slotOk || 0, T('Slots eingehalten'))}${row('⛽', `${Math.round(t.fuelSold || 0)} t`, T('Kerosin vertankt'))}${row('⚠️', t.incidents || 0, T('Vorfälle'))}</div>
+    ${goals ? T`<div class="ms-sec">Ziele</div>${goals}` : ''}
     <div class="ms-foot">${(s.contracts || []).length} Verträge · ${(s.stands || []).filter((x) => x.built).length} Parkpositionen · ${(s.vehicles || []).length} Fahrzeuge · ${G.done || 0} Ziele erreicht</div>
   </div></div>`;
 }
 
 const SIDE = {
-  new: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Neuer Flughafen</div><div class="ms-subt">Wähle eine Station – alles andere erledigen KI-Kollegen.</div>
+  new: () => T`<div class="ms-card"><div class="ms-body"><div class="ms-h">Neuer Flughafen</div><div class="ms-subt">Wähle eine Station – alles andere erledigen KI-Kollegen.</div>
     <div class="ms-trio">${['tower', 'ground', 'manager'].map((k) => `<div style="background-image:url(${ROLE_INFO[k].img})"><span>${ROLES[k].icon} ${ROLES[k].short}</span></div>`).join('')}</div>
     <div class="ms-sec">Start</div><ul><li>6 Uhr morgens, erste Maschinen sind schon im Anflug</li><li>5 Mio € Startkapital, 20 Airline-Verträge</li><li>Station jederzeit im Spiel wechselbar</li><li>Schwierigkeit: <b>Entspannt</b> verzeiht Fehler, <b>Profi</b> ist knallhart</li></ul></div></div>`,
-  help: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">So funktioniert es</div><ul><li>Jede Station spielt sich anders: Lotse, Abfertigung oder Management.</li><li>💡 Tipps oben im Panel zeigen die nächste sinnvolle Aktion.</li><li>Unterstrichene Abkürzungen erklären sich beim Überfahren.</li><li>🏅 Ziele bringen Prämien und heben den Flughafen-Rang.</li></ul></div></div>`,
-  gloss: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Glossar</div><div class="ms-subt">Über 100 Begriffe – ein paar Beispiele:</div><dl class="ms-dl"><dt>ILS</dt><dd>Instrumentenlandesystem</dd><dt>TOBT</dt><dd>Zielzeit „Abfertigung fertig“</dd><dt>CTOT</dt><dd>Startslot, Fenster −5/+10 min</dd><dt>RVR</dt><dd>Pistensichtweite</dd><dt>STCA</dt><dd>Konfliktwarnung im Radar</dd><dt>FL</dt><dd>Flugfläche in 100 ft</dd></dl></div></div>`,
-  slots: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Spielstände</div><div class="ms-subt">Drei Speicherplätze – jeder Flughafen speichert automatisch alle 45 Sekunden und zum Tagesende.</div><ul><li>„Weiterspielen“ lädt den zuletzt gespielten Platz</li><li>Beim neuen Spiel wählst du den Platz</li><li>Herausforderungen belegen keinen Platz</li></ul></div></div>`,
-  slotEmpty: (n) => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Platz ${n}</div><div class="ms-subt">Noch leer – über „Neues Spiel“ einen Flughafen auf diesem Platz gründen.</div></div></div>`,
-  settings: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Einstellungen</div><div class="ms-subt">Gelten für neue Spiele und lassen sich im Pausenmenü jederzeit ändern.</div></div></div>`,
-  scnall: () => `<div class="ms-card"><div class="ms-img" style="background-image:url(assets/scn/storm.webp)"></div><div class="ms-body"><div class="ms-h">Herausforderungen</div><div class="ms-subt">${SCENARIOS.length} Szenarien · ⭐ ${totalStars()} / ${SCENARIOS.length * 3} Sterne</div>
+  help: () => T`<div class="ms-card"><div class="ms-body"><div class="ms-h">So funktioniert es</div><ul><li>Jede Station spielt sich anders: Lotse, Abfertigung oder Management.</li><li>💡 Tipps oben im Panel zeigen die nächste sinnvolle Aktion.</li><li>Unterstrichene Abkürzungen erklären sich beim Überfahren.</li><li>🏅 Ziele bringen Prämien und heben den Flughafen-Rang.</li></ul></div></div>`,
+  gloss: () => T`<div class="ms-card"><div class="ms-body"><div class="ms-h">Glossar</div><div class="ms-subt">Über 100 Begriffe – ein paar Beispiele:</div><dl class="ms-dl"><dt>ILS</dt><dd>Instrumentenlandesystem</dd><dt>TOBT</dt><dd>Zielzeit „Abfertigung fertig“</dd><dt>CTOT</dt><dd>Startslot, Fenster −5/+10 min</dd><dt>RVR</dt><dd>Pistensichtweite</dd><dt>STCA</dt><dd>Konfliktwarnung im Radar</dd><dt>FL</dt><dd>Flugfläche in 100 ft</dd></dl></div></div>`,
+  slots: () => T`<div class="ms-card"><div class="ms-body"><div class="ms-h">Spielstände</div><div class="ms-subt">Drei Speicherplätze – jeder Flughafen speichert automatisch alle 45 Sekunden und zum Tagesende.</div><ul><li>„Weiterspielen“ lädt den zuletzt gespielten Platz</li><li>Beim neuen Spiel wählst du den Platz</li><li>Herausforderungen belegen keinen Platz</li></ul></div></div>`,
+  slotEmpty: (n) => T`<div class="ms-card"><div class="ms-body"><div class="ms-h">Platz ${n}</div><div class="ms-subt">Noch leer – über „Neues Spiel“ einen Flughafen auf diesem Platz gründen.</div></div></div>`,
+  settings: () => T`<div class="ms-card"><div class="ms-body"><div class="ms-h">Einstellungen</div><div class="ms-subt">Gelten für neue Spiele und lassen sich im Pausenmenü jederzeit ändern.</div></div></div>`,
+  scnall: () => T`<div class="ms-card"><div class="ms-img" style="background-image:url(assets/scn/storm.webp)"></div><div class="ms-body"><div class="ms-h">Herausforderungen</div><div class="ms-subt">${SCENARIOS.length} Szenarien · ⭐ ${totalStars()} / ${SCENARIOS.length * 3} Sterne</div>
     <ul><li>Kurze Einsätze mit festem Start: Morgenwelle, Nebel, Gewitterfront, Notfälle, Streik, Winterchaos, Sanierungsfall …</li><li>Jedes Ziel bringt 1–3 Sterne – der Bestwert bleibt gespeichert</li><li>Mit einem Stern schaltest du die nächste Stufe deiner Station frei</li></ul></div></div>`,
-  whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
+  whatsnew: () => T`<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
       <li>🌾 <b>Aufbau-Modus: vom Grasplatz zum Drehkreuz</b> – neues Spiel mit 560-m-Graspiste, Vereinsheim, ein paar Sportfliegern und 40.000 € in der Kasse. Partner (Flugschule, Rundflüge, Fallschirmclub, Lufttaxi), Flugplatzfest, Anzeigen und Fly-Ins machen den Platz bekannt; erfüllst du die Bedingungen, bauen Land und Investoren aus: Verkehrslandeplatz → Regionalflughafen → International → Drehkreuz</li>
       <li>🎟️ <b>Demo-Version</b> zum Anspielen (Aufbau bis Verkehrslandeplatz, freies Spiel 3 Tage, zwei Herausforderungen) und Build-Skript für Vollversion und Demo</li>
@@ -154,7 +155,7 @@ const SIDE = {
       <li>🐦 Vogelschwärme, 🚁 Rettungshubschrauber, 🚨 Martinshorn</li>
       <li>🎥 <b>Folgen</b>-Kamera · 🎬 Kino-Modus als Live-Übertragung · <kbd>?</kbd> Tastenkürzel</li>
       <li>🪧 <b>Anzeigetafel</b> im Fallblatt-Stil (<kbd>I</kbd>)</li>
-    </ul></div></div>`,
+    </ul></div></div>`.replace('<ul>', `<ul>${T('<li>🌐 <b>English version</b> – das ganze Spiel jetzt auch auf Englisch: Menüs, Hilfe, Glossar, Zeitung, Livestream, Betriebsfunk und Kommentator; umschaltbar unter Einstellungen › Sprache</li>')}${T('<li>🖼️ <b>Shop-Material</b>: Titelbild und Grafiken in allen Steam- und itch.io-Formaten (Deutsch und Englisch), erzeugt mit <code>node tools/capsules.mjs</code></li>')}`),
   career: () => {
     const S = careerSummary();
     const R = careerRank();
@@ -163,20 +164,20 @@ const SIDE = {
     const cell = (k, v) => `<div><span>${k}</span><b>${v}</b></div>`;
     const role = (r) => {
       const x = c.byRole[r] || { days: 0, bestScore: 0, perfect: 0, bestPunct: 0 };
-      return `<tr><td>${ROLES[r].icon} ${esc(ROLES[r].short)}</td><td>${x.days}</td><td>${x.bestScore ? x.bestScore.toLocaleString('de-DE') : '—'}</td><td>${x.bestPunct ? x.bestPunct + ' %' : '—'}</td><td>${x.perfect || 0}</td></tr>`;
+      return `<tr><td>${ROLES[r].icon} ${esc(ROLES[r].short)}</td><td>${x.days}</td><td>${x.bestScore ? x.bestScore.toLocaleString(LOCALE) : '—'}</td><td>${x.bestPunct ? x.bestPunct + ' %' : '—'}</td><td>${x.perfect || 0}</td></tr>`;
     };
-    return `<div class="ms-card career"><div class="ms-body">
-      <div class="cr-id"><div class="cr-badge">${R.cur.icon}</div><div><div class="cr-k">Dienstausweis · Planez</div><div class="cr-rank">${esc(R.cur.name)}</div><div class="cr-pts">${R.pts.toLocaleString('de-DE')} Karrierepunkte</div></div></div>
+    return T`<div class="ms-card career"><div class="ms-body">
+      <div class="cr-id"><div class="cr-badge">${R.cur.icon}</div><div><div class="cr-k">Dienstausweis · Planez</div><div class="cr-rank">${esc(R.cur.name)}</div><div class="cr-pts">${R.pts.toLocaleString(LOCALE)} Karrierepunkte</div></div></div>
       <div class="cr-bar"><i style="width:${Math.round(R.frac * 100)}%"></i></div>
-      <div class="cr-next">${R.next ? `Nächster Rang: ${R.next.icon} <b>${esc(R.next.name)}</b> ab ${R.next.pts.toLocaleString('de-DE')}` : 'Höchster Rang erreicht'}</div>
-      <div class="cr-grid">${cell('Schichten (Tage)', c.days)}${cell('Spielzeit', `${h} h ${m} min`)}${cell('Bewegungen', c.mov.toLocaleString('de-DE'))}${cell('Passagiere', c.pax.toLocaleString('de-DE'))}${cell('Perfekte Tage ★★★★★', c.perfect)}${cell('Erfolge', `${c.ach.length} / ${S.achAll}`)}${cell('Kampagne', (() => { const cp = campaignProgress(); return cp.next == null ? `🏆 ${cp.total}/${cp.total}` : `📖 ${cp.done}/${cp.total} Kapitel`; })())}${cell('Herausforderungen', `⭐ ${S.stars}`)}${cell('Tagesserie', `🔥 ${S.daily.streak || 0} · Rekord ${S.daily.best || 0}`)}${cell('Spotterpunkte', S.spot.pts.toLocaleString('de-DE'))}</div>
+      <div class="cr-next">${R.next ? T`Nächster Rang: ${R.next.icon} <b>${esc(R.next.name)}</b> ab ${R.next.pts.toLocaleString(LOCALE)}` : T('Höchster Rang erreicht')}</div>
+      <div class="cr-grid">${cell(T('Schichten (Tage)'), c.days)}${cell(T('Spielzeit'), `${h} h ${m} min`)}${cell(T('Bewegungen'), c.mov.toLocaleString(LOCALE))}${cell(T('Passagiere'), c.pax.toLocaleString(LOCALE))}${cell(T('Perfekte Tage ★★★★★'), c.perfect)}${cell(T('Erfolge'), `${c.ach.length} / ${S.achAll}`)}${cell(T('Kampagne'), (() => { const cp = campaignProgress(); return cp.next == null ? `🏆 ${cp.total}/${cp.total}` : T`📖 ${cp.done}/${cp.total} Kapitel`; })())}${cell(T('Herausforderungen'), `⭐ ${S.stars}`)}${cell(T('Tagesserie'), T`🔥 ${S.daily.streak || 0} · Rekord ${S.daily.best || 0}`)}${cell(T('Spotterpunkte'), S.spot.pts.toLocaleString(LOCALE))}</div>
       <div class="ms-sec">Rekorde</div>
-      <div class="cr-grid">${cell('🛬 Weichste Landung', c.rec && c.rec.td ? `${c.rec.td.fpm} ft/min · ${esc(c.rec.td.cs)}` : '—')}${cell('📈 Meiste Bewegungen', c.rec && c.rec.mov ? `${c.rec.mov} an einem Tag` : '—')}${cell('📡 Zuschauerrekord', c.rec && c.rec.viewers ? c.rec.viewers.toLocaleString('de-DE') : '—')}</div>
+      <div class="cr-grid">${cell(T('🛬 Weichste Landung'), c.rec && c.rec.td ? `${c.rec.td.fpm} ft/min · ${esc(c.rec.td.cs)}` : '—')}${cell(T('📈 Meiste Bewegungen'), c.rec && c.rec.mov ? T`${c.rec.mov} an einem Tag` : '—')}${cell(T('📡 Zuschauerrekord'), c.rec && c.rec.viewers ? c.rec.viewers.toLocaleString(LOCALE) : '—')}</div>
       <div class="ms-sec">Je Station</div>
       <table class="cr-tab"><tr><th></th><th>Tage</th><th>Bestwert ⭐</th><th>Pünktl.</th><th>Perfekt</th></tr>${['tower', 'ground', 'manager', 'observer'].map(role).join('')}</table>
       <div class="ms-auto">Punkte gibt es für gespielte Tage, Verkehr, Sterne, Erfolge, Tagesherausforderungen, perfekte Tage und das Spotterbuch.</div></div></div>`;
   },
-  about: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Über Planez</div><div class="ms-subt">Version ${VERSION}${IS_DEMO ? ' · Demo-Version' : ''}</div><ul><li>Airport-Simulation mit isometrischer Karte, 3D-Ansicht, Radar, Funk und Wirtschaft – vom Grasplatz zum Drehkreuz</li><li>Grafiken, Fotos und Hintergrundvideos: Higgsfield AI (GPT Image, Kling) · Musik: OpenArt</li><li>3D: three.js (MIT-Lizenz) · Schriften: Inter, JetBrains Mono, Chakra Petch, Orbitron (SIL Open Font License, lokal eingebunden)</li><li>Alle Airlines, Flugzeughersteller und -typen, Rufzeichen, Personen und Flüge sind frei erfunden</li><li>Spielstände bleiben auf diesem Gerät (Browser-Speicher); es werden keine Daten an Server gesendet</li><li>Lizenztexte: <a href="LIZENZEN.md" target="_blank" rel="noopener">LIZENZEN.md</a></li></ul></div></div>`,
+  about: () => T`<div class="ms-card"><div class="ms-body"><div class="ms-h">Über Planez</div><div class="ms-subt">Version ${VERSION}${IS_DEMO ? T(' · Demo-Version') : ''}</div><ul><li>Airport-Simulation mit isometrischer Karte, 3D-Ansicht, Radar, Funk und Wirtschaft – vom Grasplatz zum Drehkreuz</li><li>Grafiken, Fotos und Hintergrundvideos: Higgsfield AI (GPT Image, Kling) · Musik: OpenArt</li><li>3D: three.js (MIT-Lizenz) · Schriften: Inter, JetBrains Mono, Chakra Petch, Orbitron (SIL Open Font License, lokal eingebunden)</li><li>Alle Airlines, Flugzeughersteller und -typen, Rufzeichen, Personen und Flüge sind frei erfunden</li><li>Spielstände bleiben auf diesem Gerät (Browser-Speicher); es werden keine Daten an Server gesendet</li><li>Lizenztexte: <a href="LIZENZEN.md" target="_blank" rel="noopener">LIZENZEN.md</a></li></ul></div></div>`,
 };
 
 // ---------- Speicherplätze ----------
@@ -184,20 +185,20 @@ const fmtSaved = (t) => {
   if (!t) return '';
   const d = new Date(t);
   const today = new Date();
-  const hm = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-  return d.toDateString() === today.toDateString() ? `heute ${hm}` : `${d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })} ${hm}`;
+  const hm = d.toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
+  return d.toDateString() === today.toDateString() ? T`heute ${hm}` : `${d.toLocaleDateString(LOCALE, { day: '2-digit', month: '2-digit' })} ${hm}`;
 };
 function slotListHtml() {
-  return `<button class="mm-back" data-mm="back">← Zurück</button>` + slotInfo().map((x) => x.empty
-    ? `<button class="mm-item slot-item locked" data-slot-load="${x.n}" data-side="slot:${x.n}"><span class="n"></span><span class="l"><b>Platz ${x.n} · leer</b><small>Über „Neues Spiel“ belegen</small></span></button>`
-    : `<div class="slot-row"><button class="mm-item slot-item" data-slot-load="${x.n}" data-side="slot:${x.n}"><span class="n"></span><span class="l"><b>${esc(x.name)}</b><small>Platz ${x.n} · Tag ${dayOf(x.time)} · ${fmtClock(x.time)} · ${esc(ROLES[x.role]?.short || '')} · ${fmtMoney(x.cash)}${x.saved ? ` · gespeichert ${fmtSaved(x.saved)}` : ''}${x.last ? ' · zuletzt gespielt' : ''}</small></span></button><button class="mini slot-del" data-slot-del="${x.n}" title="Spielstand löschen">🗑</button></div>`).join('');
+  return T`<button class="mm-back" data-mm="back">← Zurück</button>` + slotInfo().map((x) => x.empty
+    ? T`<button class="mm-item slot-item locked" data-slot-load="${x.n}" data-side="slot:${x.n}"><span class="n"></span><span class="l"><b>Platz ${x.n} · leer</b><small>Über „Neues Spiel“ belegen</small></span></button>`
+    : T`<div class="slot-row"><button class="mm-item slot-item" data-slot-load="${x.n}" data-side="slot:${x.n}"><span class="n"></span><span class="l"><b>${esc(x.name)}</b><small>Platz ${x.n} · Tag ${dayOf(x.time)} · ${fmtClock(x.time)} · ${esc(ROLES[x.role]?.short || '')} · ${fmtMoney(x.cash)}${x.saved ? T` · gespeichert ${fmtSaved(x.saved)}` : ''}${x.last ? T(' · zuletzt gespielt') : ''}</small></span></button><button class="mini slot-del" data-slot-del="${x.n}" title="Spielstand löschen">🗑</button></div>`).join('');
 }
 function renderSlotSelect(root) {
   const sel = root.querySelector('#inp-slot');
   if (!sel) return;
   const info = slotInfo();
   const pick = freeSlot();
-  sel.innerHTML = info.map((x) => `<option value="${x.n}" ${x.n === pick ? 'selected' : ''}>Platz ${x.n} – ${x.empty ? 'frei' : `überschreibt „${esc(x.name)}“ (Tag ${dayOf(x.time)})`}</option>`).join('');
+  sel.innerHTML = info.map((x) => T`<option value="${x.n}" ${x.n === pick ? 'selected' : ''}>Platz ${x.n} – ${x.empty ? T('frei') : T`überschreibt „${esc(x.name)}“ (Tag ${dayOf(x.time)})`}</option>`).join('');
 }
 function refreshContinue() {
   if (!mm) return;
@@ -205,7 +206,7 @@ function refreshContinue() {
   mm.save = any ? loadGame() : null;
   const box = mm.root.querySelector('#continue-box');
   box.classList.toggle('hidden', !mm.save);
-  if (mm.save) mm.root.querySelector('#continue-info').textContent = `${mm.save.name} · Tag ${dayOf(mm.save.time)} · ${fmtClock(mm.save.time)} · ${ROLES[mm.save.role]?.name || ''}`;
+  if (mm.save) mm.root.querySelector('#continue-info').textContent = T`${mm.save.name} · Tag ${dayOf(mm.save.time)} · ${fmtClock(mm.save.time)} · ${ROLES[mm.save.role]?.name || ''}`;
 }
 
 // ---------- Tastatur-/Maus-Navigation einer Liste ----------
@@ -253,17 +254,17 @@ export function initMainMenu(api) {
 
   const showSide = (key) => {
     let html = '';
-    if (key === 'save' && mm.save) html = statusPanel(mm.save, 'Letzter Spielstand');
+    if (key === 'save' && mm.save) html = statusPanel(mm.save, T('Letzter Spielstand'));
     else if (key.startsWith('scn:')) html = scenarioSide(key.slice(4));
     else if (key.startsWith('slot:')) {
       const n = Number(key.slice(5));
       mm.slotCache = mm.slotCache || {};
       if (!(n in mm.slotCache)) mm.slotCache[n] = loadGame(n);
-      html = mm.slotCache[n] ? statusPanel(mm.slotCache[n], `Speicherplatz ${n}`) : SIDE.slotEmpty(n);
+      html = mm.slotCache[n] ? statusPanel(mm.slotCache[n], T`Speicherplatz ${n}`) : SIDE.slotEmpty(n);
     }
     else if (ROLE_INFO[key]) html = sideRole(key);
     else if (SIDE[key]) html = SIDE[key]();
-    else html = mm.save ? statusPanel(mm.save, 'Letzter Spielstand') : SIDE.new();
+    else html = mm.save ? statusPanel(mm.save, T('Letzter Spielstand')) : SIDE.new();
     if (side._html !== html) {
       side.innerHTML = html;
       side._html = html;
@@ -298,7 +299,9 @@ export function initMainMenu(api) {
 
   const renderPrefs = () => {
     const p = loadPrefs();
-    root.querySelector('#mm-prefs').innerHTML = [...PREF_ROWS.slice(0, 1), ['music', 'Menümusik', 'das Planez-Thema im Hauptmenü'], ...PREF_ROWS.slice(1), ['briefing', 'Schichtbriefing', 'zu Tagesbeginn: Wetter, Verkehrsspitzen, Lage und Ziele der Schicht']].map(([k, n, sub]) => switchRow(k, n, sub, !!p[k])).join('');
+    // Sprache: Umschalten lädt die Seite neu (Wörterbuch wird beim Start geladen)
+    const langRow = `<div class="mm-toggle mm-lang"><span class="l"><b>Sprache · Language</b><small>${T('Umschalten lädt das Spiel neu')}</small></span><span class="mm-lseg">${[['de', 'Deutsch'], ['en', 'English']].map(([l, n]) => `<button data-lang="${l}" class="${LANG === l ? 'on' : ''}" aria-pressed="${LANG === l}">${n}</button>`).join('')}</span></div>`;
+    root.querySelector('#mm-prefs').innerHTML = langRow + [...PREF_ROWS.slice(0, 1), ['music', T('Menümusik'), T('das Planez-Thema im Hauptmenü')], ...PREF_ROWS.slice(1), ['briefing', T('Schichtbriefing'), T('zu Tagesbeginn: Wetter, Verkehrsspitzen, Lage und Ziele der Schicht')]].map(([k, n, sub]) => switchRow(k, n, sub, !!p[k])).join('');
   };
 
   root.addEventListener('click', (e) => {
@@ -329,7 +332,7 @@ export function initMainMenu(api) {
         refreshContinue();
       } else {
         mm.delArm = n;
-        del.textContent = 'Wirklich löschen?';
+        del.textContent = T('Wirklich löschen?');
         del.classList.add('armed');
       }
       return;
@@ -346,6 +349,16 @@ export function initMainMenu(api) {
         void sc.offsetWidth;
         sc.classList.add('shake');
       } else api.scenario && api.scenario(sc.dataset.scn);
+      return;
+    }
+    const lg = e.target.closest('[data-lang]');
+    if (lg) {
+      if (lg.dataset.lang !== LANG) {
+        setLang(lg.dataset.lang);
+        const u = new URL(location.href);
+        u.searchParams.delete('lang');
+        location.href = u.toString();
+      }
       return;
     }
     const pr = e.target.closest('[data-pref]');
@@ -419,7 +432,7 @@ export function refreshMainMenu(save) {
   mm.save = save;
   const box = mm.root.querySelector('#continue-box');
   box.classList.toggle('hidden', !save);
-  if (save) mm.root.querySelector('#continue-info').textContent = `${save.name} · Tag ${dayOf(save.time)} · ${fmtClock(save.time)} · ${ROLES[save.role]?.name || ''}`;
+  if (save) mm.root.querySelector('#continue-info').textContent = T`${save.name} · Tag ${dayOf(save.time)} · ${fmtClock(save.time)} · ${ROLES[save.role]?.name || ''}`;
   mm.openList('main');
   const v = mm.root.querySelector('#menu-video');
   try {
@@ -459,7 +472,7 @@ export function showPauseMenu(game, api) {
       }
       if (a === 'save') {
         pz.api.save();
-        b.querySelector('small').textContent = `Gespeichert um ${fmtClock(pz.game.state.time)} ✓`;
+        b.querySelector('small').textContent = T`Gespeichert um ${fmtClock(pz.game.state.time)} ✓`;
         return;
       }
       closePause();
@@ -506,27 +519,27 @@ function renderPause() {
   const s = pz.game.state;
   const set = pz.api.settings();
   const item = (a, title, sub = '', cls = '') => `<button class="mm-item ${cls}" data-pm="${a}"><span class="n"></span><span class="l"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`;
-  const prefs = pz.showSettings ? `<div class="pm-prefs">${[...PREF_ROWS, ['labels', 'Beschriftungen auf der Karte', 'Rufzeichen und Status an Flugzeugen']].map(([k, n, sub]) => switchRow(k, n, sub, !!set[k])).join('')}</div>` : '';
-  pz.el.innerHTML = `<div class="pm-shade"></div><i class="mm-corner tl"></i><i class="mm-corner bl"></i>
+  const prefs = pz.showSettings ? `<div class="pm-prefs">${[...PREF_ROWS, ['labels', T('Beschriftungen auf der Karte'), T('Rufzeichen und Status an Flugzeugen')]].map(([k, n, sub]) => switchRow(k, n, sub, !!set[k])).join('')}</div>` : '';
+  pz.el.innerHTML = T`<div class="pm-shade"></div><i class="mm-corner tl"></i><i class="mm-corner bl"></i>
     <div class="mm-left pm-left">
       <div class="pm-paused"><i></i><i></i>Pausiert</div>
       <h1 class="mm-title sm"><span class="t1">PLANEZ</span><span class="t2">AIRPORT</span></h1>
       <div class="mm-tag"><span>${esc(s.name.toUpperCase())} · TAG ${dayOf(s.time)}</span><i></i></div>
       <nav class="mm-list">
-        ${item('resume', 'Weiter', 'Der Flughafen läuft da weiter, wo er stand.')}
-        ${s.scenario ? '' : item('save', 'Jetzt speichern', `Platz ${s.slot || 1} · automatisch alle 45 Sekunden und zum Tagesende`)}
-        ${item('settings', 'Einstellungen', pz.showSettings ? '' : 'Sound, Sprachausgabe, Tooltips, Tipps')}
+        ${item('resume', T('Weiter'), T('Der Flughafen läuft da weiter, wo er stand.'))}
+        ${s.scenario ? '' : item('save', T('Jetzt speichern'), T`Platz ${s.slot || 1} · automatisch alle 45 Sekunden und zum Tagesende`)}
+        ${item('settings', T('Einstellungen'), pz.showSettings ? '' : T('Sound, Sprachausgabe, Tooltips, Tipps'))}
         ${prefs}
-        ${item('role', 'Station wechseln', `aktuell: ${esc(ROLES[s.role].name)}`)}
-        ${item('goals', 'Ziele & Rang')}
-        ${item('tutorial', 'Einführung starten', 'Schritt für Schritt durch deine Station')}
-        ${item('help', 'So funktioniert es')}
-        ${item('gloss', 'Glossar')}
-        ${item('quit', 'Zurück ins Hauptmenü', '', 'gold')}
+        ${item('role', T('Station wechseln'), T`aktuell: ${esc(ROLES[s.role].name)}`)}
+        ${item('goals', T('Ziele & Rang'))}
+        ${item('tutorial', T('Einführung starten'), T('Schritt für Schritt durch deine Station'))}
+        ${item('help', T('So funktioniert es'))}
+        ${item('gloss', T('Glossar'))}
+        ${item('quit', T('Zurück ins Hauptmenü'), '', 'gold')}
       </nav>
       <div class="mm-foot"><span class="mm-credit">Esc = weiter · ↑↓ + Enter zum Auswählen</span></div>
     </div>
-    <aside class="mm-side pm-side in">${statusPanel(s, 'Status')}</aside>`;
+    <aside class="mm-side pm-side in">${statusPanel(s, T('Status'))}</aside>`;
   renumber(pz.el.querySelector('.mm-list'));
   glossify(pz.el.querySelector('.pm-side'));
 }

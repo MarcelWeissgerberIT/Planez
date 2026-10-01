@@ -2,13 +2,14 @@
 import { clamp, hourOf, randRange, fmtClock } from '../util.js';
 import { log, notify, radio } from './messages.js';
 import { runwayDemand, closeRunway, rwyName, hasRwy2 } from './runway.js';
+import { T } from '../i18n.js';
 
 // Jahreszeiten: je 4 Spieltage, das Spiel beginnt im Herbst (Winter ab Tag 5)
 export const SEASONS = [
-  { id: 'autumn', name: 'Herbst', icon: '🍂', t: 9 },
-  { id: 'winter', name: 'Winter', icon: '❄️', t: -2 },
-  { id: 'spring', name: 'Frühling', icon: '🌱', t: 12 },
-  { id: 'summer', name: 'Sommer', icon: '☀️', t: 23 },
+  { id: 'autumn', name: T('Herbst'), icon: '🍂', t: 9 },
+  { id: 'winter', name: T('Winter'), icon: '❄️', t: -2 },
+  { id: 'spring', name: T('Frühling'), icon: '🌱', t: 12 },
+  { id: 'summer', name: T('Sommer'), icon: '☀️', t: 23 },
 ];
 export const SEASON_DAYS = 4;
 export function season(state) {
@@ -76,14 +77,14 @@ export function updateWinter(state, dt) {
     // Räumdienst: ab 30 % in einer Verkehrslücke, ab 50 % sofort (Sicherheit geht vor)
     if (!plow && !state.plow && ((state.rwySnow[strip] > 0.3 && !runwayDemand(state, strip)) || state.rwySnow[strip] > 0.5)) {
       const min = Math.round(randRange(state, 7, 10));
-      closeRunway(state, min, 'Schneeräumung', strip);
+      closeRunway(state, min, T('Schneeräumung'), strip);
       state.plow = { strip, start: state.time, until: state.time + min * 60, from: state.rwySnow[strip] };
       state.life = state.life || {};
       state.life.plows = (state.life.plows || 0) + 1;
       const name = rwyName(state, strip);
       radio(state, 'TWR', `All stations, runway ${name} closed for snow clearing, expect ${min} minutes.`, 'atc');
-      notify(state, `❄️ Räumdienst auf Bahn ${name} – gesperrt bis ${fmtClock(state.plow.until)}`, 'warn');
-      log(state, 'sys', `Schneeräumung Bahn ${name}: Pflüge und Kehrblasgeräte fahren, Enteisungsmittel wird gestreut.`);
+      notify(state, T`❄️ Räumdienst auf Bahn ${name} – gesperrt bis ${fmtClock(state.plow.until)}`, 'warn');
+      log(state, 'sys', T`Schneeräumung Bahn ${name}: Pflüge und Kehrblasgeräte fahren, Enteisungsmittel wird gestreut.`);
     }
     if (plow) {
       const u = clamp((state.time - plow.start) / (plow.until - plow.start), 0, 1);
@@ -92,7 +93,7 @@ export function updateWinter(state, dt) {
         state.plow = null;
         state.rwySnow[strip] = Math.min(state.rwySnow[strip], 0.05);
         radio(state, 'TWR', `All stations, runway ${rwyName(state, strip)} open, braking action good.`, 'atc');
-        notify(state, `✅ Bahn ${rwyName(state, strip)} geräumt`, 'good');
+        notify(state, T`✅ Bahn ${rwyName(state, strip)} geräumt`, 'good');
       }
     }
   }

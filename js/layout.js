@@ -1,6 +1,7 @@
 // Flughafen-Geometrie (Weltkoordinaten in Kacheln; x = Ost, y = Süd) und Wegeplanung
 import { roundedPath, clamp } from './util.js';
 import { NM_PER_TILE } from './config.js';
+import { T } from './i18n.js';
 
 export const W = 80;
 export const H = 50;
@@ -62,22 +63,22 @@ export const STAND_DEFS = [
 // Gebäude: fx/fy = vordere Ecke (max x, max y), w/d = Grundfläche, frac = Lage der Ecke im Sprite
 // stages = nur in diesen Karriere-Ausbaustufen (0 Grasplatz, 1 Verkehrslandeplatz, 2 Regional, 3 International, 4 Drehkreuz)
 export const BUILDINGS = [
-  { id: 'hall', sprite: 'terminal_hall', fx: 36.2, fy: 10.7, w: 11.3, d: 9.6, frac: 0.54, name: 'Terminal', minStage: 2 },
+  { id: 'hall', sprite: 'terminal_hall', fx: 36.2, fy: 10.7, w: 11.3, d: 9.6, frac: 0.54, name: T('Terminal'), minStage: 2 },
   { id: 'tower', sprite: 'tower', fx: 77.2, fy: 8.2, w: 1.6, d: 1.5, frac: 0.51, name: 'Tower', minStage: 2 },
-  { id: 'hangar', sprite: 'hangar', fx: 9.5, fy: 21.4, w: 6.8, d: 6.6, frac: 0.51, name: 'Wartungshangar', minStage: 2 },
-  { id: 'cargo', sprite: 'cargo', fx: 64.5, fy: 14.2, w: 10.3, d: 4.2, frac: 0.71, name: 'Frachtterminal', minStage: 3 },
-  { id: 'depot', sprite: 'gse_depot', fx: 73.5, fy: 14.4, w: 4.6, d: 3.6, frac: 0.56, name: 'Fahrzeugdepot', minStage: 1 },
-  { id: 'fire', sprite: 'fire_station', fx: 40, fy: 48.6, w: 4.4, d: 2.7, frac: 0.62, name: 'Feuerwache', minStage: 1 },
-  { id: 'fuel', sprite: 'fuel_farm', fx: 80, fy: 16.6, w: 3.6, d: 3.6, frac: 0.49, name: 'Tanklager', minStage: 2 },
-  { id: 'parking', sprite: 'parking', fx: 54, fy: 8.8, w: 5.4, d: 4.6, frac: 0.54, name: 'Parkhaus', minStage: 2 },
-  { id: 'hotel', sprite: 'hotel', fx: 18.5, fy: 8.4, w: 3.1, d: 3.1, frac: 0.49, name: 'Hotel', requires: 'hotel' },
+  { id: 'hangar', sprite: 'hangar', fx: 9.5, fy: 21.4, w: 6.8, d: 6.6, frac: 0.51, name: T('Wartungshangar'), minStage: 2 },
+  { id: 'cargo', sprite: 'cargo', fx: 64.5, fy: 14.2, w: 10.3, d: 4.2, frac: 0.71, name: T('Frachtterminal'), minStage: 3 },
+  { id: 'depot', sprite: 'gse_depot', fx: 73.5, fy: 14.4, w: 4.6, d: 3.6, frac: 0.56, name: T('Fahrzeugdepot'), minStage: 1 },
+  { id: 'fire', sprite: 'fire_station', fx: 40, fy: 48.6, w: 4.4, d: 2.7, frac: 0.62, name: T('Feuerwache'), minStage: 1 },
+  { id: 'fuel', sprite: 'fuel_farm', fx: 80, fy: 16.6, w: 3.6, d: 3.6, frac: 0.49, name: T('Tanklager'), minStage: 2 },
+  { id: 'parking', sprite: 'parking', fx: 54, fy: 8.8, w: 5.4, d: 4.6, frac: 0.54, name: T('Parkhaus'), minStage: 2 },
+  { id: 'hotel', sprite: 'hotel', fx: 18.5, fy: 8.4, w: 3.1, d: 3.1, frac: 0.49, name: T('Hotel'), requires: 'hotel' },
   { id: 'radar', sprite: 'radar', fx: 6.5, fy: 48.5, w: 1.7, d: 1.5, frac: 0.53, name: 'Radar', minStage: 2 },
   // Karriere: Grasplatz und Verkehrslandeplatz
-  { id: 'club', sprite: 'clubhouse', fx: 47.9, fy: 14.9, w: 1.75, d: 1.65, frac: 0.51, name: 'Vereinsheim mit Flugleitung', stages: [0, 1] },
-  { id: 'gahangar', sprite: 'ga_hangar', fx: 53.2, fy: 15.1, w: 2.4, d: 2.4, frac: 0.5, name: 'Flugzeughalle', stages: [0, 1] },
-  { id: 'avgas', sprite: 'avgas', fx: 40.9, fy: 15.35, w: 0.8, d: 1.05, frac: 0.43, name: 'Tankstelle (AvGas)', stages: [0, 1] },
-  { id: 'sterm', sprite: 'small_terminal', fx: 30.6, fy: 14.4, w: 5.2, d: 3.05, frac: 0.63, name: 'Abfertigungsgebäude', stages: [1] },
-  { id: 'stower', sprite: 'small_tower', fx: 34.4, fy: 13.9, w: 0.8, d: 1.0, frac: 0.44, name: 'Flugleitung (Turm)', stages: [1] },
+  { id: 'club', sprite: 'clubhouse', fx: 47.9, fy: 14.9, w: 1.75, d: 1.65, frac: 0.51, name: T('Vereinsheim mit Flugleitung'), stages: [0, 1] },
+  { id: 'gahangar', sprite: 'ga_hangar', fx: 53.2, fy: 15.1, w: 2.4, d: 2.4, frac: 0.5, name: T('Flugzeughalle'), stages: [0, 1] },
+  { id: 'avgas', sprite: 'avgas', fx: 40.9, fy: 15.35, w: 0.8, d: 1.05, frac: 0.43, name: T('Tankstelle (AvGas)'), stages: [0, 1] },
+  { id: 'sterm', sprite: 'small_terminal', fx: 30.6, fy: 14.4, w: 5.2, d: 3.05, frac: 0.63, name: T('Abfertigungsgebäude'), stages: [1] },
+  { id: 'stower', sprite: 'small_tower', fx: 34.4, fy: 13.9, w: 0.8, d: 1.0, frac: 0.44, name: T('Flugleitung (Turm)'), stages: [1] },
 ];
 // Gebäude in der aktuellen Ausbaustufe vorhanden?
 export function buildingOn(state, b) {

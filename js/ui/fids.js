@@ -3,38 +3,39 @@ import { CITIES, AIRLINES } from '../config.js';
 import { PH } from '../sim/aircraft.js';
 import { fmtClock, esc } from '../util.js';
 import { sfx } from '../audio.js';
+import { T } from '../i18n.js';
 
 const WIDE = { time: 5, flight: 7, city: 13, gate: 3, status: 16 };
 const NARROW = { time: 5, flight: 6, city: 8, gate: 3, status: 11 };
 const pad = (s, n) => String(s || '').toUpperCase().slice(0, n).padEnd(n, ' ');
 
 function depStatus(state, r, ac) {
-  if (r.status === 'departed') return ['GESTARTET', 'ok'];
-  if (r.status === 'cancelled') return ['ANNULLIERT', 'bad'];
+  if (r.status === 'departed') return [T('GESTARTET'), 'ok'];
+  if (r.status === 'cancelled') return [T('ANNULLIERT'), 'bad'];
   if (ac) {
-    if (ac.phase === PH.TAKEOFF || ac.phase === PH.DEPART) return ['GESTARTET', 'ok'];
-    if ([PH.PUSH, PH.STARTUP, PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(ac.phase)) return ['ABGEFERTIGT', 'ok'];
+    if (ac.phase === PH.TAKEOFF || ac.phase === PH.DEPART) return [T('GESTARTET'), 'ok'];
+    if ([PH.PUSH, PH.STARTUP, PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(ac.phase)) return [T('ABGEFERTIGT'), 'ok'];
     if (ac.ta) {
       const b = ac.ta.tasks.board;
-      if (b && b.st === 'done') return ['GATE GESCHLOSSEN', 'warn'];
-      if (b && b.st === 'active') return ['BOARDING', 'go'];
+      if (b && b.st === 'done') return [T('GATE GESCHLOSSEN'), 'warn'];
+      if (b && b.st === 'active') return [T('BOARDING'), 'go'];
     }
   }
   const est = r.tobt || r.std;
-  if (est > r.std + 5 * 60) return [`NEUE ZEIT ${fmtClock(est)}`, 'bad'];
-  if (r.std - state.time < 50 * 60) return ['ZUM GATE', 'go'];
-  return ['PLANMÄSSIG', ''];
+  if (est > r.std + 5 * 60) return [T`NEUE ZEIT ${fmtClock(est)}`, 'bad'];
+  if (r.std - state.time < 50 * 60) return [T('ZUM GATE'), 'go'];
+  return [T('PLANMÄSSIG'), ''];
 }
 function arrStatus(state, r, ac) {
-  if (r.status === 'diverted') return ['UMGELEITET', 'bad'];
-  if (r.status === 'cancelled') return ['ANNULLIERT', 'bad'];
-  if (ac && ac.phase === PH.STAND) return ['AN POSITION', 'ok'];
-  if (r.status === 'landed' || (ac && [PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN].includes(ac.phase))) return ['GELANDET', 'ok'];
-  if (ac && (ac.phase === PH.FINAL || ac.phase === PH.APPROACH)) return ['IM ANFLUG', 'go'];
+  if (r.status === 'diverted') return [T('UMGELEITET'), 'bad'];
+  if (r.status === 'cancelled') return [T('ANNULLIERT'), 'bad'];
+  if (ac && ac.phase === PH.STAND) return [T('AN POSITION'), 'ok'];
+  if (r.status === 'landed' || (ac && [PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN].includes(ac.phase))) return [T('GELANDET'), 'ok'];
+  if (ac && (ac.phase === PH.FINAL || ac.phase === PH.APPROACH)) return [T('IM ANFLUG'), 'go'];
   const eta = r.sta + Math.max(0, r.arrDelay || 0) * 60;
-  if ((r.arrDelay || 0) > 10) return [`ERWARTET ${fmtClock(eta)}`, 'bad'];
-  if (ac) return ['IM ANFLUG', 'go'];
-  return ['PLANMÄSSIG', ''];
+  if ((r.arrDelay || 0) > 10) return [T`ERWARTET ${fmtClock(eta)}`, 'bad'];
+  if (ac) return [T('IM ANFLUG'), 'go'];
+  return [T('PLANMÄSSIG'), ''];
 }
 
 export class Fids {
@@ -45,7 +46,7 @@ export class Fids {
     const el = document.createElement('div');
     el.id = 'fids';
     el.className = 'hidden';
-    el.innerHTML = `<div class="fd-box"><div class="fd-head"><div class="fd-tabs"><button data-fd="dep" class="on">🛫 Abflug <small>Departures</small></button><button data-fd="arr">🛬 Ankunft <small>Arrivals</small></button></div><div class="fd-clock"></div><button class="icon-btn" data-fd-close aria-label="Schließen">✕</button></div>
+    el.innerHTML = T`<div class="fd-box"><div class="fd-head"><div class="fd-tabs"><button data-fd="dep" class="on">🛫 Abflug <small>Departures</small></button><button data-fd="arr">🛬 Ankunft <small>Arrivals</small></button></div><div class="fd-clock"></div><button class="icon-btn" data-fd-close aria-label="Schließen">✕</button></div>
       <div class="fd-cols"><span>Zeit</span><span>Flug</span><span class="c">Nach</span><span>Pos.</span><span>Status</span></div><div class="fd-rows"></div></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
@@ -56,7 +57,7 @@ export class Fids {
       if (t) {
         this.tab = t.dataset.fd;
         for (const b of el.querySelectorAll('[data-fd]')) b.classList.toggle('on', b.dataset.fd === this.tab);
-        el.querySelector('.fd-cols .c').textContent = this.tab === 'dep' ? 'Nach' : 'Von';
+        el.querySelector('.fd-cols .c').textContent = this.tab === 'dep' ? T('Nach') : T('Von');
         this.prev = {};
         this.update(true);
       }
@@ -120,10 +121,10 @@ export class Fids {
     let h = '';
     for (const r of rows) {
       const col = (AIRLINES[r.al] || {}).color || '#94a3b8';
-      if (W === NARROW) r.st = r.st.replace('GATE GESCHLOSSEN', 'GATE ZU').replace('NEUE ZEIT', 'NEU').replace('ABGEFERTIGT', 'ABGEFERT.').replace('PLANMÄSSIG', 'PLANM.').replace('AN POSITION', 'AN POS.').replace('ERWARTET', 'ERW.');
+      if (W === NARROW) r.st = r.st.replace(T('GATE GESCHLOSSEN'), T('GATE ZU')).replace(T('NEUE ZEIT'), T('NEU')).replace(T('ABGEFERTIGT'), T('ABGEFERT.')).replace(T('PLANMÄSSIG'), T('PLANM.')).replace(T('AN POSITION'), T('AN POS.')).replace(T('ERWARTET'), T('ERW.'));
       h += `<div class="fd-row" data-fdac="${r.ac}"><b class="fd-al" style="background:${col}"></b>${cell(r.key, 'time', r.time, W.time)}${cell(r.key, 'flight', r.flight, W.flight)}${cell(r.key, 'city', r.city, W.city)}${cell(r.key, 'gate', r.gate, W.gate)}${cell(r.key, 'status', r.st, W.status, r.cls)}</div>`;
     }
-    if (!rows.length) h = '<div class="fd-empty">Keine Flüge in den nächsten Stunden.</div>';
+    if (!rows.length) h = T('<div class="fd-empty">Keine Flüge in den nächsten Stunden.</div>');
     this.rowsEl.innerHTML = h;
     if (flips && !force && s.settings.sound !== false) sfx.flap && sfx.flap(Math.min(flips, 6));
   }

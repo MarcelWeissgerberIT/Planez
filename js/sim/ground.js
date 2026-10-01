@@ -17,6 +17,7 @@ import { earn } from './economy.js';
 import { needsDeice } from './winter.js';
 import { hardLandingCheck } from './touchdown.js';
 import { staffBase } from './career.js';
+import { T } from '../i18n.js';
 
 export const BRIDGE_SPEED = 1 / 40; // pro Spielsekunde
 
@@ -49,7 +50,7 @@ export function assignStand(state, ac, standId, silent = false) {
   releaseReservation(state, ac);
   st.resv = ac.id;
   ac.stand = st.id;
-  if (!silent) log(state, 'gnd', `${ac.cs}: Parkposition ${st.id} zugewiesen.`);
+  if (!silent) log(state, 'gnd', T`${ac.cs}: Parkposition ${st.id} zugewiesen.`);
   return true;
 }
 export function releaseReservation(state, ac) {
@@ -60,7 +61,7 @@ export function assignStandAuto(state, ac) {
   const cands = state.stands.filter((s) => standFits(s, ac) && standFree(s)).sort((a, b) => standScore(a, ac) - standScore(b, ac));
   if (!cands.length) return false;
   const ok = assignStand(state, ac, cands[0].id, true);
-  if (ok && state.aiPlay && state.role === 'ground') aiNote(state, `Position ${cands[0].id} für ${ac.cs}`, ac);
+  if (ok && state.aiPlay && state.role === 'ground') aiNote(state, T`Position ${cands[0].id} für ${ac.cs}`, ac);
   return ok;
 }
 
@@ -135,7 +136,7 @@ export function onBlock(state, ac) {
     acdmOnBlock(state, ac);
     if (rot.landT && !ac.waitedStand && state.life) state.life.noStandWait = (state.life.noStandWait || 0) + 1;
   }
-  log(state, 'gnd', `${rot ? rot.arrNo : ac.cs} an Position ${st ? st.id : '?'} angekommen (Abflug als ${ac.cs}).`);
+  log(state, 'gnd', T`${rot ? rot.arrNo : ac.cs} an Position ${st ? st.id : '?'} angekommen (Abflug als ${ac.cs}).`);
   crewOnBlock(state, ac);
   nordoOnBlock(state, ac);
   ac.sid = null;
@@ -253,7 +254,7 @@ export function updateGround(state, dt) {
             task.readyT = state.time;
             task.veh = null;
             releaseVehicle(state, v, true);
-            log(state, 'gnd', `${ac.cs}: Tankwagen leer nach ${Math.round(task.delivered)} von ${Math.round(task.uplift)} t – nächster Tankwagen nötig.`);
+            log(state, 'gnd', T`${ac.cs}: Tankwagen leer nach ${Math.round(task.delivered)} von ${Math.round(task.uplift)} t – nächster Tankwagen nötig.`);
             crewEmpty(state, v, ac, task);
             continue;
           }
@@ -270,13 +271,13 @@ export function updateGround(state, dt) {
           const tv = task.veh ? state.vehicles.find((x) => x.id === task.veh) : null;
           crewDone(state, tv, ac, k, task);
           if (tv) releaseVehicle(state, tv, false);
-          if (k === 'board') log(state, 'gnd', `${ac.cs}: Boarding abgeschlossen.`);
+          if (k === 'board') log(state, 'gnd', T`${ac.cs}: Boarding abgeschlossen.`);
           if (k === 'deice') {
             state.life = state.life || {};
             state.life.deiced = (state.life.deiced || 0) + 1;
             scoreDeice(state, ac);
             earn(state, 'deice', { S: 1800, M: 3200, L: 7500 }[AC_TYPES[ac.type].size] || 3200);
-            log(state, 'gnd', `${ac.cs}: enteist – Holdover-Zeit läuft, zügig starten.`);
+            log(state, 'gnd', T`${ac.cs}: enteist – Holdover-Zeit läuft, zügig starten.`);
           }
         }
       }
@@ -291,7 +292,7 @@ export function updateGround(state, dt) {
       if (ac.req !== 'push') {
         setReq(state, ac, 'push');
         const self = AC_TYPES[ac.type].selfTaxi;
-        radio(state, ac.cs, `${greet(state, ac).replace(/^./, (c) => c.toUpperCase())}${tel(ac)}, ${self ? `parking ${ac.stand}, request start-up` : `stand ${ac.stand}, request pushback`}.`);
+        radio(state, ac.cs, `${greet(state, ac).replace(/^./, (c) => c.toUpperCase())}${tel(ac)}, ${self ? T`parking ${ac.stand}, request start-up` : `stand ${ac.stand}, request pushback`}.`);
       }
     }
   }
@@ -349,7 +350,7 @@ export function vehicleAvailable(state, v) {
 
 export function dispatch(state, ac, k, vehId = null) {
   const task = ac.ta && ac.ta.tasks[k];
-  if (!task || task.st !== 'ready' || !task.need) return { ok: false, msg: 'Aufgabe nicht bereit' };
+  if (!task || task.st !== 'ready' || !task.need) return { ok: false, msg: T('Aufgabe nicht bereit') };
   let v;
   if (vehId) v = state.vehicles.find((x) => x.id === vehId && vehicleAvailable(state, x));
   else {
@@ -360,7 +361,7 @@ export function dispatch(state, ac, k, vehId = null) {
   }
   if (!v) {
     const filling = task.need === 'fuel' && state.vehicles.some((x) => x.type === 'fuel' && (x.st === 'refill' || x.st === 'filling'));
-    return { ok: false, msg: filling ? 'Kein Tankwagen mit Ladung frei – Tankwagen werden am Tanklager befüllt' : `Kein freies Fahrzeug: ${VEH_TYPES[task.need].name}` };
+    return { ok: false, msg: filling ? T('Kein Tankwagen mit Ladung frei – Tankwagen werden am Tanklager befüllt') : T`Kein freies Fahrzeug: ${VEH_TYPES[task.need].name}` };
   }
   const sp = LY.servicePoint(k, ac);
   v.job = { ac: ac.id, k };

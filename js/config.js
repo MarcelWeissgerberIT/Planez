@@ -1,4 +1,5 @@
 // Spielkonstanten und Stammdaten
+import { T } from './i18n.js';
 export const TIME_SCALE = 15; // Spielsekunden pro Echtzeitsekunde bei 1x
 export const SPEEDS = [0, 1, 2, 5, 10, 20];
 // Echtzeit-Minuten pro Spieltag bei Tempo v (10× ≈ 10 Minuten)
@@ -53,58 +54,58 @@ export const AIRLINES = {
   LUM: { code: 'LUM', name: 'Lumen Air', tel: 'Lumen', color: '#84cc16', color2: '#312e81', types: ['A223', 'A320', 'B738'] },
   FJW: { code: 'FJW', name: 'Fjordwing', tel: 'Fjordwing', color: '#0f766e', color2: '#f8fafc', types: ['DH8D', 'CRJ9', 'E190'] },
   VIP: { code: 'VIP', name: 'Executive Charter', tel: 'Exec', color: '#111827', color2: '#d4af37', types: ['C68A'], special: true },
-  GOV: { code: 'GOV', name: 'Regierungsstaffel', tel: 'State', color: '#f8fafc', color2: '#1e3a8a', types: ['A333'], special: true },
+  GOV: { code: 'GOV', name: T('Regierungsstaffel'), tel: 'State', color: '#f8fafc', color2: '#1e3a8a', types: ['A333'], special: true },
   // Karriere: Privatflieger und Partner am kleinen Platz (Rufzeichen = Kennzeichen, z. B. D-EKLM)
-  GAV: { code: 'GAV', name: 'Privatflieger', tel: 'Private', color: '#1d4ed8', color2: '#ffffff', types: ['C172', 'PA28', 'DR40'], special: true, ga: true },
-  FSH: { code: 'FSH', name: 'Flugschule Himmelblau', tel: 'Himmelblau', color: '#0ea5e9', color2: '#ffffff', types: ['C172', 'C172', 'DR40'], special: true, ga: true, partner: 'school' },
-  SKD: { code: 'SKD', name: 'Fallschirmclub Freifall', tel: 'Freifall', color: '#f97316', color2: '#111827', types: ['PC12'], special: true, ga: true, partner: 'skydive' },
-  RFS: { code: 'RFS', name: 'Rundflug-Service Panorama', tel: 'Panorama', color: '#dc2626', color2: '#ffffff', types: ['C172', 'PA28'], special: true, ga: true, partner: 'scenic' },
-  ATX: { code: 'ATX', name: 'Alpenblick Lufttaxi', tel: 'Alpenblick', color: '#334155', color2: '#e2e8f0', types: ['PC12', 'BE20'], special: true, partner: 'taxi' },
+  GAV: { code: 'GAV', name: T('Privatflieger'), tel: 'Private', color: '#1d4ed8', color2: '#ffffff', types: ['C172', 'PA28', 'DR40'], special: true, ga: true },
+  FSH: { code: 'FSH', name: T('Flugschule Himmelblau'), tel: 'Himmelblau', color: '#0ea5e9', color2: '#ffffff', types: ['C172', 'C172', 'DR40'], special: true, ga: true, partner: 'school' },
+  SKD: { code: 'SKD', name: T('Fallschirmclub Freifall'), tel: 'Freifall', color: '#f97316', color2: '#111827', types: ['PC12'], special: true, ga: true, partner: 'skydive' },
+  RFS: { code: 'RFS', name: T('Rundflug-Service Panorama'), tel: 'Panorama', color: '#dc2626', color2: '#ffffff', types: ['C172', 'PA28'], special: true, ga: true, partner: 'scenic' },
+  ATX: { code: 'ATX', name: T('Alpenblick Lufttaxi'), tel: 'Alpenblick', color: '#334155', color2: '#e2e8f0', types: ['PC12', 'BE20'], special: true, partner: 'taxi' },
 };
 
 // Ziele: brg = Peilung vom Flughafen, cat = Distanzklasse
 export const CITIES = {
   PMI: { name: 'Palma', brg: 205, cat: 'mid' }, AYT: { name: 'Antalya', brg: 135, cat: 'mid' }, LHR: { name: 'London', brg: 285, cat: 'short' },
-  CDG: { name: 'Paris', brg: 260, cat: 'short' }, MAD: { name: 'Madrid', brg: 235, cat: 'mid' }, FCO: { name: 'Rom', brg: 170, cat: 'mid' },
-  VIE: { name: 'Wien', brg: 115, cat: 'short' }, ZRH: { name: 'Zürich', brg: 190, cat: 'short' }, CPH: { name: 'Kopenhagen', brg: 10, cat: 'short' },
+  CDG: { name: 'Paris', brg: 260, cat: 'short' }, MAD: { name: 'Madrid', brg: 235, cat: 'mid' }, FCO: { name: T('Rom'), brg: 170, cat: 'mid' },
+  VIE: { name: T('Wien'), brg: 115, cat: 'short' }, ZRH: { name: T('Zürich'), brg: 190, cat: 'short' }, CPH: { name: T('Kopenhagen'), brg: 10, cat: 'short' },
   ARN: { name: 'Stockholm', brg: 20, cat: 'short' }, OSL: { name: 'Oslo', brg: 355, cat: 'short' }, AMS: { name: 'Amsterdam', brg: 290, cat: 'short' },
-  BCN: { name: 'Barcelona', brg: 220, cat: 'mid' }, LIS: { name: 'Lissabon', brg: 245, cat: 'mid' }, ATH: { name: 'Athen', brg: 145, cat: 'mid' },
+  BCN: { name: 'Barcelona', brg: 220, cat: 'mid' }, LIS: { name: T('Lissabon'), brg: 245, cat: 'mid' }, ATH: { name: T('Athen'), brg: 145, cat: 'mid' },
   IST: { name: 'Istanbul', brg: 125, cat: 'mid' }, DXB: { name: 'Dubai', brg: 115, cat: 'long' }, JFK: { name: 'New York', brg: 295, cat: 'long' },
-  SIN: { name: 'Singapur', brg: 95, cat: 'long' }, HND: { name: 'Tokio', brg: 40, cat: 'long' }, ORD: { name: 'Chicago', brg: 310, cat: 'long' },
-  DOH: { name: 'Doha', brg: 120, cat: 'long' }, WAW: { name: 'Warschau', brg: 80, cat: 'short' }, PRG: { name: 'Prag', brg: 100, cat: 'short' },
-  BUD: { name: 'Budapest', brg: 120, cat: 'short' }, HER: { name: 'Heraklion', brg: 150, cat: 'mid' }, TFS: { name: 'Teneriffa', brg: 225, cat: 'mid' },
+  SIN: { name: T('Singapur'), brg: 95, cat: 'long' }, HND: { name: T('Tokio'), brg: 40, cat: 'long' }, ORD: { name: 'Chicago', brg: 310, cat: 'long' },
+  DOH: { name: 'Doha', brg: 120, cat: 'long' }, WAW: { name: T('Warschau'), brg: 80, cat: 'short' }, PRG: { name: T('Prag'), brg: 100, cat: 'short' },
+  BUD: { name: 'Budapest', brg: 120, cat: 'short' }, HER: { name: 'Heraklion', brg: 150, cat: 'mid' }, TFS: { name: T('Teneriffa'), brg: 225, cat: 'mid' },
   HRG: { name: 'Hurghada', brg: 140, cat: 'mid' }, RIX: { name: 'Riga', brg: 50, cat: 'short' }, HEL: { name: 'Helsinki', brg: 35, cat: 'short' },
-  DUB: { name: 'Dublin', brg: 285, cat: 'short' }, NCE: { name: 'Nizza', brg: 200, cat: 'short' }, OLB: { name: 'Olbia', brg: 190, cat: 'mid' },
-  LEJ: { name: 'Leipzig', brg: 85, cat: 'short' }, HKG: { name: 'Hongkong', brg: 70, cat: 'long' }, PVG: { name: 'Shanghai', brg: 60, cat: 'long' },
-  YYZ: { name: 'Toronto', brg: 300, cat: 'long' }, GVA: { name: 'Genf', brg: 205, cat: 'short' },
+  DUB: { name: 'Dublin', brg: 285, cat: 'short' }, NCE: { name: T('Nizza'), brg: 200, cat: 'short' }, OLB: { name: 'Olbia', brg: 190, cat: 'mid' },
+  LEJ: { name: 'Leipzig', brg: 85, cat: 'short' }, HKG: { name: T('Hongkong'), brg: 70, cat: 'long' }, PVG: { name: 'Shanghai', brg: 60, cat: 'long' },
+  YYZ: { name: 'Toronto', brg: 300, cat: 'long' }, GVA: { name: T('Genf'), brg: 205, cat: 'short' },
   // kleine Plätze in der Umgebung (Karriere: Privatflieger, Rundflüge)
   LND: { name: 'Lindenau', brg: 40, cat: 'ga' }, SEF: { name: 'Seefeld', brg: 160, cat: 'ga' }, BRH: { name: 'Bergheim', brg: 215, cat: 'ga' },
   KRD: { name: 'Kirchdorf', brg: 300, cat: 'ga' }, WBR: { name: 'Waldbrunn', brg: 95, cat: 'ga' }, HSL: { name: 'Hasselfeld', brg: 340, cat: 'ga' },
-  RND: { name: 'Rundflug', brg: 250, cat: 'local' }, JMP: { name: 'Absetzflug', brg: 180, cat: 'local' }, PLR: { name: 'Platzrunde', brg: 0, cat: 'local' },
+  RND: { name: T('Rundflug'), brg: 250, cat: 'local' }, JMP: { name: T('Absetzflug'), brg: 180, cat: 'local' }, PLR: { name: T('Platzrunde'), brg: 0, cat: 'local' },
 };
 
 // Bodenfahrzeuge
 export const VEH_TYPES = {
-  tug: { id: 'tug', name: 'Pushback-Schlepper', short: 'Schlepper', sprite: 'veh_tug', len: 0.42, price: 180000, upkeep: 140, speed: 0.2, color: '#facc15' },
-  baggage: { id: 'baggage', name: 'Gepäckzug', short: 'Gepäck', sprite: 'veh_baggage', len: 0.95, price: 90000, upkeep: 90, speed: 0.2, color: '#f59e0b' },
-  fuel: { id: 'fuel', name: 'Tankwagen', short: 'Tank', sprite: 'veh_fuel', len: 0.78, price: 220000, upkeep: 160, speed: 0.18, color: '#ef4444' },
-  catering: { id: 'catering', name: 'Catering-LKW', short: 'Catering', sprite: 'veh_catering', len: 0.62, price: 160000, upkeep: 110, speed: 0.19, color: '#e5e7eb' },
-  cleaning: { id: 'cleaning', name: 'Reinigungsteam', short: 'Reinigung', sprite: 'veh_cleaning', len: 0.36, price: 60000, upkeep: 60, speed: 0.22, color: '#22c55e' },
-  bus: { id: 'bus', name: 'Vorfeldbus', short: 'Bus', sprite: 'veh_bus', len: 0.8, price: 300000, upkeep: 150, speed: 0.19, color: '#3b82f6' },
-  deice: { id: 'deice', name: 'Enteisungsfahrzeug', short: 'Enteiser', sprite: 'veh_deice', len: 0.82, price: 380000, upkeep: 170, speed: 0.17, color: '#f97316' },
+  tug: { id: 'tug', name: T('Pushback-Schlepper'), short: T('Schlepper'), sprite: 'veh_tug', len: 0.42, price: 180000, upkeep: 140, speed: 0.2, color: '#facc15' },
+  baggage: { id: 'baggage', name: T('Gepäckzug'), short: T('Gepäck'), sprite: 'veh_baggage', len: 0.95, price: 90000, upkeep: 90, speed: 0.2, color: '#f59e0b' },
+  fuel: { id: 'fuel', name: T('Tankwagen'), short: T('Tank'), sprite: 'veh_fuel', len: 0.78, price: 220000, upkeep: 160, speed: 0.18, color: '#ef4444' },
+  catering: { id: 'catering', name: T('Catering-LKW'), short: T('Catering'), sprite: 'veh_catering', len: 0.62, price: 160000, upkeep: 110, speed: 0.19, color: '#e5e7eb' },
+  cleaning: { id: 'cleaning', name: T('Reinigungsteam'), short: T('Reinigung'), sprite: 'veh_cleaning', len: 0.36, price: 60000, upkeep: 60, speed: 0.22, color: '#22c55e' },
+  bus: { id: 'bus', name: T('Vorfeldbus'), short: T('Bus'), sprite: 'veh_bus', len: 0.8, price: 300000, upkeep: 150, speed: 0.19, color: '#3b82f6' },
+  deice: { id: 'deice', name: T('Enteisungsfahrzeug'), short: T('Enteiser'), sprite: 'veh_deice', len: 0.82, price: 380000, upkeep: 170, speed: 0.17, color: '#f97316' },
 };
 
 // Abfertigungs-Aufgaben (Basisdauer in Minuten für A320)
 export const TASKS = {
-  deboard: { name: 'Aussteigen', short: 'Aus', icon: '🚶', base: 8, pax: true },
-  unload: { name: 'Entladen', short: 'Ent', icon: '🧳', base: 10, veh: 'baggage' },
-  clean: { name: 'Reinigung', short: 'Rein', icon: '🧽', base: 11, veh: 'cleaning', pax: true },
-  cater: { name: 'Catering', short: 'Cat', icon: '🍱', base: 9, veh: 'catering', pax: true },
-  fuel: { name: 'Betankung', short: 'Tank', icon: '⛽', base: 12, veh: 'fuel' },
-  board: { name: 'Einsteigen', short: 'Ein', icon: '🎫', base: 16, pax: true },
-  load: { name: 'Beladen', short: 'Bel', icon: '📦', base: 11, veh: 'baggage' },
-  deice: { name: 'Enteisung', short: 'Eis', icon: '❄️', base: 7, veh: 'deice' },
-  push: { name: 'Pushback', short: 'Push', icon: '🚜', base: 0, veh: 'tug' },
+  deboard: { name: T('Aussteigen'), short: T('Aus'), icon: '🚶', base: 8, pax: true },
+  unload: { name: T('Entladen'), short: T('Ent'), icon: '🧳', base: 10, veh: 'baggage' },
+  clean: { name: T('Reinigung'), short: T('Rein'), icon: '🧽', base: 11, veh: 'cleaning', pax: true },
+  cater: { name: T('Catering'), short: T('Cat'), icon: '🍱', base: 9, veh: 'catering', pax: true },
+  fuel: { name: T('Betankung'), short: T('Tank'), icon: '⛽', base: 12, veh: 'fuel' },
+  board: { name: T('Einsteigen'), short: T('Ein'), icon: '🎫', base: 16, pax: true },
+  load: { name: T('Beladen'), short: T('Bel'), icon: '📦', base: 11, veh: 'baggage' },
+  deice: { name: T('Enteisung'), short: T('Eis'), icon: '❄️', base: 7, veh: 'deice' },
+  push: { name: T('Pushback'), short: T('Push'), icon: '🚜', base: 0, veh: 'tug' },
 };
 export const TASK_ORDER = ['deboard', 'unload', 'clean', 'cater', 'fuel', 'board', 'load', 'deice', 'push'];
 
@@ -125,17 +126,17 @@ export const FEE_LIMITS = { landing: [2, 20], pax: [4, 35], parking: [20, 250], 
 
 // Ausbau-Katalog
 export const UPGRADES = {
-  retail: { name: 'Shopping & Gastronomie', desc: 'Mehr Umsatz je Passagier (+30 % je Stufe).', max: 3, cost: [900000, 1600000, 2800000], cat: 'Terminal' },
-  security: { name: 'Sicherheitsspuren', desc: 'Kürzere Wartezeiten, zufriedenere Passagiere.', max: 3, cost: [600000, 1100000, 1800000], cat: 'Terminal' },
-  lounge: { name: 'Premium-Lounge', desc: 'Langstrecken-Airlines zufriedener, mehr Angebote.', max: 1, cost: [1400000], cat: 'Terminal' },
-  parking: { name: 'Parkhaus-Ausbau', desc: 'Parkerlöse +40 % je Stufe.', max: 2, cost: [1500000, 2400000], cat: 'Landseite' },
-  hotel: { name: 'Flughafen-Hotel', desc: 'Täglicher Zusatzerlös und mehr Ansehen.', max: 1, cost: [4200000], cat: 'Landseite' },
-  rwy2: { name: 'Parallelbahn Süd (09R/27L)', icon: '🛬', big: true, desc: 'Zweite Start- und Landebahn mit Parallelrollweg B: Landungen auf der Südbahn, Starts auf der Nordbahn – deutlich mehr Kapazität, Pistenarbeiten ohne Betriebsstopp.', more: 'Ankünfte kreuzen danach die Startbahn (Kreuzungsfreigabe durch den Tower). Laufende Kosten: +9.000 €/Tag.', max: 1, cost: [9500000], cat: 'Pisten' },
-  ils3: { name: 'ILS CAT III', desc: 'Landungen auch bei dichtem Nebel möglich.', max: 1, cost: [3000000], cat: 'Betrieb' },
-  rapidExit: { name: 'Schnellabrollwege', desc: 'Kürzere Pistenbelegung nach der Landung.', max: 1, cost: [2500000], cat: 'Betrieb' },
-  apronLights: { name: 'LED-Vorfeldbeleuchtung', desc: 'Nachts 15 % schnellere Abfertigung, weniger Stromkosten.', max: 1, cost: [700000], cat: 'Betrieb' },
-  solar: { name: 'Solarpark', icon: '☀️', desc: 'Photovoltaik südlich der Piste: Energiekosten −60 %, Stromverkauf ca. 9.000 €/Tag, Ansehen +4 („grüner Flughafen“).', max: 1, cost: [1200000], cat: 'Betrieb' },
-  rail: { name: 'Flughafen-Bahnhof', icon: '🚆', big: true, desc: 'S-Bahn-Anschluss direkt am Terminal: mehr Airline-Angebote (+20 %), Ansehen +5, Anteil an Fahrkarten ca. 7.000 €/Tag – dafür 15 % weniger Parkerlöse.', more: 'Züge fahren sichtbar ein und aus; weniger Autos auf der Landseite.', max: 1, cost: [5200000], cat: 'Landseite' },
+  retail: { name: T('Shopping & Gastronomie'), desc: T('Mehr Umsatz je Passagier (+30 % je Stufe).'), max: 3, cost: [900000, 1600000, 2800000], cat: 'Terminal' },
+  security: { name: T('Sicherheitsspuren'), desc: T('Kürzere Wartezeiten, zufriedenere Passagiere.'), max: 3, cost: [600000, 1100000, 1800000], cat: 'Terminal' },
+  lounge: { name: T('Premium-Lounge'), desc: T('Langstrecken-Airlines zufriedener, mehr Angebote.'), max: 1, cost: [1400000], cat: 'Terminal' },
+  parking: { name: T('Parkhaus-Ausbau'), desc: T('Parkerlöse +40 % je Stufe.'), max: 2, cost: [1500000, 2400000], cat: 'Landseite' },
+  hotel: { name: T('Flughafen-Hotel'), desc: T('Täglicher Zusatzerlös und mehr Ansehen.'), max: 1, cost: [4200000], cat: 'Landseite' },
+  rwy2: { name: T('Parallelbahn Süd (09R/27L)'), icon: '🛬', big: true, desc: T('Zweite Start- und Landebahn mit Parallelrollweg B: Landungen auf der Südbahn, Starts auf der Nordbahn – deutlich mehr Kapazität, Pistenarbeiten ohne Betriebsstopp.'), more: T('Ankünfte kreuzen danach die Startbahn (Kreuzungsfreigabe durch den Tower). Laufende Kosten: +9.000 €/Tag.'), max: 1, cost: [9500000], cat: 'Pisten' },
+  ils3: { name: 'ILS CAT III', desc: T('Landungen auch bei dichtem Nebel möglich.'), max: 1, cost: [3000000], cat: 'Betrieb' },
+  rapidExit: { name: T('Schnellabrollwege'), desc: T('Kürzere Pistenbelegung nach der Landung.'), max: 1, cost: [2500000], cat: 'Betrieb' },
+  apronLights: { name: T('LED-Vorfeldbeleuchtung'), desc: T('Nachts 15 % schnellere Abfertigung, weniger Stromkosten.'), max: 1, cost: [700000], cat: 'Betrieb' },
+  solar: { name: T('Solarpark'), icon: '☀️', desc: T('Photovoltaik südlich der Piste: Energiekosten −60 %, Stromverkauf ca. 9.000 €/Tag, Ansehen +4 („grüner Flughafen“).'), max: 1, cost: [1200000], cat: 'Betrieb' },
+  rail: { name: T('Flughafen-Bahnhof'), icon: '🚆', big: true, desc: T('S-Bahn-Anschluss direkt am Terminal: mehr Airline-Angebote (+20 %), Ansehen +5, Anteil an Fahrkarten ca. 7.000 €/Tag – dafür 15 % weniger Parkerlöse.'), more: T('Züge fahren sichtbar ein und aus; weniger Autos auf der Landseite.'), max: 1, cost: [5200000], cat: 'Landseite' },
 };
 
 export const STAND_COSTS = { contactM: 1800000, contactL: 2600000, remote: 700000, upgradeL: 900000 };
@@ -143,4 +144,6 @@ export const MARKETING = { cost: 350000, days: 5 };
 
 // Anzeige: Typkürzel und Typname (fiktiv)
 export const typeCode = (t) => (AC_TYPES[t] && AC_TYPES[t].code) || t;
+// „Frachter“ im Typnamen in die Spielsprache (Halvard H-48F Freighter)
+for (const t of Object.values(AC_TYPES)) t.name = t.name.replace('Frachter', T('Frachter'));
 export const typeName = (t) => (AC_TYPES[t] && AC_TYPES[t].name) || t;

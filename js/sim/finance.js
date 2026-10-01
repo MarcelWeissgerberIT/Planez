@@ -3,6 +3,7 @@ import { clamp, hourOf, fmtMoney } from '../util.js';
 import { log, notify } from './messages.js';
 import { nextId } from './schedule.js';
 import { isCareer, stageOf, LOAN_CAP } from './career.js';
+import { T, DEC } from '../i18n.js';
 
 export const LOAN_DAYS = 30;
 export const NIGHT = { from: 23, to: 5 };
@@ -24,26 +25,26 @@ export function annuity(amount, r, n = LOAN_DAYS) {
 }
 
 export function takeLoan(state, amount) {
-  if (amount > loanLimit(state)) return notify(state, 'Kreditrahmen überschritten', 'warn'), false;
+  if (amount > loanLimit(state)) return notify(state, T('Kreditrahmen überschritten'), 'warn'), false;
   const r = loanRate(state);
   const l = { id: nextId(state, 'l'), amount, rest: amount, rate: r, days: LOAN_DAYS, daily: annuity(amount, r) };
   loans(state).push(l);
   state.cash += amount;
-  log(state, 'mgr', `Kredit aufgenommen: ${fmtMoney(amount)} zu ${(r * 100).toFixed(2).replace('.', ',')} % pro Tag, Rate ${fmtMoney(l.daily)}/Tag über ${LOAN_DAYS} Tage.`);
-  notify(state, `🏦 Kredit über ${fmtMoney(amount)} ausgezahlt`, 'good');
+  log(state, 'mgr', T`Kredit aufgenommen: ${fmtMoney(amount)} zu ${(r * 100).toFixed(2).replace('.', DEC)} % pro Tag, Rate ${fmtMoney(l.daily)}/Tag über ${LOAN_DAYS} Tage.`);
+  notify(state, T`🏦 Kredit über ${fmtMoney(amount)} ausgezahlt`, 'good');
   return true;
 }
 
 export function repayLoan(state, id) {
   const l = loans(state).find((x) => x.id === id);
   if (!l) return false;
-  if (state.cash < l.rest) return notify(state, 'Nicht genug Geld für die Sondertilgung', 'bad'), false;
+  if (state.cash < l.rest) return notify(state, T('Nicht genug Geld für die Sondertilgung'), 'bad'), false;
   state.cash -= l.rest;
   state.ledger.repay = (state.ledger.repay || 0) + l.rest;
   state.loans = loans(state).filter((x) => x !== l);
   state.life = state.life || {};
   state.life.loansRepaid = (state.life.loansRepaid || 0) + 1;
-  log(state, 'mgr', `Kredit vorzeitig getilgt (${fmtMoney(l.rest)}).`);
+  log(state, 'mgr', T`Kredit vorzeitig getilgt (${fmtMoney(l.rest)}).`);
   return true;
 }
 
@@ -84,7 +85,7 @@ export function onNightMovement(state, ac, earn, spend) {
   if (td.complaints >= 40 && !td.protest) {
     td.protest = true;
     state.reputation = clamp(state.reputation - 3, 0, 100);
-    notify(state, '📢 Bürgerinitiative protestiert gegen Nachtfluglärm – Ansehen sinkt', 'bad');
-    log(state, 'mgr', 'Zahlreiche Lärmbeschwerden: Bürgerinitiative fordert ein Nachtflugverbot.');
+    notify(state, T('📢 Bürgerinitiative protestiert gegen Nachtfluglärm – Ansehen sinkt'), 'bad');
+    log(state, 'mgr', T('Zahlreiche Lärmbeschwerden: Bürgerinitiative fordert ein Nachtflugverbot.'));
   }
 }

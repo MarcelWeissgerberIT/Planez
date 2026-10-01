@@ -14,8 +14,9 @@ import { acdmLine } from './tower.js';
 import { estimateReady } from '../sim/acdm.js';
 import { TASK_ORDER as ORDER } from '../config.js';
 import { fuelState, FUEL, pending } from '../sim/fuel.js';
+import { T } from '../i18n.js';
 
-const KIND_DE = { contact: 'Gebäude', remote: 'Vorfeld', cargo: 'Fracht' };
+const KIND_DE = { contact: T('Gebäude'), remote: T('Vorfeld'), cargo: T('Fracht') };
 
 export function taskChips(state, ac, interactive = true) {
   if (!ac.ta) return '';
@@ -29,10 +30,10 @@ export function taskChips(state, ac, interactive = true) {
       const isAuto = auto || (t.need && state.settings.vehAuto[t.need]) || !t.need;
       if (st === 'active' && k !== 'push') lbl = `${Math.round(t.prog * 100)}%`;
       if (k === 'fuel' && t.uplift && (st === 'active' || t.delivered > 0.5) && st !== 'done') lbl = `${Math.round(t.delivered)}/${Math.round(t.uplift)} t`;
-      if (st === 'active' && k === 'push') lbl = 'bereit';
-      if (st === 'assigned') lbl = 'unterwegs';
-      if (st === 'ready' && !t.need) lbl = 'Brücke';
-      const title = `${def.name}${t.need ? ' · ' + VEH_TYPES[t.need].name : ' · Fluggastbrücke'}${k === 'fuel' && t.uplift ? ` · ${Math.round(t.uplift)} t Kerosin` : ''}`;
+      if (st === 'active' && k === 'push') lbl = T('bereit');
+      if (st === 'assigned') lbl = T('unterwegs');
+      if (st === 'ready' && !t.need) lbl = T('Brücke');
+      const title = `${def.name}${t.need ? ' · ' + VEH_TYPES[t.need].name : T(' · Fluggastbrücke')}${k === 'fuel' && t.uplift ? T` · ${Math.round(t.uplift)} t Kerosin` : ''}`;
       const clickable = interactive && st === 'ready' && t.need && (!isAuto || state.aiPlay); // bei KI-Pilot darf man selbst eingreifen
       return `<div class="task ${st}${isAuto ? ' auto' : ''}" title="${title}" ${clickable ? `data-disp="${k}" data-ac="${ac.id}"` : ''}><span class="ti">${icon(TASK_ICO[k] || 'tug')}</span><span class="tl">${lbl}</span>${st === 'active' && k !== 'push' ? `<i class="pb" style="width:${Math.round(t.prog * 100)}%"></i>` : ''}</div>`;
     })
@@ -41,14 +42,14 @@ export function taskChips(state, ac, interactive = true) {
 
 export function standOptions(state, ac) {
   const opts = state.stands.filter((s) => standFits(s, ac) && (standFree(s) || s.id === ac.stand));
-  return `<option value="">– Position –</option>` + opts.map((s) => `<option value="${s.id}" ${s.id === ac.stand ? 'selected' : ''}>P${s.id} · ${KIND_DE[s.kind]} ${s.size}</option>`).join('');
+  return T`<option value="">– Position –</option>` + opts.map((s) => `<option value="${s.id}" ${s.id === ac.stand ? 'selected' : ''}>P${s.id} · ${KIND_DE[s.kind]} ${s.size}</option>`).join('');
 }
 
 export class GroundPanel {
   constructor(root, game) {
     this.root = root;
     this.game = game;
-    root.innerHTML = `
+    root.innerHTML = T`
       <div class="p-head">
         <div class="p-title">${icon('vest')} Vorfeld-Leitstand <small id="gp-eff"></small></div>
       </div>
@@ -100,7 +101,7 @@ export class GroundPanel {
       }
     }
     if (n) sfx.click();
-    toast(n ? `⚡ ${n} Fahrzeug${n > 1 ? 'e' : ''} losgeschickt${miss ? ` · ${miss} Aufgabe${miss > 1 ? 'n warten' : ' wartet'} auf freie Fahrzeuge` : ''}` : miss ? `Keine freien Fahrzeuge für ${miss} Aufgabe${miss > 1 ? 'n' : ''}` : 'Nichts zu tun', n ? 'good' : 'info', 2600);
+    toast(n ? (n > 1 ? T`⚡ ${n} Fahrzeuge losgeschickt` : T`⚡ ${n} Fahrzeug losgeschickt`) + (miss ? (miss > 1 ? T` · ${miss} Aufgaben warten auf freie Fahrzeuge` : T` · ${miss} Aufgabe wartet auf freie Fahrzeuge`) : '') : miss ? (miss > 1 ? T`Keine freien Fahrzeuge für ${miss} Aufgaben` : T`Keine freien Fahrzeuge für ${miss} Aufgabe`) : T('Nichts zu tun'), n ? 'good' : 'info', 2600);
   }
 
   // Puffer bis TOBT (Sekunden, negativ = wird zu spät)
@@ -164,19 +165,19 @@ export class GroundPanel {
       releaseReservation(s, ac);
       return;
     }
-    if (!assignStand(s, ac, Number(sel.value))) toast('Position nicht verfügbar', 'warn');
+    if (!assignStand(s, ac, Number(sel.value))) toast(T('Position nicht verfügbar'), 'warn');
     else sfx.click();
   }
 
   update(state) {
     const eff = efficiency(state);
-    setHTML(this.el.eff, `Personal ${state.staff} · Effizienz ${Math.round(eff * 100)}%`);
+    setHTML(this.el.eff, T`Personal ${state.staff} · Effizienz ${Math.round(eff * 100)}%`);
     this.el.sauto.classList.toggle('on', !!state.settings.standAuto);
     let alert = '';
-    if (state.weather.kind === 'storm') alert += `<div class="card" style="border-color:var(--bad)">⛈️ Gewitter: Vorfeld gesperrt, Abfertigung pausiert.</div>`;
-    if (state.strikeUntil > state.time) alert += `<div class="card" style="border-color:var(--warn)">✊ Warnstreik bis ${fmtClock(state.strikeUntil)} – weniger Personal.</div>`;
+    if (state.weather.kind === 'storm') alert += T`<div class="card" style="border-color:var(--bad)">⛈️ Gewitter: Vorfeld gesperrt, Abfertigung pausiert.</div>`;
+    if (state.strikeUntil > state.time) alert += T`<div class="card" style="border-color:var(--warn)">✊ Warnstreik bis ${fmtClock(state.strikeUntil)} – weniger Personal.</div>`;
     const fu = fuelState(state);
-    if (fu.stock < FUEL.cap * 0.12) alert += `<div class="card" style="border-color:var(--bad)">⛽ Tanklager fast leer (${Math.round(fu.stock)} t)${fu.orders.length ? ` – Lieferung ${fmtClock(Math.min(...fu.orders.map((o) => o.eta)))}` : ' – der Manager muss Kerosin bestellen'}. Tankwagen können kaum nachfüllen.</div>`;
+    if (fu.stock < FUEL.cap * 0.12) alert += T`<div class="card" style="border-color:var(--bad)">⛽ Tanklager fast leer (${Math.round(fu.stock)} t)${fu.orders.length ? T` – Lieferung ${fmtClock(Math.min(...fu.orders.map((o) => o.eta)))}` : T(' – der Manager muss Kerosin bestellen')}. Tankwagen können kaum nachfüllen.</div>`;
     setHTML(this.el.alert, alert);
 
     // Ankünfte
@@ -192,12 +193,12 @@ export class GroundPanel {
         cls: `inb-row${need ? ' need' : ''}`,
         parts: {
           'inb-t': `<span class="cs" data-sel="${a.id}">${esc(a.cs)}${a.protocol ? ' 🎖️' : ''}</span> <small style="color:var(--muted)">${typeCode(a.type)} · ${AC_TYPES[a.type].size}</small>${flagHtml(a)}`,
-          'inb-e': `<span class="eta">${need ? '⚠ wartet' : PHASE_DE[a.phase].split(' ')[0]} · ${eta}</span>`,
+          'inb-e': `<span class="eta">${need ? T('⚠ wartet') : PHASE_DE[a.phase].split(' ')[0]} · ${eta}</span>`,
           'inb-s': locked ? `<b>P${a.stand}</b>` : `<select data-assign="${a.id}">${standOptions(state, a)}</select>`,
         },
       };
     });
-    if (!inb.length && !this.el.inb.querySelector('.empty')) this.el.inb.innerHTML = '<div class="empty">Keine Ankünfte unterwegs.</div>';
+    if (!inb.length && !this.el.inb.querySelector('.empty')) this.el.inb.innerHTML = T('<div class="empty">Keine Ankünfte unterwegs.</div>');
     setHTML(this.root.querySelector('#gp-c-inb'), String(inb.length));
 
     // Turnaround-Tafel
@@ -219,7 +220,7 @@ export class GroundPanel {
       return {
         cls: `stand-row${sel ? ' sel' : ''}${left < 0 ? ' late' : ''}`,
         parts: {
-          'sr-head': `<span class="sr-id">P${st ? st.id : '?'}</span><span class="sr-ac" data-sel="${a.id}">${esc(a.cs)}${a.protocol ? ' <span title="Staatsbesuch – pünktlich abfertigen">🎖️</span>' : ''}${flagHtml(a)} <small>${typeCode(a.type)} → ${CITIES[rot?.city]?.name || ''} · <span class="sr-kind">${st ? KIND_DE[st.kind] : ''}</span></small></span><span class="sr-std ${cls}">STD ${rot ? fmtClock(rot.std) : ''} ${left >= 0 ? `(${left}′)` : `(+${-left}′)`}</span>${acdmLine(state, a)}`,
+          'sr-head': `<span class="sr-id">P${st ? st.id : '?'}</span><span class="sr-ac" data-sel="${a.id}">${esc(a.cs)}${a.protocol ? T(' <span title="Staatsbesuch – pünktlich abfertigen">🎖️</span>') : ''}${flagHtml(a)} <small>${typeCode(a.type)} → ${CITIES[rot?.city]?.name || ''} · <span class="sr-kind">${st ? KIND_DE[st.kind] : ''}</span></small></span><span class="sr-std ${cls}">STD ${rot ? fmtClock(rot.std) : ''} ${left >= 0 ? `(${left}′)` : `(+${-left}′)`}</span>${acdmLine(state, a)}`,
           'sr-time': (() => {
             if (!rot) return '';
             const t0 = rot.onBlock || state.time, t1 = rot.tobt || rot.std;
@@ -228,13 +229,13 @@ export class GroundPanel {
             const el = clamp((state.time - t0) / span, 0, 1), rd = clamp((ready - t0) / span, 0, 1.15);
             const sl = Math.round(slack.get(a.id) / 60);
             const c = sl < 0 ? 'bad' : sl < 5 ? 'warn' : 'good';
-            return `<div class="sr-bar"><i style="width:${el * 100}%"></i><b class="${c}" style="left:${Math.min(100, rd * 100)}%"></b></div><span class="sr-slack ${c}">${a.phase === PH.PUSH ? 'Pushback' : sl >= 0 ? `Puffer ${sl}′` : `${-sl}′ zu spät`}</span>`;
+            return `<div class="sr-bar"><i style="width:${el * 100}%"></i><b class="${c}" style="left:${Math.min(100, rd * 100)}%"></b></div><span class="sr-slack ${c}">${a.phase === PH.PUSH ? T('Pushback') : sl >= 0 ? T`Puffer ${sl}′` : T`${-sl}′ zu spät`}</span>`;
           })(),
           tasks: taskChips(state, a),
         },
       };
     });
-    if (!at.length && !this.el.ta.querySelector('.empty')) this.el.ta.innerHTML = '<div class="empty">Keine Flugzeuge in Abfertigung.</div>';
+    if (!at.length && !this.el.ta.querySelector('.empty')) this.el.ta.innerHTML = T('<div class="empty">Keine Flugzeuge in Abfertigung.</div>');
     setHTML(this.root.querySelector('#gp-c-ta'), String(at.length));
 
     // Fuhrpark
@@ -244,9 +245,9 @@ export class GroundPanel {
     const fu2 = fuelState(state);
     const lvl = fu2.stock / FUEL.cap;
     const trucks = state.vehicles.filter((v) => v.type === 'fuel');
-    const TST = { idle: 'bereit', drive: 'fährt zum Flugzeug', work: 'betankt', return: 'zurück', refill: 'fährt zum Tanklager', filling: 'wird befüllt', attached: '' };
-    setHTML(this.el.fuel, `<div class="card"><div class="row"><span class="t">🛢️ Tanklager ${Math.round(fu2.stock)} t</span><span style="font-size:12px;color:var(--muted)">${Math.round(lvl * 100)} % von ${FUEL.cap} t${pending(state) ? ` · +${Math.round(pending(state))} t bestellt` : ''}</span></div><div class="bar"><i style="width:${lvl * 100}%;background:${lvl < 0.15 ? 'var(--bad)' : lvl < 0.3 ? 'var(--warn)' : 'var(--good)'}"></i></div>
-      <div class="trucks">${trucks.map((v) => `<div class="truck" data-vsel="${v.id}" title="${esc(v.name)}"><span>${esc(v.name)}</span><span class="tl"><i style="width:${((v.load || 0) / FUEL.truckCap) * 100}%"></i></span><small>${Math.round(v.load || 0)} t · ${v.brokenUntil > state.time ? 'defekt' : TST[v.st] || v.st}</small></div>`).join('')}</div></div>`);
+    const TST = { idle: T('bereit'), drive: T('fährt zum Flugzeug'), work: T('betankt'), return: T('zurück'), refill: T('fährt zum Tanklager'), filling: T('wird befüllt'), attached: '' };
+    setHTML(this.el.fuel, T`<div class="card"><div class="row"><span class="t">🛢️ Tanklager ${Math.round(fu2.stock)} t</span><span style="font-size:12px;color:var(--muted)">${Math.round(lvl * 100)} % von ${FUEL.cap} t${pending(state) ? T` · +${Math.round(pending(state))} t bestellt` : ''}</span></div><div class="bar"><i style="width:${lvl * 100}%;background:${lvl < 0.15 ? 'var(--bad)' : lvl < 0.3 ? 'var(--warn)' : 'var(--good)'}"></i></div>
+      <div class="trucks">${trucks.map((v) => `<div class="truck" data-vsel="${v.id}" title="${esc(v.name)}"><span>${esc(v.name)}</span><span class="tl"><i style="width:${((v.load || 0) / FUEL.truckCap) * 100}%"></i></span><small>${Math.round(v.load || 0)} t · ${v.brokenUntil > state.time ? T('defekt') : TST[v.st] || v.st}</small></div>`).join('')}</div></div>`);
     syncList(this.el.fleet, fleetItems, (x) => x.k, (x) => {
       const vt = VEH_TYPES[x.k];
       const auto = state.auto.ground || state.settings.vehAuto[x.k];
@@ -254,7 +255,7 @@ export class GroundPanel {
       const dots = vs.map((v) => `<i class="dot ${v.brokenUntil > state.time ? 'broken' : v.st === 'idle' || v.st === 'return' ? '' : 'busy'}" title="${v.name}"></i>`).join('');
       return {
         cls: 'fleet-item',
-        html: `<span class="fn">${vt.name}</span><button class="switch ${auto ? 'on' : ''}" data-vauto="${x.k}" title="Automatisch disponieren"></button><span class="fc">${x.total - x.busy - x.broken} frei / ${x.total}</span><span></span><div class="dots">${dots}</div>`,
+        html: T`<span class="fn">${vt.name}</span><button class="switch ${auto ? 'on' : ''}" data-vauto="${x.k}" title="Automatisch disponieren"></button><span class="fc">${x.total - x.busy - x.broken} frei / ${x.total}</span><span></span><div class="dots">${dots}</div>`,
       };
     });
   }

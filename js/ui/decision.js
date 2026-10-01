@@ -4,6 +4,7 @@ import { esc } from '../util.js';
 import { setHTML } from './dom.js';
 import { sfx } from '../audio.js';
 import { icon } from './icons.js';
+import { T } from '../i18n.js';
 // Kartensymbole als eigene Icons (unbekannte bleiben, wie sie sind)
 const DEC_ICO = { '🧳': 'unload', '🩺': 'medic', '🤝': 'handshake', '🛸': 'drone', '🛢️': 'barrel', '🚶': 'deboard', '🔧': 'wrench', '🔦': 'laser', '🔁': 'transfer', '📢': 'megaphone', '📋': 'clipboard', '🐦': 'bird', '🏬': 'shop', '🏢': 'office', '🎸': 'guitar', '🎤': 'mic', '🎈': 'balloon', '🍱': 'cater', '🌡️': 'thermo', '🌐': 'globe', '🅿️': 'parking', '✊': 'fist', '⛽': 'fuel', '⛔': 'noentry', '⚡': 'bolt' };
 
@@ -45,7 +46,7 @@ export class DecisionCard {
     const mins = Math.ceil(left / 60);
     setHTML(
       this.el,
-      `<div class="dc-head"><span class="dc-i">${DEC_ICO[c.icon] ? icon(DEC_ICO[c.icon]) : c.icon}</span><div><div class="dc-k">Entscheidung</div><div class="dc-t">${esc(c.title)}</div></div></div>
+      T`<div class="dc-head"><span class="dc-i">${DEC_ICO[c.icon] ? icon(DEC_ICO[c.icon]) : c.icon}</span><div><div class="dc-k">Entscheidung</div><div class="dc-t">${esc(c.title)}</div></div></div>
       <p class="dc-x">${esc(c.text)}</p>
       <div class="dc-opts">${c.options.map((o, i) => `<button class="dc-o${i === 0 ? ' def' : ''}" data-opt="${i}"><b>${esc(o.label)}</b><small>${esc(o.detail || '')}</small></button>`).join('')}</div>
       <div class="dc-time"><i style="width:${(frac * 100).toFixed(1)}%"></i><span>${mins >= 60 ? Math.round(mins / 60) + ' h' : mins + ' min'} Spielzeit · sonst „${esc(c.options[0].label)}“</span></div>`

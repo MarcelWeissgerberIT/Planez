@@ -4,6 +4,7 @@ import { radio } from './messages.js';
 import { atis } from './aircraft.js';
 import { temperature } from './winter.js';
 import { rwyName, hasRwy2, segregated } from './runway.js';
+import { T } from '../i18n.js';
 
 // Luftdruck (QNH): langsame Schwankung, Tief bei Gewitter, Hoch bei Nebel
 export function qnh(state) {
@@ -16,14 +17,14 @@ const VIS = { clear: 'visibility more than 10 kilometers', clouds: 'visibility 1
 export function atisText(state) {
   const h = Math.floor((state.time % 86400) / 3600), m = Math.floor((state.time % 3600) / 60);
   const w = state.wind;
-  const rwy = hasRwy2(state) && segregated(state) ? `runways ${rwyName(state, 'S')} for landing and ${rwyName(state, 'N')} for departure` : `runway ${rwyName(state, 'N')} in use`;
-  const vis = state.weather.kind === 'fog' ? `runway visual range ${state.weather.rvr ?? 600} meters, low visibility procedures in force` : VIS[state.weather.kind] || '';
+  const rwy = hasRwy2(state) && segregated(state) ? `runways ${rwyName(state, 'S')} for landing and ${rwyName(state, 'N')} for departure` : T`runway ${rwyName(state, 'N')} in use`;
+  const vis = state.weather.kind === 'fog' ? T`runway visual range ${state.weather.rvr ?? 600} meters, low visibility procedures in force` : VIS[state.weather.kind] || '';
   // Hinweise: Platzrunden-Verkehr, Vogelschlag-Gefahr, Pistenzustand bei Schnee
   const notes = [];
-  if (state.vfr && state.vfr.p) notes.push('caution, VFR traffic in the circuit north of the runway');
-  if (state.birdRisk && state.time < state.birdRisk) notes.push('caution, bird activity in the vicinity of the airport');
+  if (state.vfr && state.vfr.p) notes.push(T('caution, VFR traffic in the circuit north of the runway'));
+  if (state.birdRisk && state.time < state.birdRisk) notes.push(T('caution, bird activity in the vicinity of the airport'));
   if (state.rwySnow && state.rwySnow.N > 0.15) notes.push('runway contaminated with snow');
-  return `${AIRPORT.name.split(' ')[0]} information ${atis(state)}, time ${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}, ${rwy}, wind ${String(Math.round(w.dir / 10) * 10).padStart(3, '0')} degrees ${Math.round(w.spd)} knots, ${vis}, temperature ${Math.round(temperature(state))}, QNH ${qnh(state)}${notes.length ? `, ${notes.join(', ')}` : ''}. Advise on initial contact you have information ${atis(state)}.`;
+  return T`${AIRPORT.name.split(' ')[0]} information ${atis(state)}, time ${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}, ${rwy}, wind ${String(Math.round(w.dir / 10) * 10).padStart(3, '0')} degrees ${Math.round(w.spd)} knots, ${vis}, temperature ${Math.round(temperature(state))}, QNH ${qnh(state)}${notes.length ? `, ${notes.join(', ')}` : ''}. Advise on initial contact you have information ${atis(state)}.`;
 }
 
 export function updateAtis(state) {

@@ -3,6 +3,7 @@ import { AC_TYPES, AIRLINES, CITIES, typeCode } from '../config.js';
 import { rand, randRange, randInt, pick, pickWeighted, clamp } from '../util.js';
 import { log, notify } from './messages.js';
 import { isCareer, stageOf, typeAllowed, careerOffer, partnerOf, generateCareerDay, generatePartnerDay, PARTNERS, makeReg } from './career.js';
+import { T } from '../i18n.js';
 
 export function nextId(state, prefix = '') {
   state.nextId = (state.nextId || 1) + 1;
@@ -138,11 +139,11 @@ export function dailyContracts(state) {
       const p = clamp(c.sat / 100 + (state.reputation - 60) / 200 + ((state.rival && state.rival.renew) || 0), 0.1, 0.97);
       if (rand(state) < p) {
         c.days = randInt(state, 20, 45);
-        log(state, 'mgr', `${al.name} verlängert den Vertrag ${c.city} (${typeCode(c.type)}) um ${c.days} Tage.`);
-        notify(state, `✍️ ${al.name} verlängert: ${CITIES[c.city].name}`, 'good');
+        log(state, 'mgr', T`${al.name} verlängert den Vertrag ${c.city} (${typeCode(c.type)}) um ${c.days} Tage.`);
+        notify(state, T`✍️ ${al.name} verlängert: ${CITIES[c.city].name}`, 'good');
       } else {
-        log(state, 'mgr', `${al.name} beendet die Verbindung nach ${CITIES[c.city].name}.`);
-        notify(state, `📉 ${al.name} beendet ${CITIES[c.city].name}`, 'bad');
+        log(state, 'mgr', T`${al.name} beendet die Verbindung nach ${CITIES[c.city].name}.`);
+        notify(state, T`📉 ${al.name} beendet ${CITIES[c.city].name}`, 'bad');
       }
     }
   }
@@ -178,8 +179,8 @@ function processHub(state) {
   state.hub = { airline: p.airline, since: state.time, strikes: 0, min: 85, mult: p.mult, n };
   state.life = state.life || {};
   state.life.hub = (state.life.hub || 0) + 1;
-  log(state, 'mgr', `🌐 Basis-Vertrag mit ${al.name}: ${n} neue Verbindungen ab übermorgen, Entgelte −${Math.round((1 - p.mult) * 100)} %, Zusage ≥ 85 % Pünktlichkeit je Woche.`);
-  notify(state, `🌐 ${al.name} eröffnet eine Basis – ${n} neue Verbindungen`, 'good');
+  log(state, 'mgr', T`🌐 Basis-Vertrag mit ${al.name}: ${n} neue Verbindungen ab übermorgen, Entgelte −${Math.round((1 - p.mult) * 100)} %, Zusage ≥ 85 % Pünktlichkeit je Woche.`);
+  notify(state, T`🌐 ${al.name} eröffnet eine Basis – ${n} neue Verbindungen`, 'good');
 }
 
 export function maybeOffer(state, dt) {
@@ -199,8 +200,8 @@ export function maybeOffer(state, dt) {
     if (co && co !== 'airline') {
       const P = PARTNERS[co.partner];
       state.offers.push({ id: nextId(state, 'o'), airline: co.airline, type: co.type, city: co.city, perDay: co.perDay, days: co.days, partner: co.partner, rent: co.rent, estRev: (P.rent + P.perFlight * co.perDay) * 1, interest: randRange(state, 0.4, 0.9), expires: state.time + randRange(state, 14, 30) * 3600 });
-      notify(state, `📨 Anfrage: ${AIRLINES[co.airline].name} möchte sich bei euch ansiedeln`, 'info');
-      log(state, 'mgr', `Anfrage: ${AIRLINES[co.airline].name} (${P.name}) – ${co.perDay} Flüge täglich, Pacht ${P.rent} €/Tag plus ${P.perFlight} € je Flug.`);
+      notify(state, T`📨 Anfrage: ${AIRLINES[co.airline].name} möchte sich bei euch ansiedeln`, 'info');
+      log(state, 'mgr', T`Anfrage: ${AIRLINES[co.airline].name} (${P.name}) – ${co.perDay} Flüge täglich, Pacht ${P.rent} €/Tag plus ${P.perFlight} € je Flug.`);
       return;
     }
     if (!co) return;
@@ -232,8 +233,8 @@ export function maybeOffer(state, dt) {
     interest: randRange(state, 0.25, 0.95), // wie dringend die Airline den Platz will (für Verhandlungen)
     expires: state.time + randRange(state, 8, 16) * 3600,
   });
-  notify(state, `📨 Neues Angebot: ${al.name} → ${CITIES[city].name} (${perDay}× täglich)`, 'info');
-  log(state, 'mgr', `Angebot: ${al.name} möchte ${perDay}× täglich ${CITIES[city].name} mit ${t.name} fliegen (${days} Tage).`);
+  notify(state, T`📨 Neues Angebot: ${al.name} → ${CITIES[city].name} (${perDay}× täglich)`, 'info');
+  log(state, 'mgr', T`Angebot: ${al.name} möchte ${perDay}× täglich ${CITIES[city].name} mit ${t.name} fliegen (${days} Tage).`);
 }
 
 export function acceptOffer(state, offerId, feeMult = 1) {
@@ -261,16 +262,16 @@ export function acceptOffer(state, offerId, feeMult = 1) {
   if (o.partner) {
     // Partner fangen noch heute an, wenn es früh genug ist
     if (((state.time / 3600) % 24) < 12) generateDay(state, Math.floor(state.time / 86400) + 1, c);
-    log(state, 'mgr', `Vertrag unterzeichnet: ${AIRLINES[o.airline].name} siedelt sich an (${PARTNERS[o.partner].name}).`);
-    notify(state, `✅ ${AIRLINES[o.airline].name} ist jetzt Partner`, 'good');
+    log(state, 'mgr', T`Vertrag unterzeichnet: ${AIRLINES[o.airline].name} siedelt sich an (${PARTNERS[o.partner].name}).`);
+    notify(state, T`✅ ${AIRLINES[o.airline].name} ist jetzt Partner`, 'good');
     return true;
   }
-  log(state, 'mgr', `Vertrag unterzeichnet: ${AIRLINES[o.airline].name} → ${CITIES[o.city].name}. Erste Flüge ab morgen.`);
-  notify(state, `✅ Vertrag mit ${AIRLINES[o.airline].name} unterzeichnet`, 'good');
+  log(state, 'mgr', T`Vertrag unterzeichnet: ${AIRLINES[o.airline].name} → ${CITIES[o.city].name}. Erste Flüge ab morgen.`);
+  notify(state, T`✅ Vertrag mit ${AIRLINES[o.airline].name} unterzeichnet`, 'good');
   return true;
 }
 // Verhandeln: höhere Entgelte verlangen – Erfolg hängt von Ansehen, Rang und dem Interesse der Airline ab
-export const interestLabel = (o) => ((o.interest ?? 0.6) > 0.7 ? 'hoch' : (o.interest ?? 0.6) > 0.45 ? 'mittel' : 'gering');
+export const interestLabel = (o) => ((o.interest ?? 0.6) > 0.7 ? T('hoch') : (o.interest ?? 0.6) > 0.45 ? T('mittel') : T('gering'));
 export function negotiateChance(state, o, pct) {
   const rank = (state.goals && state.goals.rank) || 0;
   return clamp(0.3 + (state.reputation - 60) / 70 + rank * 0.05 + ((o.interest ?? 0.6) - 0.5) * 0.9 - pct * 2.2 + 0.25, 0.05, 0.92);
@@ -284,20 +285,20 @@ export function negotiateOffer(state, offerId, pct) {
   if (rand(state) < p) {
     acceptOffer(state, offerId, 1 + pct);
     state.life.negoWins = (state.life.negoWins || 0) + 1;
-    log(state, 'mgr', `Verhandlung erfolgreich: ${al.name} zahlt ${Math.round(pct * 100)} % mehr Entgelte.`);
-    notify(state, `🤝 ${al.name} akzeptiert +${Math.round(pct * 100)} % – Vertrag unterzeichnet`, 'good');
+    log(state, 'mgr', T`Verhandlung erfolgreich: ${al.name} zahlt ${Math.round(pct * 100)} % mehr Entgelte.`);
+    notify(state, T`🤝 ${al.name} akzeptiert +${Math.round(pct * 100)} % – Vertrag unterzeichnet`, 'good');
     return { ok: true, won: true };
   }
   if (rand(state) < 0.45) {
     state.offers = state.offers.filter((x) => x !== o);
     state.reputation = clamp(state.reputation - 0.5, 0, 100);
-    log(state, 'mgr', `${al.name} bricht die Verhandlung ab und fliegt woanders hin.`);
-    notify(state, `😤 ${al.name} bricht die Verhandlung ab – Angebot zurückgezogen`, 'bad');
+    log(state, 'mgr', T`${al.name} bricht die Verhandlung ab und fliegt woanders hin.`);
+    notify(state, T`😤 ${al.name} bricht die Verhandlung ab – Angebot zurückgezogen`, 'bad');
     return { ok: true, won: false, lost: true };
   }
   o.negotiated = true;
-  log(state, 'mgr', `${al.name} lehnt den Aufschlag ab – das Angebot gilt weiter zum ursprünglichen Preis.`);
-  notify(state, `${al.name} lehnt ab – Angebot steht noch zum Originalpreis`, 'warn');
+  log(state, 'mgr', T`${al.name} lehnt den Aufschlag ab – das Angebot gilt weiter zum ursprünglichen Preis.`);
+  notify(state, T`${al.name} lehnt ab – Angebot steht noch zum Originalpreis`, 'warn');
   return { ok: true, won: false };
 }
 
@@ -312,7 +313,7 @@ export function cancelContract(state, cid) {
   // geplante, noch nicht gestartete Umläufe streichen
   for (const r of Object.values(state.rots)) if (r.contract === cid && r.status === 'planned') r.status = 'cancelled';
   state.reputation = Math.max(0, state.reputation - 2);
-  notify(state, `Vertrag mit ${AIRLINES[c.airline].name} gekündigt`, 'warn');
+  notify(state, T`Vertrag mit ${AIRLINES[c.airline].name} gekündigt`, 'warn');
 }
 
 export function feeIndex(state) {

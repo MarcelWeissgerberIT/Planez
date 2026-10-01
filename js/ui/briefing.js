@@ -12,12 +12,13 @@ import { projects, remainingHours } from '../sim/construction.js';
 import { rwyCond } from '../sim/runway.js';
 import { fmtClock, fmtMoney, esc, dayOf } from '../util.js';
 import { ROLES } from '../state.js';
+import { T as tr_ } from '../i18n.js';
 
 const H = 3600, D = 86400;
 const TIPS = {
-  tower: ['Heavys möglichst hintereinander starten lassen – das spart Wirbelschleppen-Wartezeit.', 'Hör auf die Rücklesungen: Ein falscher Readback lässt sich mit Q korrigieren.', 'In der Spitzenstunde Starts in die Lücken vor der nächsten Landung setzen – das bringt Kombo-Punkte.', 'Bei Rückenwind über 5 kt rechtzeitig die Betriebsrichtung wechseln.'],
-  ground: ['Tankwagen früh losschicken – leere Wagen müssen erst zum Tanklager.', 'Der Positionsplan (G) zeigt Engpässe schon Stunden vorher.', 'Boxenstopp: Turnaround in der Mindestzeit bringt 100 Extrapunkte.', 'Schlepper rechtzeitig bereitstellen, dann klappt der Pushback auf die Minute.'],
-  manager: ['Alle 7 Tage tagt der Aufsichtsrat – fünf Wochenziele, Zuschuss ab drei erreichten Zielen.', 'Nordhafen beobachtet dich – Ansehen und Pünktlichkeit zählen am meisten für den Marktanteil.', 'Auslaufende Verträge verlängern sich eher, wenn die Airline zufrieden ist.', 'Kerosin günstig einkaufen, wenn der Preis unter dem Schnitt liegt.', 'Baustellen blockieren Positionen – Ausbau lieber vor der Hauptsaison.'],
+  tower: [tr_('Heavys möglichst hintereinander starten lassen – das spart Wirbelschleppen-Wartezeit.'), tr_('Hör auf die Rücklesungen: Ein falscher Readback lässt sich mit Q korrigieren.'), tr_('In der Spitzenstunde Starts in die Lücken vor der nächsten Landung setzen – das bringt Kombo-Punkte.'), tr_('Bei Rückenwind über 5 kt rechtzeitig die Betriebsrichtung wechseln.')],
+  ground: [tr_('Tankwagen früh losschicken – leere Wagen müssen erst zum Tanklager.'), tr_('Der Positionsplan (G) zeigt Engpässe schon Stunden vorher.'), tr_('Boxenstopp: Turnaround in der Mindestzeit bringt 100 Extrapunkte.'), tr_('Schlepper rechtzeitig bereitstellen, dann klappt der Pushback auf die Minute.')],
+  manager: [tr_('Alle 7 Tage tagt der Aufsichtsrat – fünf Wochenziele, Zuschuss ab drei erreichten Zielen.'), tr_('Nordhafen beobachtet dich – Ansehen und Pünktlichkeit zählen am meisten für den Marktanteil.'), tr_('Auslaufende Verträge verlängern sich eher, wenn die Airline zufrieden ist.'), tr_('Kerosin günstig einkaufen, wenn der Preis unter dem Schnitt liegt.'), tr_('Baustellen blockieren Positionen – Ausbau lieber vor der Hauptsaison.')],
 };
 
 function trafficOf(state, day0) {
@@ -33,8 +34,8 @@ function trafficOf(state, day0) {
     const t = AC_TYPES[r.type];
     if (t && t.wake === 'H') heavy++;
     if (t && t.cargo) cargo++;
-    if (r.type === 'A388') specials.push(`🐋 AV-38 ${esc(r.arrNo)} aus ${esc(CITIES[r.city]?.name || r.city)} · ${fmtClock(r.sta)}`);
-    else if (r.special === 'vip') specials.push(`🕴️ VIP-Flug ${esc(r.arrNo)} · ${fmtClock(r.sta)}`);
+    if (r.type === 'A388') specials.push(tr_`🐋 AV-38 ${esc(r.arrNo)} aus ${esc(CITIES[r.city]?.name || r.city)} · ${fmtClock(r.sta)}`);
+    else if (r.special === 'vip') specials.push(tr_`🕴️ VIP-Flug ${esc(r.arrNo)} · ${fmtClock(r.sta)}`);
   }
   return { arrH, depH, heavy, cargo, specials };
 }
@@ -69,52 +70,55 @@ export function briefingHtml(state) {
   // Lage je Rolle
   const L = [];
   if (role === 'tower') {
-    L.push(item('🛬', `Betriebsrichtung <b>${state.rwy}</b>${pref !== state.rwy ? ` – der Wind spricht für <b>${pref}</b>, Wechsel einplanen` : ' – passt zum Wind'}`));
-    if (T.heavy) L.push(item('🌀', `<b>${T.heavy}</b> Heavys heute – Wirbelschleppen-Abstände beachten`));
-    if (fc.kind === 'fog' && !state.upgrades.ils3) L.push(item('🌫️', `Nebel ab ${fmtClock(fc.at)} vorhergesagt – ohne ILS CAT III drohen Ausweichlandungen`, 'warn'));
-    if (fc.kind === 'storm') L.push(item('⛈️', `Gewitter ab ${fmtClock(fc.at)} – Windscherung im kurzen Endanflug möglich`, 'warn'));
+    L.push(item('🛬', tr_`Betriebsrichtung <b>${state.rwy}</b>${pref !== state.rwy ? tr_` – der Wind spricht für <b>${pref}</b>, Wechsel einplanen` : tr_(' – passt zum Wind')}`));
+    if (T.heavy) L.push(item('🌀', tr_`<b>${T.heavy}</b> Heavys heute – Wirbelschleppen-Abstände beachten`));
+    if (fc.kind === 'fog' && !state.upgrades.ils3) L.push(item('🌫️', tr_`Nebel ab ${fmtClock(fc.at)} vorhergesagt – ohne ILS CAT III drohen Ausweichlandungen`, 'warn'));
+    if (fc.kind === 'storm') L.push(item('⛈️', tr_`Gewitter ab ${fmtClock(fc.at)} – Windscherung im kurzen Endanflug möglich`, 'warn'));
     const cond = Math.round(rwyCond(state));
-    if (cond < 55) L.push(item('🛠️', `Pistenzustand nur ${cond} % – Bremswirkung kann nachlassen`, 'warn'));
+    if (cond < 55) L.push(item('🛠️', tr_`Pistenzustand nur ${cond} % – Bremswirkung kann nachlassen`, 'warn'));
   } else if (role === 'ground') {
     const built = state.stands.filter((s) => s.built && !s.closed).length;
-    L.push(item('🅿️', `${built} Positionen verfügbar · Spitzenstunde ${String(peak).padStart(2, '0')}:00 mit ${tot[peak]} Bewegungen`));
+    L.push(item('🅿️', tr_`${built} Positionen verfügbar · Spitzenstunde ${String(peak).padStart(2, '0')}:00 mit ${tot[peak]} Bewegungen`));
     const fu = fuelState(state);
-    L.push(item('⛽', `Tanklager ${Math.round(fu.stock)} t von ${FUEL.cap} t${fu.stock < FUEL.cap * 0.25 ? ' – knapp, Management informieren' : ''}`, fu.stock < FUEL.cap * 0.25 ? 'warn' : ''));
+    L.push(item('⛽', tr_`Tanklager ${Math.round(fu.stock)} t von ${FUEL.cap} t${fu.stock < FUEL.cap * 0.25 ? tr_(' – knapp, Management informieren') : ''}`, fu.stock < FUEL.cap * 0.25 ? 'warn' : ''));
     const broken = state.vehicles.filter((v) => v.brokenUntil > state.time);
-    if (broken.length) L.push(item('🔧', `In der Werkstatt: ${broken.map((v) => esc(v.name)).join(', ')}`, 'warn'));
-    if (temp <= 3 && ['snow', 'rain', 'fog'].includes(fc.kind)) L.push(item('🧊', `${temp} °C und ${esc(fc.name)} erwartet – Enteisung wahrscheinlich`, 'warn'));
-    if (T.cargo) L.push(item('📦', `${T.cargo} Frachtfl${T.cargo > 1 ? 'üge' : 'ug'} – Frachtposition freihalten`));
+    if (broken.length) L.push(item('🔧', tr_`In der Werkstatt: ${broken.map((v) => esc(v.name)).join(', ')}`, 'warn'));
+    if (temp <= 3 && ['snow', 'rain', 'fog'].includes(fc.kind)) L.push(item('🧊', tr_`${temp} °C und ${esc(fc.name)} erwartet – Enteisung wahrscheinlich`, 'warn'));
+    if (T.cargo) L.push(item('📦', T.cargo > 1 ? tr_`${T.cargo} Frachtflüge – Frachtposition freihalten` : tr_`${T.cargo} Frachtflug – Frachtposition freihalten`));
   } else if (role === 'manager') {
-    L.push(item('💶', `Kasse ${fmtMoney(state.cash)} · Ansehen ${Math.round(state.reputation)}/100`, state.cash < 0 ? 'warn' : ''));
+    L.push(item('💶', tr_`Kasse ${fmtMoney(state.cash)} · Ansehen ${Math.round(state.reputation)}/100`, state.cash < 0 ? 'warn' : ''));
     const exp = state.contracts.filter((c) => c.days <= 3);
-    if (exp.length) L.push(item('✍️', `${exp.length} Vertr${exp.length > 1 ? 'äge laufen' : 'ag läuft'} in den nächsten 3 Tagen aus: ${exp.slice(0, 3).map((c) => `${esc(AIRLINES[c.airline].name)} → ${esc(CITIES[c.city]?.name || c.city)} (Zufr. ${Math.round(c.sat ?? 50)})`).join(', ')}`, 'warn'));
-    if (state.offers.length) L.push(item('📨', `${state.offers.length} Vertragsangebot${state.offers.length > 1 ? 'e' : ''} warten auf Antwort`));
+    if (exp.length) {
+      const names = exp.slice(0, 3).map((c) => tr_`${esc(AIRLINES[c.airline].name)} → ${esc(CITIES[c.city]?.name || c.city)} (Zufr. ${Math.round(c.sat ?? 50)})`).join(', ');
+      L.push(item('✍️', exp.length > 1 ? tr_`${exp.length} Verträge laufen in den nächsten 3 Tagen aus: ${names}` : tr_`${exp.length} Vertrag läuft in den nächsten 3 Tagen aus: ${names}`, 'warn'));
+    }
+    if (state.offers.length) L.push(item('📨', state.offers.length > 1 ? tr_`${state.offers.length} Vertragsangebote warten auf Antwort` : tr_`${state.offers.length} Vertragsangebot warten auf Antwort`));
     const R = rivalState(state);
-    L.push(item('🏢', `Marktanteil gegen Nordhafen: <b>${Math.round(R.share)} %</b>${R.feeCutUntil > state.time ? ' – Nordhafen lockt gerade mit Rabatten' : ''}`, R.share < 45 ? 'warn' : ''));
+    L.push(item('🏢', tr_`Marktanteil gegen Nordhafen: <b>${Math.round(R.share)} %</b>${R.feeCutUntil > state.time ? tr_(' – Nordhafen lockt gerade mit Rabatten') : ''}`, R.share < 45 ? 'warn' : ''));
     const B = boardState(state);
     if (B.targets) {
       const rows = goalRows(state, weekProgress(state));
       const left = B.startDay + B.targets.days - dayOf(state.time) + 1;
       const miss = rows.filter((r) => !r.ok).map((r) => r.label.replace(/ \(.*\)/, ''));
-      L.push(item('🏛️', `Aufsichtsrat (${strategy(state).icon} ${strategy(state).name}, Vertrauen ${B.conf}): ${left <= 1 ? 'Sitzung heute Abend' : `Sitzung in ${left} Tagen`} – ${miss.length ? `noch offen: ${miss.join(', ')}` : 'alle Wochenziele auf Kurs'}`, B.conf < 40 ? 'warn' : ''));
+      L.push(item('🏛️', tr_`Aufsichtsrat (${strategy(state).icon} ${strategy(state).name}, Vertrauen ${B.conf}): ${left <= 1 ? tr_('Sitzung heute Abend') : tr_`Sitzung in ${left} Tagen`} – ${miss.length ? tr_`noch offen: ${miss.join(', ')}` : tr_('alle Wochenziele auf Kurs')}`, B.conf < 40 ? 'warn' : ''));
     }
     const ps = projects(state).filter((p) => p.status !== 'waiting' && remainingHours(p) <= 24);
-    if (ps.length) L.push(item('🏗️', `Heute fertig: ${ps.map((p) => esc(p.name)).join(', ')}`));
+    if (ps.length) L.push(item('🏗️', tr_`Heute fertig: ${ps.map((p) => esc(p.name)).join(', ')}`));
   }
   const goals = activeGoals(state).map((g) => `<li><i>🎯</i><span>${esc(goalText(g))}</span></li>`).join('');
   const tips = TIPS[role] || [];
   const tip = tips.length ? tips[day % tips.length] : '';
   const nowH = Math.floor((state.time - day0) / H);
-  return `<div class="brief">
+  return tr_`<div class="brief">
     <div class="br-top"><div class="br-kick">${ROLES[role].icon} Schichtbriefing · ${esc(ROLES[role].name)}</div><h2>Tag ${day} · ${esc(season(state).name || '')}</h2><div class="br-stamp">${esc(state.name)}</div></div>
     <div class="br-cols">
       <div class="br-wx"><div class="br-h">Wetter</div><div class="br-now"><span class="ic">${w.icon}</span><div><b>${esc(w.name)} · ${temp} °C</b><small>Wind ${String(Math.round(state.wind.dir)).padStart(3, '0')}° / ${Math.round(state.wind.spd)} kt</small></div></div>
-        ${fc.change ? `<div class="br-fc">${fc.icon} ab ${fmtClock(fc.at)}: <b>${esc(fc.name)}</b>${fc.rvr ? ` · RVR ${fc.rvr} m` : ''}</div>` : '<div class="br-fc">keine Wetteränderung in Sicht</div>'}</div>
+        ${fc.change ? tr_`<div class="br-fc">${fc.icon} ab ${fmtClock(fc.at)}: <b>${esc(fc.name)}</b>${fc.rvr ? ` · RVR ${fc.rvr} m` : ''}</div>` : tr_('<div class="br-fc">keine Wetteränderung in Sicht</div>')}</div>
       <div class="br-traffic"><div class="br-h">Verkehr heute <span>${sum} Bewegungen · Spitze ${String(peak).padStart(2, '0')}:00</span></div>${chart(T.arrH, T.depH, nowH)}<div class="br-leg"><span><i style="background:#2dd4bf"></i>Landungen</span><span><i style="background:#fbbf24"></i>Starts</span></div></div>
     </div>
     ${T.specials.length ? `<div class="br-sp">${T.specials.slice(0, 3).map((x) => `<span>${x}</span>`).join('')}</div>` : ''}
     <div class="br-cols">
-      <div><div class="br-h">Lage</div><ul class="br-list">${L.join('') || item('✅', 'Keine Besonderheiten – ruhiger Start in den Tag')}</ul></div>
+      <div><div class="br-h">Lage</div><ul class="br-list">${L.join('') || item('✅', tr_('Keine Besonderheiten – ruhiger Start in den Tag'))}</ul></div>
       <div><div class="br-h">Ziele der Schicht</div><ul class="br-list">${goals}</ul>${tip ? `<div class="br-tip">💡 ${esc(tip)}</div>` : ''}</div>
     </div>
     <div class="modal-acts"><label class="br-off"><input type="checkbox" data-brief-off> nicht mehr anzeigen</label><button class="btn btn-primary" data-close-modal>Schicht beginnen ▶</button></div>

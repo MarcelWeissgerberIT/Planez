@@ -12,6 +12,7 @@ import { qnh } from '../sim/atis.js';
 import { temperature } from '../sim/winter.js';
 import { forecastInfo } from '../sim/events.js';
 import { fmtClock } from '../util.js';
+import { T, TC } from '../i18n.js';
 
 // Farben der Pistenfolge (RGB)
 const SC = { land: [34, 211, 238], landClr: [165, 243, 252], dep: [245, 158, 11], depClr: [232, 121, 249] };
@@ -26,12 +27,12 @@ export function seqChips(state) {
     if (!a) return '';
     const arr = isSeqArrival(a);
     let info;
-    if (arr) info = a.mode === 'air' ? `${AS.routeDistance(a.pos, a.route.length ? a.route : [AS.THR[a.rwy]]).toFixed(1)} NM` : a.phase === PH.ROLLOUT ? 'Piste' : 'kurz';
-    else info = a.clr.takeoff ? 'frei' : a.phase === PH.HOLDING ? 'Rollhalt' : a.phase === PH.LINED || a.phase === PH.LINEUP ? 'Piste' : 'rollt';
+    if (arr) info = a.mode === 'air' ? `${AS.routeDistance(a.pos, a.route.length ? a.route : [AS.THR[a.rwy]]).toFixed(1)} NM` : a.phase === PH.ROLLOUT ? T('Piste') : T('kurz');
+    else info = a.clr.takeoff ? TC('radar', 'frei') : a.phase === PH.HOLDING ? T('Rollhalt') : a.phase === PH.LINED || a.phase === PH.LINEUP ? T('Piste') : T('rollt');
     const mk = markHex(a);
     return `<button class="rs-chip" data-id="${a.id}" style="--c:${rgbStr(seqRgb(a))}"><b>${i + 1}</b>${mk ? `<i class="rs-flag" style="--f:${mk}"></i>` : ''}${esc(a.cs)} ${arr ? '↓' : '↑'} <small>${info}</small></button>`;
   });
-  return items.join('') || '<span class="rs-empty">Pistenfolge leer</span>';
+  return items.join('') || T('<span class="rs-empty">Pistenfolge leer</span>');
 }
 
 // Fiktive Landschaft (Flüsse, Städte) für die Karte im Hintergrund
@@ -558,7 +559,7 @@ export class Radar {
     const fc = forecastInfo(state);
     if (fc.change && fc.at - state.time < 3 * 3600) {
       const code = { clear: 'CAVOK', clouds: 'BKN030', rain: 'RA', fog: `FG ${fc.rvr || ''}M`.replace(' M', ''), storm: 'TSRA', snow: 'SN' }[fc.kind] || fc.kind;
-      const tf = `TAF · ab ${fmtClock(fc.at)} ${code}`;
+      const tf = T`TAF · ab ${fmtClock(fc.at)} ${code}`;
       const tw = ctx.measureText(tf).width;
       const warn = fc.kind === 'storm' || fc.kind === 'fog' || fc.kind === 'snow';
       ctx.fillStyle = 'rgba(3,20,14,0.8)';

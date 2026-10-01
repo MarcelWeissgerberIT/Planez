@@ -13,14 +13,15 @@ import { fodEvent } from './runway.js';
 import { fodRisk } from './inspect.js';
 import { winterWeather, isWinter } from './winter.js';
 import { isCareer, typeAllowed, stageOf } from './career.js';
+import { T } from '../i18n.js';
 
 export const WEATHER = {
-  clear: { name: 'Klar', icon: '☀️' },
-  clouds: { name: 'Bewölkt', icon: '⛅' },
-  rain: { name: 'Regen', icon: '🌧️' },
-  fog: { name: 'Nebel', icon: '🌫️' },
-  storm: { name: 'Gewitter', icon: '⛈️' },
-  snow: { name: 'Schnee', icon: '🌨️' },
+  clear: { name: T('Klar'), icon: '☀️' },
+  clouds: { name: T('Bewölkt'), icon: '⛅' },
+  rain: { name: T('Regen'), icon: '🌧️' },
+  fog: { name: T('Nebel'), icon: '🌫️' },
+  storm: { name: T('Gewitter'), icon: '⛈️' },
+  snow: { name: T('Schnee'), icon: '🌨️' },
 };
 
 export const belowMinima = (state) => state.weather.kind === 'fog' && (state.weather.rvr ?? 400) < 550 && !state.upgrades.ils3;
@@ -34,7 +35,7 @@ export function updateEvents(state, dt) {
     const flip = rand(state) < 0.3;
     w.tDir = flip ? degNorm(w.dir + 180 + randRange(state, -40, 40)) : degNorm(w.dir + randRange(state, -50, 50));
     w.tSpd = clamp(randRange(state, 3, 18), 2, 25);
-    if (flip) log(state, 'sys', `Wetterdienst: Winddrehung erwartet auf ${Math.round(w.tDir / 10) * 10}°.`);
+    if (flip) log(state, 'sys', T`Wetterdienst: Winddrehung erwartet auf ${Math.round(w.tDir / 10) * 10}°.`);
   }
   const dd = ((w.tDir - w.dir + 540) % 360) - 180;
   w.dir = degNorm(w.dir + clamp(dd, -0.01 * dt, 0.01 * dt));
@@ -52,12 +53,12 @@ export function updateEvents(state, dt) {
     if (kind !== wx.kind) {
       if (kind === 'fog') {
         const dense = wx.rvr < 550;
-        notify(state, `🌫️ Nebel, RVR ${wx.rvr} m – ${!dense ? 'LVP aktiv, Landungen mit CAT I möglich (mehr Abstand).' : state.upgrades.ils3 ? 'ILS CAT III aktiv – Landungen möglich.' : 'unter CAT-I-Minimum: ohne ILS CAT III müssen Anflüge ausweichen.'}`, dense && !state.upgrades.ils3 ? 'bad' : 'warn');
+        notify(state, T`🌫️ Nebel, RVR ${wx.rvr} m – ${!dense ? T('LVP aktiv, Landungen mit CAT I möglich (mehr Abstand).') : state.upgrades.ils3 ? T('ILS CAT III aktiv – Landungen möglich.') : T('unter CAT-I-Minimum: ohne ILS CAT III müssen Anflüge ausweichen.')}`, dense && !state.upgrades.ils3 ? 'bad' : 'warn');
       }
-      if (kind === 'storm') notify(state, '⛈️ Gewitter – Vorfeld gesperrt, Abfertigung pausiert', 'warn');
-      if (kind === 'snow') notify(state, '🌨️ Schneefall – Abflüge müssen enteist werden, Pisten werden regelmäßig geräumt', 'warn');
-      if (wx.kind === 'storm') notify(state, 'Gewitter vorbei – Vorfeld wieder frei', 'good');
-      log(state, 'sys', `Wetter: ${WEATHER[kind].name}.`);
+      if (kind === 'storm') notify(state, T('⛈️ Gewitter – Vorfeld gesperrt, Abfertigung pausiert'), 'warn');
+      if (kind === 'snow') notify(state, T('🌨️ Schneefall – Abflüge müssen enteist werden, Pisten werden regelmäßig geräumt'), 'warn');
+      if (wx.kind === 'storm') notify(state, T('Gewitter vorbei – Vorfeld wieder frei'), 'good');
+      log(state, 'sys', T`Wetter: ${WEATHER[kind].name}.`);
     }
     wx.kind = kind;
     if (kind === 'fog') state.stats.today.hadFog = true;
@@ -71,9 +72,9 @@ export function updateEvents(state, dt) {
   const nk = winterWeather(state, nx.kind);
   if (nk !== wx.kind && ['storm', 'fog', 'snow'].includes(nk) && wx.until - state.time < 1800 && wx.warnedAt !== nx.at) {
     wx.warnedAt = nx.at;
-    const txt = { storm: 'Gewitter – das Vorfeld wird gesperrt, Abfertigung pausiert', fog: 'Nebel – Low Visibility Procedures, größere Abstände', snow: 'Schneefall – Enteisung und Räumdienst' }[nk];
-    notify(state, `${WEATHER[nk].icon} Vorhersage: ab ${fmtClock(nx.at)} ${txt}`, 'warn');
-    log(state, 'sys', `Wetterdienst: ab ${fmtClock(nx.at)} ${WEATHER[nk].name} erwartet.`);
+    const txt = { storm: T('Gewitter – das Vorfeld wird gesperrt, Abfertigung pausiert'), fog: T('Nebel – Low Visibility Procedures, größere Abstände'), snow: T('Schneefall – Enteisung und Räumdienst') }[nk];
+    notify(state, T`${WEATHER[nk].icon} Vorhersage: ab ${fmtClock(nx.at)} ${txt}`, 'warn');
+    log(state, 'sys', T`Wetterdienst: ab ${fmtClock(nx.at)} ${WEATHER[nk].name} erwartet.`);
   }
   // Gewitterzellen ziehen
   for (const c of wx.cells || []) {
@@ -89,7 +90,7 @@ export function updateEvents(state, dt) {
     state.windshear = !!(thr && (wx.cells || []).some((c) => Math.hypot(c.x - thr.x, c.y - thr.y) < c.r + 3.5));
     if (state.windshear && !was) {
       radio(state, 'TWR', `All stations, windshear reported on final runway ${state.rwy}.`, 'atc');
-      notify(state, `🌪️ Windscherung im Endanflug ${state.rwy} – Anflüge können durchstarten. Pistenwechsel erwägen.`, 'warn');
+      notify(state, T`🌪️ Windscherung im Endanflug ${state.rwy} – Anflüge können durchstarten. Pistenwechsel erwägen.`, 'warn');
     }
     if (state.windshear) {
       for (const ac of state.acs) {
@@ -107,8 +108,8 @@ export function updateEvents(state, dt) {
   // dichter Nebel ohne CAT III: Anflüge warten eine Weile, dann weichen sie aus
   if (belowMinima(state)) {
     for (const ac of state.acs) {
-      if (ac.mode === 'air' && [PH.HOLD].includes(ac.phase) && !ac.emergency && state.time - ac.holdStart > 15 * 60) divert(state, ac, `Nebel unter Minima (RVR ${wx.rvr} m)`, 'diversionWx');
-      if (ac.mode === 'air' && ac.phase === PH.APPROACH && ac.route.length === 1 && !ac.emergency) divert(state, ac, `Nebel unter Minima (RVR ${wx.rvr} m)`, 'diversionWx');
+      if (ac.mode === 'air' && [PH.HOLD].includes(ac.phase) && !ac.emergency && state.time - ac.holdStart > 15 * 60) divert(state, ac, T`Nebel unter Minima (RVR ${wx.rvr} m)`, 'diversionWx');
+      if (ac.mode === 'air' && ac.phase === PH.APPROACH && ac.route.length === 1 && !ac.emergency) divert(state, ac, T`Nebel unter Minima (RVR ${wx.rvr} m)`, 'diversionWx');
     }
   }
 
@@ -199,8 +200,8 @@ export function triggerEvent(state, kind, opt = {}) {
     if (!state.stands.some((st) => st.built && st.size === 'L' && st.kind !== 'cargo')) return null;
     const n = randInt(state, 380, 389) * 2;
     const ac = spawnSpecial(state, { airline: 'OPL', type: 'A388', arrNo: `OPL${n}`, depNo: `OPL${n + 1}`, city: pick(state, ['DXB', 'SIN', 'HKG', 'PVG']), special: 'a380', feeMult: 1.6 });
-    notify(state, '🛬 Sonderbesuch: Eine Aviora AV-38 – der größte Passagierjet der Welt – ist im Anflug!', 'good');
-    log(state, 'sys', `Superjumbo ${ac.cs} (AV-38) angekündigt – Spotter strömen an den Zaun.`);
+    notify(state, T('🛬 Sonderbesuch: Eine Aviora AV-38 – der größte Passagierjet der Welt – ist im Anflug!'), 'good');
+    log(state, 'sys', T`Superjumbo ${ac.cs} (AV-38) angekündigt – Spotter strömen an den Zaun.`, '', { ev: 'a380' }); // ev: Kennung für den Livestream-Chat
     state.life = state.life || {};
     state.life.a380 = (state.life.a380 || 0) + 1;
     return ac;
@@ -209,8 +210,8 @@ export function triggerEvent(state, kind, opt = {}) {
   } else if (kind === 'vip') {
     const n = randInt(state, 100, 999);
     spawnSpecial(state, { airline: 'VIP', type: 'C68A', arrNo: `VIP${n}`, depNo: `VIP${n + 1}`, city: pick(state, ['NCE', 'GVA', 'OLB', 'LHR']), pax: randInt(state, 2, 8), special: 'vip', feeMult: 2.5 });
-    notify(state, '🕴️ VIP-Charter im Anflug – bitte bevorzugt abfertigen', 'info');
-    log(state, 'sys', 'VIP-Businessjet angekündigt.');
+    notify(state, T('🕴️ VIP-Charter im Anflug – bitte bevorzugt abfertigen'), 'info');
+    log(state, 'sys', T('VIP-Businessjet angekündigt.'));
   } else if (kind === 'emergency') {
     const al = pick(state, ['AUR', 'RHJ', 'NST', 'SKB']);
     const t = pick(state, AIRLINES[al].types.filter((x) => x !== 'B789'));
@@ -219,7 +220,7 @@ export function triggerEvent(state, kind, opt = {}) {
     const why = opt.kind || pick(state, ['engine', 'medical', 'smoke']);
     ac.emgKind = why;
     radio(state, ac.cs, `MAYDAY MAYDAY MAYDAY, ${AIRLINES[al].tel} ${n}, ${{ engine: 'engine fire', medical: 'medical emergency on board', smoke: 'smoke in the cabin' }[why]}, request immediate landing${why === 'medical' ? '' : ', request fire services'}.`);
-    notify(state, `🚨 Notfall: ${ac.cs} (Squawk 7700) – Vorrang geben!`, 'bad');
+    notify(state, T`🚨 Notfall: ${ac.cs} (Squawk 7700) – Vorrang geben!`, 'bad');
     state.fireAlert = { ac: ac.id, t: state.time };
     return ac;
   } else if (kind === 'nordo') {
@@ -231,13 +232,13 @@ export function triggerEvent(state, kind, opt = {}) {
     if (!pool.length) return;
     const v = pick(state, pool);
     v.brokenUntil = state.time + (opt.hours || randRange(state, 2, 5)) * 3600;
-    notify(state, `🔧 ${v.name} (${VEH_TYPES[v.type].name}) defekt – in Reparatur`, 'warn');
-    log(state, 'gnd', `${v.name} ausgefallen.`);
+    notify(state, T`🔧 ${v.name} (${VEH_TYPES[v.type].name}) defekt – in Reparatur`, 'warn');
+    log(state, 'gnd', T`${v.name} ausgefallen.`);
     crewBroken(state, v, (v.brokenUntil - state.time) / 3600);
   } else if (kind === 'strike') {
     state.strikeUntil = state.time + (opt.hours || randRange(state, 3, 6)) * 3600;
-    notify(state, '✊ Warnstreik beim Bodenpersonal – Abfertigung verlangsamt', 'bad');
-    log(state, 'gnd', 'Warnstreik: Bodenpersonal nur eingeschränkt verfügbar.');
+    notify(state, T('✊ Warnstreik beim Bodenpersonal – Abfertigung verlangsamt'), 'bad');
+    log(state, 'gnd', T('Warnstreik: Bodenpersonal nur eingeschränkt verfügbar.'));
   } else if (kind === 'fod') {
     if (state.rwyWorking || state.rwyClosedUntil > state.time) return;
     fodEvent(state);
@@ -252,8 +253,8 @@ export function triggerEvent(state, kind, opt = {}) {
 
 // Vogelschlag nach dem Start: Rückkehr zum Flughafen als Notfall
 export function birdstrikeOn(state, ac) {
-  radio(state, ac.cs, `PAN PAN, ${ac.cs}, bird strike, request return to land.`);
-  notify(state, `🐦 Vogelschlag bei ${ac.cs} – Rückkehr zum Flughafen`, 'warn');
+  radio(state, ac.cs, T`PAN PAN, ${ac.cs}, bird strike, request return to land.`);
+  notify(state, T`🐦 Vogelschlag bei ${ac.cs} – Rückkehr zum Flughafen`, 'warn');
   ac.phase = PH.INBOUND;
   ac.arr = true;
   ac.emergency = true;

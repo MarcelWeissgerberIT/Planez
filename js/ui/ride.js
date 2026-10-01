@@ -15,6 +15,7 @@ import { SpotterUi } from './spotter.js';
 import { listeners } from '../sim/messages.js';
 import * as AS from '../sim/airspace.js';
 import * as LY from '../layout.js';
+import { T } from '../i18n.js';
 
 const KT = 323; // Kacheln je Spielsekunde -> Knoten (wie Info-Karte und Kino)
 // Drohnensteuerung: Tasten -> Richtung
@@ -41,7 +42,7 @@ export class Ride {
     const el = document.createElement('div');
     el.id = 'ride';
     el.className = 'hidden';
-    el.innerHTML = `<div class="rd-drag"></div><div class="rd-haze"></div><div class="rd-win"><div class="rd-shade"></div></div>
+    el.innerHTML = T`<div class="rd-drag"></div><div class="rd-haze"></div><div class="rd-win"><div class="rd-shade"></div></div>
       <div class="rd-cockpit"><canvas class="rd-rain"></canvas><div class="rd-pillar l"></div><div class="rd-pillar r"></div><div class="rd-pillar c"></div>
         <div class="rd-glare"><div class="rd-pfd"><div class="rd-tape spd"><small>KT</small><b data-r="spd">0</b></div><div class="rd-ai"><div class="rd-hor"></div><i></i><span data-r="fma">TAXI</span></div><div class="rd-tape alt"><small>FT</small><b data-r="alt">0</b><em data-r="vs"></em></div></div>
         <div class="rd-nd"><div class="rd-rose" data-r="rose"></div><b data-r="hdg">000</b><small data-r="nd"></small></div></div></div>
@@ -190,7 +191,7 @@ export class Ride {
     const s = this.game.state;
     const ac = s && s.acs.find((a) => a.id === acId);
     const inbound = ac && ac.mode === 'air' && ac.arr && ARR_PH.has(ac.phase);
-    if (!ac || (ac.mode !== 'map' && !inbound)) return toast('Einsteigen geht im Anflug oder am Flughafen', 'info', 2400);
+    if (!ac || (ac.mode !== 'map' && !inbound)) return toast(T('Einsteigen geht im Anflug oder am Flughafen'), 'info', 2400);
     if (this.on && this.mode === 'tower') this.stop();
     this.on = true;
     this.id = acId;
@@ -215,13 +216,13 @@ export class Ride {
     if (!this.v3d) {
       this.el.classList.add('loading3d');
       clearTimeout(this.loadT);
-      this.loadT = setTimeout(() => this.on && !this.use3d && toast('3D-Ansicht lädt noch (≈ 0,7 MB beim ersten Mal) …', 'info', 4000), 6000);
+      this.loadT = setTimeout(() => this.on && !this.use3d && toast(T('3D-Ansicht lädt noch (≈ 0,7 MB beim ersten Mal) …'), 'info', 4000), 6000);
     }
     const fail = (e) => {
       this.el.classList.remove('loading3d');
       clearTimeout(this.loadT);
       if (e) console.error('3D-Ansicht', e);
-      if (e && this.on) toast(`3D-Ansicht konnte nicht starten (${e.message || e}) – bitte die Seite neu laden (Strg+Umschalt+R)`, 'bad', 8000);
+      if (e && this.on) toast(T`3D-Ansicht konnte nicht starten (${e.message || e}) – bitte die Seite neu laden (Strg+Umschalt+R)`, 'bad', 8000);
       else if (onFail) onFail();
       if (this.on) this.stop();
     };
@@ -253,7 +254,7 @@ export class Ride {
     const dep = !ARR_PH.has(ac.phase);
     this.arriving = !dep;
     if (mode === 'window' && s.settings.tts && voice.on && voice.announce) {
-      voice.announce(dep ? `Meine Damen und Herren, hier spricht Ihr Kapitän. Willkommen an Bord von ${al ? al.name : ''}${city ? ` nach ${city}` : ''}. Bitte schnallen Sie sich an, wir starten in Kürze.` : `Meine Damen und Herren, wir befinden uns im Landeanflug auf Planez. Bitte bleiben Sie angeschnallt, bis wir die Parkposition erreicht haben.`);
+      voice.announce(dep ? T`Meine Damen und Herren, hier spricht Ihr Kapitän. Willkommen an Bord von ${al ? al.name : ''}${city ? T` nach ${city}` : ''}. Bitte schnallen Sie sich an, wir starten in Kürze.` : T`Meine Damen und Herren, wir befinden uns im Landeanflug auf Planez. Bitte bleiben Sie angeschnallt, bis wir die Parkposition erreicht haben.`);
     }
   }
 
@@ -285,15 +286,15 @@ export class Ride {
     this.lbl = new Map();
     this.el.classList.remove('hidden', 'cockpit', 'window', 'chase', 'cine3d', 'drone');
     this.el.classList.add('tower');
-    this.el.querySelector('.rd-help').textContent = 'Ziehen = umsehen · Mausrad = Fernglas · Klick auf ein Flugzeug = auswählen · Doppelklick = zurücksetzen';
-    this.tEl.textContent = 'Turmblick';
+    this.el.querySelector('.rd-help').textContent = T('Ziehen = umsehen · Mausrad = Fernglas · Klick auf ein Flugzeug = auswählen · Doppelklick = zurücksetzen');
+    this.tEl.textContent = T('Turmblick');
     clearTimeout(this.helpT);
     this.el.classList.remove('nohelp');
     this.helpT = setTimeout(() => this.el.classList.add('nohelp'), 7000);
     document.getElementById('t-tower3d')?.classList.add('on');
     this.setTrack(!!this.game.ui.selected);
     this.load3d(() => {
-      toast('Der Turmblick braucht WebGL – dein Browser bietet es gerade nicht an', 'warn', 3200);
+      toast(T('Der Turmblick braucht WebGL – dein Browser bietet es gerade nicht an'), 'warn', 3200);
       this.stop();
     });
   }
@@ -343,7 +344,7 @@ export class Ride {
     if (this.binoK !== bino) (this.binoK = bino), this.el.style.setProperty('--bino', bino.toFixed(2));
     this.drawLabels(s, sel);
     const wx = s.weather;
-    const txt = `Turmblick${ac ? ` · ${ac.cs}` : ''} · ${Math.round(55 / (this.fov || 55) * 10) / 10}×`;
+    const txt = T`Turmblick${ac ? ` · ${ac.cs}` : ''} · ${Math.round(55 / (this.fov || 55) * 10) / 10}×`;
     if (this.tEl.textContent !== txt) this.tEl.textContent = txt;
     void wx;
   }
@@ -386,7 +387,7 @@ export class Ride {
       if (!d) {
         d = document.createElement('div');
         d.className = 'rl ga';
-        d.title = key === 'heli' ? 'Im Rettungshubschrauber mitfliegen' : 'Rundflug: in der Alcedo mitfliegen';
+        d.title = key === 'heli' ? T('Im Rettungshubschrauber mitfliegen') : T('Rundflug: in der Alcedo mitfliegen');
         d.addEventListener('pointerdown', (e) => {
           e.stopPropagation();
           this.startGA(key === 'heli' ? 'heli' : 'vfr');
@@ -394,7 +395,7 @@ export class Ride {
         box.appendChild(d);
         this.lbl.set(id, d);
       }
-      const html = `<b>${esc(name || '')}</b><small>${key === 'heli' ? 'Hubschrauber' : 'C172'} · mitfliegen</small>`;
+      const html = T`<b>${esc(name || '')}</b><small>${key === 'heli' ? T('Hubschrauber') : 'C172'} · mitfliegen</small>`;
       if (d._h !== html) (d.innerHTML = html, (d._h = html));
       d.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
     }
@@ -444,7 +445,7 @@ export class Ride {
       this.el.style.removeProperty('--bino');
       this.binoK = 0;
       this.el.querySelector('.rd-labels').innerHTML = '';
-      this.el.querySelector('.rd-help').textContent = 'Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen';
+      this.el.querySelector('.rd-help').textContent = T('Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen');
       this.lbl = new Map();
       this.mode = null;
     }
@@ -515,7 +516,7 @@ export class Ride {
       this.errN = (this.errN || 0) + 1;
       if (this.errN >= 3) {
         this.errN = 0;
-        toast(`3D-Ansicht: Fehler „${e.message}“ – bitte die Seite neu laden (Strg+Umschalt+R)`, 'bad', 8000);
+        toast(T`3D-Ansicht: Fehler „${e.message}“ – bitte die Seite neu laden (Strg+Umschalt+R)`, 'bad', 8000);
         this.stop();
       }
     }
@@ -535,7 +536,7 @@ export class Ride {
     // nach dem Start: im Steigflug mitfliegen, bis die Maschine hoch und weit genug weg ist
     if (ac && ac.mode === 'air' && !this.arriving && this.use3d && (ac.alt || 0) < 9000 && Math.hypot(ac.pos.x, ac.pos.y) < 22) return this.updateAirDep(s, ac, dt);
     if (!ac || ac.mode !== 'map' || ac.phase === PH.GONE) {
-      toast(ac && !this.arriving ? '✈️ Gute Reise! Das Flugzeug hat den Flughafen verlassen.' : 'Ausgestiegen', 'info', 2600);
+      toast(ac && !this.arriving ? T('✈️ Gute Reise! Das Flugzeug hat den Flughafen verlassen.') : T('Ausgestiegen'), 'info', 2600);
       return this.stop();
     }
     // an der Position angekommen: kurz stehen bleiben, dann aussteigen
@@ -543,7 +544,7 @@ export class Ride {
     if (this.arriving && ac.phase === PH.STAND) {
       this.endT += dt;
       if (this.endT > 5) {
-        toast(`Willkommen in ${s.name}! Ausgestiegen.`, 'good', 2600);
+        toast(T`Willkommen in ${s.name}! Ausgestiegen.`, 'good', 2600);
         return this.stop();
       }
     }
@@ -583,8 +584,8 @@ export class Ride {
     if (this.belt !== undefined && this.belt !== belt) sfx.chime && sfx.chime();
     this.belt = belt;
     this.el.querySelector('.rd-belt').classList.toggle('on', !!belt);
-    const where = `${esc(ac.cs)} · ${esc(AC_TYPES[ac.type].name)}${city ? ` · ${arrNow ? 'aus' : 'nach'} ${esc(city)}` : ''}`;
-    const txt = this.mode === 'window' ? `Platz ${12 + (ac.id.length * 7) % 18}F · ${where} · ${PHASE_DE[ac.phase] || ''}${alt > 0 ? ` · ${alt} ft` : ''}` : `${this.mode === 'chase' ? 'Außenkamera' : 'Cockpit'} · ${where} · ${PHASE_DE[ac.phase] || ''}${alt > 0 ? ` · ${alt} ft` : ''}`;
+    const where = `${esc(ac.cs)} · ${esc(AC_TYPES[ac.type].name)}${city ? ` · ${arrNow ? T`aus ${esc(city)}` : T`nach ${esc(city)}`}` : ''}`;
+    const txt = this.mode === 'window' ? T`Platz ${12 + (ac.id.length * 7) % 18}F · ${where} · ${PHASE_DE[ac.phase] || ''}${alt > 0 ? ` · ${alt} ft` : ''}` : `${this.mode === 'chase' ? T('Außenkamera') : T('Cockpit')} · ${where} · ${PHASE_DE[ac.phase] || ''}${alt > 0 ? ` · ${alt} ft` : ''}`;
     if (this.tEl.innerHTML !== txt) this.tEl.innerHTML = txt;
     if (this.mode === 'cockpit') {
       this.R.spd.textContent = kt;
@@ -592,7 +593,7 @@ export class Ride {
       this.R.vs.textContent = Math.abs(vs) > 50 ? `${vs > 0 ? '↑' : '↓'}${Math.round(Math.abs(vs) / 50) * 50}` : '';
       this.R.hdg.textContent = String(hdg).padStart(3, '0');
       this.R.rose.style.transform = `rotate(${-hdg}deg)`;
-      const fma = { [PH.FINAL]: z < 0.12 ? 'FLARE' : 'LAND', [PH.ROLLOUT]: 'ROLLOUT', [PH.TAKEOFF]: z > 0.05 ? 'SRS · CLB' : 'TOGA', [PH.MISSED]: 'GA · TOGA', [PH.LINED]: 'LINED UP', [PH.LINEUP]: 'LINE UP', [PH.HOLDING]: 'HOLD SHORT', [PH.TAXI_OUT]: 'TAXI', [PH.TAXI_IN]: 'TAXI', [PH.PUSH]: 'PUSH', [PH.STARTUP]: 'ENG START', [PH.STAND]: 'PARK' }[ac.phase] || '';
+      const fma = { [PH.FINAL]: z < 0.12 ? 'FLARE' : 'LAND', [PH.ROLLOUT]: 'ROLLOUT', [PH.TAKEOFF]: z > 0.05 ? 'SRS · CLB' : 'TOGA', [PH.MISSED]: 'GA · TOGA', [PH.LINED]: 'LINED UP', [PH.LINEUP]: 'LINE UP', [PH.HOLDING]: 'HOLD SHORT', [PH.TAXI_OUT]: 'TAXI', [PH.TAXI_IN]: 'TAXI', [PH.PUSH]: 'PUSH', [PH.STARTUP]: T('ENG START'), [PH.STAND]: 'PARK' }[ac.phase] || '';
       this.R.fma.textContent = fma;
       const pitch = ac.phase === PH.TAKEOFF && z > 0.02 ? 12 : ac.phase === PH.MISSED ? 10 : ac.phase === PH.FINAL ? (z < 0.12 ? 4 : -2.5) : 0;
       this.el.querySelector('.rd-hor').style.transform = `translateY(${pitch * 2.2}px)`;
@@ -601,7 +602,7 @@ export class Ride {
       if (ac.phase === PH.TAKEOFF) {
         if (kt >= 120 && !this.called.has('v1')) (this.called.add('v1'), this.callout('V one'));
         if (z > 0.01 && !this.called.has('rot')) (this.called.add('rot'), this.callout('Rotate'));
-        if (z > 0.25 && !this.called.has('pos')) (this.called.add('pos'), this.callout('Positive rate. Gear up.'));
+        if (z > 0.25 && !this.called.has('pos')) (this.called.add('pos'), this.callout(T('Positive rate. Gear up.')));
       }
       // Höhenansagen im Endanflug
       if (ac.phase === PH.FINAL) for (const n of CALLS) if (alt <= n && alt > 0 && !this.called.has(n)) {
@@ -629,8 +630,8 @@ Ride.prototype.updateAir = function (s, ac, dt) {
   const d = AS.routeDistance(ac.pos, ac.route.length && ac.phase === PH.APPROACH ? ac.route : AS.approachRoute(ac.pos, ac.rwy));
   const rot = s.rots[ac.rot];
   const city = rot && CITIES[rot.city] ? CITIES[rot.city].name : '';
-  const where = `${esc(ac.cs)} · ${esc(AC_TYPES[ac.type].name)}${city ? ` · aus ${esc(city)}` : ''}`;
-  const txt = `${this.mode === 'window' ? `Platz ${12 + (ac.id.length * 7) % 18}F` : this.mode === 'chase' ? 'Außenkamera' : 'Cockpit'} · ${where} · ${PHASE_DE[ac.phase] || ''} · noch ${d.toFixed(1)} NM`;
+  const where = `${esc(ac.cs)} · ${esc(AC_TYPES[ac.type].name)}${city ? T` · aus ${esc(city)}` : ''}`;
+  const txt = T`${this.mode === 'window' ? T`Platz ${12 + (ac.id.length * 7) % 18}F` : this.mode === 'chase' ? T('Außenkamera') : T('Cockpit')} · ${where} · ${PHASE_DE[ac.phase] || ''} · noch ${d.toFixed(1)} NM`;
   if (this.tEl.innerHTML !== txt) this.tEl.innerHTML = txt;
   this.arriving = true;
   this.el.querySelector('.rd-belt').classList.add('on');
@@ -675,8 +676,8 @@ Ride.prototype.updateAirDep = function (s, ac, dt) {
   const rot = s.rots[ac.rot];
   const city = rot && CITIES[rot.city] ? CITIES[rot.city].name : '';
   const alt = Math.round((ac.alt || 0) / 10) * 10;
-  const where = `${esc(ac.cs)} · ${esc(AC_TYPES[ac.type].name)}${city ? ` · nach ${esc(city)}` : ''}`;
-  const txt = `${this.mode === 'window' ? `Platz ${12 + (ac.id.length * 7) % 18}F` : this.mode === 'chase' ? 'Außenkamera' : 'Cockpit'} · ${where} · Steigflug · ${alt} ft`;
+  const where = `${esc(ac.cs)} · ${esc(AC_TYPES[ac.type].name)}${city ? T` · nach ${esc(city)}` : ''}`;
+  const txt = T`${this.mode === 'window' ? T`Platz ${12 + (ac.id.length * 7) % 18}F` : this.mode === 'chase' ? T('Außenkamera') : T('Cockpit')} · ${where} · Steigflug · ${alt} ft`;
   if (this.tEl.innerHTML !== txt) this.tEl.innerHTML = txt;
   // Anschnallzeichen aus ab 3.000 ft
   const belt = alt < 3000;
@@ -706,7 +707,7 @@ function distLeft(ac) {
 // Szenen: Landung von der Bahnseite, Start, Überflug am Bahnende, Anflug von hinten, Rollverkehr, Pushback,
 // Rettungshubschrauber, Cessna, Kranfahrt über das Vorfeld und der Blick vom Tower. Jede Szene läuft 9–16 s;
 // ist das Motiv weg (gelandet, abgeflogen), kommt die nächste. Breitbild-Balken und Einblendung unten links.
-const CINE_SUB = { land: 'Landung', takeoff: 'Start', climb: 'Steigflug', app: 'Im Anflug', taxi: 'Rollt', push: 'Pushback', heli: 'Rettungshubschrauber', vfr: 'Platzrunde', orbit: 'Vorfeld', tower: 'Blick vom Tower' };
+const CINE_SUB = { land: T('Landung'), takeoff: T('Start'), climb: T('Steigflug'), app: T('Im Anflug'), taxi: T('Rollt'), push: T('Pushback'), heli: T('Rettungshubschrauber'), vfr: T('Platzrunde'), orbit: T('Vorfeld'), tower: T('Blick vom Tower') };
 
 Ride.prototype.startCine3d = function () {
   if (this.on) this.stop();
@@ -720,9 +721,9 @@ Ride.prototype.startCine3d = function () {
   this.el.classList.remove('hidden', 'cockpit', 'window', 'chase', 'tower');
   this.el.classList.add('cine3d');
   document.getElementById('game').classList.add('riding');
-  this.tEl.textContent = 'Kino 3D';
+  this.tEl.textContent = T('Kino 3D');
   this.load3d(() => {
-    toast('Kino 3D braucht WebGL – dein Browser bietet es gerade nicht an', 'warn', 3200);
+    toast(T('Kino 3D braucht WebGL – dein Browser bietet es gerade nicht an'), 'warn', 3200);
     this.stop();
   });
 };
@@ -858,11 +859,11 @@ Ride.prototype.updateCine3d = function (dt) {
   if (ac) {
     const t = AC_TYPES[ac.type], al = AIRLINES[ac.airline];
     const rwy = ac.rwy || s.rwy;
-    const sub = sh.kind === 'land' ? `Landung auf der ${rwy}` : sh.kind === 'takeoff' || sh.kind === 'climb' ? `Start von der ${rwy}` : CINE_SUB[sh.kind];
+    const sub = sh.kind === 'land' ? T`Landung auf der ${rwy}` : sh.kind === 'takeoff' || sh.kind === 'climb' ? T`Start von der ${rwy}` : CINE_SUB[sh.kind];
     html = `<b>${esc(ac.cs)}</b><span>${esc(typeName(ac.type))}${al ? ` · ${esc(al.name)}` : ''}</span><small>${esc(sub)} · ${esc(s.name)}</small>`;
   } else html = `<b>${esc(sh.kind === 'heli' ? 'Rescue 7' : sh.kind === 'vfr' ? (s.vfr.p && s.vfr.p.cs) || '' : s.name)}</b><small>${esc(CINE_SUB[sh.kind] || '')}</small>`;
   if (cap._h !== html) (cap.innerHTML = html, (cap._h = html), cap.classList.remove('in'), void cap.offsetWidth, cap.classList.add('in'));
-  const txt = `Kino 3D · ${CINE_SUB[sh.kind] || ''}`;
+  const txt = T`Kino 3D · ${CINE_SUB[sh.kind] || ''}`;
   if (this.tEl.textContent !== txt) this.tEl.textContent = txt;
 };
 
@@ -948,7 +949,7 @@ Ride.prototype.windshield = function (dt, wx, kt) {
 Ride.prototype.startGA = function (kind) {
   const s = this.game.state;
   const o = kind === 'heli' ? s.heli && s.heli.h : s.vfr && s.vfr.p;
-  if (!o) return toast('Gerade ist niemand unterwegs', 'info', 2000);
+  if (!o) return toast(T('Gerade ist niemand unterwegs'), 'info', 2000);
   const back = this.mode === 'tower' ? 'tower' : null;
   const cam0 = this.cam0;
   if (this.on) this.stop();
@@ -962,10 +963,10 @@ Ride.prototype.startGA = function (kind) {
   document.getElementById('game').classList.add('riding');
   this.setMode('cockpit');
   this.load3d(() => {
-    toast('Mitfliegen in 3D braucht WebGL', 'warn', 2600);
+    toast(T('Mitfliegen in 3D braucht WebGL'), 'warn', 2600);
     this.stop();
   });
-  toast(kind === 'heli' ? 'Willkommen an Bord von Rescue 7 – es geht zur Klinik' : `Rundflug mit ${o.cs}: Platzrunden über ${s.name}`, 'good', 2600);
+  toast(kind === 'heli' ? T('Willkommen an Bord von Rescue 7 – es geht zur Klinik') : T`Rundflug mit ${o.cs}: Platzrunden über ${s.name}`, 'good', 2600);
 };
 
 Ride.prototype.updateGA = function (dt) {
@@ -973,7 +974,7 @@ Ride.prototype.updateGA = function (dt) {
   const heli = this.ga === 'heli';
   const o = heli ? s.heli && s.heli.h : s.vfr && s.vfr.p;
   if (!o) {
-    toast(heli ? 'Rescue 7 ist außer Sicht – danke fürs Mitfliegen' : 'Gelandet und abgestellt – danke für den Rundflug', 'good', 2600);
+    toast(heli ? T('Rescue 7 ist außer Sicht – danke fürs Mitfliegen') : T('Gelandet und abgestellt – danke für den Rundflug'), 'good', 2600);
     const back = this.gaBack;
     this.stop();
     if (back === 'tower') this.startTower();
@@ -994,8 +995,8 @@ Ride.prototype.updateGA = function (dt) {
   this.v3d.render(s, this, null);
   this.windshield(dt, s.weather.kind, kt);
   const hdg = Math.round((((o.hdg || 0) * 180) / Math.PI + 90 + 360) % 360);
-  const what = heli ? `Rescue 7 · Rettungshubschrauber${o.st === 'hold' ? ' · wartet auf Querungsfreigabe' : o.st === 'cross' ? ' · quert die Bahnen' : ''}` : `${esc(o.cs)} · Alcedo AL-4 · ${{ join: 'Einflug in die Platzrunde', circuit: 'Platzrunde', ga: 'Durchstarten', orbit: 'Warteschleife', leave: 'Abflug aus der Kontrollzone' }[o.mode] || 'Platzrunde'}`;
-  const txt = `${this.mode === 'chase' ? 'Außenkamera' : heli ? 'Rettungsflug' : 'Rundflug'} · ${what}${alt > 0 ? ` · ${alt} ft` : ''}`;
+  const what = heli ? T`Rescue 7 · Rettungshubschrauber${o.st === 'hold' ? T(' · wartet auf Querungsfreigabe') : o.st === 'cross' ? T(' · quert die Bahnen') : ''}` : `${esc(o.cs)} · Alcedo AL-4 · ${{ join: T('Einflug in die Platzrunde'), circuit: T('Platzrunde'), ga: T('Durchstarten'), orbit: T('Warteschleife'), leave: T('Abflug aus der Kontrollzone') }[o.mode] || T('Platzrunde')}`;
+  const txt = `${this.mode === 'chase' ? T('Außenkamera') : heli ? T('Rettungsflug') : T('Rundflug')} · ${what}${alt > 0 ? ` · ${alt} ft` : ''}`;
   if (this.tEl.innerHTML !== txt) this.tEl.innerHTML = txt;
   this.el.querySelector('.rd-belt').classList.toggle('on', true);
   if (this.mode === 'cockpit') {
@@ -1022,7 +1023,7 @@ Ride.prototype.photo = function () {
   if (!g.spot) g.spot = new SpotterUi(g);
   if (!ac) {
     if (s.settings.sound !== false) sfx.shutter && sfx.shutter();
-    return toast('📷 Kein Flugzeug in der Bildmitte – Fernglas drauf und nochmal', 'info', 2400);
+    return toast(T('📷 Kein Flugzeug in der Bildmitte – Fernglas drauf und nochmal'), 'info', 2400);
   }
   g.spot.shoot(ac);
 };
@@ -1044,7 +1045,7 @@ function remainingPath(ac) {
 Ride.prototype.startMarshal = function (acId) {
   const s = this.game.state;
   const ac = s.acs.find((a) => a.id === acId);
-  if (!ac || ac.phase !== PH.TAXI_IN || !ac.stand) return toast('Einwinken geht, wenn ein Flugzeug zur Position rollt', 'info', 2400);
+  if (!ac || ac.phase !== PH.TAXI_IN || !ac.stand) return toast(T('Einwinken geht, wenn ein Flugzeug zur Position rollt'), 'info', 2400);
   if (this.on) this.stop();
   const st = s.stands.find((x) => x.id === ac.stand);
   if (!st) return;
@@ -1059,12 +1060,12 @@ Ride.prototype.startMarshal = function (acId) {
   this.el.classList.add('marshal');
   this.el.querySelector('.rd-mres').innerHTML = '';
   document.getElementById('game').classList.add('riding');
-  this.tEl.textContent = `Einwinken · ${ac.cs} · Position ${st.id}`;
+  this.tEl.textContent = T`Einwinken · ${ac.cs} · Position ${st.id}`;
   this.load3d(() => {
-    toast('Einwinken braucht WebGL', 'warn', 2400);
+    toast(T('Einwinken braucht WebGL'), 'warn', 2400);
     this.stop();
   });
-  toast(`🦺 ${ac.cs} rollt zu Position ${st.id} – STOPP, wenn die Bugnase die gelbe Haltemarke erreicht`, 'info', 4200);
+  toast(T`🦺 ${ac.cs} rollt zu Position ${st.id} – STOPP, wenn die Bugnase die gelbe Haltemarke erreicht`, 'info', 4200);
 };
 
 Ride.prototype.marshalStop = function () {
@@ -1073,7 +1074,7 @@ Ride.prototype.marshalStop = function () {
   const ac = s.acs.find((a) => a.id === this.id);
   if (!ac) return;
   const meters = remainingPath(ac) * 20;
-  const [label, pts, perfect] = meters <= 1.5 ? ['Punktgenau!', 60, true] : meters <= 4 ? ['Gut eingewunken', 30, false] : meters <= 10 ? ['Etwas zu früh', 10, false] : ['Viel zu früh – der Pilot rollt bis zur Marke weiter', 0, false];
+  const [label, pts, perfect] = meters <= 1.5 ? [T('Punktgenau!'), 60, true] : meters <= 4 ? [T('Gut eingewunken'), 30, false] : meters <= 10 ? [T('Etwas zu früh'), 10, false] : [T('Viel zu früh – der Pilot rollt bis zur Marke weiter'), 0, false];
   this.marshalResult(label, pts, perfect, meters);
 };
 
@@ -1084,7 +1085,7 @@ Ride.prototype.marshalResult = function (label, pts, perfect, meters) {
   L.marshals = (L.marshals || 0) + 1;
   if (perfect) L.marshalPerfect = (L.marshalPerfect || 0) + 1;
   L.marshalPts = (L.marshalPts || 0) + pts;
-  this.el.querySelector('.rd-mres').innerHTML = `<b class="${perfect ? 'ok' : pts ? 'mid' : 'bad'}">${esc(label)}</b><span>${meters === null ? 'Bugnase über der Haltemarke' : `${meters.toFixed(1)} m vor der Marke`} · +${pts} Punkte</span>`;
+  this.el.querySelector('.rd-mres').innerHTML = T`<b class="${perfect ? 'ok' : pts ? 'mid' : 'bad'}">${esc(label)}</b><span>${meters === null ? T('Bugnase über der Haltemarke') : T`${meters.toFixed(1)} m vor der Marke`} · +${pts} Punkte</span>`;
   this.el.classList.add('mstop');
   if (s.settings.sound !== false) (perfect ? sfx.fanfare : sfx.click) && (perfect ? sfx.fanfare() : sfx.click());
 };
@@ -1094,7 +1095,7 @@ Ride.prototype.updateMarshal = function (dt) {
   const ac = s.acs.find((a) => a.id === this.id);
   if (!ac || (ac.phase !== PH.TAXI_IN && ac.phase !== PH.STAND)) return this.stop();
   if (ac.phase === PH.STAND) {
-    if (!m.judged) this.marshalResult('Zu spät – die Nase steht schon über der Marke', 0, false, null);
+    if (!m.judged) this.marshalResult(T('Zu spät – die Nase steht schon über der Marke'), 0, false, null);
     m.endT += dt;
     if (m.endT > 3.5) {
       this.stop();
@@ -1143,12 +1144,12 @@ Ride.prototype.startDrone = function () {
   this.el.classList.remove('hidden', 'cockpit', 'window', 'chase', 'tower', 'cine3d');
   this.el.classList.add('drone');
   document.getElementById('game').classList.add('riding');
-  this.el.querySelector('.rd-help').textContent = 'WASD/Pfeile = fliegen · Q/E = sinken/steigen · Umschalt = schnell · Ziehen = umsehen · F = Foto';
+  this.el.querySelector('.rd-help').textContent = T('WASD/Pfeile = fliegen · Q/E = sinken/steigen · Umschalt = schnell · Ziehen = umsehen · F = Foto');
   clearTimeout(this.helpT);
   this.el.classList.remove('nohelp');
   this.helpT = setTimeout(() => this.el.classList.add('nohelp'), 8000);
   this.load3d(() => {
-    toast('Die Drohne braucht WebGL', 'warn', 2400);
+    toast(T('Die Drohne braucht WebGL'), 'warn', 2400);
     this.stop();
   });
 };
@@ -1191,7 +1192,7 @@ Ride.prototype.updateDrone = function (dt) {
   soundscape.cabin = { drone: true, speed: Math.min(1.5, Math.hypot(d.vx || 0, d.vz || 0, d.vy || 0) / 8) };
   this.v3d.render(s, this, null);
   this.hearAt(Math.max(0.5, 2.2 - d.y * 0.08));
-  const txt = `Drohne · Höhe ${Math.round(d.y * 20)} m${K.has('fast') ? ' · schnell' : ''}`;
+  const txt = T`Drohne · Höhe ${Math.round(d.y * 20)} m${K.has('fast') ? T(' · schnell') : ''}`;
   if (this.tEl.textContent !== txt) this.tEl.textContent = txt;
 };
 

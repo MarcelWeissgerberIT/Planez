@@ -2,6 +2,7 @@
 // Zu Stoßzeiten entstehen Schlangen – das Boarding dauert länger, Passagiere beschweren sich.
 import { clamp } from '../util.js';
 import { notify, log } from './messages.js';
+import { T } from '../i18n.js';
 
 export const secLanes = (state) => 6 + 2 * (state.upgrades.security || 0);
 export const secCapacity = (state) => secLanes(state) * 120; // Passagiere je Stunde
@@ -35,8 +36,8 @@ export function updateSecurity(state, dt) {
   if (S.wait > 25) state.reputation = clamp(state.reputation - (dt / 3600) * 0.25, 0, 100);
   if (S.wait > 20 && !S.warned) {
     S.warned = true;
-    notify(state, `🚶 Lange Schlange an der Sicherheitskontrolle (≈${Math.round(S.wait)} min) – Boarding dauert länger`, 'warn');
-    log(state, 'mgr', `Sicherheitskontrolle überlastet: ${Math.round(S.demand)} Reisende/h bei ${cap} Kapazität (${secLanes(state)} Spuren).`);
+    notify(state, T`🚶 Lange Schlange an der Sicherheitskontrolle (≈${Math.round(S.wait)} min) – Boarding dauert länger`, 'warn');
+    log(state, 'mgr', T`Sicherheitskontrolle überlastet: ${Math.round(S.demand)} Reisende/h bei ${cap} Kapazität (${secLanes(state)} Spuren).`);
   }
   if (S.wait < 8) S.warned = false;
 }

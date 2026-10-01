@@ -1,5 +1,6 @@
 // Wirbelschleppen-Kategorien und Staffelungswerte (vereinfacht nach ICAO Doc 4444)
-export const WAKE_DE = { L: 'leicht (Light)', M: 'mittel (Medium)', H: 'schwer (Heavy)' };
+import { T } from '../i18n.js';
+export const WAKE_DE = { L: T('leicht (Light)'), M: T('mittel (Medium)'), H: T('schwer (Heavy)') };
 
 // Radarstaffelung im Endanflug in NM: [vorausfliegend][folgend]
 const ARR_NM = { HH: 4, HM: 5, HL: 6, ML: 5 };

@@ -16,17 +16,18 @@ import { fmtHours, realMinutes } from './projects.js';
 import { isCareer, stageOf } from '../sim/career.js';
 import { careerDockHtml, careerHeroHtml, careerClick, stagePic } from './careerUi.js';
 import { Spotlight, MiniRadar, sparkPath, todoPic, sitePic } from './dockLive.js';
+import { T } from '../i18n.js';
 
 export class ManagerDock {
   constructor(root, game, observer = false) {
     this.root = root;
     this.game = game;
-    root.innerHTML = `
-      <div class="p-head"><div class="p-title">${observer ? icon('eye') + ' Beobachter' : icon('briefcase') + ' Leitstand'} <small id="mp-sub"></small></div></div>
+    root.innerHTML = T`
+      <div class="p-head"><div class="p-title">${observer ? icon('eye') + T(' Beobachter') : icon('briefcase') + T(' Leitstand')} <small id="mp-sub"></small></div></div>
       <div class="p-body dock-body">
         <div id="dk-hero"></div>
         <button class="dock-open" data-open="over"><span>${icon('briefcase')}</span><b>Management-Zentrale</b><kbd>O</kbd></button>
-        ${observer ? '<button class="dock-open cine" data-cine><span>' + icon('cinema') + '</span><b>Kino-Modus</b><kbd>K</kbd></button><button class="dock-open spot" data-spotbook><span>' + icon('spotbook') + '</span><b>Spotterbuch</b><kbd>J</kbd></button><button class="dock-open stream" data-stream><span>' + icon('stream') + '</span><b>Livestream</b><kbd>L</kbd></button><div class="dock-spot-tip">Flugzeug anklicken, dann <kbd>F</kbd> oder 📷 Spotten: seltene Typen, Sonderlackierungen und besondere Momente sammeln.</div><div class="dock-motif" id="dk-motif"></div>' : ''}
+        ${observer ? T`<button class="dock-open cine" data-cine><span>${icon('cinema')}</span><b>Kino-Modus</b><kbd>K</kbd></button><button class="dock-open spot" data-spotbook><span>${icon('spotbook')}</span><b>Spotterbuch</b><kbd>J</kbd></button><button class="dock-open stream" data-stream><span>${icon('stream')}</span><b>Livestream</b><kbd>L</kbd></button><div class="dock-spot-tip">Flugzeug anklicken, dann <kbd>F</kbd> oder 📷 Spotten: seltene Typen, Sonderlackierungen und besondere Momente sammeln.</div><div class="dock-motif" id="dk-motif"></div>` : ''}
         <div class="p-sec live"><span><i class="live-dot"></i>Live am Platz</span><span class="cnt" id="dk-rc"></span></div>
         <div class="sl" id="dk-spot" title="Anklicken: Flugzeug auf der Karte zeigen"></div>
         <div class="dk-radar"><canvas id="dk-radar"></canvas><span class="dk-radar-l">Luftlage</span></div>
@@ -81,12 +82,12 @@ export class ManagerDock {
       this.heroKey = heroKey;
       const hero = this.root.querySelector('#dk-hero');
       if (career) hero.innerHTML = careerHeroHtml(s);
-      else hero.innerHTML = `<div class="cr-hero" data-open="over"><div class="cr-hero-img kb0" style="background-image:url(${stagePic(2 + Math.min(2, goalsState(s).rank))})"></div><div class="cr-hero-shade"></div><div class="cr-hero-t"><small>Flughafen-Rang</small><b>🏅 ${esc(RANKS[goalsState(s).rank].name)}</b></div></div>`;
+      else hero.innerHTML = T`<div class="cr-hero" data-open="over"><div class="cr-hero-img kb0" style="background-image:url(${stagePic(2 + Math.min(2, goalsState(s).rank))})"></div><div class="cr-hero-shade"></div><div class="cr-hero-t"><small>Flughafen-Rang</small><b>🏅 ${esc(RANKS[goalsState(s).rank].name)}</b></div></div>`;
     }
     setHTML(this.root.querySelector('#dk-career'), career ? careerDockHtml(s) : '');
     const small = career && stageOf(s) < 2;
     const mt = this.root.querySelector('#dk-motif');
-    if (mt) setHTML(mt, `🎯 Motiv des Tages: <b>${esc(motifOf(s).t)}</b>${motifDone(s) ? ' <span class="ok">✓</span>' : ' · +150'}`);
+    if (mt) setHTML(mt, T`🎯 Motiv des Tages: <b>${esc(motifOf(s).t)}</b>${motifDone(s) ? ' <span class="ok">✓</span>' : ' · +150'}`);
     const t = s.stats.today;
     const L = s.ledger;
     const rev = Object.values(L.rev).reduce((a, b) => a + b, 0);
@@ -107,23 +108,23 @@ export class ManagerDock {
     const tile = (k, v, cls = '', open = '', sp = '') => `<div class="k${open ? ' link' : ''}${sp ? ' has-spark' : ''}" ${open ? `data-open="${open}"` : ''}>${sp ? sparkPath(SPK[sp]) : ''}<span>${k}</span><b class="${cls}">${v}</b></div>`;
     setHTML(
       this.root.querySelector('#dk-kpi'),
-      `<div class="kpis dock-kpis">${tile('Ergebnis heute', fmtMoney(rev - cost), rev - cost >= 0 ? 'pos' : 'neg', 'fin', 'res')}${tile('Ansehen', `${Math.round(s.reputation)}/100`, '', 'over', 'rep')}${tile('Pünktlich', deps ? Math.round((t.onTime / deps) * 100) + ' %' : '—', '', 'over')}${tile('Bewegungen', t.mov, '', 'over', 'mov')}${small ? '' : tile('Tanklager', `${Math.round(fu.stock)} t`, fu.stock < FUEL.cap * 0.15 ? 'neg' : '', 'fuel')}${tile('Piste', `${cond} % · ${BRAKE_DE[brakingAction(s)]}`, cond < 45 ? 'neg' : '', 'runways')}${small ? '' : tile('Sicherheitskontrolle', `${Math.round(secState(s).wait)} min Wartezeit`, secState(s).wait > 15 ? 'neg' : '', 'terminal')}${small ? '' : tile('Marktanteil', `${Math.round(rivalState(s).share)} % vs. Nordhafen`, rivalState(s).share < 45 ? 'neg' : rivalState(s).share > 55 ? 'pos' : '', 'rival')}${!small && s.board && s.board.targets ? tile('Aufsichtsrat', boardBadge(s), s.board.conf < 40 ? 'neg' : s.board.conf >= 75 ? 'pos' : '', 'board') : ''}</div>`
+      `<div class="kpis dock-kpis">${tile(T('Ergebnis heute'), fmtMoney(rev - cost), rev - cost >= 0 ? 'pos' : 'neg', 'fin', 'res')}${tile(T('Ansehen'), `${Math.round(s.reputation)}/100`, '', 'over', 'rep')}${tile(T('Pünktlich'), deps ? Math.round((t.onTime / deps) * 100) + ' %' : '—', '', 'over')}${tile(T('Bewegungen'), t.mov, '', 'over', 'mov')}${small ? '' : tile(T('Tanklager'), `${Math.round(fu.stock)} t`, fu.stock < FUEL.cap * 0.15 ? 'neg' : '', 'fuel')}${tile(T('Piste'), `${cond} % · ${BRAKE_DE[brakingAction(s)]}`, cond < 45 ? 'neg' : '', 'runways')}${small ? '' : tile(T('Sicherheitskontrolle'), T`${Math.round(secState(s).wait)} min Wartezeit`, secState(s).wait > 15 ? 'neg' : '', 'terminal')}${small ? '' : tile(T('Marktanteil'), T`${Math.round(rivalState(s).share)} % vs. Nordhafen`, rivalState(s).share < 45 ? 'neg' : rivalState(s).share > 55 ? 'pos' : '', 'rival')}${!small && s.board && s.board.targets ? tile(T('Aufsichtsrat'), boardBadge(s), s.board.conf < 40 ? 'neg' : s.board.conf >= 75 ? 'pos' : '', 'board') : ''}</div>`
     );
     // Aufgaben
     const todo = [];
-    if (s.offers.length) todo.push(['contracts', '📨', `${s.offers.length} Vertragsangebot${s.offers.length > 1 ? 'e' : ''} prüfen`, 'warn']);
+    if (s.offers.length) todo.push(['contracts', '📨', s.offers.length > 1 ? T`${s.offers.length} Vertragsangebote prüfen` : T`${s.offers.length} Vertragsangebot prüfen`, 'warn']);
     const waiting = s.acs.filter((a) => (a.phase === PH.VACATED || a.phase === PH.TAXI_WAIT) && !a.stand).length;
-    if (waiting) todo.push(['stands', '🅿️', `${waiting} Flugzeug${waiting > 1 ? 'e warten' : ' wartet'} auf eine Position`, 'bad']);
-    if (!small && fu.stock < FUEL.cap * 0.25) todo.push(['fuel', '⛽', `Tanklager bei ${Math.round((fu.stock / FUEL.cap) * 100)} % – Kerosin kaufen`, fu.stock < FUEL.cap * 0.12 ? 'bad' : 'warn']);
-    if (s.cash < 0) todo.push(['fin', '🏦', 'Kasse im Minus – Kredit oder Kosten senken', 'bad']);
-    if (cond < 55 && !projects(s).some((p) => p.kind === 'rwy')) todo.push(['runways', '🛬', `Pistenzustand ${cond} % – Wartung beauftragen`, 'warn']);
-    if (!hasRwy2(s) && s.cash > 9500000 && !projects(s).some((p) => p.target === 'rwy2')) todo.push(['runways', '🛫', 'Genug Geld für die Parallelbahn', 'info']);
-    if ((t.complaints || 0) > 25 && !s.settings.curfew) todo.push(['fees', '📢', `${t.complaints} Lärmbeschwerden heute`, 'warn']);
+    if (waiting) todo.push(['stands', '🅿️', waiting > 1 ? T`${waiting} Flugzeuge warten auf eine Position` : T`${waiting} Flugzeug wartet auf eine Position`, 'bad']);
+    if (!small && fu.stock < FUEL.cap * 0.25) todo.push(['fuel', '⛽', T`Tanklager bei ${Math.round((fu.stock / FUEL.cap) * 100)} % – Kerosin kaufen`, fu.stock < FUEL.cap * 0.12 ? 'bad' : 'warn']);
+    if (s.cash < 0) todo.push(['fin', '🏦', T('Kasse im Minus – Kredit oder Kosten senken'), 'bad']);
+    if (cond < 55 && !projects(s).some((p) => p.kind === 'rwy')) todo.push(['runways', '🛬', T`Pistenzustand ${cond} % – Wartung beauftragen`, 'warn']);
+    if (!hasRwy2(s) && s.cash > 9500000 && !projects(s).some((p) => p.target === 'rwy2')) todo.push(['runways', '🛫', T('Genug Geld für die Parallelbahn'), 'info']);
+    if ((t.complaints || 0) > 25 && !s.settings.curfew) todo.push(['fees', '📢', T`${t.complaints} Lärmbeschwerden heute`, 'warn']);
     const sw = secState(s).wait;
-    if (sw > 15) todo.push(['terminal', '🚶', `Schlange an der Sicherheitskontrolle ≈ ${Math.round(sw)} min – ${s.upgrades.security < 3 ? 'weitere Spuren bauen' : 'Kapazität am Limit'}`, sw > 25 ? 'bad' : 'warn']);
+    if (sw > 15) todo.push(['terminal', '🚶', T`Schlange an der Sicherheitskontrolle ≈ ${Math.round(sw)} min – ${s.upgrades.security < 3 ? T('weitere Spuren bauen') : T('Kapazität am Limit')}`, sw > 25 ? 'bad' : 'warn']);
     const fc = forecastInfo(s);
-    if (fc.change && ['storm', 'fog', 'snow'].includes(fc.kind) && fc.at - s.time < 5400) todo.push(['over', fc.icon, `Vorhersage: ab ${fmtClock(fc.at)} ${fc.name}${fc.kind === 'fog' && !s.upgrades.ils3 && (fc.rvr || 999) < 550 ? ' unter CAT-I-Minimum' : ''}`, 'warn', fc.kind]);
-    if (!todo.length) todo.push(['over', '✅', 'Alles im grünen Bereich', 'good', '', 'good']);
+    if (fc.change && ['storm', 'fog', 'snow'].includes(fc.kind) && fc.at - s.time < 5400) todo.push(['over', fc.icon, T`Vorhersage: ab ${fmtClock(fc.at)} ${fc.name}${fc.kind === 'fog' && !s.upgrades.ils3 && (fc.rvr || 999) < 550 ? T(' unter CAT-I-Minimum') : ''}`, 'warn', fc.kind]);
+    if (!todo.length) todo.push(['over', '✅', T('Alles im grünen Bereich'), 'good', '', 'good']);
     setHTML(
       this.root.querySelector('#dk-todo'),
       todo
@@ -139,8 +140,8 @@ export class ManagerDock {
     setHTML(
       this.root.querySelector('#dk-sites'),
       ps.length
-        ? ps.map((p) => `<div class="dock-site has-pic" data-site="${p.id}" title="Baustelle zeigen"><span class="tp" style="background-image:url(${sitePic(p)})"></span><div class="ds-b"><div class="row"><span>🏗️ ${esc(p.name)}</span></div><small>${p.status === 'waiting' ? 'wartet' : Math.floor(p.prog * 100) + ' % · ' + fmtHours(remainingHours(p)) + ' · ' + realMinutes(s, remainingHours(p))}</small><div class="bar stripes"><i style="width:${p.prog * 100}%"></i></div></div></div>`).join('')
-        : '<div class="empty">Keine Baustelle – Ausbau in der Zentrale starten.</div>'
+        ? ps.map((p) => `<div class="dock-site has-pic" data-site="${p.id}" title="${T('Baustelle zeigen')}"><span class="tp" style="background-image:url(${sitePic(p)})"></span><div class="ds-b"><div class="row"><span>🏗️ ${esc(p.name)}</span></div><small>${p.status === 'waiting' ? T('wartet') : Math.floor(p.prog * 100) + ' % · ' + fmtHours(remainingHours(p)) + ' · ' + realMinutes(s, remainingHours(p))}</small><div class="bar stripes"><i style="width:${p.prog * 100}%"></i></div></div></div>`).join('')
+        : T('<div class="empty">Keine Baustelle – Ausbau in der Zentrale starten.</div>')
     );
     const G = goalsState(s);
     setHTML(

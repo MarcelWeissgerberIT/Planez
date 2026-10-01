@@ -1,3 +1,4 @@
+import { LOCALE, EN } from './i18n.js';
 // Kleine Helfer: Mathe, Zufall, Formatierung
 export const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -41,13 +42,15 @@ export function pickWeighted(s, arr, wf) {
   return arr[arr.length - 1];
 }
 
-const nf0 = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 });
-const nf1 = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-const nf2 = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const nf0 = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 });
+const nf1 = new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const nf2 = new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const fmtInt = (v) => nf0.format(Math.round(v));
 export function fmtMoney(v, short = true) {
   const s = v < 0 ? '−' : '';
   const a = Math.abs(v);
+  // Englisch: €1.25m / €12.5k / €950
+  if (EN) return short && a >= 1e6 ? `${s}€${nf2.format(a / 1e6)}m` : short && a >= 1e4 ? `${s}€${nf1.format(a / 1e3)}k` : `${s}€${nf0.format(a)}`;
   if (short && a >= 1e6) return `${s}${nf2.format(a / 1e6)} Mio €`;
   if (short && a >= 1e4) return `${s}${nf1.format(a / 1e3)} Tsd €`;
   return `${s}${nf0.format(a)} €`;

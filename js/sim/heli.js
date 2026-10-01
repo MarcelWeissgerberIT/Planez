@@ -10,6 +10,7 @@ import { scoreHeli } from './score.js';
 import { hasRwy2 } from './runway.js';
 import { clamp } from '../util.js';
 import { pushNews } from './news.js';
+import { T } from '../i18n.js';
 
 export const HELI = 'RESCUE7';
 const X = 44; // Querung in Bahnmitte
@@ -34,13 +35,13 @@ export function heliConflict(state) {
   for (const a of state.acs) {
     if (a.mode === 'map') {
       if (a.phase === PH.FINAL || (a.phase === PH.ROLLOUT && !a.vacated) || (a.phase === PH.TAKEOFF && a.z < 2) || (a.phase === PH.LINED && a.clr && a.clr.takeoff))
-        return { ac: a, hard: true, why: a.phase === PH.FINAL ? 'im kurzen Endanflug' : a.phase === PH.TAKEOFF ? 'im Startlauf' : a.phase === PH.LINED ? 'mit Startfreigabe auf der Bahn' : 'auf der Bahn' };
+        return { ac: a, hard: true, why: a.phase === PH.FINAL ? T('im kurzen Endanflug') : a.phase === PH.TAKEOFF ? T('im Startlauf') : a.phase === PH.LINED ? T('mit Startfreigabe auf der Bahn') : T('auf der Bahn') };
       continue;
     }
     if (a.arr && a.phase === PH.APPROACH) {
       const d = AS.routeDistance(a.pos, a.route.length ? a.route : [AS.THR[a.rwy]]);
-      if (a.clr.land && d < 5) return { ac: a, hard: true, why: `mit Landefreigabe ${d.toFixed(1)} NM vor der Schwelle` };
-      if (d < 9 && (!soft || d < soft.d)) soft = { ac: a, hard: false, d, why: `${d.toFixed(1)} NM im Anflug` };
+      if (a.clr.land && d < 5) return { ac: a, hard: true, why: T`mit Landefreigabe ${d.toFixed(1)} NM vor der Schwelle` };
+      if (d < 9 && (!soft || d < soft.d)) soft = { ac: a, hard: false, d, why: T`${d.toFixed(1)} NM im Anflug` };
     }
   }
   return soft;
@@ -58,8 +59,8 @@ export function approveHeli(state) {
   radio(state, HELI, `Crossing midfield, no delay, Rescue 7.`, 'pilot');
   if (c && c.hard) {
     penalize(state, 'incursion', c.ac);
-    log(state, 'sys', `⚠ Verkehrskonflikt: Rescue 7 quert die Bahn, während ${c.ac.cs} ${c.why} ist.`);
-    notify(state, `⚠ Verkehrskonflikt! Hubschrauber quert, ${c.ac.cs} ${c.why}`, 'bad');
+    log(state, 'sys', T`⚠ Verkehrskonflikt: Rescue 7 quert die Bahn, während ${c.ac.cs} ${c.why} ist.`);
+    notify(state, T`⚠ Verkehrskonflikt! Hubschrauber quert, ${c.ac.cs} ${c.why}`, 'bad');
     if (humanTower(state)) scoreHeli(state, false);
     return { ok: true, bad: true };
   }
@@ -86,7 +87,7 @@ export function updateHeli(state, dt) {
     S.n++;
     S.h = { x: X + (hash01(state.time) - 0.5) * 6, y: Y_START, z: 1.3, hdg: -Math.PI / 2, st: 'req', t: state.time, rot: 0 };
     radio(state, HELI, `Planez Tower, Rescue 7, helicopter, five miles south, request crossing your runways at midfield northbound, priority patient transport.`, 'pilot');
-    if (humanTower(state)) notify(state, '🚁 Rettungshubschrauber bittet, die Bahnen zu queren – Lücke im Verkehr abpassen', 'info');
+    if (humanTower(state)) notify(state, T('🚁 Rettungshubschrauber bittet, die Bahnen zu queren – Lücke im Verkehr abpassen'), 'info');
     return;
   }
   // Flug: Anflug bis zum Wartepunkt südlich der Bahnen, dort schweben; nach Freigabe zügig nach Norden
@@ -133,14 +134,14 @@ export function updateHeli(state, dt) {
   if (waited > 7 * 60 && !H.late) {
     H.late = true;
     state.reputation = clamp(state.reputation - 0.5, 0, 100);
-    log(state, 'sys', '🚁 Rescue 7 wartet seit sieben Minuten auf die Querung – der Patiententransport verzögert sich.');
+    log(state, 'sys', T('🚁 Rescue 7 wartet seit sieben Minuten auf die Querung – der Patiententransport verzögert sich.'));
   }
   // nach 15 Minuten ohne Antwort: Umweg um die Kontrollzone
   if (waited > 15 * 60) {
     H.st = 'around';
     radio(state, HELI, 'Tower, Rescue 7, unable to wait any longer, routing around your control zone to the east.', 'pilot');
     state.reputation = clamp(state.reputation - 1, 0, 100);
-    pushNews(state, 'Rettungshubschrauber muss um den Flughafen herumfliegen – Kritik an der Flugsicherung.', 'bad', '🚁');
-    log(state, 'sys', '🚁 Rescue 7 hat keine Querung bekommen und fliegt um die Kontrollzone herum – der Patient kommt deutlich später an.');
+    pushNews(state, T('Rettungshubschrauber muss um den Flughafen herumfliegen – Kritik an der Flugsicherung.'), 'bad', '🚁');
+    log(state, 'sys', T('🚁 Rescue 7 hat keine Querung bekommen und fliegt um die Kontrollzone herum – der Patient kommt deutlich später an.'));
   }
 }

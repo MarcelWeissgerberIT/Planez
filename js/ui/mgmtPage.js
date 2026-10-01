@@ -12,36 +12,37 @@ import { RouteMap } from './routeMap.js';
 import { rivalState } from '../sim/rival.js';
 import { boardBadge } from './board.js';
 import { isCareer, stageOf, STAGES, stageUpStatus, careerState } from '../sim/career.js';
+import { T, DEC } from '../i18n.js';
 
 export const CATS = [
-  ['career', 'Aufbau', 'Ausbaustufen, Partner und Marketing – vom Grasplatz zum Drehkreuz'],
-  ['over', 'Übersicht', 'Kennzahlen, Auslastung und Airline-Zufriedenheit'],
-  ['contracts', 'Airlines & Verträge', 'Angebote prüfen, laufende Verbindungen verwalten'],
-  ['rival', 'Wettbewerb', 'Marktanteil gegen Nordhafen, Züge der Konkurrenz'],
-  ['board', 'Aufsichtsrat', 'Wochenziele, Vertrauen und Strategie – Sitzung alle 7 Tage'],
-  ['sites', 'Baustellen', 'Laufende Bauprojekte mit Fortschritt und Restzeit'],
-  ['runways', 'Pisten & Rollwege', 'Pistenzustand, Wartung, Parallelbahn, Schnellabrollwege, ILS'],
-  ['stands', 'Parkpositionen', 'Positionen bauen und für Großraumjets ausbauen'],
-  ['terminal', 'Terminal & Landseite', 'Shops, Sicherheit, Lounge, Parkhaus, Hotel, Marketing'],
-  ['ops', 'Fuhrpark & Personal', 'Fahrzeuge kaufen, Personal, Fixkosten'],
-  ['fuel', 'Kerosin', 'Tanklager, Marktpreis, Einkauf und Marge'],
-  ['fees', 'Gebühren & Nachtflug', 'Entgelte, Nachtflugverbot, Lärm'],
-  ['fin', 'Finanzen & Kredite', 'Umsatz, Kosten, Kontostand, Kredite'],
-  ['goals', 'Ziele & Rang', 'Aufgaben, Prämien, Flughafen-Rang'],
+  ['career', T('Aufbau'), T('Ausbaustufen, Partner und Marketing – vom Grasplatz zum Drehkreuz')],
+  ['over', T('Übersicht'), T('Kennzahlen, Auslastung und Airline-Zufriedenheit')],
+  ['contracts', T('Airlines & Verträge'), T('Angebote prüfen, laufende Verbindungen verwalten')],
+  ['rival', T('Wettbewerb'), T('Marktanteil gegen Nordhafen, Züge der Konkurrenz')],
+  ['board', T('Aufsichtsrat'), T('Wochenziele, Vertrauen und Strategie – Sitzung alle 7 Tage')],
+  ['sites', T('Baustellen'), T('Laufende Bauprojekte mit Fortschritt und Restzeit')],
+  ['runways', T('Pisten & Rollwege'), T('Pistenzustand, Wartung, Parallelbahn, Schnellabrollwege, ILS')],
+  ['stands', T('Parkpositionen'), T('Positionen bauen und für Großraumjets ausbauen')],
+  ['terminal', T('Terminal & Landseite'), T('Shops, Sicherheit, Lounge, Parkhaus, Hotel, Marketing')],
+  ['ops', T('Fuhrpark & Personal'), T('Fahrzeuge kaufen, Personal, Fixkosten')],
+  ['fuel', T('Kerosin'), T('Tanklager, Marktpreis, Einkauf und Marge')],
+  ['fees', T('Gebühren & Nachtflug'), T('Entgelte, Nachtflugverbot, Lärm')],
+  ['fin', T('Finanzen & Kredite'), T('Umsatz, Kosten, Kontostand, Kredite')],
+  ['goals', T('Ziele & Rang'), T('Aufgaben, Prämien, Flughafen-Rang')],
 ];
 
 // Namen und Untertitel am kleinen Platz (Aufbau-Modus: Grasplatz, Verkehrslandeplatz)
 const SMALL_CAT = {
   0: {
-    stands: ['Abstellplätze', 'Wiese für Kleinflugzeuge – wer steht wo, und wann es mehr Platz gibt'],
-    runways: ['Graspiste', 'Zustand der Graspiste, mähen und walzen'],
-    ops: ['Helfer & Fuhrpark', 'Platzwart, Flugleitung und Helfer – Fahrzeuge ab Verkehrslandeplatz'],
-    fees: ['Gebühren', 'Landeentgelt und Fluggastentgelt'],
+    stands: [T('Abstellplätze'), T('Wiese für Kleinflugzeuge – wer steht wo, und wann es mehr Platz gibt')],
+    runways: [T('Graspiste'), T('Zustand der Graspiste, mähen und walzen')],
+    ops: [T('Helfer & Fuhrpark'), T('Platzwart, Flugleitung und Helfer – Fahrzeuge ab Verkehrslandeplatz')],
+    fees: [T('Gebühren'), T('Landeentgelt und Fluggastentgelt')],
   },
   1: {
-    stands: ['Abstellplätze & Vorfeld', 'Wiese für Kleinflugzeuge und Vorfeld für Turboprops'],
-    runways: ['Piste & Rollwege', 'Zustand der Asphaltbahn und Pflege'],
-    ops: ['Fuhrpark & Personal', 'Erste Fahrzeuge für die Turboprops, Personal, Fixkosten'],
+    stands: [T('Abstellplätze & Vorfeld'), T('Wiese für Kleinflugzeuge und Vorfeld für Turboprops')],
+    runways: [T('Piste & Rollwege'), T('Zustand der Asphaltbahn und Pflege')],
+    ops: [T('Fuhrpark & Personal'), T('Erste Fahrzeuge für die Turboprops, Personal, Fixkosten')],
   },
 };
 export function catInfo(s, k) {
@@ -61,7 +62,7 @@ export class ManagementPage {
     const el = document.createElement('div');
     el.id = 'mgmt';
     el.className = 'hidden';
-    el.innerHTML = `<div class="mg-shade"></div>
+    el.innerHTML = T`<div class="mg-shade"></div>
       <aside class="mg-nav">
         <div class="mg-label">💼 Management-Zentrale</div>
         <div class="mg-name" id="mg-name"></div>
@@ -152,7 +153,7 @@ export class ManagementPage {
   renderNav(s) {
     const G = goalsState(s);
     setHTML(this.el.querySelector('#mg-name'), esc(s.name));
-    setHTML(this.el.querySelector('#mg-time'), `Tag ${dayOf(s.time)} · ${fmtClock(s.time)} · ${fmtMoney(s.cash)} · ${isCareer(s) ? STAGES[stageOf(s)].name : RANKS[G.rank].name}`);
+    setHTML(this.el.querySelector('#mg-time'), T`Tag ${dayOf(s.time)} · ${fmtClock(s.time)} · ${fmtMoney(s.cash)} · ${isCareer(s) ? STAGES[stageOf(s)].name : RANKS[G.rank].name}`);
     const fu = fuelState(s);
     const waiting = s.acs.filter((a) => (a.phase === PH.VACATED || a.phase === PH.TAXI_WAIT) && !a.stand).length;
     const ps = projects(s);
@@ -160,23 +161,23 @@ export class ManagementPage {
     const ga = s.stands.filter((x) => x.ga && !x.closed && x.built);
     const gaFree = ga.filter((x) => !x.occ && !x.resv).length;
     const badge = {
-      over: small ? `Ansehen ${Math.round(s.reputation)} · Bekanntheit ${Math.round(careerState(s).fame)}` : `Ansehen ${Math.round(s.reputation)} · pünktlich ${(() => { const t = s.stats.today; const d = t.onTime + t.delayed; return d ? Math.round((t.onTime / d) * 100) + ' %' : '—'; })()}`,
-      contracts: s.offers.length ? `📨 ${s.offers.length} neue${s.offers.length > 1 ? '' : 's'} Angebot${s.offers.length > 1 ? 'e' : ''}` : `${s.contracts.length} Verträge`,
-      rival: `Marktanteil ${Math.round(rivalState(s).share)} %${rivalState(s).feeCutUntil > s.time ? ' · 💸 Preiskampf' : rivalState(s).closedUntil > s.time ? ' · ⛔ Nordhafen zu' : ''}`,
+      over: small ? T`Ansehen ${Math.round(s.reputation)} · Bekanntheit ${Math.round(careerState(s).fame)}` : T`Ansehen ${Math.round(s.reputation)} · pünktlich ${(() => { const t = s.stats.today; const d = t.onTime + t.delayed; return d ? Math.round((t.onTime / d) * 100) + ' %' : '—'; })()}`,
+      contracts: s.offers.length ? (s.offers.length > 1 ? T`📨 ${s.offers.length} neue Angebote` : T`📨 ${s.offers.length} neues Angebot`) : T`${s.contracts.length} Verträge`,
+      rival: T`Marktanteil ${Math.round(rivalState(s).share)} %${rivalState(s).feeCutUntil > s.time ? T(' · 💸 Preiskampf') : rivalState(s).closedUntil > s.time ? T(' · ⛔ Nordhafen zu') : ''}`,
       board: boardBadge(s),
-      sites: ps.length ? `🏗️ ${ps.length} aktiv` : 'keine Baustelle',
-      runways: `${hasRwy2(s) ? '2 Bahnen' : '1 Bahn'} · Zustand ${Math.round(rwyCond(s))} %${hasRwy2(s) ? ` / ${Math.round(rwyCond(s, 'S'))} %` : ''}`,
-      stands: waiting ? `⚠ ${waiting} Flugzeug${waiting > 1 ? 'e' : ''} ohne Position` : small ? `${gaFree} von ${ga.length} Wiesenplätzen frei` : `${s.stands.filter((x) => x.built && !x.ga).length} von ${s.stands.filter((x) => !x.ga).length} gebaut`,
-      terminal: `Shops ${s.upgrades.retail} · Sicherheit ${s.upgrades.security} · Hotel ${s.upgrades.hotel ? '✓' : '—'}`,
-      ops: isCareer(s) && stageOf(s) === 0 ? `${s.staff} Leute am Platz · keine Fahrzeuge` : `${s.vehicles.length} Fahrzeuge · ${s.staff} Personal`,
+      sites: ps.length ? T`🏗️ ${ps.length} aktiv` : T('keine Baustelle'),
+      runways: T`${hasRwy2(s) ? T('2 Bahnen') : T('1 Bahn')} · Zustand ${Math.round(rwyCond(s))} %${hasRwy2(s) ? ` / ${Math.round(rwyCond(s, 'S'))} %` : ''}`,
+      stands: waiting ? (waiting > 1 ? T`⚠ ${waiting} Flugzeuge ohne Position` : T`⚠ ${waiting} Flugzeug ohne Position`) : small ? T`${gaFree} von ${ga.length} Wiesenplätzen frei` : T`${s.stands.filter((x) => x.built && !x.ga).length} von ${s.stands.filter((x) => !x.ga).length} gebaut`,
+      terminal: T`Shops ${s.upgrades.retail} · Sicherheit ${s.upgrades.security} · Hotel ${s.upgrades.hotel ? '✓' : '—'}`,
+      ops: isCareer(s) && stageOf(s) === 0 ? T`${s.staff} Leute am Platz · keine Fahrzeuge` : T`${s.vehicles.length} Fahrzeuge · ${s.staff} Personal`,
       fuel: `${fu.stock < FUEL.cap * 0.15 ? '⚠ ' : ''}${Math.round(fu.stock)} t · ${Math.round(fu.price)} €/t`,
-      fees: isCareer(s) && stageOf(s) === 0 ? `Landeentgelt ${String(s.fees.landing).replace('.', ',')} €/t · nur bei Tag` : s.settings.curfew ? '🌙 Nachtflugverbot aktiv' : `Nachtentgelt ${Math.round(s.fees.night ?? 600)} €`,
-      fin: `${s.cash < 0 ? '⚠ ' : ''}Kasse ${fmtMoney(s.cash)}${loans(s).length ? ` · ${loans(s).length} Kredit${loans(s).length > 1 ? 'e' : ''}` : ''}`,
-      goals: `${G.xp} XP · ${G.done} erreicht`,
+      fees: isCareer(s) && stageOf(s) === 0 ? T`Landeentgelt ${String(s.fees.landing).replace('.', DEC)} €/t · nur bei Tag` : s.settings.curfew ? T('🌙 Nachtflugverbot aktiv') : T`Nachtentgelt ${Math.round(s.fees.night ?? 600)} €`,
+      fin: T`${s.cash < 0 ? '⚠ ' : ''}Kasse ${fmtMoney(s.cash)}${loans(s).length ? (loans(s).length > 1 ? T` · ${loans(s).length} Kredite` : T` · ${loans(s).length} Kredit`) : ''}`,
+      goals: T`${G.xp} XP · ${G.done} erreicht`,
       career: (() => {
         if (!isCareer(s)) return '';
         const S = stageUpStatus(s);
-        return `${STAGES[stageOf(s)].icon} ${STAGES[stageOf(s)].name}${S ? (S.building ? ` · 🏗️ ${Math.floor(S.building.prog * 100)} %` : ` · ${S.reqs.filter((r) => r.ok).length}/${S.reqs.length} Bedingungen`) : ''}`;
+        return `${STAGES[stageOf(s)].icon} ${STAGES[stageOf(s)].name}${S ? (S.building ? ` · 🏗️ ${Math.floor(S.building.prog * 100)} %` : T` · ${S.reqs.filter((r) => r.ok).length}/${S.reqs.length} Bedingungen`) : ''}`;
       })(),
     };
     const warn = { contracts: s.offers.length > 0, stands: waiting > 0, fuel: fu.stock < FUEL.cap * 0.15, fin: s.cash < 0, sites: ps.length > 0 };

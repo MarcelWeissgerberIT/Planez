@@ -19,6 +19,7 @@ import { followMeCars } from './followme.js';
 import { plowFleet } from './snow.js';
 import { grassRunway3d, smallField3d, smallBuilding3d } from './field3d.js';
 import { countryside3d } from './land3d.js';
+import { T as tr_ } from '../i18n.js';
 
 const ALT_CLIMB = 2.0; // Spielhöhe z -> Kacheln für Steigflug/Durchstarten auf der Karte (≈ 12° statt 40° Bahnneigung)
 const FT = 0.3048 / 20; // Fuß -> Kacheln
@@ -30,7 +31,7 @@ const FLAP_PH = new Set([PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAKEOF
 const ON_RWY = new Set([PH.TAKEOFF, PH.ROLLOUT, PH.LINED, PH.LINEUP, PH.FINAL, PH.MISSED]);
 
 // Himmelskuppel: Verlauf Zenit -> Horizont, Sonnenscheibe und Lichthof
-const SKY_VS = `varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const SKY_VS = tr_`varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const SKY_FS = `uniform vec3 top; uniform vec3 hor; uniform vec3 bot; uniform vec3 sunDir; uniform vec3 sunCol; uniform float sunK; uniform float glowK;
 varying vec3 vDir;
 void main(){

@@ -7,6 +7,7 @@ import { notify, log, radio } from './messages.js';
 import { triggerEvent } from './events.js';
 import { requestRunwayChange } from './atc.js';
 import { fmtMoney } from '../util.js';
+import { T } from '../i18n.js';
 
 const H = 3600;
 const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0);
@@ -83,66 +84,66 @@ function windShift(state, dir, spd) {
 
 export const SCENARIOS = [
   {
-    id: 'morning', role: 'tower', icon: '🌅', diff: 1, title: 'Morgenwelle', img: 'assets/scn/morning.webp',
-    brief: 'Montagmorgen, 6 Uhr: Die erste Welle rollt an – dichter Anflugverkehr und volle Rollhalte. Bring so viele Flüge wie möglich sicher auf und von der Bahn.',
-    tips: ['Auto-Staffelung an lassen und die Reihenfolge per Ziehen anpassen', 'Starts in die Lücken zwischen zwei Landungen legen', 'Landefreigabe früh geben (L)'],
+    id: 'morning', role: 'tower', icon: '🌅', diff: 1, title: T('Morgenwelle'), img: 'assets/scn/morning.webp',
+    brief: T('Montagmorgen, 6 Uhr: Die erste Welle rollt an – dichter Anflugverkehr und volle Rollhalte. Bring so viele Flüge wie möglich sicher auf und von der Bahn.'),
+    tips: [T('Auto-Staffelung an lassen und die Reihenfolge per Ziehen anpassen'), T('Starts in die Lücken zwischen zwei Landungen legen'), T('Landefreigabe früh geben (L)')],
     hour: 6, dur: 2.5 * H, density: 1.35,
     setup: (s) => {
       setWeather(s, 'clear', 4);
       windShift(s, 255, 8);
     },
     goals: [
-      { text: 'Bewegungen (Landungen + Starts)', key: 'mov', t: [14, 19, 23] },
-      { text: 'Durchstarts', key: 'goArounds', t: [3, 1, 0], low: true },
-      { text: 'Vorfälle', key: 'incidents', t: [1, 0, 0], low: true },
+      { text: T('Bewegungen (Landungen + Starts)'), key: 'mov', t: [14, 19, 23] },
+      { text: T('Durchstarts'), key: 'goArounds', t: [3, 1, 0], low: true },
+      { text: T('Vorfälle'), key: 'incidents', t: [1, 0, 0], low: true },
     ],
-    fail: (m) => (m.incidents >= 3 ? 'Drei Vorfälle – die Schicht wurde abgelöst.' : null),
+    fail: (m) => (m.incidents >= 3 ? T('Drei Vorfälle – die Schicht wurde abgelöst.') : null),
   },
   {
-    id: 'fog', role: 'tower', icon: '🌫️', diff: 2, title: 'Nebelsuppe', img: 'assets/scn/fog.webp',
-    brief: 'Dichter Morgennebel, RVR 600 m: Low Visibility Procedures sind aktiv, Anflüge brauchen mehr Abstand. Keiner soll ausweichen müssen – und die Starts dürfen nicht liegen bleiben.',
-    tips: ['Im Nebel gelten größere Abstände – nicht zu dicht staffeln', 'Treibstoff der Warteschleifen im Blick behalten', 'Slots (CTOT) der Starts einhalten'],
+    id: 'fog', role: 'tower', icon: '🌫️', diff: 2, title: T('Nebelsuppe'), img: 'assets/scn/fog.webp',
+    brief: T('Dichter Morgennebel, RVR 600 m: Low Visibility Procedures sind aktiv, Anflüge brauchen mehr Abstand. Keiner soll ausweichen müssen – und die Starts dürfen nicht liegen bleiben.'),
+    tips: [T('Im Nebel gelten größere Abstände – nicht zu dicht staffeln'), T('Treibstoff der Warteschleifen im Blick behalten'), T('Slots (CTOT) der Starts einhalten')],
     hour: 6, dur: 3 * H, density: 1.1,
     setup: (s) => {
       setWeather(s, 'fog', 3.2, { rvr: 600 });
       windShift(s, 260, 4);
     },
     script: [
-      { at: 95 * 60, run: (s) => { s.weather.rvr = 800; log(s, 'sys', 'Wetterdienst: Sicht bessert sich langsam, RVR 800 m.'); } },
+      { at: 95 * 60, run: (s) => { s.weather.rvr = 800; log(s, 'sys', T('Wetterdienst: Sicht bessert sich langsam, RVR 800 m.')); } },
     ],
     goals: [
-      { text: 'Landungen', key: 'landings', t: [7, 10, 13] },
-      { text: 'Ausweichlandungen', key: 'diversions', t: [2, 1, 0], low: true },
-      { text: 'Starts', key: 'deps', t: [6, 9, 12] },
+      { text: T('Landungen'), key: 'landings', t: [7, 10, 13] },
+      { text: T('Ausweichlandungen'), key: 'diversions', t: [2, 1, 0], low: true },
+      { text: T('Starts'), key: 'deps', t: [6, 9, 12] },
     ],
-    fail: (m) => (m.incidents >= 3 ? 'Drei Vorfälle – die Schicht wurde abgelöst.' : null),
+    fail: (m) => (m.incidents >= 3 ? T('Drei Vorfälle – die Schicht wurde abgelöst.') : null),
   },
   {
-    id: 'storm', role: 'tower', icon: '⛈️', diff: 3, title: 'Gewitterfront', img: 'assets/scn/storm.webp',
-    brief: 'Am Nachmittag zieht eine Gewitterfront durch. Der Wind dreht, die Betriebsrichtung muss gewechselt werden – und mitten im Chaos meldet ein Flugzeug einen Notfall.',
-    tips: ['Beim Pistenwechsel erst alle laufenden Bewegungen abwickeln', 'Notfälle haben Vorrang: Direkt FAF (D) und sofort Landefreigabe', 'Nach Durchstarts ruhig neu einreihen'],
+    id: 'storm', role: 'tower', icon: '⛈️', diff: 3, title: T('Gewitterfront'), img: 'assets/scn/storm.webp',
+    brief: T('Am Nachmittag zieht eine Gewitterfront durch. Der Wind dreht, die Betriebsrichtung muss gewechselt werden – und mitten im Chaos meldet ein Flugzeug einen Notfall.'),
+    tips: [T('Beim Pistenwechsel erst alle laufenden Bewegungen abwickeln'), T('Notfälle haben Vorrang: Direkt FAF (D) und sofort Landefreigabe'), T('Nach Durchstarts ruhig neu einreihen')],
     hour: 14, dur: 3 * H, density: 1.2,
     setup: (s) => {
       setWeather(s, 'clouds', 0.6);
       windShift(s, 250, 12);
     },
     script: [
-      { at: 30 * 60, run: (s) => { setWeather(s, 'storm', 1.2); notify(s, '⛈️ Gewitter über dem Platz – Vorfeld gesperrt, Böen bis 30 kt', 'warn'); } },
-      { at: 50 * 60, run: (s) => { windShift(s, 95, 14); log(s, 'sys', 'Wetterdienst: Winddrehung auf 090°, 14 kt – Rückenwind auf Piste 27.'); notify(s, '🧭 Wind dreht auf Ost – Betriebsrichtung 09 anordnen!', 'warn'); if (s.auto.atc) requestRunwayChange(s, '09'); } },
+      { at: 30 * 60, run: (s) => { setWeather(s, 'storm', 1.2); notify(s, T('⛈️ Gewitter über dem Platz – Vorfeld gesperrt, Böen bis 30 kt'), 'warn'); } },
+      { at: 50 * 60, run: (s) => { windShift(s, 95, 14); log(s, 'sys', T('Wetterdienst: Winddrehung auf 090°, 14 kt – Rückenwind auf Piste 27.')); notify(s, T('🧭 Wind dreht auf Ost – Betriebsrichtung 09 anordnen!'), 'warn'); if (s.auto.atc) requestRunwayChange(s, '09'); } },
       { at: 75 * 60, run: (s) => triggerEvent(s, 'emergency') },
       { at: 105 * 60, run: (s) => setWeather(s, 'rain', 2) },
     ],
     goals: [
-      { text: 'Bewegungen', key: 'mov', t: [9, 13, 17] },
-      { text: 'Notfall sicher gelandet', key: 'emg', t: [1, 1, 1] },
-      { text: 'Vorfälle', key: 'incidents', t: [2, 1, 0], low: true },
+      { text: T('Bewegungen'), key: 'mov', t: [9, 13, 17] },
+      { text: T('Notfall sicher gelandet'), key: 'emg', t: [1, 1, 1] },
+      { text: T('Vorfälle'), key: 'incidents', t: [2, 1, 0], low: true },
     ],
-    fail: (m) => (m.incidents >= 4 ? 'Zu viele Vorfälle – die Schicht wurde abgelöst.' : null),
+    fail: (m) => (m.incidents >= 4 ? T('Zu viele Vorfälle – die Schicht wurde abgelöst.') : null),
   },
   {
-    id: 'mayday', role: 'tower', icon: '🚨', diff: 2, title: 'Notfall-Schicht', img: 'assets/scn/mayday.webp',
-    brief: 'Ein ganz normaler Vormittag – bis kurz nacheinander ein MAYDAY und ein Vogelschlag gemeldet werden. Notfälle zuerst, der Rest des Verkehrs läuft weiter.',
-    tips: ['Squawk 7700 ist rot markiert – sofort nach vorne ziehen', 'Die Feuerwehr fährt automatisch raus', 'Andere Anflüge in die Warteschleife (H)'],
+    id: 'mayday', role: 'tower', icon: '🚨', diff: 2, title: T('Notfall-Schicht'), img: 'assets/scn/mayday.webp',
+    brief: T('Ein ganz normaler Vormittag – bis kurz nacheinander ein MAYDAY und ein Vogelschlag gemeldet werden. Notfälle zuerst, der Rest des Verkehrs läuft weiter.'),
+    tips: [T('Squawk 7700 ist rot markiert – sofort nach vorne ziehen'), T('Die Feuerwehr fährt automatisch raus'), T('Andere Anflüge in die Warteschleife (H)')],
     hour: 9, dur: 2 * H, density: 1.1,
     setup: (s) => {
       setWeather(s, 'clouds', 3);
@@ -154,16 +155,16 @@ export const SCENARIOS = [
       { at: 80 * 60, run: (s) => triggerEvent(s, 'emergency') },
     ],
     goals: [
-      { text: 'Notfälle sicher gelandet', key: 'emg', t: [1, 2, 3] },
-      { text: 'Bewegungen', key: 'mov', t: [9, 13, 17] },
-      { text: 'Vorfälle', key: 'incidents', t: [1, 0, 0], low: true },
+      { text: T('Notfälle sicher gelandet'), key: 'emg', t: [1, 2, 3] },
+      { text: T('Bewegungen'), key: 'mov', t: [9, 13, 17] },
+      { text: T('Vorfälle'), key: 'incidents', t: [1, 0, 0], low: true },
     ],
-    fail: (m) => (m.incidents >= 3 ? 'Drei Vorfälle – die Schicht wurde abgelöst.' : null),
+    fail: (m) => (m.incidents >= 3 ? T('Drei Vorfälle – die Schicht wurde abgelöst.') : null),
   },
   {
-    id: 'flytag', role: 'tower', icon: '🛩️', diff: 3, title: 'Großer Flugtag', img: 'assets/scn/flytag.webp', side: true,
-    brief: 'Sonnenschein und ein voller Himmel: Die Flugschule übt Platzrunden, der Rettungshubschrauber will mehrmals über die Bahnen, und am Vormittag landet ein Staatsgast. Dazwischen läuft der Linienverkehr ganz normal weiter.',
-    tips: ['Touch and Go nur in echte Lücken – sonst kreist die Alcedo', 'Rescue 7 schwebt südlich: Querung frei, wenn niemand im Endanflug ist', 'Die Regierungsmaschine 🎖️ ohne Warteschleife hereinholen'],
+    id: 'flytag', role: 'tower', icon: '🛩️', diff: 3, title: T('Großer Flugtag'), img: 'assets/scn/flytag.webp', side: true,
+    brief: T('Sonnenschein und ein voller Himmel: Die Flugschule übt Platzrunden, der Rettungshubschrauber will mehrmals über die Bahnen, und am Vormittag landet ein Staatsgast. Dazwischen läuft der Linienverkehr ganz normal weiter.'),
+    tips: [T('Touch and Go nur in echte Lücken – sonst kreist die Alcedo'), T('Rescue 7 schwebt südlich: Querung frei, wenn niemand im Endanflug ist'), T('Die Regierungsmaschine 🎖️ ohne Warteschleife hereinholen')],
     hour: 9.5, dur: 2 * H, density: 1,
     setup: (s) => {
       setWeather(s, 'clear', 4);
@@ -177,30 +178,30 @@ export const SCENARIOS = [
       { at: 85 * 60, run: (s) => { const Hs = heliState(s); if (!Hs.h) Hs.next = s.time; } },
     ],
     goals: [
-      { text: 'Bewegungen', key: 'mov', t: [9, 12, 15] },
-      { text: 'Nebenverkehr (Touch and Go, Heli-Querungen)', key: 'side', t: [4, 7, 10] },
-      { text: 'Vorfälle', key: 'incidents', t: [1, 0, 0], low: true },
+      { text: T('Bewegungen'), key: 'mov', t: [9, 12, 15] },
+      { text: T('Nebenverkehr (Touch and Go, Heli-Querungen)'), key: 'side', t: [4, 7, 10] },
+      { text: T('Vorfälle'), key: 'incidents', t: [1, 0, 0], low: true },
     ],
-    fail: (m) => (m.incidents >= 3 ? 'Drei Vorfälle – die Schicht wurde abgelöst.' : null),
+    fail: (m) => (m.incidents >= 3 ? T('Drei Vorfälle – die Schicht wurde abgelöst.') : null),
   },
   {
-    id: 'rushGround', role: 'ground', icon: '🧳', diff: 1, title: 'Ferienstart', img: 'assets/scn/rush.webp',
-    brief: 'Die Sommerferien beginnen: Jede Maschine ist voll, die Umläufe sind knapp geplant. Halte die Abflüge pünktlich.',
-    tips: ['⚡ Alles bedienen (D) schickt alle bereiten Fahrzeuge', 'Tankwagen rechtzeitig nachfüllen lassen', 'Dringendste Abfertigung steht oben'],
+    id: 'rushGround', role: 'ground', icon: '🧳', diff: 1, title: T('Ferienstart'), img: 'assets/scn/rush.webp',
+    brief: T('Die Sommerferien beginnen: Jede Maschine ist voll, die Umläufe sind knapp geplant. Halte die Abflüge pünktlich.'),
+    tips: [T('⚡ Alles bedienen (D) schickt alle bereiten Fahrzeuge'), T('Tankwagen rechtzeitig nachfüllen lassen'), T('Dringendste Abfertigung steht oben')],
     hour: 6, dur: 3 * H, density: 1.3,
     setup: (s) => {
       s.seasonFix = 'summer';
       setWeather(s, 'clear', 4);
     },
     goals: [
-      { text: 'Pünktlichkeit', key: 'punct', unit: '%', t: [75, 85, 93] },
-      { text: 'Abflüge abgefertigt', key: 'depsDone', t: [8, 11, 14] },
+      { text: T('Pünktlichkeit'), key: 'punct', unit: '%', t: [75, 85, 93] },
+      { text: T('Abflüge abgefertigt'), key: 'depsDone', t: [8, 11, 14] },
     ],
   },
   {
-    id: 'strike', role: 'ground', icon: '✊', diff: 2, title: 'Streiktag', img: 'assets/scn/strike.webp',
-    brief: 'Warnstreik beim Bodenpersonal, zwei Fahrzeuge sind in der Werkstatt. Mit halber Mannschaft muss der Betrieb trotzdem laufen.',
-    tips: ['Fahrzeuge nach Dringlichkeit einsetzen', 'Kurze Wege: Positionen nah am Depot bevorzugen', 'Gepäck und Tanken zuerst – Reinigung kann warten'],
+    id: 'strike', role: 'ground', icon: '✊', diff: 2, title: T('Streiktag'), img: 'assets/scn/strike.webp',
+    brief: T('Warnstreik beim Bodenpersonal, zwei Fahrzeuge sind in der Werkstatt. Mit halber Mannschaft muss der Betrieb trotzdem laufen.'),
+    tips: [T('Fahrzeuge nach Dringlichkeit einsetzen'), T('Kurze Wege: Positionen nah am Depot bevorzugen'), T('Gepäck und Tanken zuerst – Reinigung kann warten')],
     hour: 8, dur: 3 * H, density: 1.1,
     setup: (s) => {
       setWeather(s, 'clouds', 4);
@@ -209,14 +210,14 @@ export const SCENARIOS = [
       triggerEvent(s, 'breakdown', { type: 'tug', hours: 2 });
     },
     goals: [
-      { text: 'Pünktlichkeit', key: 'punct', unit: '%', t: [55, 68, 80] },
-      { text: 'Abflüge abgefertigt', key: 'depsDone', t: [7, 10, 13] },
+      { text: T('Pünktlichkeit'), key: 'punct', unit: '%', t: [55, 68, 80] },
+      { text: T('Abflüge abgefertigt'), key: 'depsDone', t: [7, 10, 13] },
     ],
   },
   {
-    id: 'winter', role: 'ground', icon: '❄️', diff: 3, title: 'Winterchaos', img: 'assets/scn/winter.webp',
-    brief: 'Starker Schneefall am frühen Morgen. Jeder Abflug muss enteist werden, die Räumdienste sperren immer wieder die Bahn. Kriegst du die Welle trotzdem raus?',
-    tips: ['Enteisung ❄️ ist die letzte Aufgabe vor dem Pushback', 'Enteisungsfahrzeug früh losschicken', 'Im Schnee fahren alle langsamer – Puffer einplanen'],
+    id: 'winter', role: 'ground', icon: '❄️', diff: 3, title: T('Winterchaos'), img: 'assets/scn/winter.webp',
+    brief: T('Starker Schneefall am frühen Morgen. Jeder Abflug muss enteist werden, die Räumdienste sperren immer wieder die Bahn. Kriegst du die Welle trotzdem raus?'),
+    tips: [T('Enteisung ❄️ ist die letzte Aufgabe vor dem Pushback'), T('Enteisungsfahrzeug früh losschicken'), T('Im Schnee fahren alle langsamer – Puffer einplanen')],
     hour: 6, dur: 3 * H, density: 1.1,
     setup: (s) => {
       s.seasonFix = 'winter';
@@ -226,15 +227,15 @@ export const SCENARIOS = [
       setWeather(s, 'snow', 2.5);
     },
     goals: [
-      { text: 'Pünktlichkeit', key: 'punct', unit: '%', t: [60, 75, 88] },
-      { text: 'Flugzeuge enteist', key: 'deiced', t: [5, 8, 11] },
-      { text: 'Abflüge abgefertigt', key: 'depsDone', t: [6, 9, 12] },
+      { text: T('Pünktlichkeit'), key: 'punct', unit: '%', t: [60, 75, 88] },
+      { text: T('Flugzeuge enteist'), key: 'deiced', t: [5, 8, 11] },
+      { text: T('Abflüge abgefertigt'), key: 'depsDone', t: [6, 9, 12] },
     ],
   },
   {
-    id: 'rescue', role: 'manager', icon: '📉', diff: 2, title: 'Sanierungsfall', img: 'assets/scn/rescue.webp',
-    brief: 'Der Vorgänger hat den Flughafen heruntergewirtschaftet: Die Kasse ist im Minus, das Ansehen im Keller. Du hast zwei Tage, um das Ruder herumzureißen.',
-    tips: ['Gebühren prüfen – zu hoch vergrault Airlines, zu niedrig kostet Geld', 'Kerosin günstig einkaufen und mit Marge verkaufen', 'Keine teuren Bauten ohne Rendite'],
+    id: 'rescue', role: 'manager', icon: '📉', diff: 2, title: T('Sanierungsfall'), img: 'assets/scn/rescue.webp',
+    brief: T('Der Vorgänger hat den Flughafen heruntergewirtschaftet: Die Kasse ist im Minus, das Ansehen im Keller. Du hast zwei Tage, um das Ruder herumzureißen.'),
+    tips: [T('Gebühren prüfen – zu hoch vergrault Airlines, zu niedrig kostet Geld'), T('Kerosin günstig einkaufen und mit Marge verkaufen'), T('Keine teuren Bauten ohne Rendite')],
     hour: 6, dur: 48 * H, density: 1,
     setup: (s) => {
       s.cash = -1500000;
@@ -242,25 +243,25 @@ export const SCENARIOS = [
       for (const c of s.contracts) c.sat = Math.min(c.sat ?? 70, 55);
     },
     goals: [
-      { text: 'Kasse', key: 'cash', money: true, t: [0, 480000, 1500000] },
-      { text: 'Ansehen', key: 'rep', t: [42, 48, 55] },
+      { text: T('Kasse'), key: 'cash', money: true, t: [0, 480000, 1500000] },
+      { text: T('Ansehen'), key: 'rep', t: [42, 48, 55] },
     ],
-    fail: (m, s) => (s.cash < -4000000 ? 'Die Bank hat den Kreditrahmen gekündigt.' : null),
+    fail: (m, s) => (s.cash < -4000000 ? T('Die Bank hat den Kreditrahmen gekündigt.') : null),
   },
   {
-    id: 'growth', role: 'manager', icon: '🏗️', diff: 3, title: 'Wachstumskurs', img: 'assets/scn/growth.webp',
-    brief: 'Die Investoren wollen Wachstum: In drei Tagen soll die Parallelbahn in Betrieb sein und der Flughafen deutlich mehr Passagiere abfertigen – ohne pleite zu gehen.',
-    tips: ['Parallelbahn früh starten – sie braucht 40 Stunden Bauzeit', 'Mehr Verträge nur, wenn die Piste es hergibt', 'Kredite helfen bei der Finanzierung'],
+    id: 'growth', role: 'manager', icon: '🏗️', diff: 3, title: T('Wachstumskurs'), img: 'assets/scn/growth.webp',
+    brief: T('Die Investoren wollen Wachstum: In drei Tagen soll die Parallelbahn in Betrieb sein und der Flughafen deutlich mehr Passagiere abfertigen – ohne pleite zu gehen.'),
+    tips: [T('Parallelbahn früh starten – sie braucht 40 Stunden Bauzeit'), T('Mehr Verträge nur, wenn die Piste es hergibt'), T('Kredite helfen bei der Finanzierung')],
     hour: 6, dur: 72 * H, density: 1.1,
     setup: (s) => {
       s.cash = 12000000;
     },
     goals: [
-      { text: 'Parallelbahn in Betrieb', key: 'rwy2', t: [1, 1, 1] },
-      { text: 'Passagiere', key: 'pax', t: [30000, 38000, 44000] },
-      { text: 'Ansehen', key: 'rep', t: [64, 72, 78] },
+      { text: T('Parallelbahn in Betrieb'), key: 'rwy2', t: [1, 1, 1] },
+      { text: T('Passagiere'), key: 'pax', t: [30000, 38000, 44000] },
+      { text: T('Ansehen'), key: 'rep', t: [64, 72, 78] },
     ],
-    fail: (m, s) => (s.cash < -5000000 ? 'Die Investoren haben die Reißleine gezogen.' : null),
+    fail: (m, s) => (s.cash < -5000000 ? T('Die Investoren haben die Reißleine gezogen.') : null),
   },
 ];
 export const scenarioById = (id) => (id && id.startsWith('daily-') ? dailyDef(id.slice(6)) : SCENARIOS.find((x) => x.id === id));
@@ -272,24 +273,24 @@ const retry = (s, kind) => {
   if (!triggerEvent(s, kind)) s.scenario.retry = { at: s.time + 300, kind };
 };
 export const MUTATORS = {
-  dense: { icon: '📈', name: 'Hochbetrieb', text: '25 % mehr Verkehr – die Zielwerte liegen höher', roles: ['tower', 'ground'] },
-  nordo: { icon: '📻', name: 'Funkausfall', text: 'Ein anfliegendes Flugzeug verliert den Funk – Lichtsignale geben', roles: ['tower'], at: 35 * 60, run: (s) => retry(s, 'nordo') },
-  a380: { icon: '🐋', name: 'Superjumbo', text: 'Eine AV-38 kommt zu Besuch', roles: ['tower', 'ground'], at: 25 * 60, run: (s) => retry(s, 'a380') },
-  vip: { icon: '🎖️', name: 'Staatsbesuch', text: 'Eine Regierungsmaschine kommt – Landung ohne Warteschleife, Abflug pünktlich', roles: ['tower', 'ground'], at: 15 * 60, run: (s) => retry(s, 'state') },
-  birds: { icon: '🐦', name: 'Vogelzug', text: 'Ein Vogelschlag mitten in der Schicht', roles: ['tower'], at: 70 * 60, run: (s) => retry(s, 'birdstrike') },
-  emergency: { icon: '🚨', name: 'Notfall', text: 'Ein MAYDAY mitten in der Schicht', roles: ['tower'], at: 50 * 60, run: (s) => triggerEvent(s, 'emergency') },
+  dense: { icon: '📈', name: T('Hochbetrieb'), text: T('25 % mehr Verkehr – die Zielwerte liegen höher'), roles: ['tower', 'ground'] },
+  nordo: { icon: '📻', name: T('Funkausfall'), text: T('Ein anfliegendes Flugzeug verliert den Funk – Lichtsignale geben'), roles: ['tower'], at: 35 * 60, run: (s) => retry(s, 'nordo') },
+  a380: { icon: '🐋', name: T('Superjumbo'), text: T('Eine AV-38 kommt zu Besuch'), roles: ['tower', 'ground'], at: 25 * 60, run: (s) => retry(s, 'a380') },
+  vip: { icon: '🎖️', name: T('Staatsbesuch'), text: T('Eine Regierungsmaschine kommt – Landung ohne Warteschleife, Abflug pünktlich'), roles: ['tower', 'ground'], at: 15 * 60, run: (s) => retry(s, 'state') },
+  birds: { icon: '🐦', name: T('Vogelzug'), text: T('Ein Vogelschlag mitten in der Schicht'), roles: ['tower'], at: 70 * 60, run: (s) => retry(s, 'birdstrike') },
+  emergency: { icon: '🚨', name: T('Notfall'), text: T('Ein MAYDAY mitten in der Schicht'), roles: ['tower'], at: 50 * 60, run: (s) => triggerEvent(s, 'emergency') },
   gusts: {
-    icon: '🧭', name: 'Winddrehung', text: 'Nach einer Stunde dreht der Wind – Betriebsrichtung wechseln', roles: ['tower'], at: 60 * 60,
+    icon: '🧭', name: T('Winddrehung'), text: T('Nach einer Stunde dreht der Wind – Betriebsrichtung wechseln'), roles: ['tower'], at: 60 * 60,
     run: (s) => {
       windShift(s, (s.wind.dir + 180) % 360, 12);
-      notify(s, '🧭 Der Wind dreht – Betriebsrichtung wechseln!', 'warn');
+      notify(s, T('🧭 Der Wind dreht – Betriebsrichtung wechseln!'), 'warn');
       if (s.auto.atc) requestRunwayChange(s, s.rwy === '27' ? '09' : '27');
     },
   },
-  flightschool: { icon: '🛩️', name: 'Flugschule', text: 'Eine Alcedo übt Platzrunden – Touch and Go in die Lücken setzen', roles: ['tower'], not: ['fog', 'storm'], at: 5 * 60, run: (s) => { s.scenario.side = true; vfrState(s).next = s.time; } },
-  airrescue: { icon: '🚁', name: 'Luftrettung', text: 'Der Rettungshubschrauber will über die Bahnen – rechtzeitig queren lassen', roles: ['tower'], at: 25 * 60, run: (s) => { s.scenario.side = true; heliState(s).next = s.time; } },
-  tanker: { icon: '⛽', name: 'Tankwagen-Panne', text: 'Ein Tankwagen fällt für zwei Stunden aus', roles: ['ground'], at: 10 * 60, run: (s) => triggerEvent(s, 'breakdown', { type: 'fuel', hours: 2 }) },
-  tugs: { icon: '🚜', name: 'Schlepper knapp', text: 'Ein Pushback-Schlepper ist den ganzen Tag in der Werkstatt', roles: ['ground'], at: 60, run: (s) => triggerEvent(s, 'breakdown', { type: 'tug', hours: 4 }) },
+  flightschool: { icon: '🛩️', name: T('Flugschule'), text: T('Eine Alcedo übt Platzrunden – Touch and Go in die Lücken setzen'), roles: ['tower'], not: ['fog', 'storm'], at: 5 * 60, run: (s) => { s.scenario.side = true; vfrState(s).next = s.time; } },
+  airrescue: { icon: '🚁', name: T('Luftrettung'), text: T('Der Rettungshubschrauber will über die Bahnen – rechtzeitig queren lassen'), roles: ['tower'], at: 25 * 60, run: (s) => { s.scenario.side = true; heliState(s).next = s.time; } },
+  tanker: { icon: '⛽', name: T('Tankwagen-Panne'), text: T('Ein Tankwagen fällt für zwei Stunden aus'), roles: ['ground'], at: 10 * 60, run: (s) => triggerEvent(s, 'breakdown', { type: 'fuel', hours: 2 }) },
+  tugs: { icon: '🚜', name: T('Schlepper knapp'), text: T('Ein Pushback-Schlepper ist den ganzen Tag in der Werkstatt'), roles: ['ground'], at: 60, run: (s) => triggerEvent(s, 'breakdown', { type: 'tug', hours: 4 }) },
 };
 const COUNT_KEYS = ['mov', 'landings', 'deps', 'depsDone', 'deiced'];
 export function dailyKey(d = new Date()) {
@@ -319,13 +320,13 @@ export function dailyDef(key = dailyKey()) {
     daily: key,
     sub: base.title,
     icon: '📅',
-    title: `Heute: ${base.title}`,
+    title: T`Heute: ${base.title}`,
     density: base.density * (dense ? 1.25 : 1),
     seed: (h >>> 0) % 2147483647,
     script,
     goals,
     muts,
-    brief: `${base.brief} Heute zusätzlich: ${muts.map((m) => `${MUTATORS[m].icon} ${MUTATORS[m].name}`).join(' und ')}.`,
+    brief: T`${base.brief} Heute zusätzlich: ${muts.map((m) => `${MUTATORS[m].icon} ${MUTATORS[m].name}`).join(T(' und '))}.`,
     tips: [...base.tips.slice(0, 2), ...muts.map((m) => MUTATORS[m].text)],
   };
 }
@@ -362,7 +363,7 @@ export function applyScenario(state, def) {
   state.eventTimer = def.dur + 6 * H; // keine zufälligen Großereignisse – das Drehbuch bestimmt
   state.speed = def.role === 'manager' ? 10 : 1;
   state.scenario = { id: def.id, side: !!def.side, start: state.time, end: state.time + def.dur, base: { ...(state.life || {}) }, acc: {}, last: { ...state.stats.today }, fired: 0, done: false, result: null };
-  log(state, 'sys', `Herausforderung „${def.title}“ beginnt.`);
+  log(state, 'sys', T`Herausforderung „${def.title}“ beginnt.`);
   return state;
 }
 

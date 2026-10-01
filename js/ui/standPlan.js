@@ -7,10 +7,11 @@ import { fmtClock, esc, clamp } from '../util.js';
 import { distToLand } from './tower.js';
 import { toast } from './dom.js';
 import { sfx } from '../audio.js';
+import { T } from '../i18n.js';
 
 const BEFORE = 15 * 60, SPAN = 3 * 3600;
 const INB = new Set([PH.INBOUND, PH.HOLD, PH.APPROACH, PH.GOAROUND, PH.FINAL, PH.MISSED, PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN]);
-const KIND = { contact: 'Gebäude', remote: 'Vorfeld', cargo: 'Fracht' };
+const KIND = { contact: T('Gebäude'), remote: T('Vorfeld'), cargo: T('Fracht') };
 
 // geschätzte Ankunft an der Position (Spielsekunden)
 function etaStand(state, ac) {
@@ -35,7 +36,7 @@ export class StandPlan {
     const el = document.createElement('div');
     el.id = 'splan';
     el.className = 'hidden';
-    el.innerHTML = `<div class="sp-head"><b>📊 Positionsplan</b><small>nächste 3 Stunden · Ankünfte ohne Position auf eine freie, passende Zeile ziehen</small><span class="sp-legend"><i class="occ"></i>belegt bis TOBT <i class="res"></i>reserviert <i class="late"></i>Überschneidung</span><button class="icon-btn" data-sp-close aria-label="Schließen">✕</button></div>
+    el.innerHTML = T`<div class="sp-head"><b>📊 Positionsplan</b><small>nächste 3 Stunden · Ankünfte ohne Position auf eine freie, passende Zeile ziehen</small><span class="sp-legend"><i class="occ"></i>belegt bis TOBT <i class="res"></i>reserviert <i class="late"></i>Überschneidung</span><button class="icon-btn" data-sp-close aria-label="Schließen">✕</button></div>
       <div class="sp-body"><div class="sp-grid"></div><aside class="sp-side"><div class="sp-sh">Ohne Position</div><div class="sp-queue"></div><div class="sp-sh">Später erwartet</div><div class="sp-later"></div></aside></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
@@ -94,14 +95,14 @@ export class StandPlan {
       const list = bars.get(st.id);
       const free = standFree(st);
       const lastEnd = list.reduce((m, b) => Math.max(m, b.end), 0);
-      const hint = free ? 'frei' : lastEnd > state.time ? `frei ab ${fmtClock(lastEnd)}` : '';
-      h += `<div class="sp-row" data-sprow="${st.id}"><div class="sp-lab"><span><b>P${st.id}</b> <small>${KIND[st.kind]} ${st.size}${st.closed ? ' · gesperrt' : ''}</small></span><em class="${free ? 'free' : ''}">${hint}</em></div><div class="sp-track">`;
+      const hint = free ? T('frei') : lastEnd > state.time ? T`frei ab ${fmtClock(lastEnd)}` : '';
+      h += `<div class="sp-row" data-sprow="${st.id}"><div class="sp-lab"><span><b>P${st.id}</b> <small>${KIND[st.kind]} ${st.size}${st.closed ? T(' · gesperrt') : ''}</small></span><em class="${free ? 'free' : ''}">${hint}</em></div><div class="sp-track">`;
       for (let t = first; t < t0 + SPAN + BEFORE; t += step) h += `<i class="sp-tick" style="left:${x(t)}%"></i>`;
       h += `<i class="sp-now" style="left:${x(state.time)}%"></i>`;
       for (const b of list) {
         const l = x(b.start), r = x(b.end);
         if (r <= 0 || l >= 100) continue;
-        h += `<div class="sp-bar ${b.kind}${b.late ? ' late' : ''}" data-spsel="${b.ac.id}" ${b.kind === 'res' && b.ac.phase !== PH.TAXI_IN ? `data-spdrag="${b.ac.id}"` : ''} style="left:${l}%;width:${Math.max(2.5, r - l)}%;--c:${b.col}" title="${esc(b.ac.cs)} · ${AC_TYPES[b.ac.type].name} · ${fmtClock(b.start)}–${fmtClock(b.end)}${b.late ? ` · ${b.late} min Überschneidung – muss warten` : ''}"><span>${esc(b.ac.cs)}</span><small>${typeCode(b.ac.type)}</small>${b.late ? '<b>!</b>' : ''}</div>`;
+        h += `<div class="sp-bar ${b.kind}${b.late ? ' late' : ''}" data-spsel="${b.ac.id}" ${b.kind === 'res' && b.ac.phase !== PH.TAXI_IN ? `data-spdrag="${b.ac.id}"` : ''} style="left:${l}%;width:${Math.max(2.5, r - l)}%;--c:${b.col}" title="${esc(b.ac.cs)} · ${AC_TYPES[b.ac.type].name} · ${fmtClock(b.start)}–${fmtClock(b.end)}${b.late ? T` · ${b.late} min Überschneidung – muss warten` : ''}"><span>${esc(b.ac.cs)}</span><small>${typeCode(b.ac.type)}</small>${b.late ? '<b>!</b>' : ''}</div>`;
       }
       h += `</div></div>`;
     }
@@ -122,8 +123,8 @@ export class StandPlan {
     }
     const q = state.acs.filter((a) => a.arr && !a.stand && INB.has(a.phase)).sort((a, b) => etaStand(state, a) - etaStand(state, b));
     const qh = q.length
-      ? q.map((a) => `<div class="sp-chip ${a.phase === PH.TAXI_WAIT || a.phase === PH.VACATED ? 'wait' : ''}" data-spdrag="${a.id}" data-spsel="${a.id}"><i style="background:${(AIRLINES[a.airline] || AIRLINES.AUR).color}"></i><b>${esc(a.cs)}${a.protocol ? ' 🎖️' : ''}</b><small>${typeCode(a.type)} · ${AC_TYPES[a.type].size}${AC_TYPES[a.type].cargo ? ' · Fracht' : ''} · ${a.phase === PH.TAXI_WAIT || a.phase === PH.VACATED ? 'wartet!' : `~${fmtClock(etaStand(state, a))}`}</small></div>`).join('')
-      : '<div class="sp-empty">Alle Ankünfte haben eine Position.</div>';
+      ? q.map((a) => `<div class="sp-chip ${a.phase === PH.TAXI_WAIT || a.phase === PH.VACATED ? 'wait' : ''}" data-spdrag="${a.id}" data-spsel="${a.id}"><i style="background:${(AIRLINES[a.airline] || AIRLINES.AUR).color}"></i><b>${esc(a.cs)}${a.protocol ? ' 🎖️' : ''}</b><small>${typeCode(a.type)} · ${AC_TYPES[a.type].size}${AC_TYPES[a.type].cargo ? T(' · Fracht') : ''} · ${a.phase === PH.TAXI_WAIT || a.phase === PH.VACATED ? T('wartet!') : `~${fmtClock(etaStand(state, a))}`}</small></div>`).join('')
+      : T('<div class="sp-empty">Alle Ankünfte haben eine Position.</div>');
     if (this.queue._h !== qh) {
       this.queue.innerHTML = qh;
       this.queue._h = qh;
@@ -132,7 +133,7 @@ export class StandPlan {
       .filter((r) => r.status === 'planned' && r.sta > state.time && r.sta < state.time + SPAN)
       .sort((a, b) => a.sta - b.sta)
       .slice(0, 14);
-    const lh = later.length ? later.map((r) => `<div class="sp-chip ghost"><i style="background:${(AIRLINES[r.airline] || AIRLINES.AUR).color}"></i><b>${esc(r.arrNo)}</b><small>${typeCode(r.type)} · ${AC_TYPES[r.type].size} · STA ${fmtClock(r.sta)}</small></div>`).join('') : '<div class="sp-empty">Keine weiteren Ankünfte.</div>';
+    const lh = later.length ? later.map((r) => `<div class="sp-chip ghost"><i style="background:${(AIRLINES[r.airline] || AIRLINES.AUR).color}"></i><b>${esc(r.arrNo)}</b><small>${typeCode(r.type)} · ${AC_TYPES[r.type].size} · STA ${fmtClock(r.sta)}</small></div>`).join('') : T('<div class="sp-empty">Keine weiteren Ankünfte.</div>');
     if (this.later._h !== lh) {
       this.later.innerHTML = lh;
       this.later._h = lh;
@@ -189,9 +190,9 @@ export class StandPlan {
     const id = Number(row.dataset.sprow);
     if (ac.stand === id) return;
     const st = s.stands.find((x) => x.id === id);
-    if (!st || !standFits(st, ac)) return toast(`${ac.cs} (${AC_TYPES[ac.type].size}${AC_TYPES[ac.type].cargo ? ', Fracht' : ''}) passt nicht auf P${id}`, 'warn');
-    if (!standFree(st)) return toast(`P${id} ist ${st.occ ? 'belegt' : 'schon reserviert'}`, 'warn');
-    if (ac.phase === PH.TAXI_IN) return toast(`${ac.cs} rollt schon zur Position`, 'warn');
+    if (!st || !standFits(st, ac)) return toast(T`${ac.cs} (${AC_TYPES[ac.type].size}${AC_TYPES[ac.type].cargo ? T(', Fracht') : ''}) passt nicht auf P${id}`, 'warn');
+    if (!standFree(st)) return toast(T`P${id} ist ${st.occ ? T('belegt') : T('schon reserviert')}`, 'warn');
+    if (ac.phase === PH.TAXI_IN) return toast(T`${ac.cs} rollt schon zur Position`, 'warn');
     releaseReservation(s, ac);
     if (assignStand(s, ac, id)) {
       sfx.click();

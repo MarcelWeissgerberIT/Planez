@@ -10,6 +10,7 @@ import { scoreVfr } from './score.js';
 import { runwayClosed } from './runway.js';
 import { RWY } from '../layout.js';
 import { clamp } from '../util.js';
+import { T } from '../i18n.js';
 
 const EVERY = 3 * 3600;
 const humanTower = (s) => s.role === 'tower' && !s.auto.atc && !(s.settings && s.settings.inspAuto);
@@ -63,13 +64,13 @@ export function vfrConflict(state) {
     if (a.mode === 'map') {
       if ((a.strip || 'N') !== 'N') continue;
       if (a.phase === PH.FINAL || (a.phase === PH.ROLLOUT && !a.vacated) || (a.phase === PH.TAKEOFF && a.z < 1) || a.phase === PH.LINED || a.phase === PH.LINEUP)
-        return { ac: a, hard: true, why: a.phase === PH.FINAL ? 'im kurzen Endanflug' : a.phase === PH.TAKEOFF ? 'im Startlauf' : 'auf der Bahn' };
+        return { ac: a, hard: true, why: a.phase === PH.FINAL ? T('im kurzen Endanflug') : a.phase === PH.TAKEOFF ? T('im Startlauf') : T('auf der Bahn') };
       continue;
     }
     if (a.arr && a.phase === PH.APPROACH && (a.strip || 'N') === 'N') {
       const d = AS.routeDistance(a.pos, a.route.length ? a.route : [AS.THR[a.rwy]]);
-      if (d < 6) return { ac: a, hard: true, why: `${d.toFixed(1)} NM im Anflug` };
-      if (d < 10 && (!soft || d < soft.d)) soft = { ac: a, hard: false, d, why: `${d.toFixed(1)} NM im Anflug` };
+      if (d < 6) return { ac: a, hard: true, why: T`${d.toFixed(1)} NM im Anflug` };
+      if (d < 10 && (!soft || d < soft.d)) soft = { ac: a, hard: false, d, why: T`${d.toFixed(1)} NM im Anflug` };
     }
   }
   return soft;
@@ -93,7 +94,7 @@ export function clearVfr(state) {
   p.clr = true;
   p.req = false;
   p.orbits = 0;
-  radio(state, 'TWR', `${tel(p.cs)}, runway ${p.rwy}, cleared touch and go, wind ${Math.round(state.wind.dir / 10) * 10} degrees ${Math.round(state.wind.spd)} knots.`, 'atc');
+  radio(state, 'TWR', T`${tel(p.cs)}, runway ${p.rwy}, cleared touch and go, wind ${Math.round(state.wind.dir / 10) * 10} degrees ${Math.round(state.wind.spd)} knots.`, 'atc');
   radio(state, p.cs, `Cleared touch and go ${p.rwy}, ${tel(p.cs)}.`, 'pilot');
   if (humanTower(state)) scoreVfr(state, !(c && c.hard));
   return { ok: true, bad: !!(c && c.hard), soft: c && !c.hard ? c : null, c };
@@ -149,7 +150,7 @@ export function updateVfr(state, dt) {
     p.C = C;
     radio(state, cs, `Planez Tower, ${vfrTel(cs, true)}, Alcedo AL-4, five miles north, request circuits with touch and go.`, 'pilot');
     radio(state, 'TWR', `${vfrTel(cs, true)}, join downwind runway ${state.rwy}, report downwind.`, 'atc');
-    if (humanTower(state)) notify(state, `🛩️ ${cs} übt Platzrunden – im Gegenanflug um „Touch and Go“ bitten lassen und in eine Lücke setzen`, 'info');
+    if (humanTower(state)) notify(state, T`🛩️ ${cs} übt Platzrunden – im Gegenanflug um „Touch and Go“ bitten lassen und in eine Lücke setzen`, 'info');
     return;
   }
   // Betriebsrichtung gewechselt oder Wetter schlecht: Platzrunden abbrechen
@@ -242,7 +243,7 @@ export function updateVfr(state, dt) {
       radio(state, p.cs, `${tel(p.cs)}, unable to continue, leaving the control zone to the north.`, 'pilot');
       if (humanTower(state)) {
         state.reputation = clamp(state.reputation - 0.3, 0, 100);
-        log(state, 'sys', `🛩️ ${p.cs} hat nach drei Vollkreisen keine Freigabe bekommen und bricht die Platzrunden ab.`);
+        log(state, 'sys', T`🛩️ ${p.cs} hat nach drei Vollkreisen keine Freigabe bekommen und bricht die Platzrunden ab.`);
       }
     }
     return;

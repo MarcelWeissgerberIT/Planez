@@ -2,14 +2,15 @@
 import { dayOf, fmtClock } from '../util.js';
 import { toast } from './dom.js';
 import { icon } from './icons.js';
+import { T } from '../i18n.js';
 
 const FILTERS = [
-  ['none', 'Natur', 'none'],
+  ['none', T('Natur'), 'none'],
   ['warm', 'Golden', 'sepia(0.25) saturate(1.35) brightness(1.05) contrast(1.05)'],
-  ['cool', 'Kühl', 'hue-rotate(-12deg) saturate(1.1) brightness(1.03)'],
-  ['bw', 'Schwarzweiß', 'grayscale(1) contrast(1.15)'],
+  ['cool', T('Kühl'), 'hue-rotate(-12deg) saturate(1.1) brightness(1.03)'],
+  ['bw', T('Schwarzweiß'), 'grayscale(1) contrast(1.15)'],
   ['film', 'Film', 'sepia(0.35) contrast(1.2) saturate(0.85) brightness(0.95)'],
-  ['vivid', 'Lebendig', 'saturate(1.6) contrast(1.1)'],
+  ['vivid', T('Lebendig'), 'saturate(1.6) contrast(1.1)'],
 ];
 
 export class PhotoMode {
@@ -20,7 +21,7 @@ export class PhotoMode {
     const el = document.createElement('div');
     el.id = 'photo';
     el.className = 'hidden';
-    el.innerHTML = `<div class="ph-tilt top"></div><div class="ph-tilt bot"></div><div class="ph-frame"></div>
+    el.innerHTML = T`<div class="ph-tilt top"></div><div class="ph-tilt bot"></div><div class="ph-frame"></div>
       <div class="ph-bar">
         <span class="ph-k">${icon('photo')} Fotomodus</span>
         <div class="ph-f">${FILTERS.map(([k, n]) => `<button data-pf="${k}">${n}</button>`).join('')}</div>
@@ -52,7 +53,7 @@ export class PhotoMode {
       } else if (k === 'trails') {
         this.game.map.trailsOn = !this.game.map.trailsOn;
         this.game.map.trailCv = null;
-        if (this.game.map.trailsOn) toast('🌌 Lichtspuren: Kamera ruhig halten und die Zeit laufen lassen', 'info', 2600);
+        if (this.game.map.trailsOn) toast(T('🌌 Lichtspuren: Kamera ruhig halten und die Zeit laufen lassen'), 'info', 2600);
         this.sync();
       } else if (k === 'tilt') {
         this.tilt = !this.tilt;
@@ -137,23 +138,23 @@ export class PhotoMode {
     g.font = `800 ${Math.round(22 * sc)}px Orbitron, sans-serif`;
     g.textAlign = 'right';
     g.fillStyle = 'rgba(0,0,0,0.45)';
-    const txt = `PLANEZ · ${s.name} · Tag ${dayOf(s.time)} · ${fmtClock(s.time)}`;
+    const txt = T`PLANEZ · ${s.name} · Tag ${dayOf(s.time)} · ${fmtClock(s.time)}`;
     g.fillText(txt, c.width - 22 * sc + 2, c.height - 22 * sc + 2);
     g.fillStyle = 'rgba(255,255,255,0.85)';
     g.fillText(txt, c.width - 22 * sc, c.height - 22 * sc);
     const a = document.createElement('a');
-    a.download = `planez-${s.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-tag${dayOf(s.time)}-${fmtClock(s.time).replace(':', '')}.png`;
+    a.download = T`planez-${s.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-tag${dayOf(s.time)}-${fmtClock(s.time).replace(':', '')}.png`;
     try {
       a.href = c.toDataURL('image/png');
       a.click();
     } catch (e) {
-      toast('Bild konnte nicht gespeichert werden', 'warn');
+      toast(T('Bild konnte nicht gespeichert werden'), 'warn');
       return;
     }
     const fl = this.el.querySelector('.ph-flash');
     fl.classList.remove('go');
     void fl.offsetWidth;
     fl.classList.add('go');
-    toast('📷 Foto gespeichert', 'good', 1800);
+    toast(T('📷 Foto gespeichert'), 'good', 1800);
   }
 }

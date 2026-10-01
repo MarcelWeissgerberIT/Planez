@@ -37,7 +37,7 @@ const RULES = [
   ['push', /\bpush ?back\b|\bstart ?up approved\b/],
   ['direct', /\bdirect\b/],
   ['hold', /\bhold(ing)? (at|as published|over)\b|\benter (the )?hold\b|\bproceed .* hold\b/],
-  ['approach', /\bclear(ed)? (i l s|ils|for (the )?(i l s|ils)|approach)\b|\bcleared ils\b|\bdescend\b/],
+  ['approach', /\bclear(ed)? (i l s|ils|for (the )?(i l s|ils)|(visual )?approach)\b|\bcleared ils\b|\bdescend\b/],
 ];
 const SPEEDS = [160, 180, 210, 250];
 

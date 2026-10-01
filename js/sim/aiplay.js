@@ -5,6 +5,7 @@
 // Solange die KI spielt, gibt es keine Schichtpunkte und keine neuen Erfolge – sie zählen nur für eigene Arbeit.
 import { projects } from './construction.js';
 import { loans } from './finance.js';
+import { T } from '../i18n.js';
 
 export const ROLE_AUTO = { tower: 'atc', ground: 'ground', manager: 'manager' };
 export const MANUAL_HOLD = 300; // Spielsekunden, die ein eigener Befehl Vorrang vor der KI hat
@@ -34,7 +35,7 @@ export function markManual(state, ac) {
   if (!state.aiPlay || !ac) return;
   const was = ac.manualUntil > state.time;
   ac.manualUntil = state.time + MANUAL_HOLD;
-  if (!was) aiNote(state, `${ac.cs}: du übernimmst – die KI hält sich ${Math.round(MANUAL_HOLD / 60)} min heraus`, ac, 'you');
+  if (!was) aiNote(state, T`${ac.cs}: du übernimmst – die KI hält sich ${Math.round(MANUAL_HOLD / 60)} min heraus`, ac, 'you');
 }
 export const manualLocked = (state, ac) => !!(ac && ac.manualUntil > state.time);
 
@@ -55,13 +56,13 @@ export function withManagerNotes(state, fn) {
   fn();
   const b = snap(state);
   const nc = b.contracts - a.contracts;
-  if (nc > 0) aiNote(state, nc > 1 ? `${nc} neue Airline-Verträge angenommen` : 'Neuen Airline-Vertrag angenommen');
-  if (b.vehicles > a.vehicles) aiNote(state, `Fahrzeug gekauft (jetzt ${b.vehicles})`);
-  if (b.staff > a.staff) aiNote(state, `${b.staff - a.staff} Leute eingestellt`);
+  if (nc > 0) aiNote(state, nc > 1 ? T`${nc} neue Airline-Verträge angenommen` : T('Neuen Airline-Vertrag angenommen'));
+  if (b.vehicles > a.vehicles) aiNote(state, T`Fahrzeug gekauft (jetzt ${b.vehicles})`);
+  if (b.staff > a.staff) aiNote(state, T`${b.staff - a.staff} Leute eingestellt`);
   if (b.projects !== a.projects) {
     const before = new Set(a.projects.split('|'));
-    for (const p of b.projects.split('|')) if (p && !before.has(p)) aiNote(state, `Bauauftrag: ${p}`);
+    for (const p of b.projects.split('|')) if (p && !before.has(p)) aiNote(state, T`Bauauftrag: ${p}`);
   }
-  if (b.loans > a.loans) aiNote(state, 'Kredit aufgenommen, um flüssig zu bleiben');
-  if (b.loans < a.loans) aiNote(state, 'Kredit getilgt');
+  if (b.loans > a.loans) aiNote(state, T('Kredit aufgenommen, um flüssig zu bleiben'));
+  if (b.loans < a.loans) aiNote(state, T('Kredit getilgt'));
 }

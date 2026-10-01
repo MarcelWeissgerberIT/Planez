@@ -6,8 +6,9 @@ import { PH } from './aircraft.js';
 import * as AS from './airspace.js';
 import * as LY from '../layout.js';
 import { snowBraking } from './winter.js';
+import { T, LOCALE } from '../i18n.js';
 
-export const BRAKE_DE = { good: 'gut', medium: 'mittel', poor: 'schlecht' };
+export const BRAKE_DE = { good: T('gut'), medium: T('mittel'), poor: T('schlecht') };
 export const BRAKE_EN = { good: 'good', medium: 'medium', poor: 'poor' };
 
 // ---------- Bahnen ----------
@@ -30,10 +31,10 @@ export function stripForArrival(state) {
 }
 export function runwayStrips(state) {
   const two = hasRwy2(state);
-  const len = (R) => `${Math.round((R.x1 - R.x0) * 20).toLocaleString('de-DE')} m`;
+  const len = (R) => `${Math.round((R.x1 - R.x0) * 20).toLocaleString(LOCALE)} m`;
   const N = LY.RWY;
-  const list = [{ id: 'N', label: `${N.grass ? 'Graspiste' : 'Bahn'} ${rwyName(state, 'N')}`, icon: '🛫', role: segregated(state) ? 'Starts' : 'Starts & Landungen', len: `${len(N)}${N.grass ? ' · Gras' : two ? ' · Nordbahn' : ' · Asphalt'}` }];
-  if (two) list.push({ id: 'S', label: `Bahn ${rwyName(state, 'S')}`, icon: '🛬', role: segregated(state) ? 'Landungen' : 'Reserve', len: `${len(LY.RWY_S)} · Südbahn` });
+  const list = [{ id: 'N', label: N.grass ? T`Graspiste ${rwyName(state, 'N')}` : T`Bahn ${rwyName(state, 'N')}`, icon: '🛫', role: segregated(state) ? T('Starts') : T('Starts & Landungen'), len: `${len(N)}${N.grass ? T(' · Gras') : two ? T(' · Nordbahn') : T(' · Asphalt')}` }];
+  if (two) list.push({ id: 'S', label: T`Bahn ${rwyName(state, 'S')}`, icon: '🛬', role: segregated(state) ? T('Landungen') : T('Reserve'), len: T`${len(LY.RWY_S)} · Südbahn` });
   return list;
 }
 
@@ -64,10 +65,10 @@ export function onRunwayLanding(state, ac) {
 // ---------- Sperrungen ----------
 // aktuelle Sperrung (Grund) oder null
 export function runwayClosed(state, strip = 'N') {
-  if (state.rwyClosedUntil > state.time && (state.rwyClosedStrip || 'N') === strip) return state.rwyClosedWhy || 'Sperrung';
+  if (state.rwyClosedUntil > state.time && (state.rwyClosedStrip || 'N') === strip) return state.rwyClosedWhy || T('Sperrung');
   if (state.rwyWorking) {
     const p = (state.projects || []).find((q) => q.id === state.rwyWorking);
-    if ((p && p.strip ? p.strip : 'N') === strip) return 'Bauarbeiten';
+    if ((p && p.strip ? p.strip : 'N') === strip) return T('Bauarbeiten');
   }
   return null;
 }
@@ -103,7 +104,7 @@ export function runwayDemand(state, strip = 'N') {
 }
 
 export function canWorkRunway(state, strip = 'N') {
-  const closedOther = state.rwyClosedUntil > state.time && (state.rwyClosedStrip || 'N') === strip && state.rwyClosedWhy !== 'Räumung der Baustelle';
+  const closedOther = state.rwyClosedUntil > state.time && (state.rwyClosedStrip || 'N') === strip && state.rwyClosedWhy !== T('Räumung der Baustelle');
   return nightWindow(state) && !runwayDemand(state, strip) && !closedOther;
 }
 
@@ -117,11 +118,11 @@ export function closeRunway(state, minutes, why, strip = 'N') {
 export function fodEvent(state) {
   const strip = hasRwy2(state) && rand(state) < 0.5 ? 'S' : 'N';
   const min = Math.round(randRange(state, 4, 8));
-  closeRunway(state, min, 'FOD-Kontrolle (Fremdkörper)', strip);
+  closeRunway(state, min, T('FOD-Kontrolle (Fremdkörper)'), strip);
   const name = rwyName(state, strip);
   radio(state, 'TWR', `All stations, runway ${name} closed for inspection, debris reported, expect ${min} minutes delay.`, 'atc');
-  notify(state, `🔎 FOD auf Bahn ${name} – Sperrung für ${min} min (bis ${fmtClock(state.rwyClosedUntil)})`, 'warn');
-  log(state, 'sys', `Fremdkörper (FOD) gemeldet – Pistenkontrolle, Bahn ${name} bis ${fmtClock(state.rwyClosedUntil)} gesperrt.`);
+  notify(state, T`🔎 FOD auf Bahn ${name} – Sperrung für ${min} min (bis ${fmtClock(state.rwyClosedUntil)})`, 'warn');
+  log(state, 'sys', T`Fremdkörper (FOD) gemeldet – Pistenkontrolle, Bahn ${name} bis ${fmtClock(state.rwyClosedUntil)} gesperrt.`);
 }
 
 export function updateRunway(state, dt) {
@@ -133,7 +134,7 @@ export function updateRunway(state, dt) {
     state.rwyClosedUntil = 0;
     if (why.startsWith('FOD')) {
       radio(state, 'TWR', `All stations, runway ${name} inspection complete, runway open.`, 'atc');
-      notify(state, `✅ Bahn ${name} wieder frei`, 'good');
+      notify(state, T`✅ Bahn ${name} wieder frei`, 'good');
     }
   }
   // Bauarbeiten unterbrechen, sobald Verkehr kommt: Räumung braucht 3 Minuten
@@ -141,8 +142,8 @@ export function updateRunway(state, dt) {
     const p = (state.projects || []).find((q) => q.id === state.rwyWorkingPrev);
     const strip = (p && p.strip) || state.rwyWorkingStrip || 'N';
     if (runwayDemand(state, strip)) {
-      closeRunway(state, 3, 'Räumung der Baustelle', strip);
-      log(state, 'sys', `Verkehr naht – Pistenbaustelle auf Bahn ${rwyName(state, strip)} wird geräumt (3 min).`);
+      closeRunway(state, 3, T('Räumung der Baustelle'), strip);
+      log(state, 'sys', T`Verkehr naht – Pistenbaustelle auf Bahn ${rwyName(state, strip)} wird geräumt (3 min).`);
     }
   }
   state.rwyWorkingPrev = state.rwyWorking;

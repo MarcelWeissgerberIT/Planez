@@ -2,6 +2,7 @@
 import { newsState } from '../sim/news.js';
 import { esc, fmtClock } from '../util.js';
 import { glossify } from './glossary.js';
+import { T } from '../i18n.js';
 
 export class NewsTicker {
   constructor(game) {
@@ -25,7 +26,7 @@ export class NewsTicker {
     if (key === this.key) return;
     this.key = key;
     if (!items.length) {
-      this.row.innerHTML = `<span class="tk-i">Willkommen am ${esc(s.name)} – die ersten Nachrichten folgen in Kürze.</span>`;
+      this.row.innerHTML = T`<span class="tk-i">Willkommen am ${esc(s.name)} – die ersten Nachrichten folgen in Kürze.</span>`;
       return;
     }
     const html = items.map((i) => `<span class="tk-i ${i.tone}"><b>${fmtClock(i.t)}</b> ${i.icon} ${esc(i.text)}</span>`).join('<span class="tk-s">◆</span>');

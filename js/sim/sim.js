@@ -34,6 +34,7 @@ import { boardDayEnd } from './board.js';
 import { log } from './messages.js';
 import { dailyCareer } from './career.js';
 import * as LY from '../layout.js';
+import { T } from '../i18n.js';
 
 export const hooks = { dayEnd: [] };
 
@@ -106,7 +107,7 @@ function dayRollover(state) {
     const done = ['departed', 'cancelled', 'diverted'].includes(r.status);
     if (done && r.std < state.time - 86400 && !state.acs.some((a) => a.rot === id)) delete state.rots[id];
   }
-  log(state, 'mgr', `Tagesabschluss Tag ${rec.day}: Umsatz ${Math.round(rec.rev / 1000)} Tsd €, Kosten ${Math.round(rec.cost / 1000)} Tsd €, Pünktlichkeit ${rec.onTime} %.`);
+  log(state, 'mgr', T`Tagesabschluss Tag ${rec.day}: Umsatz ${Math.round(rec.rev / 1000)} Tsd €, Kosten ${Math.round(rec.cost / 1000)} Tsd €, Pünktlichkeit ${rec.onTime} %.`);
   for (const fn of hooks.dayEnd) fn(rec);
 }
 

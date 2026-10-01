@@ -3,16 +3,17 @@
 import { loadBest, totalStars, dailyInfo } from './sim/scenarios.js';
 import { spotStats } from './sim/spotter.js';
 import { ACHIEVEMENTS } from './sim/achievements.js';
+import { T } from './i18n.js';
 
 const KEY = 'planez_career';
 export const CAREER_RANKS = [
-  { pts: 0, name: 'Neuling', icon: '🔰' },
+  { pts: 0, name: T('Neuling'), icon: '🔰' },
   { pts: 1500, name: 'Junior', icon: '🥉' },
-  { pts: 4000, name: 'Profi', icon: '🥈' },
+  { pts: 4000, name: T('Profi'), icon: '🥈' },
   { pts: 9000, name: 'Senior', icon: '🥇' },
   { pts: 18000, name: 'Supervisor', icon: '🎖️' },
-  { pts: 35000, name: 'Direktion', icon: '🏆' },
-  { pts: 70000, name: 'Legende', icon: '👑' },
+  { pts: 35000, name: T('Direktion'), icon: '🏆' },
+  { pts: 70000, name: T('Legende'), icon: '👑' },
 ];
 
 let data = null;

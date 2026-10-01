@@ -26,6 +26,7 @@ import { drawSmallField } from './smallfield.js';
 import { drawTerrain, terrainItems, onField } from './terrain.js';
 import { followMeCars } from './followme.js';
 import { standBuildable } from '../sim/career.js';
+import { T as tr_ } from '../i18n.js';
 const markOf = (ac) => (ac.mark && MARKS[ac.mark.c] ? MARKS[ac.mark.c] : null);
 
 const BH = { hall: 1.3, tower: 5, hangar: 1.8, cargo: 0.9, depot: 0.7, fire: 0.8, fuel: 0.9, parking: 1.1, hotel: 3.2, radar: 2.6, club: 0.5, gahangar: 0.6, avgas: 0.25, sterm: 0.6, stower: 1.6 };
@@ -314,7 +315,7 @@ export class MapRenderer {
     this.sites = sites;
     // fertige Baustelle: „Fertig“ über der Stelle
     const nowIds = new Map(sites.map((q) => [q.p.id, { x: (q.g.x0 + q.g.x1) / 2, y: (q.g.y0 + q.g.y1) / 2, name: q.p.name, prog: q.p.prog }]));
-    for (const [id, c] of this.siteCenters) if (!nowIds.has(id) && c.prog > 0.9) this.addFx({ x: c.x, y: c.y, text: `🏗️ Fertig: ${c.name}`, kind: 'good' });
+    for (const [id, c] of this.siteCenters) if (!nowIds.has(id) && c.prog > 0.9) this.addFx({ x: c.x, y: c.y, text: tr_`🏗️ Fertig: ${c.name}`, kind: 'good' });
     this.siteCenters = nowIds;
     this.siteLights = [];
     for (const s of sites) drawSiteGround(this, state, s.p, s.g);
@@ -796,7 +797,7 @@ export class MapRenderer {
       const x = rw.x0 + 4 + (rw.x1 - rw.x0 - 8) * (p ? p.prog : 0);
       const types = p && p.target === 'resurface' ? ['catering', 'fuel', 'baggage', 'tug'] : ['cleaning', 'fuel', 'cleaning', 'tug'];
       types.forEach((ty, i) => mk(`rw${i}`, ty, x + (i - 1.5) * 1.5 + Math.sin(t * 0.4 + i) * 0.35, rw.y + (i % 2 ? 0.45 : -0.45), Math.PI));
-    } else if (state.rwyClosedUntil > state.time && state.rwyClosedWhy === 'Pistenkontrolle' && state.insp && state.insp.active) {
+    } else if (state.rwyClosedUntil > state.time && state.rwyClosedWhy === tr_('Pistenkontrolle') && state.insp && state.insp.active) {
       // Pistenkontrolle: einmal die Bahn entlang, von der aktiven Schwelle aus, im Schlangenlinien-Blick nach Fremdkörpern
       const rw = stripGeom('N');
       const A = state.insp.active;
@@ -805,7 +806,7 @@ export class MapRenderer {
       const x0 = d > 0 ? rw.x0 + 1 : rw.x1 - 1;
       const x = x0 + d * (rw.x1 - rw.x0 - 2) * u;
       mk('insp', 'tug', x, rw.y + Math.sin(u * 40) * 0.35, d > 0 ? 0 : Math.PI);
-    } else if (state.rwyClosedUntil > state.time && (state.rwyClosedWhy || '').startsWith('FOD')) {
+    } else if (state.rwyClosedUntil > state.time && ((state.rwyClosedWhy || '').startsWith('FOD') || state.rwyClosedWhy === tr_('FOD-Kontrolle (Fremdkörper)'))) {
       // Kontrollfahrzeug fährt die Piste ab
       const rw = stripGeom(state.rwyClosedStrip || 'N');
       const span = rw.x1 - rw.x0 - 2;

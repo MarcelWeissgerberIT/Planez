@@ -3,43 +3,44 @@ import { fmtMoney, clamp, randInt } from '../util.js';
 import { log, notify, listeners } from './messages.js';
 import { nextId } from './schedule.js';
 import { isCareer, stageOf } from './career.js';
+import { T, LOCALE } from '../i18n.js';
 
 // Karriere: Prämien und Geld-/Passagierziele passen zur Größe des Platzes
 const MONEY_F = [0.06, 0.25, 0.6, 1, 1];
 const moneyF = (state) => (isCareer(state) ? MONEY_F[Math.min(4, stageOf(state))] : 1);
 
 export const RANKS = [
-  { name: 'Regionalflughafen', xp: 0 },
-  { name: 'Verkehrsflughafen', xp: 500 },
-  { name: 'Internationaler Flughafen', xp: 1400 },
-  { name: 'Luftfahrt-Drehkreuz', xp: 3000 },
-  { name: 'Weltflughafen', xp: 5500 },
+  { name: T('Regionalflughafen'), xp: 0 },
+  { name: T('Verkehrsflughafen'), xp: 500 },
+  { name: T('Internationaler Flughafen'), xp: 1400 },
+  { name: T('Luftfahrt-Drehkreuz'), xp: 3000 },
+  { name: T('Weltflughafen'), xp: 5500 },
 ];
 
 // Im Aufbau-Modus heißen die Ränge nach der Person, nicht nach dem Platz (sonst „Regionalflughafen“ am Grasplatz)
-const CAREER_RANK = ['Neu am Platz', 'Platzleitung', 'Flughafenleitung', 'Luftfahrt-Profi', 'Luftfahrt-Legende'];
+const CAREER_RANK = [T('Neu am Platz'), T('Platzleitung'), T('Flughafenleitung'), T('Luftfahrt-Profi'), T('Luftfahrt-Legende')];
 export const rankName = (state, i) => (state && state.career ? CAREER_RANK[i] : RANKS[i].name);
 
-const n0 = (v) => Math.round(v).toLocaleString('de-DE');
+const n0 = (v) => Math.round(v).toLocaleString(LOCALE);
 // type: sum = Zuwachs seit Zielvergabe, streak = aktuelle Serie, level = aktueller Wert
 export const GOAL_DEFS = {
-  landStreak: { role: 'tower', type: 'streak', t: [10, 15, 22, 30], text: (n) => `${n} Landungen in Folge ohne Durchstarten` },
-  slotsOk: { role: 'tower', type: 'sum', t: [5, 8, 12, 16], text: (n) => `${n} Starts innerhalb ihres Slot-Fensters (CTOT −5/+10 min)` },
-  lowWaitDeps: { role: 'tower', type: 'sum', t: [12, 18, 25, 35], text: (n) => `${n} Starts mit weniger als 2 min Wartezeit am Rollhalt` },
-  safeStreak: { role: 'tower', type: 'streak', t: [40, 70, 100, 150], text: (n) => `${n} Bewegungen in Folge ohne Vorfall` },
-  wakeStreak: { role: 'tower', type: 'sum', t: [3, 5, 8, 12], text: (n) => `${n} Anflüge hinter Heavy/Medium mit korrekter Wirbelschleppen-Staffelung` },
-  depPunctual: { role: 'ground', type: 'sum', t: [12, 20, 30, 40], text: (n) => `${n} Abflüge pünktlich (höchstens 5 min verspätet)` },
-  quickTurns: { role: 'ground', type: 'sum', t: [6, 10, 15, 20], text: (n) => `${n} Turnarounds in der Mindestbodenzeit (+5 min)` },
-  fuelT: { role: 'ground', type: 'sum', t: [250, 450, 700, 1000], text: (n) => `${n0(n)} t Kerosin vertanken` },
-  tobtKept: { role: 'ground', type: 'sum', t: [12, 20, 30, 40], text: (n) => `${n} Flüge ohne TOBT-Verschiebung abfertigen` },
-  noStandWait: { role: 'ground', type: 'sum', t: [12, 20, 30, 40], text: (n) => `${n} Ankünfte ohne Warten direkt zur Parkposition` },
-  contracts: { role: 'manager', type: 'sum', t: [1, 2, 2, 3], text: (n) => `${n} neue Verträge abschließen (Airlines oder Partner)` },
-  fuelMargin: { role: 'manager', type: 'sum', t: [25000, 50000, 90000, 150000], text: (n) => `${fmtMoney(n)} Kerosin-Marge erwirtschaften` },
-  pax: { role: 'manager', type: 'sum', t: [10000, 18000, 30000, 45000], text: (n) => `${n0(n)} Passagiere abfertigen` },
-  profitDays: { role: 'manager', type: 'streak', t: [1, 2, 3, 5], text: (n) => `${n} Tag${n > 1 ? 'e' : ''} in Folge mit positivem Betriebsergebnis` },
-  rep: { role: 'manager', type: 'level', t: [68, 72, 78, 85], text: (n) => `Ansehen auf ${n}/100 steigern` },
-  cash: { role: 'manager', type: 'level', t: [7e6, 10e6, 15e6, 25e6], text: (n) => `Kasse auf über ${fmtMoney(n)} bringen` },
-  landings: { role: 'observer', type: 'sum', t: [25, 40, 60, 90], text: (n) => `${n} Landungen` },
+  landStreak: { role: 'tower', type: 'streak', t: [10, 15, 22, 30], text: (n) => T`${n} Landungen in Folge ohne Durchstarten` },
+  slotsOk: { role: 'tower', type: 'sum', t: [5, 8, 12, 16], text: (n) => T`${n} Starts innerhalb ihres Slot-Fensters (CTOT −5/+10 min)` },
+  lowWaitDeps: { role: 'tower', type: 'sum', t: [12, 18, 25, 35], text: (n) => T`${n} Starts mit weniger als 2 min Wartezeit am Rollhalt` },
+  safeStreak: { role: 'tower', type: 'streak', t: [40, 70, 100, 150], text: (n) => T`${n} Bewegungen in Folge ohne Vorfall` },
+  wakeStreak: { role: 'tower', type: 'sum', t: [3, 5, 8, 12], text: (n) => T`${n} Anflüge hinter Heavy/Medium mit korrekter Wirbelschleppen-Staffelung` },
+  depPunctual: { role: 'ground', type: 'sum', t: [12, 20, 30, 40], text: (n) => T`${n} Abflüge pünktlich (höchstens 5 min verspätet)` },
+  quickTurns: { role: 'ground', type: 'sum', t: [6, 10, 15, 20], text: (n) => T`${n} Turnarounds in der Mindestbodenzeit (+5 min)` },
+  fuelT: { role: 'ground', type: 'sum', t: [250, 450, 700, 1000], text: (n) => T`${n0(n)} t Kerosin vertanken` },
+  tobtKept: { role: 'ground', type: 'sum', t: [12, 20, 30, 40], text: (n) => T`${n} Flüge ohne TOBT-Verschiebung abfertigen` },
+  noStandWait: { role: 'ground', type: 'sum', t: [12, 20, 30, 40], text: (n) => T`${n} Ankünfte ohne Warten direkt zur Parkposition` },
+  contracts: { role: 'manager', type: 'sum', t: [1, 2, 2, 3], text: (n) => T`${n} neue Verträge abschließen (Airlines oder Partner)` },
+  fuelMargin: { role: 'manager', type: 'sum', t: [25000, 50000, 90000, 150000], text: (n) => T`${fmtMoney(n)} Kerosin-Marge erwirtschaften` },
+  pax: { role: 'manager', type: 'sum', t: [10000, 18000, 30000, 45000], text: (n) => T`${n0(n)} Passagiere abfertigen` },
+  profitDays: { role: 'manager', type: 'streak', t: [1, 2, 3, 5], text: (n) => (n > 1 ? T`${n} Tage in Folge mit positivem Betriebsergebnis` : T`${n} Tag in Folge mit positivem Betriebsergebnis`) },
+  rep: { role: 'manager', type: 'level', t: [68, 72, 78, 85], text: (n) => T`Ansehen auf ${n}/100 steigern` },
+  cash: { role: 'manager', type: 'level', t: [7e6, 10e6, 15e6, 25e6], text: (n) => T`Kasse auf über ${fmtMoney(n)} bringen` },
+  landings: { role: 'observer', type: 'sum', t: [25, 40, 60, 90], text: (n) => T`${n} Landungen` },
 };
 const REWARD = { cash: [25000, 40000, 60000, 90000], xp: [40, 60, 80, 110] };
 
@@ -112,8 +113,8 @@ export function addXp(state, xp) {
   if (G.rank > before) {
     state.reputation = clamp(state.reputation + 3, 0, 100);
     for (const fn of listeners.rank) fn(state, G.rank);
-    notify(state, `🏅 Aufstieg: ${state.name} ist jetzt „${RANKS[G.rank].name}“!`, 'good');
-    log(state, 'mgr', `Neuer Flughafen-Rang: ${RANKS[G.rank].name} (${G.xp} XP). Mehr Airlines interessieren sich für den Standort.`);
+    notify(state, T`🏅 Aufstieg: ${state.name} ist jetzt „${RANKS[G.rank].name}“!`, 'good');
+    log(state, 'mgr', T`Neuer Flughafen-Rang: ${RANKS[G.rank].name} (${G.xp} XP). Mehr Airlines interessieren sich für den Standort.`);
   }
 }
 
@@ -129,8 +130,8 @@ export function updateGoals(state, dt) {
     state.cash += cash;
     state.ledger.rev.other = (state.ledger.rev.other || 0) + cash;
     goalsState(state).done++;
-    notify(state, `🎯 Ziel erreicht: ${goalText(g)} (+${fmtMoney(cash)}, +${xp} XP)`, 'good');
-    log(state, 'mgr', `Ziel erreicht: ${goalText(g)} – Prämie ${fmtMoney(cash)}, ${xp} XP.`);
+    notify(state, T`🎯 Ziel erreicht: ${goalText(g)} (+${fmtMoney(cash)}, +${xp} XP)`, 'good');
+    log(state, 'mgr', T`Ziel erreicht: ${goalText(g)} – Prämie ${fmtMoney(cash)}, ${xp} XP.`);
     list.splice(list.indexOf(g), 1);
     addXp(state, xp);
   }

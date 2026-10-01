@@ -5,6 +5,7 @@ import * as LY from '../layout.js';
 import { clamp } from '../util.js';
 import { remainingHours } from '../sim/construction.js';
 import { fmtHours } from '../ui/projects.js';
+import { T } from '../i18n.js';
 
 // Sprite-Anker: Anteil der Bildbreite, an dem der Fußpunkt liegt, und Breite in Kacheln (w+d)
 const SPR = {
@@ -443,7 +444,7 @@ export function drawSiteLabel(r, state, p, g, sel = false) {
   const fs = Math.round(clamp(11 * Math.sqrt(cam.zoom / 0.6), 9, 13));
   const title = `🏗️ ${p.name}`;
   const rem = remainingHours(p);
-  const sub = p.status === 'waiting' ? 'wartet auf freie Position' : `${Math.floor(p.prog * 100)} % · noch ${fmtHours(rem)}${state.weather.kind === 'storm' ? ' · Gewitter-Pause' : ''}`;
+  const sub = p.status === 'waiting' ? T('wartet auf freie Position') : T`${Math.floor(p.prog * 100)} % · noch ${fmtHours(rem)}${state.weather.kind === 'storm' ? T(' · Gewitter-Pause') : ''}`;
   ctx.font = `700 ${fs}px system-ui, sans-serif`;
   const w1 = ctx.measureText(title).width;
   ctx.font = `500 ${fs - 1}px ui-monospace, Menlo, monospace`;

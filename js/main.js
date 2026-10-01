@@ -75,6 +75,7 @@ import { isCareer, stageOf, STAGES, stageUpStatus, applyStage } from './sim/care
 import { VERSION } from './version.js';
 import { IS_DEMO, DEMO } from './edition.js';
 import { showDemoEnd, demoFreeOver } from './ui/demo.js';
+import { T, DEC, LOCALE, translateDom } from './i18n.js';
 
 // eigene SVG-Icons in die statischen Knöpfe (Kartenleiste, Menü, Radar/Funk-Köpfe) einsetzen
 hydrateIcons(document);
@@ -83,8 +84,12 @@ hydrateIcons(document);
   const mv = document.getElementById('mm-ver');
   if (mv) mv.textContent = 'v' + VERSION + (IS_DEMO ? ' · Demo' : '');
   const tag = document.querySelector('.mm-tag');
-  if (IS_DEMO && tag) tag.insertAdjacentHTML('beforebegin', '<div class="mm-demo">DEMO-VERSION</div>');
+  if (IS_DEMO && tag) tag.insertAdjacentHTML('beforebegin', `<div class="mm-demo">${T('DEMO-VERSION')}</div>`);
 }
+
+// feste Texte der Seite (index.html) in die Spielsprache bringen
+translateDom();
+document.title = T('Planez – Airport Simulator');
 
 const game = {
   state: null,
@@ -145,26 +150,26 @@ window.planez = game; // für Tests/Debugging
 // ---------------- Start ----------------
 // Tipps auf dem Ladebildschirm
 const LOAD_TIPS = [
-  'Tipp: Mit <kbd>K</kbd> startet der Kino-Modus – die Kamera sucht sich selbst die besten Szenen.',
-  'Tipp: Im Tower zeigt die Karte „⏳ Landung zuerst“, wenn ein Start noch warten sollte.',
-  'Tipp: Der Positionsplan (<kbd>G</kbd>) im Vorfeld zeigt, welche Position wann frei wird.',
-  'Tipp: Bei Angeboten kannst du verhandeln – die Erfolgschance steht direkt auf dem Knopf.',
-  'Tipp: Die Wettervorhersage im Kopfbereich kündigt Gewitter 30 Minuten vorher an.',
-  'Tipp: Unter „Herausforderungen“ warten zehn Szenarien mit Sternen – von der Morgenwelle bis zum Großen Flugtag.',
-  'Tipp: „🎥 Folgen“ auf der Info-Karte lässt die Kamera ein Flugzeug durch den ganzen Umlauf begleiten.',
-  'Wusstest du? Hinter einem Heavy braucht ein leichtes Flugzeug bis zu 6 NM Abstand – Wirbelschleppen.',
-  'Wusstest du? Unter 550 m Pistensichtweite reicht ILS CAT I nicht mehr – dann hilft nur CAT III.',
-  'Wusstest du? Das Martinshorn der deutschen Feuerwehr spielt eine Quarte – „Tatü-tata“.',
-  'Tipp: Mit <kbd>V</kbd> (gedrückt halten) funkst du im Tower selbst – auf Englisch, wie echte Lotsen.',
-  'Tipp: 📷 bzw. <kbd>Umschalt</kbd>+<kbd>P</kbd> öffnet den Fotomodus mit Filtern, Miniatur-Effekt, Lichtspuren (Langzeitbelichtung, nachts am schönsten) und PNG-Export.',
-  'Tipp: <kbd>?</kbd> zeigt im Spiel alle Tastenkürzel deiner Station.',
-  'Tipp: Unter Wettbewerb siehst du deinen Marktanteil gegen Nordhafen – Ansehen und Pünktlichkeit zählen am meisten.',
-  'Tipp: Im Tower lohnt sich Hinhören – ein falscher Readback lässt sich mit Q korrigieren.',
-  'Tipp: Bittet ein Pilot bei Gewitter um einen Umweg, genehmige ihn mit Y – sonst geht es durch die Turbulenz.',
-  'Tipp: Der Aufsichtsrat tagt alle 7 Tage – mit der Strategie „Wachstum“ melden sich mehr Airlines.',
-  'Tipp: Gib der Pistenkontrolle eine Lücke – ohne Kontrollen steigt das Risiko für Fremdkörper auf der Bahn.',
-  'Tipp: Etwa jede 18. Maschine trägt eine Sonderlackierung – fotografiere sie fürs 📒 Spotterbuch.',
-  'Tipp: Eine Landung im Gewitter oder ein Nachtstart bringt im Spotterbuch Extrapunkte für den Moment.',
+  T('Tipp: Mit <kbd>K</kbd> startet der Kino-Modus – die Kamera sucht sich selbst die besten Szenen.'),
+  T('Tipp: Im Tower zeigt die Karte „⏳ Landung zuerst“, wenn ein Start noch warten sollte.'),
+  T('Tipp: Der Positionsplan (<kbd>G</kbd>) im Vorfeld zeigt, welche Position wann frei wird.'),
+  T('Tipp: Bei Angeboten kannst du verhandeln – die Erfolgschance steht direkt auf dem Knopf.'),
+  T('Tipp: Die Wettervorhersage im Kopfbereich kündigt Gewitter 30 Minuten vorher an.'),
+  T('Tipp: Unter „Herausforderungen“ warten zehn Szenarien mit Sternen – von der Morgenwelle bis zum Großen Flugtag.'),
+  T('Tipp: „🎥 Folgen“ auf der Info-Karte lässt die Kamera ein Flugzeug durch den ganzen Umlauf begleiten.'),
+  T('Wusstest du? Hinter einem Heavy braucht ein leichtes Flugzeug bis zu 6 NM Abstand – Wirbelschleppen.'),
+  T('Wusstest du? Unter 550 m Pistensichtweite reicht ILS CAT I nicht mehr – dann hilft nur CAT III.'),
+  T('Wusstest du? Das Martinshorn der deutschen Feuerwehr spielt eine Quarte – „Tatü-tata“.'),
+  T('Tipp: Mit <kbd>V</kbd> (gedrückt halten) funkst du im Tower selbst – auf Englisch, wie echte Lotsen.'),
+  T('Tipp: 📷 bzw. <kbd>Umschalt</kbd>+<kbd>P</kbd> öffnet den Fotomodus mit Filtern, Miniatur-Effekt, Lichtspuren (Langzeitbelichtung, nachts am schönsten) und PNG-Export.'),
+  T('Tipp: <kbd>?</kbd> zeigt im Spiel alle Tastenkürzel deiner Station.'),
+  T('Tipp: Unter Wettbewerb siehst du deinen Marktanteil gegen Nordhafen – Ansehen und Pünktlichkeit zählen am meisten.'),
+  T('Tipp: Im Tower lohnt sich Hinhören – ein falscher Readback lässt sich mit Q korrigieren.'),
+  T('Tipp: Bittet ein Pilot bei Gewitter um einen Umweg, genehmige ihn mit Y – sonst geht es durch die Turbulenz.'),
+  T('Tipp: Der Aufsichtsrat tagt alle 7 Tage – mit der Strategie „Wachstum“ melden sich mehr Airlines.'),
+  T('Tipp: Gib der Pistenkontrolle eine Lücke – ohne Kontrollen steigt das Risiko für Fremdkörper auf der Bahn.'),
+  T('Tipp: Etwa jede 18. Maschine trägt eine Sonderlackierung – fotografiere sie fürs 📒 Spotterbuch.'),
+  T('Tipp: Eine Landung im Gewitter oder ein Nachtstart bringt im Spotterbuch Extrapunkte für den Moment.'),
 ];
 
 async function boot() {
@@ -182,7 +187,7 @@ async function boot() {
     loadSlot: (n) => {
       unlock();
       const st = loadGame(n);
-      if (!st) return toast('Spielstand konnte nicht geladen werden', 'bad');
+      if (!st) return toast(T('Spielstand konnte nicht geladen werden'), 'bad');
       st.settings.tts = loadPrefs().tts;
       startGame(st);
     },
@@ -232,7 +237,7 @@ function showMenu() {
   $('#game').classList.add('hidden');
   const R = careerRank();
   const ci = $('#career-info');
-  if (ci) ci.textContent = `${R.cur.icon} ${R.cur.name} · ${R.pts.toLocaleString('de-DE')} Punkte`;
+  if (ci) ci.textContent = T`${R.cur.icon} ${R.cur.name} · ${R.pts.toLocaleString(LOCALE)} Punkte`;
   syncMenuMusic();
   setGlossaryEnabled(loadPrefs().glossary);
   const sv = hasSave() ? loadGame() : null;
@@ -291,7 +296,7 @@ function wireMenu() {
   const syncStart = () => {
     const grass = ($('#inp-start') || {}).value === 'grass';
     const nm = $('#inp-name');
-    if (nm && (nm.value === 'Planez International' || nm.value === 'Flugplatz Planez')) nm.value = grass ? 'Flugplatz Planez' : 'Planez International';
+    if (nm && (nm.value === 'Planez International' || nm.value === 'Flugplatz Planez' || nm.value === T('Flugplatz Planez'))) nm.value = grass ? T('Flugplatz Planez') : 'Planez International';
     const cs = document.querySelector('.mm-cash');
     if (cs) cs.classList.toggle('hidden', grass);
   };
@@ -421,11 +426,11 @@ function applyRole() {
     const h = document.createElement('div');
     h.id = 'hint';
     h.className = 'hint hidden';
-    h.innerHTML = '<span class="hint-i">💡</span><span class="hint-t"></span><button class="mini" title="Tipps ausblenden">✕</button>';
+    h.innerHTML = '<span class="hint-i">💡</span><span class="hint-t"></span><button class="mini" title="' + T('Tipps ausblenden') + '">✕</button>';
     h.querySelector('button').addEventListener('click', () => {
       s.settings.hints = false;
       h.classList.add('hidden');
-      toast('Tipps ausgeblendet – im Menü wieder einschaltbar', 'info', 2500);
+      toast(T('Tipps ausgeblendet – im Menü wieder einschaltbar'), 'info', 2500);
     });
     head.after(h);
   }
@@ -445,13 +450,13 @@ function labelFn(role) {
     const s = game.state;
     const n = s.seq ? s.seq.indexOf(ac.id) + 1 : 0;
     if (role === 'tower' && n) {
-      const what = ac.clr.takeoff ? 'Start frei' : ac.clr.land ? 'Landung frei' : ac.req ? REQ_DE[ac.req].replace('bittet um ', '').replace('wartet auf ', '') : ac.arr && !['STARTUP', 'TAXI_OUT', 'HOLDING', 'LINEUP', 'LINED_UP', 'TAKEOFF'].includes(ac.phase) ? 'Landung' : 'Start';
+      const what = ac.clr.takeoff ? T('Start frei') : ac.clr.land ? T('Landung frei') : ac.req ? REQ_DE[ac.req].replace(T('bittet um '), '').replace(T('wartet auf '), '') : ac.arr && !['STARTUP', 'TAXI_OUT', 'HOLDING', 'LINEUP', 'LINED_UP', 'TAKEOFF'].includes(ac.phase) ? T('Landung') : T('Start');
       return `#${n} · ${what}`;
     }
     if (role === 'tower') {
-      if (ac.req) return REQ_DE[ac.req].replace('bittet um ', '').replace('wartet auf ', '');
-      if (ac.phase === PH.FINAL) return ac.clr.land ? 'Landung frei' : 'keine Freigabe!';
-      if (ac.holdPos) return 'HALT';
+      if (ac.req) return REQ_DE[ac.req].replace(T('bittet um '), '').replace(T('wartet auf '), '');
+      if (ac.phase === PH.FINAL) return ac.clr.land ? T('Landung frei') : T('keine Freigabe!');
+      if (ac.holdPos) return T('HALT');
       return ac.stand && ac.arr ? `→ P${ac.stand}` : '';
     }
     if (role === 'ground') {
@@ -460,7 +465,7 @@ function labelFn(role) {
         const done = ts.filter((t) => t.st === 'done').length;
         return `P${ac.stand} · ${done}/${ts.length}`;
       }
-      if (ac.arr && !ac.stand) return 'keine Position';
+      if (ac.arr && !ac.stand) return T('keine Position');
       return ac.stand ? `→ P${ac.stand}` : '';
     }
     // während des Spotter-Quiz im Livestream den Typ nicht verraten
@@ -500,7 +505,7 @@ function loop(ts) {
         Q.perf = true;
         savePrefs({ perf: true });
         resize();
-        toast('⚙️ Leistungsmodus eingeschaltet, damit das Spiel flüssig läuft – abschaltbar unter Menü › Einstellungen', 'info', 6000);
+        toast(T('⚙️ Leistungsmodus eingeschaltet, damit das Spiel flüssig läuft – abschaltbar unter Menü › Einstellungen'), 'info', 6000);
       }
     }
   }
@@ -577,9 +582,9 @@ function followCam(s, dt) {
 // ---------------- HUD ----------------
 function updateHUD(force) {
   const s = game.state;
-  setHTML($('#hud-day'), `Tag ${dayOf(s.time)}`);
+  setHTML($('#hud-day'), T`Tag ${dayOf(s.time)}`);
   setHTML($('#hud-time'), fmtClock(s.time));
-  const sp = SPEEDS.map((v, i) => `<button data-speed="${v}" class="${s.speed === v ? 'on' : ''}" title="${v ? `${v}-fach – ein Tag dauert ca. ${Math.round(dayMinutes(v))} Minuten` : 'Pause'} (Taste ${i})">${v === 0 ? '❚❚' : v + '×'}</button>`).join('');
+  const sp = SPEEDS.map((v, i) => `<button data-speed="${v}" class="${s.speed === v ? 'on' : ''}" title="${v ? T`${v}-fach – ein Tag dauert ca. ${Math.round(dayMinutes(v))} Minuten` : T('Pause')}${T` (Taste ${i})`}">${v === 0 ? '❚❚' : v + '×'}</button>`).join('');
   setHTML($('#speeds'), sp);
   const w = WEATHER[s.weather.kind];
   const se = season(s);
@@ -587,7 +592,7 @@ function updateHUD(force) {
   const soon = fc.change && fc.at - s.time < 2 * 3600;
   const WX_ICO = { clear: 'sun', clouds: 'clouds', rain: 'rain', fog: 'fog', storm: 'storm', snow: 'snow' };
   const SE_ICO = { autumn: 'leaf', winter: 'snow', spring: 'sprout', summer: 'sun' };
-  setHTML($('#hud-wx'), `<span title="${se.name}">${icon(SE_ICO[se.id] || 'leaf', 'se')}</span> ${icon(WX_ICO[s.weather.kind] || 'sun')} ${w.name} · ${temperature(s).toFixed(0)} °C · ${Math.round(s.wind.dir / 10) * 10}°/${Math.round(s.wind.spd)} kt${soon ? ` <span class="wx-next ${['storm', 'fog', 'snow'].includes(fc.kind) ? 'warn' : ''}" title="Vorhersage: ab ${fmtClock(fc.at)} ${fc.name} (bis etwa ${fmtClock(fc.until)})">→ ${icon(WX_ICO[fc.kind] || 'clouds')} ${fmtClock(fc.at)}</span>` : ''}`);
+  setHTML($('#hud-wx'), `<span title="${se.name}">${icon(SE_ICO[se.id] || 'leaf', 'se')}</span> ${icon(WX_ICO[s.weather.kind] || 'sun')} ${w.name} · ${temperature(s).toFixed(0)} °C · ${Math.round(s.wind.dir / 10) * 10}°/${Math.round(s.wind.spd)} kt${soon ? ` <span class="wx-next ${['storm', 'fog', 'snow'].includes(fc.kind) ? 'warn' : ''}" title="${T`Vorhersage: ab ${fmtClock(fc.at)} ${fc.name} (bis etwa ${fmtClock(fc.until)})`}">→ ${icon(WX_ICO[fc.kind] || 'clouds')} ${fmtClock(fc.at)}</span>` : ''}`);
   setHTML($('#hud-rwy'), `RWY <b>${s.rwy}</b>${s.rwyPending ? ` <span class="pend">→ ${s.rwyPending}</span>` : ''}`);
   const cash = $('#hud-cash');
   setHTML(cash, fmtMoney(s.cash));
@@ -603,7 +608,7 @@ function updateHUD(force) {
   if (showSc) {
     const S = scoreState(s);
     const hot = S.combo >= 2 ? 'hot' : S.combo > 1 ? 'warm' : '';
-    setHTML(sc, `<span class="sc-p">${icon('star')} ${S.today.toLocaleString('de-DE')}</span><span class="sc-c ${hot}">×${S.combo.toFixed(1)}</span>`);
+    setHTML(sc, `<span class="sc-p">${icon('star')} ${S.today.toLocaleString(LOCALE)}</span><span class="sc-c ${hot}">×${S.combo.toFixed(1)}</span>`);
   }
   const G = goalsState(s);
   if (isCareer(s)) {
@@ -612,7 +617,7 @@ function updateHUD(force) {
     const pct = !S ? 100 : S.building ? Math.round(S.building.prog * 100) : Math.round((100 * (S.reqs.filter((r) => r.ok).length + (S.cash ? 1 : 0))) / (S.reqs.length + 1));
     const stg = STAGES[stageOf(s)];
     setHTML($('#btn-rank'), `<span class="rk-i rk-stage">${stg.icon}</span><span class="rk-t"><b>${stg.name}</b><i style="--p:${pct}%"></i></span>`);
-    $('#btn-rank').title = S ? (S.building ? `Ausbau zum ${STAGES[S.to].name}: ${pct} %` : `Nächste Stufe: ${STAGES[S.to].name} – ${S.reqs.filter((r) => r.ok).length}/${S.reqs.length} Bedingungen erfüllt`) : 'Höchste Ausbaustufe erreicht';
+    $('#btn-rank').title = S ? (S.building ? T`Ausbau zum ${STAGES[S.to].name}: ${pct} %` : T`Nächste Stufe: ${STAGES[S.to].name} – ${S.reqs.filter((r) => r.ok).length}/${S.reqs.length} Bedingungen erfüllt`) : T('Höchste Ausbaustufe erreicht');
     return;
   }
   const next = RANKS[G.rank + 1];
@@ -635,14 +640,14 @@ function watchMoments(s) {
     if (ac && Math.hypot(ac.x - sal.p.x, ac.y - sal.p.y) < 1.2) {
       sal.photo = true;
       const img = spotter().capture(ac);
-      if (img) return M.push({ kind: 'salute', text: `💦 Wassertaufe für den Erstflug ${ac.cs}`, img, t: s.time, prio: MOMENT_PRIO.salute });
+      if (img) return M.push({ kind: 'salute', text: T`💦 Wassertaufe für den Erstflug ${ac.cs}`, img, t: s.time, prio: MOMENT_PRIO.salute });
     }
   }
   const ev = s.acs.find((a) => a.emgKind === 'smoke' && a.fireStop && !a.fireDone && s.time - a.fireStop > 70 && !(a.moments && a.moments.includes('evac')));
   if (ev) {
     (ev.moments = ev.moments || []).push('evac');
     const img = spotter().capture(ev);
-    if (img) return M.push({ kind: 'evac', text: `🛟 Evakuierung von ${ev.cs} über die Notrutschen`, img, t: s.time, prio: MOMENT_PRIO.evac });
+    if (img) return M.push({ kind: 'evac', text: T`🛟 Evakuierung von ${ev.cs} über die Notrutschen`, img, t: s.time, prio: MOMENT_PRIO.evac });
   }
   for (const ac of s.acs) {
     if (ac.mode !== 'map') continue;
@@ -650,15 +655,15 @@ function watchMoments(s) {
     const takeoff = ac.phase === PH.TAKEOFF && ac.z > 0.05 && ac.z < 0.9;
     if (!landing && !takeoff) continue;
     let kind = null, text = '';
-    const what = landing ? 'Landung' : 'Start';
-    if (ac.protocol) [kind, text] = ['state', `🎖️ ${what} der Regierungsmaschine ${ac.cs}`];
-    else if (ac.type === 'A388') [kind, text] = ['a380', `🐋 ${what} des Superjumbos ${ac.cs}`];
-    else if (ac.emergency && landing) [kind, text] = ['emergency', `🚨 Notlandung ${ac.cs} – sicher unten`];
-    else if (ac.nordo && landing) [kind, text] = ['nordo', `💡 ${ac.cs} landet per Lichtsignal`];
-    else if (ac.special) [kind, text] = ['special', `🎨 ${what} in Sonderlackierung – ${ac.cs}`];
-    else if (['storm', 'snow', 'fog'].includes(s.weather.kind) && !M.some((m) => m.kind === 'storm')) [kind, text] = ['storm', `${s.weather.kind === 'storm' ? '⛈️' : s.weather.kind === 'snow' ? '🌨️' : '🌫️'} ${what} ${ac.cs} bei ${s.weather.kind === 'storm' ? 'Gewitter' : s.weather.kind === 'snow' ? 'Schneetreiben' : 'Nebel'}`];
-    else if ((Math.abs(h - 7.1) < 0.8 || Math.abs(h - 18.5) < 0.8) && s.weather.kind === 'clear' && !M.some((m) => m.kind === 'golden')) [kind, text] = ['golden', `🌅 ${what} ${ac.cs} in der goldenen Stunde`];
-    else if ((h < 5.5 || h > 21.5) && !M.some((m) => m.kind === 'night')) [kind, text] = ['night', `🌙 Nacht-${what.toLowerCase()} ${ac.cs}`];
+    const what = landing ? T('Landung') : T('Start');
+    if (ac.protocol) [kind, text] = ['state', T`🎖️ ${what} der Regierungsmaschine ${ac.cs}`];
+    else if (ac.type === 'A388') [kind, text] = ['a380', T`🐋 ${what} des Superjumbos ${ac.cs}`];
+    else if (ac.emergency && landing) [kind, text] = ['emergency', T`🚨 Notlandung ${ac.cs} – sicher unten`];
+    else if (ac.nordo && landing) [kind, text] = ['nordo', T`💡 ${ac.cs} landet per Lichtsignal`];
+    else if (ac.special) [kind, text] = ['special', T`🎨 ${what} in Sonderlackierung – ${ac.cs}`];
+    else if (['storm', 'snow', 'fog'].includes(s.weather.kind) && !M.some((m) => m.kind === 'storm')) [kind, text] = ['storm', T`${s.weather.kind === 'storm' ? '⛈️' : s.weather.kind === 'snow' ? '🌨️' : '🌫️'} ${what} ${ac.cs} bei ${s.weather.kind === 'storm' ? T('Gewitter') : s.weather.kind === 'snow' ? T('Schneetreiben') : T('Nebel')}`];
+    else if ((Math.abs(h - 7.1) < 0.8 || Math.abs(h - 18.5) < 0.8) && s.weather.kind === 'clear' && !M.some((m) => m.kind === 'golden')) [kind, text] = ['golden', T`🌅 ${what} ${ac.cs} in der goldenen Stunde`];
+    else if ((h < 5.5 || h > 21.5) && !M.some((m) => m.kind === 'night')) [kind, text] = ['night', T`🌙 Nacht-${what.toLowerCase()} ${ac.cs}`];
     if (!kind || (ac.moments && ac.moments.includes(kind))) continue;
     (ac.moments = ac.moments || []).push(kind);
     const img = spotter().capture(ac);
@@ -758,10 +763,10 @@ function rateDay(rec) {
   return Math.round((p + safe + eco) * 2) / 2;
 }
 const GOALS = {
-  tower: 'Ziel Tower: keine Staffelungsverstöße, wenige Durchstarts, keine Ausweichlandungen.',
-  ground: 'Ziel Vorfeld: mindestens 90 % pünktliche Abflüge.',
-  manager: 'Ziel Management: positives Betriebsergebnis, zufriedene Airlines, wachsendes Ansehen.',
-  observer: 'Der Flughafen lief heute vollautomatisch.',
+  tower: T('Ziel Tower: keine Staffelungsverstöße, wenige Durchstarts, keine Ausweichlandungen.'),
+  ground: T('Ziel Vorfeld: mindestens 90 % pünktliche Abflüge.'),
+  manager: T('Ziel Management: positives Betriebsergebnis, zufriedene Airlines, wachsendes Ansehen.'),
+  observer: T('Der Flughafen lief heute vollautomatisch.'),
 };
 
 // rollenspezifische Kennzahlen im Tagesbericht
@@ -769,9 +774,9 @@ function reportExtras(rec) {
   const role = game.state.role;
   const cell = (k, v) => `<div><span>${k}</span><b>${v}</b></div>`;
   const slots = (rec.slotOk || 0) + (rec.slotMiss || 0);
-  const tw = [cell('Slots eingehalten', slots ? `${rec.slotOk}/${slots}` : '—'), cell('Ø Wartezeit Rollhalt', rec.depN ? `${(rec.taxiWait / rec.depN).toFixed(1).replace('.', ',')} min` : '—'), cell('Wirbelschleppen-Verstöße', rec.wakeInf || 0), cell('Minimum Fuel', rec.minFuel || 0)];
-  const gd = [cell('Slots verpasst (Abfertigung)', rec.slotMissGnd || 0), cell('Kerosin vertankt', `${(rec.fuelSold || 0).toLocaleString('de-DE')} t`), cell('Durchstarts', rec.goArounds)];
-  const mg = [cell('Kerosin-Marge', fmtMoney((rec.revBy && rec.revBy.fuel) || 0)), cell('Kerosineinkauf', fmtMoney(rec.fuelBuy || 0)), cell('Nachtbewegungen', `${rec.nightMov || 0} (${rec.complaints || 0} Beschwerden)`), cell('Pistenzustand', `${rec.rwyCond ?? '—'} %`)];
+  const tw = [cell(T('Slots eingehalten'), slots ? `${rec.slotOk}/${slots}` : '—'), cell(T('Ø Wartezeit Rollhalt'), rec.depN ? `${(rec.taxiWait / rec.depN).toFixed(1).replace('.', DEC)} min` : '—'), cell(T('Wirbelschleppen-Verstöße'), rec.wakeInf || 0), cell('Minimum Fuel', rec.minFuel || 0)];
+  const gd = [cell(T('Slots verpasst (Abfertigung)'), rec.slotMissGnd || 0), cell(T('Kerosin vertankt'), `${(rec.fuelSold || 0).toLocaleString(LOCALE)} t`), cell(T('Durchstarts'), rec.goArounds)];
+  const mg = [cell(T('Kerosin-Marge'), fmtMoney((rec.revBy && rec.revBy.fuel) || 0)), cell(T('Kerosineinkauf'), fmtMoney(rec.fuelBuy || 0)), cell(T('Nachtbewegungen'), T`${rec.nightMov || 0} (${rec.complaints || 0} Beschwerden)`), cell(T('Pistenzustand'), `${rec.rwyCond ?? '—'} %`)];
   const list = role === 'tower' ? tw : role === 'ground' ? gd : role === 'manager' ? mg : [...tw.slice(0, 2), ...mg.slice(0, 2)];
   return list.join('');
 }
@@ -786,18 +791,18 @@ function dayChart(rec) {
   let bars = '';
   for (let i = 0; i < 24; i++) {
     const ha = (A[i] / max) * (H - 14), hd = (D[i] / max) * (H - 14);
-    bars += `<rect x="${i * bw + 2}" y="${H - 12 - ha}" width="${bw - 4}" height="${ha}" rx="2" fill="#2dd4bf"><title>${String(i).padStart(2, '0')}:00 · ${A[i]} Landungen, ${D[i]} Starts</title></rect>`;
-    bars += `<rect x="${i * bw + 2}" y="${H - 12 - ha - hd}" width="${bw - 4}" height="${hd}" rx="2" fill="#fbbf24"><title>${String(i).padStart(2, '0')}:00 · ${A[i]} Landungen, ${D[i]} Starts</title></rect>`;
+    bars += T`<rect x="${i * bw + 2}" y="${H - 12 - ha}" width="${bw - 4}" height="${ha}" rx="2" fill="#2dd4bf"><title>${String(i).padStart(2, '0')}:00 · ${A[i]} Landungen, ${D[i]} Starts</title></rect>`;
+    bars += T`<rect x="${i * bw + 2}" y="${H - 12 - ha - hd}" width="${bw - 4}" height="${hd}" rx="2" fill="#fbbf24"><title>${String(i).padStart(2, '0')}:00 · ${A[i]} Landungen, ${D[i]} Starts</title></rect>`;
     if (i % 3 === 0) bars += `<text x="${i * bw + bw / 2}" y="${H - 1}" text-anchor="middle" font-size="9" fill="#94a3b8">${String(i).padStart(2, '0')}</text>`;
   }
   const peak = tot.indexOf(Math.max(...tot));
   const hi = [];
-  if (tot[peak]) hi.push(`🕗 Spitzenstunde ${String(peak).padStart(2, '0')}:00 mit ${tot[peak]} Bewegungen`);
-  if (rec.peakDelay) hi.push(`⏱️ Größte Verspätung: ${esc(rec.peakDelay.cs)} +${rec.peakDelay.min} min`);
-  if (rec.incidents === 0 && rec.mov > 20) hi.push('🛡️ Kein einziger Vorfall');
+  if (tot[peak]) hi.push(T`🕗 Spitzenstunde ${String(peak).padStart(2, '0')}:00 mit ${tot[peak]} Bewegungen`);
+  if (rec.peakDelay) hi.push(T`⏱️ Größte Verspätung: ${esc(rec.peakDelay.cs)} +${rec.peakDelay.min} min`);
+  if (rec.incidents === 0 && rec.mov > 20) hi.push(T('🛡️ Kein einziger Vorfall'));
   const best = (game.state.history || []).slice(0, -1).reduce((m, r) => Math.max(m, r.mov || 0), 0);
-  if (rec.mov > best && best > 0) hi.push(`🏆 Neuer Rekord: ${rec.mov} Bewegungen an einem Tag`);
-  return `<div class="day-chart"><div class="dc-h">Verkehr über den Tag <span><i style="background:#2dd4bf"></i>Landungen <i style="background:#fbbf24"></i>Starts</span></div><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg>${hi.length ? `<div class="dc-hi">${hi.map((x) => `<span>${x}</span>`).join('')}</div>` : ''}</div>`;
+  if (rec.mov > best && best > 0) hi.push(T`🏆 Neuer Rekord: ${rec.mov} Bewegungen an einem Tag`);
+  return T`<div class="day-chart"><div class="dc-h">Verkehr über den Tag <span><i style="background:#2dd4bf"></i>Landungen <i style="background:#fbbf24"></i>Starts</span></div><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg>${hi.length ? `<div class="dc-hi">${hi.map((x) => `<span>${x}</span>`).join('')}</div>` : ''}</div>`;
 }
 
 // die drei besten Momente des Tages als Fotostreifen, danach neu sammeln
@@ -805,7 +810,7 @@ function momentsHtml() {
   const M = (game.moments || []).slice().sort((a, b) => b.prio - a.prio || a.t - b.t).slice(0, 3);
   game.moments = [];
   if (!M.length) return '';
-  return `<div class="moments"><div class="dc-h">📸 Momente des Tages</div><div class="mo-row">${M.map((m) => `<figure><img src="${m.img}" alt=""><figcaption>${esc(m.text)}<small>${fmtClock(m.t)}</small></figcaption></figure>`).join('')}</div></div>`;
+  return T`<div class="moments"><div class="dc-h">📸 Momente des Tages</div><div class="mo-row">${M.map((m) => `<figure><img src="${m.img}" alt=""><figcaption>${esc(m.text)}<small>${fmtClock(m.t)}</small></figcaption></figure>`).join('')}</div></div>`;
 }
 
 function showReport(rec) {
@@ -813,7 +818,7 @@ function showReport(rec) {
   const stars = rateDay(rec);
   const starHtml = Array.from({ length: 5 }, (_, i) => (stars >= i + 1 ? '★' : stars >= i + 0.5 ? '⯪' : '☆')).join('');
   openModal(
-    `<h2>📊 Tagesbericht – Tag ${rec.day}</h2>
+    T`<h2>📊 Tagesbericht – Tag ${rec.day}</h2>
     <div style="font-size:30px;color:var(--manager);letter-spacing:4px;margin:4px 0 2px" aria-label="${stars} von 5 Sternen">${starHtml}</div>
     <p style="margin:0 0 10px;color:var(--muted)">${GOALS[game.state.role] || ''} · Durchstarts ${rec.goArounds} · Ausweichlandungen ${rec.diversions}</p>
     <div class="report-grid">
@@ -821,7 +826,7 @@ function showReport(rec) {
       <div><span>Betriebskosten</span><b>${fmtMoney(rec.cost)}</b></div>
       <div><span>Ergebnis</span><b style="color:${rec.rev - rec.cost >= 0 ? 'var(--good)' : 'var(--bad)'}">${fmtMoney(rec.rev - rec.cost)}</b></div>
       <div><span>Bewegungen</span><b>${rec.mov}</b></div>
-      <div><span>Passagiere</span><b>${rec.pax.toLocaleString('de-DE')}</b></div>
+      <div><span>Passagiere</span><b>${rec.pax.toLocaleString(LOCALE)}</b></div>
       <div><span>Pünktlichkeit</span><b>${rec.onTime} %</b></div>
       <div><span>Investitionen</span><b>${fmtMoney(rec.capex)}</b></div>
       <div><span>Vorfälle</span><b>${rec.incidents}</b></div>
@@ -832,8 +837,8 @@ function showReport(rec) {
     ${highlightsHtml(game.state, rec)}
     ${newspaperHtml(game.state, rec)}
     ${momentsHtml()}
-    ${rec.score && (game.state.role === 'tower' || game.state.role === 'ground') ? `<p class="rep-score">⭐ Schichtpunkte heute: <b>${rec.score.toLocaleString('de-DE')}</b>${rec.score >= rec.scoreBest ? ' · <span>neuer Tagesbestwert!</span>' : ` · Bestwert ${rec.scoreBest.toLocaleString('de-DE')}`}</p>` : ''}
-    ${rec.xp ? `<p style="margin:10px 0 0;color:var(--muted)">🏅 +${rec.xp} XP für den Tag · ${rankName(game.state, goalsState(game.state).rank)} (${goalsState(game.state).xp} XP)</p>` : ''}
+    ${rec.score && (game.state.role === 'tower' || game.state.role === 'ground') ? T`<p class="rep-score">⭐ Schichtpunkte heute: <b>${rec.score.toLocaleString(LOCALE)}</b>${rec.score >= rec.scoreBest ? T(' · <span>neuer Tagesbestwert!</span>') : T` · Bestwert ${rec.scoreBest.toLocaleString(LOCALE)}`}</p>` : ''}
+    ${rec.xp ? T`<p style="margin:10px 0 0;color:var(--muted)">🏅 +${rec.xp} XP für den Tag · ${rankName(game.state, goalsState(game.state).rank)} (${goalsState(game.state).xp} XP)</p>` : ''}
     <div class="modal-acts"><button class="btn btn-primary" data-close-modal>Weiter</button></div>`,
     (box) => box.querySelector('[data-close-modal]').addEventListener('click', () => {
       closeModal();
@@ -869,7 +874,7 @@ function showBoard(resume) {
       closeModal();
       s.speed = resume;
       if (res.bonus) sfx.cash && sfx.cash();
-      toast(`🏛️ Strategie „${STRATEGIES[pick].name}“ beschlossen – neue Wochenziele in der Management-Zentrale`, 'info', 3200);
+      toast(T`🏛️ Strategie „${STRATEGIES[pick].name}“ beschlossen – neue Wochenziele in der Management-Zentrale`, 'info', 3200);
       showBriefing(resume);
     });
   });
@@ -892,7 +897,7 @@ function showBriefing(resume) {
     box.querySelector('[data-close-modal]').addEventListener('click', () => {
       if (box.querySelector('[data-brief-off]')?.checked) {
         savePrefs({ briefing: false });
-        toast('Schichtbriefing ausgeschaltet – im Hauptmenü unter Einstellungen wieder einschaltbar', 'info', 3500);
+        toast(T('Schichtbriefing ausgeschaltet – im Hauptmenü unter Einstellungen wieder einschaltbar'), 'info', 3500);
       }
       closeModal();
       s.speed = resume || 1;
@@ -1006,7 +1011,7 @@ function wireGame() {
   $('#radar-mf').addEventListener('click', () => {
     game.ui.markFilter = !game.ui.markFilter;
     $('#radar-mf').classList.toggle('on', game.ui.markFilter);
-    toast(game.ui.markFilter ? 'Radar: nur markierte Flüge hervorgehoben' : 'Radar: alle Flüge normal', 'info', 1800);
+    toast(game.ui.markFilter ? T('Radar: nur markierte Flüge hervorgehoben') : T('Radar: alle Flüge normal'), 'info', 1800);
   });
   $('#radar-seq').addEventListener('click', (e) => {
     const c = e.target.closest('[data-id]');
@@ -1043,7 +1048,7 @@ function wireGame() {
     const s = game.state;
     if (game.ui.noise && s) {
       const night = isNight(s);
-      toast(`🔉 Lärmkarte: rot ≥ 65 dB, orange ≥ 60 dB, gelb ≥ 55 dB – ${s.stats.today.complaints || 0} Beschwerden heute${night ? ' · nachts sind die Zonen größer' : ''}${s.settings.curfew ? ' · Nachtflugverbot aktiv' : ''}`, 'info', 4200);
+      toast(T`🔉 Lärmkarte: rot ≥ 65 dB, orange ≥ 60 dB, gelb ≥ 55 dB – ${s.stats.today.complaints || 0} Beschwerden heute${night ? T(' · nachts sind die Zonen größer') : ''}${s.settings.curfew ? T(' · Nachtflugverbot aktiv') : ''}`, 'info', 4200);
     }
   });
   $('#t-labels').addEventListener('click', () => {
@@ -1091,7 +1096,7 @@ function wireGame() {
     s.settings.tts = !s.settings.tts;
     savePrefs({ tts: s.settings.tts });
     syncVoice();
-    toast(s.settings.tts ? (s.role === 'ground' ? '🔊 Betriebsfunk an – die Bodencrews melden sich' : '🔊 Echter Funk an – Lotse und Piloten sprechen') : '🔇 Funk stumm', 'info', 2200);
+    toast(s.settings.tts ? (s.role === 'ground' ? T('🔊 Betriebsfunk an – die Bodencrews melden sich') : T('🔊 Echter Funk an – Lotse und Piloten sprechen')) : T('🔇 Funk stumm'), 'info', 2200);
   });
   let spokenEl = null;
   voice.listeners.push((cur) => {
@@ -1151,7 +1156,7 @@ function wireGame() {
     if (fo) {
       const [type, id] = fo.dataset.follow.split(':');
       game.ui.follow = game.ui.follow && game.ui.follow.id === id ? null : { type, id };
-      if (game.ui.follow) toast('🎥 Kamera folgt – Karte ziehen oder erneut klicken beendet', 'info', 2200);
+      if (game.ui.follow) toast(T('🎥 Kamera folgt – Karte ziehen oder erneut klicken beendet'), 'info', 2200);
       info._html = null;
       return;
     }
@@ -1226,7 +1231,7 @@ function wireGame() {
     if (!sel) return;
     const s = game.state;
     const ac = s.acs.find((x) => x.id === sel.dataset.assign);
-    if (ac && sel.value) assignStand(s, ac, Number(sel.value)) ? sfx.click() : toast('Position nicht verfügbar', 'warn');
+    if (ac && sel.value) assignStand(s, ac, Number(sel.value)) ? sfx.click() : toast(T('Position nicht verfügbar'), 'warn');
     sel.blur();
   });
 
@@ -1347,7 +1352,7 @@ function onKey(e) {
   if ((e.key === 'l' || e.key === 'L') && s.role !== 'tower' && !e.ctrlKey && !e.metaKey) return toggleStream();
   if ((e.key === 'f' || e.key === 'F') && s.role !== 'tower' && !e.ctrlKey && !e.metaKey) {
     const ac = game.ui.selected && s.acs.find((a) => a.id === game.ui.selected);
-    if (!ac) return toast('📷 Erst ein Flugzeug anklicken, dann F zum Spotten', 'info', 1800);
+    if (!ac) return toast(T('📷 Erst ein Flugzeug anklicken, dann F zum Spotten'), 'info', 1800);
     return spotter().shoot(ac);
   }
   if (e.key === '?') {
@@ -1365,10 +1370,10 @@ function onKey(e) {
   if ((e.key === 'o' || e.key === 'O') && (s.role === 'manager' || s.role === 'observer')) return game.mgmt && game.mgmt.toggle();
   if (e.key === 'm' || e.key === 'M') {
     const ac = game.ui.selected && s.acs.find((a) => a.id === game.ui.selected);
-    if (!ac) return toast('Erst ein Flugzeug auswählen, dann M zum Markieren', 'info', 1800);
+    if (!ac) return toast(T('Erst ein Flugzeug auswählen, dann M zum Markieren'), 'info', 1800);
     if (e.shiftKey) clearMark(ac);
     else cycleMark(ac);
-    toast(ac.mark ? `⚑ ${ac.cs} markiert: ${MARKS[ac.mark.c].name}` : `${ac.cs}: Markierung entfernt`, 'info', 1400);
+    toast(ac.mark ? T`⚑ ${ac.cs} markiert: ${MARKS[ac.mark.c].name}` : T`${ac.cs}: Markierung entfernt`, 'info', 1400);
     game.refreshUi();
     return;
   }
@@ -1383,18 +1388,18 @@ function onKey(e) {
     if (!t) {
       // sonst: Nebenverkehr freigeben – Hubschrauber vor Cessna vor Pistenkontrolle
       const side = s.heli && s.heli.h && s.heli.h.st === 'req' ? 'heli' : s.vfr && s.vfr.p && s.vfr.p.req && !s.vfr.p.clr ? 'vfr' : s.insp && s.insp.req ? 'insp' : null;
-      if (!side) return toast('Keine Anfrage offen (Umweg, Heli, Touch and Go, Pistenkontrolle)', 'info', 1800);
+      if (!side) return toast(T('Keine Anfrage offen (Umweg, Heli, Touch and Go, Pistenkontrolle)'), 'info', 1800);
       const r = side === 'heli' ? approveHeli(s) : side === 'vfr' ? clearVfr(s) : approveInspection(s);
       if (r.ok) sfx.click();
-      const what = { heli: '🚁 Rescue 7 quert', vfr: `🛩️ ${s.vfr.p ? s.vfr.p.cs : 'Alcedo'}: Touch and Go frei`, insp: '🚙 Pistenkontrolle frei' }[side];
-      toast(r.bad ? `⚠ ${what} – Konflikt mit dem Linienverkehr!` : r.soft ? `${what} – knapp, ${r.soft.ac.cs} ist ${r.soft.why}` : what, r.bad ? 'bad' : r.soft ? 'warn' : 'good', 2400);
+      const what = { heli: T('🚁 Rescue 7 quert'), vfr: T`🛩️ ${s.vfr.p ? s.vfr.p.cs : 'Alcedo'}: Touch and Go frei`, insp: T('🚙 Pistenkontrolle frei') }[side];
+      toast(r.bad ? T`⚠ ${what} – Konflikt mit dem Linienverkehr!` : r.soft ? T`${what} – knapp, ${r.soft.ac.cs} ist ${r.soft.why}` : what, r.bad ? 'bad' : r.soft ? 'warn' : 'good', 2400);
       game.refreshUi && game.refreshUi();
       return;
     }
     const r = command(s, t, 'wxOk');
     if (r.ok) {
       sfx.click();
-      toast(`⛈️ ${t.cs}: Umweg genehmigt`, 'good', 2000);
+      toast(T`⛈️ ${t.cs}: Umweg genehmigt`, 'good', 2000);
     }
     game.refreshUi && game.refreshUi();
     return;
@@ -1422,7 +1427,7 @@ function onKey(e) {
 function nextRequest() {
   const s = game.state;
   const list = s.acs.filter((a) => a.req || a.wxReq || a.emergency).sort((a, b) => (a.reqT || 0) - (b.reqT || 0));
-  if (!list.length) return toast('Keine offenen Anfragen', 'info', 1500);
+  if (!list.length) return toast(T('Keine offenen Anfragen'), 'info', 1500);
   const i = list.findIndex((a) => a.id === game.ui.selected);
   game.select(list[(i + 1) % list.length].id, true);
 }
@@ -1446,14 +1451,14 @@ function hover(x, y) {
   } else if (p.type === 'stand') {
     const sel = game.ui.sel && game.ui.sel.type === 'ac' ? s.acs.find((a) => a.id === game.ui.sel.id) : null;
     const st = s.stands.find((q) => q.id === p.id);
-    txt = `Position ${p.id}`;
-    if (sel && s.role === 'ground' && sel.arr && !sel.ta && st) txt += standFits(st, sel) && (standFree(st) || sel.stand === st.id) ? ` · Klick: ${sel.cs} zuweisen` : ' · passt nicht / belegt';
+    txt = T`Position ${p.id}`;
+    if (sel && s.role === 'ground' && sel.arr && !sel.ta && st) txt += standFits(st, sel) && (standFree(st) || sel.stand === st.id) ? T` · Klick: ${sel.cs} zuweisen` : T(' · passt nicht / belegt');
   } else if (p.type === 'building') {
     const b = LY.BUILDINGS.find((q) => q.id === p.id);
     if (b) txt = b.name;
   } else if (p.type === 'site') {
     const q = projects(s).find((x) => x.id === p.id);
-    if (q) txt = `🏗️ ${q.name} · ${q.status === 'waiting' ? 'wartet' : Math.floor(q.prog * 100) + ' %'}`;
+    if (q) txt = `🏗️ ${q.name} · ${q.status === 'waiting' ? T('wartet') : Math.floor(q.prog * 100) + ' %'}`;
   }
   if (!txt) return;
   tip.textContent = txt;
@@ -1474,8 +1479,8 @@ function clickMap(x, y) {
     if (selAc && s.role === 'ground' && selAc.arr && !selAc.ta && selAc.phase !== PH.TAXI_IN) {
       if (assignStand(s, selAc, p.id)) {
         sfx.click();
-        toast(`${selAc.cs} → Position ${p.id}`, 'good', 1800);
-      } else toast('Position passt nicht oder ist belegt', 'warn');
+        toast(T`${selAc.cs} → Position ${p.id}`, 'good', 1800);
+      } else toast(T('Position passt nicht oder ist belegt'), 'warn');
       return;
     }
     game.ui.sel = { type: 'stand', id: p.id };
@@ -1514,14 +1519,14 @@ function toggleRadar(on) {
   resize();
 }
 // ---------------- KI-Pilot ----------------
-const ROLE_NAME = { tower: 'Tower', ground: 'Vorfeld', manager: 'Management' };
+const ROLE_NAME = { tower: 'Tower', ground: T('Vorfeld'), manager: T('Management') };
 function toggleAi(on) {
   const s = game.state;
   if (!s) return;
-  if (!aiAvailable(s)) return toast(s.scenario ? 'In Herausforderungen spielst du selbst' : 'Als Beobachter läuft ohnehin alles automatisch', 'info', 2600);
+  if (!aiAvailable(s)) return toast(s.scenario ? T('In Herausforderungen spielst du selbst') : T('Als Beobachter läuft ohnehin alles automatisch'), 'info', 2600);
   const want = on ?? !s.aiPlay;
   setAiPlay(s, want);
-  toast(want ? `🤖 Die KI übernimmt ${ROLE_NAME[s.role]} – lehn dich zurück. Eigene Befehle haben jederzeit Vorrang.` : '🧑‍✈️ Du hast wieder übernommen', want ? 'good' : 'info', 3400);
+  toast(want ? T`🤖 Die KI übernimmt ${ROLE_NAME[s.role]} – lehn dich zurück. Eigene Befehle haben jederzeit Vorrang.` : T('🧑‍✈️ Du hast wieder übernommen'), want ? 'good' : 'info', 3400);
   sfx.click && sfx.click();
   game.panel && game.panel.update && game.panel.update(s);
   updateAiBox(s);
@@ -1532,7 +1537,7 @@ function updateAiBox(s) {
   const avail = aiAvailable(s);
   btn.classList.toggle('hidden', !avail);
   btn.classList.toggle('on', !!s.aiPlay);
-  const lbl = s.aiPlay ? 'KI spielt' : 'KI';
+  const lbl = s.aiPlay ? T('KI spielt') : T('KI');
   if (btn.lastChild.textContent !== lbl) btn.lastChild.textContent = lbl;
   box.classList.toggle('hidden', !s.aiPlay);
   if (!s.aiPlay) return;
@@ -1543,19 +1548,19 @@ function updateAiBox(s) {
   if (s.role === 'tower') {
     const arr = s.acs.filter((a) => a.arr && (a.mode === 'air' || a.phase === 'FINAL')).length;
     const dep = s.acs.filter((a) => a.mode === 'map' && !a.arr && a.phase !== 'AT_STAND').length;
-    watch = `Im Anflug ${arr} · Abflüge unterwegs ${dep} · Piste ${s.rwy}${s.weather.kind === 'storm' ? ' · Gewitter' : ''}`;
+    watch = T`Im Anflug ${arr} · Abflüge unterwegs ${dep} · Piste ${s.rwy}${s.weather.kind === 'storm' ? T(' · Gewitter') : ''}`;
   } else if (s.role === 'ground') {
     const at = s.acs.filter((a) => a.phase === 'AT_STAND').length;
     const idle = s.vehicles.filter((v) => v.st === 'idle' && !(v.brokenUntil > s.time)).length;
-    watch = `Abfertigungen ${at} · Fahrzeuge frei ${idle}/${s.vehicles.length}`;
+    watch = T`Abfertigungen ${at} · Fahrzeuge frei ${idle}/${s.vehicles.length}`;
   } else if (s.role === 'manager') {
     const min = 60 - Math.floor((s.time / 60) % 60);
-    watch = `Kasse ${fmtMoney(s.cash)} · ${(s.contracts || []).length} Verträge · nächste Planung in ${min} min`;
+    watch = T`Kasse ${fmtMoney(s.cash)} · ${(s.contracts || []).length} Verträge · nächste Planung in ${min} min`;
   }
-  setHTML(box, `<div class="ai-h">${icon('robot')}<b>KI spielt ${ROLE_NAME[s.role]}</b><button class="mini" data-ai-off title="Selbst übernehmen (Z)">Selbst übernehmen</button></div>
-    <div class="ai-sub">${s.role === 'tower' ? 'Eigene Befehle haben Vorrang – das Flugzeug gehört dann ' + Math.round(MANUAL_HOLD / 60) + ' min dir.' : s.role === 'ground' ? 'Du kannst jederzeit selbst Fahrzeuge schicken oder Positionen ändern.' : 'Offene Entscheidungen trifft die KI nach kurzer Bedenkzeit – entscheide gern vorher selbst.'}${own.length ? `<br><span class="ai-own">Du führst: ${own.map((a) => esc(a.cs)).join(', ')}</span>` : ''}</div>
+  setHTML(box, T`<div class="ai-h">${icon('robot')}<b>KI spielt ${ROLE_NAME[s.role]}</b><button class="mini" data-ai-off title="Selbst übernehmen (Z)">Selbst übernehmen</button></div>
+    <div class="ai-sub">${s.role === 'tower' ? T`Eigene Befehle haben Vorrang – das Flugzeug gehört dann ${Math.round(MANUAL_HOLD / 60)} min dir.` : s.role === 'ground' ? T('Du kannst jederzeit selbst Fahrzeuge schicken oder Positionen ändern.') : T('Offene Entscheidungen trifft die KI nach kurzer Bedenkzeit – entscheide gern vorher selbst.')}${own.length ? T`<br><span class="ai-own">Du führst: ${own.map((a) => esc(a.cs)).join(', ')}</span>` : ''}</div>
     <div class="ai-watch">${icon('eye')}<span>${esc(watch)}</span></div>
-    <div class="ai-feed">${feed.length ? feed.map((f) => `<div class="ai-l ${f.kind}"${f.ac ? ` data-ai-ac="${f.ac}"` : ''}><span>${fmtClock(f.t)}</span>${esc(f.text)}</div>`).join('') : '<div class="ai-l idle">Die KI beobachtet die Lage …</div>'}</div>`);
+    <div class="ai-feed">${feed.length ? feed.map((f) => `<div class="ai-l ${f.kind}"${f.ac ? ` data-ai-ac="${f.ac}"` : ''}><span>${fmtClock(f.t)}</span>${esc(f.text)}</div>`).join('') : T('<div class="ai-l idle">Die KI beobachtet die Lage …</div>')}</div>`);
 }
 
 function togglePanel() {
@@ -1571,10 +1576,10 @@ function togglePanel() {
 // ---------------- Modals ----------------
 function showRoleModal() {
   const s = game.state;
-  if (s.scenario && !s.scenario.done) return toast('In einer Herausforderung bleibt die Station fest', 'info', 2500);
+  if (s.scenario && !s.scenario.done) return toast(T('In einer Herausforderung bleibt die Station fest'), 'info', 2500);
   const img = { tower: 'role_tower.jpg', ground: 'role_ground.jpg', manager: 'role_manager.jpg', observer: 'title.jpg' };
   openModal(
-    `<h2>Station wechseln</h2><p>Deine Station übernimmst du selbst – alle anderen Bereiche laufen automatisch weiter.</p>
+    T`<h2>Station wechseln</h2><p>Deine Station übernimmst du selbst – alle anderen Bereiche laufen automatisch weiter.</p>
     <div class="role-pick">${Object.entries(ROLES)
       .map(([k, r]) => `<button data-r="${k}" class="${k === s.role ? 'cur' : ''}"><img src="assets/ui/${img[k]}" alt="" /><div><div class="rp-t">${r.icon} ${r.name}</div><div class="rp-d">${r.desc}</div></div></button>`)
       .join('')}</div>
@@ -1586,7 +1591,7 @@ function showRoleModal() {
           setRole(s, b.dataset.r);
           closeModal();
           applyRole();
-          toast(`Du bist jetzt: ${ROLES[s.role].name}`, 'good');
+          toast(T`Du bist jetzt: ${ROLES[s.role].name}`, 'good');
         })
       );
     }
@@ -1630,7 +1635,7 @@ function showGameMenu() {
     },
     save: () => {
       saveGame(s);
-      toast('💾 Gespeichert', 'good', 1500);
+      toast(T('💾 Gespeichert'), 'good', 1500);
     },
     role: () => showRoleModal(),
     goals: () => showGoals(),
@@ -1662,7 +1667,7 @@ function quitToMenu() {
 }
 
 function helpGuide(first) {
-  return `<p>Du leitest eine Station am Flughafen – alles andere erledigen KI-Kollegen automatisch. Die Station kannst du jederzeit oben rechts wechseln. <b>Unterstrichene Abkürzungen</b> erklären sich beim Überfahren (Handy: antippen), <b>?</b> neben Abschnitten erklärt den Abschnitt, 📖 öffnet das Glossar.</p>
+  return T`<p>Du leitest eine Station am Flughafen – alles andere erledigen KI-Kollegen automatisch. Die Station kannst du jederzeit oben rechts wechseln. <b>Unterstrichene Abkürzungen</b> erklären sich beim Überfahren (Handy: antippen), <b>?</b> neben Abschnitten erklärt den Abschnitt, 📖 öffnet das Glossar.</p>
     <h3>🌾 Aufbau-Modus: vom Grasplatz zum Drehkreuz</h3>
     <ul>
       <li><b>Start:</b> Neues Spiel › Start „Aufbau“. Du beginnst mit einer 560-m-<b>Graspiste</b>, einem Vereinsheim mit Funkkabine, einer AvGas-Zapfsäule, zehn Abstellplätzen auf der Wiese und <b>40.000 €</b>. Es kommen nur Sportflieger (Alcedo AL-4, Pember PB-3, Merle ME-4) – sie melden sich im Funk mit dem Kennzeichen („Delta Lima Mike“), rollen selbst vom Platz und tanken an der Zapfsäule.</li>
@@ -1767,18 +1772,18 @@ function helpGuide(first) {
     <p><b>🎥 Folgen:</b> Auf der Info-Karte eines Flugzeugs oder Fahrzeugs lässt „Folgen“ die Kamera mitfahren – vom Endanflug über die Abfertigung bis zum Start. Karte ziehen beendet das Folgen.</p>
     <p><b>🎬 Kino-Modus</b> (<kbd>K</kbd> oder 🎬): Die Kamera fährt selbst zu Landungen, Starts, Durchstarts, Rundgängen um Tower, Feuerwache, Terminal und Co., Abfertigungen, Baustellen und zur Landseite – mit Letterbox und Bildunterschrift. ← → nächste Szene, <kbd>K</kbd>/<kbd>Esc</kbd> beendet.</p>
     <p><b>Entscheidungen:</b> Ab und zu kommt eine Ereigniskarte (links) – Gepäckband kaputt, fehlender Passagier, technischer Defekt, Koffer im falschen Flugzeug, keine freie Position, medizinischer Notfall, Vogelschwarm, Drohne im Anflugsektor, Laserblendung, Airline will Rabatt, Gewerkschaft, Festival-Charter, Tag der offenen Tür (Besucher, Wimpel und Ballons auf der Terminal-Terrasse) … Jede Option hat echte Folgen. Ohne Antwort gilt nach Ablauf die erste Option. Auf der Karte zeigen aufsteigende Texte, was gerade passiert (✓ pünktlich, +Erlös, Verspätung).</p>
-    <p>Karte ziehen = verschieben · Mausrad/Pinch = Zoom · Klick = auswählen · <kbd>Leertaste</kbd> Pause · <kbd>1</kbd>–<kbd>5</kbd> Tempo (1×, 2×, 5×, 10×, 20× – bei <b>10×</b> dauert ein Tag etwa <b>10 Minuten</b>; Manager und Beobachter starten mit 10×) · <kbd>B</kbd> Beschriftungen · Pfeiltasten scrollen.</p>`;
+    <p>Karte ziehen = verschieben · Mausrad/Pinch = Zoom · Klick = auswählen · <kbd>Leertaste</kbd> Pause · <kbd>1</kbd>–<kbd>5</kbd> Tempo (1×, 2×, 5×, 10×, 20× – bei <b>10×</b> dauert ein Tag etwa <b>10 Minuten</b>; Manager und Beobachter starten mit 10×) · <kbd>B</kbd> Beschriftungen · Pfeiltasten scrollen.</p>` + T('<h3>🌐 Sprache · Language</h3><ul><li>Deutsch oder Englisch unter Einstellungen › <b>Sprache</b> (das Spiel lädt kurz neu, Spielstände bleiben erhalten). Ohne Wahl richtet sich die Sprache nach dem Browser; <code>?lang=en</code> in der Adresse erzwingt Englisch. Der Lotsenfunk ist in beiden Sprachen englisch wie im echten Flugfunk, Bodencrews, Durchsagen und Kommentator sprechen die gewählte Sprache.</li></ul>');
 }
 
 function showHelp(first, tab = 'guide') {
   let cur = tab;
   let q = '';
-  const body = () => (cur === 'gloss' ? `<input class="gl-search no-gl" type="search" placeholder="Suchen: z. B. TOBT, Heavy, RVR …" value="${esc(q)}" /><div class="help-scroll no-gl" id="gl-list">${glossaryHtml(q)}</div>` : `<div class="help-scroll">${helpGuide(first)}</div>`);
+  const body = () => (cur === 'gloss' ? `<input class="gl-search no-gl" type="search" placeholder="${T('Suchen: z. B. TOBT, Heavy, RVR …')}" value="${esc(q)}" /><div class="help-scroll no-gl" id="gl-list">${glossaryHtml(q)}</div>` : `<div class="help-scroll">${helpGuide(first)}</div>`);
   openModal(
-    `<h2>${first ? 'Willkommen bei Planez!' : cur === 'gloss' ? '📖 Glossar' : 'Anleitung'}</h2>
+    T`<h2>${first ? T('Willkommen bei Planez!') : cur === 'gloss' ? T('📖 Glossar') : T('Anleitung')}</h2>
     <div class="help-tabs"><button data-ht="guide" class="${cur === 'guide' ? 'on' : ''}">❓ Anleitung</button><button data-ht="gloss" class="${cur === 'gloss' ? 'on' : ''}">📖 Glossar &amp; Abkürzungen</button></div>
     <div id="help-body">${body()}</div>
-    <div class="modal-acts"><button class="btn btn-primary" data-x>${first ? "Los geht's" : 'Schließen'}</button></div>`,
+    <div class="modal-acts"><button class="btn btn-primary" data-x>${first ? T("Los geht's") : T('Schließen')}</button></div>`,
     (box) => {
       box.querySelector('[data-x]').addEventListener('click', closeModal);
       const wire = () => {
@@ -1795,7 +1800,7 @@ function showHelp(first, tab = 'guide') {
         b.addEventListener('click', () => {
           cur = b.dataset.ht;
           box.querySelectorAll('[data-ht]').forEach((x) => x.classList.toggle('on', x === b));
-          box.querySelector('h2').textContent = cur === 'gloss' ? '📖 Glossar' : 'Anleitung';
+          box.querySelector('h2').textContent = cur === 'gloss' ? T('📖 Glossar') : T('Anleitung');
           box.querySelector('#help-body').innerHTML = body();
           wire();
         })
@@ -1817,13 +1822,13 @@ function showGoals() {
       const p = Math.max(0, goalProgress(s, g));
       const f = goalFraction(s, g);
       const d = GOAL_DEFS[g.key];
-      const val = d.type === 'level' ? '' : ` · ${Math.floor(Math.min(p, g.target)).toLocaleString('de-DE')} / ${g.target.toLocaleString('de-DE')}`;
-      return `<div class="card goal"><div class="row"><span class="t">🎯 ${esc(goalText(g))}</span><span class="rem">${Math.round(f * 100)} %</span></div><div class="bar"><i style="width:${f * 100}%;background:var(--manager)"></i></div><div class="s">${d.type === 'streak' ? 'Serie – ein Fehler setzt sie zurück' : d.type === 'level' ? 'Wert erreichen' : 'seit Zielvergabe'}${val}</div></div>`;
+      const val = d.type === 'level' ? '' : ` · ${Math.floor(Math.min(p, g.target)).toLocaleString(LOCALE)} / ${g.target.toLocaleString(LOCALE)}`;
+      return `<div class="card goal"><div class="row"><span class="t">🎯 ${esc(goalText(g))}</span><span class="rem">${Math.round(f * 100)} %</span></div><div class="bar"><i style="width:${f * 100}%;background:var(--manager)"></i></div><div class="s">${d.type === 'streak' ? T('Serie – ein Fehler setzt sie zurück') : d.type === 'level' ? T('Wert erreichen') : T('seit Zielvergabe')}${val}</div></div>`;
     })
     .join('');
   openModal(
-    `<h2>🏅 ${esc(s.name)} – ${rankName(s, G.rank)}</h2>
-    <p style="margin:0 0 6px;color:var(--muted)">${G.xp} XP${next ? ` · nächster Rang „${rankName(s, G.rank + 1)}“ ab ${next.xp} XP` : ' · höchster Rang erreicht'} · ${G.done} Ziele erreicht</p>
+    T`<h2>🏅 ${esc(s.name)} – ${rankName(s, G.rank)}</h2>
+    <p style="margin:0 0 6px;color:var(--muted)">${G.xp} XP${next ? T` · nächster Rang „${rankName(s, G.rank + 1)}“ ab ${next.xp} XP` : T(' · höchster Rang erreicht')} · ${G.done} Ziele erreicht</p>
     <div class="bar" style="height:9px"><i style="width:${pct}%;background:linear-gradient(90deg,#f59e0b,#fde047)"></i></div>
     <div class="rank-steps">${RANKS.map((r, i) => `<span class="${i <= G.rank ? 'on' : ''}" title="${r.xp} XP">${i + 1}. ${rankName(s, i)}</span>`).join('')}</div>
     <div class="p-sec"><span>Ziele · ${ROLES[s.role].name}</span></div>

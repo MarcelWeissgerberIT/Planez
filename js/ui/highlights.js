@@ -2,21 +2,22 @@
 // Hubschrauber-Querungen, Wassertaufen, Staatsbesuch, Wetterumwege, gefundene Fremdkörper …) und die weichste Landung.
 import { AC_TYPES } from '../config.js';
 import { esc } from '../util.js';
+import { T } from '../i18n.js';
 
 const ITEMS = [
-  ['stateVisit', '🎖️', (n) => (n > 1 ? `${n} Staatsbesuche` : 'Staatsbesuch')],
+  ['stateVisit', '🎖️', (n) => (n > 1 ? T`${n} Staatsbesuche` : T('Staatsbesuch'))],
   ['a380landed', '🐋', (n) => `${n}× AV-38`],
-  ['salutes', '💦', (n) => `${n} Wassertaufe${n > 1 ? 'n' : ''}`],
-  ['emgLanded', '🚨', (n) => `${n} Notlandung${n > 1 ? 'en' : ''} sicher`],
-  ['butter', '🧈', (n) => `${n} Butterlandung${n > 1 ? 'en' : ''}`],
-  ['touchGo', '🛩️', (n) => `${n}× Touch and Go`],
-  ['heliX', '🚁', (n) => `${n} Heli-Querung${n > 1 ? 'en' : ''}`],
-  ['wxOk', '⛈️', (n) => `${n} Wetterumweg${n > 1 ? 'e' : ''}`],
-  ['fodFound', '🚙', (n) => `${n}× Fremdkörper gefunden`],
-  ['openDays', '🎈', () => 'Tag der offenen Tür'],
-  ['streamWishes', '💬', (n) => (n > 1 ? `${n} Zuschauerwünsche erfüllt` : 'Zuschauerwunsch erfüllt')],
-  ['quizOk', '🔎', (n) => `${n} Typ${n > 1 ? 'en' : ''} im Quiz erkannt`],
-  ['hardLand', '⚠', (n) => `${n} harte Landung${n > 1 ? 'en' : ''}`],
+  ['salutes', '💦', (n) => (n > 1 ? T`${n} Wassertaufen` : T`${n} Wassertaufe`)],
+  ['emgLanded', '🚨', (n) => (n > 1 ? T`${n} Notlandungen sicher` : T`${n} Notlandung sicher`)],
+  ['butter', '🧈', (n) => (n > 1 ? T`${n} Butterlandungen` : T`${n} Butterlandung`)],
+  ['touchGo', '🛩️', (n) => T`${n}× Touch and Go`],
+  ['heliX', '🚁', (n) => (n > 1 ? T`${n} Heli-Querungen` : T`${n} Heli-Querung`)],
+  ['wxOk', '⛈️', (n) => (n > 1 ? T`${n} Wetterumwege` : T`${n} Wetterumweg`)],
+  ['fodFound', '🚙', (n) => T`${n}× Fremdkörper gefunden`],
+  ['openDays', '🎈', () => T('Tag der offenen Tür')],
+  ['streamWishes', '💬', (n) => (n > 1 ? T`${n} Zuschauerwünsche erfüllt` : T('Zuschauerwunsch erfüllt'))],
+  ['quizOk', '🔎', (n) => (n > 1 ? T`${n} Typen im Quiz erkannt` : T`${n} Typ im Quiz erkannt`)],
+  ['hardLand', '⚠', (n) => (n > 1 ? T`${n} harte Landungen` : T`${n} harte Landung`)],
 ];
 
 export function highlightsHtml(state, rec) {
@@ -29,7 +30,7 @@ export function highlightsHtml(state, rec) {
     if (d > 0) chips.push(`<span class="hl-c${k === 'hardLand' ? ' warn' : ''}">${icon} ${esc(txt(d))}</span>`);
   }
   const td = rec.td;
-  const best = td && td.best ? `<span class="hl-best">🛬 Weichste Landung: <b>${esc(td.best.cs)}</b> (${esc(AC_TYPES[td.best.type] ? AC_TYPES[td.best.type].name : td.best.type)}) mit <b>${td.best.fpm} ft/min</b> · Ø ${td.avg} ft/min</span>` : '';
+  const best = td && td.best ? T`<span class="hl-best">🛬 Weichste Landung: <b>${esc(td.best.cs)}</b> (${esc(AC_TYPES[td.best.type] ? AC_TYPES[td.best.type].name : td.best.type)}) mit <b>${td.best.fpm} ft/min</b> · Ø ${td.avg} ft/min</span>` : '';
   if (!chips.length && !best) return '';
-  return `<div class="hl"><div class="hl-h">✨ Highlights des Tages</div><div class="hl-row">${chips.join('')}</div>${best}</div>`;
+  return T`<div class="hl"><div class="hl-h">✨ Highlights des Tages</div><div class="hl-row">${chips.join('')}</div>${best}</div>`;
 }

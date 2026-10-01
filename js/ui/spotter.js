@@ -6,12 +6,13 @@ import { spotAircraft, spotBonus, spotBook, spotStats, spotWorth, momentsOf, SPE
 import { fmtClock, esc, clamp } from '../util.js';
 import { toast } from './dom.js';
 import { sfx } from '../audio.js';
+import { T, LOCALE } from '../i18n.js';
 
 const TABS = [
   ['album', '🖼️ Album'],
-  ['types', '✈️ Typen'],
-  ['liv', '🎨 Airlines & Lackierungen'],
-  ['mom', '✨ Momente'],
+  ['types', T('✈️ Typen')],
+  ['liv', T('🎨 Airlines & Lackierungen')],
+  ['mom', T('✨ Momente')],
 ];
 // Leitwerk als kleine Grafik (CSS clip-path)
 const fin = (c, acc, stripes) => {
@@ -121,16 +122,16 @@ export class SpotterUi {
   shoot(ac) {
     const s = this.game.state;
     if (!s || !ac) return;
-    if (ac.mode !== 'map') return toast('📷 Noch zu weit weg – erst im Endanflug oder am Boden fotografieren', 'warn', 2600);
+    if (ac.mode !== 'map') return toast(T('📷 Noch zu weit weg – erst im Endanflug oder am Boden fotografieren'), 'warn', 2600);
     const pre = ac.spotted ? ac.spotted.slice() : [];
     const fresh = momentsOf(s, ac).filter((k) => !pre.includes(k));
-    if (pre.includes('_') && !fresh.length) return toast(`📷 ${ac.reg || ac.cs} ist schon im Kasten – warte auf einen neuen Moment (Start, Landung, Wetter …)`, 'info', 3000);
+    if (pre.includes('_') && !fresh.length) return toast(T`📷 ${ac.reg || ac.cs} ist schon im Kasten – warte auf einen neuen Moment (Start, Landung, Wetter …)`, 'info', 3000);
     const img = this.capture(ac);
     const res = spotAircraft(s, ac, img);
     // 3D-Foto: Bonus für ein formatfüllendes, mittiges Bild
     const q = this.game.ride && this.game.ride.v3d && this.game.ride.v3d.lastShotQ;
     if (q && performance.now() - q.t < 1000 && q.pts >= 10 && !res.dup) {
-      const label = q.size > 0.75 && q.center > 0.75 ? '🖼️ Formatfüllend und mittig' : q.size > 0.75 ? '🔭 Schön nah dran' : '🎯 Gut getroffen';
+      const label = q.size > 0.75 && q.center > 0.75 ? T('🖼️ Formatfüllend und mittig') : q.size > 0.75 ? T('🔭 Schön nah dran') : T('🎯 Gut getroffen');
       res.lines.push([label, q.pts]);
       res.pts += q.pts;
       spotBonus(s, q.pts);
@@ -147,7 +148,7 @@ export class SpotterUi {
     const t = AC_TYPES[ac.type];
     const al = AIRLINES[ac.airline];
     const lines = res.lines.map(([txt, p]) => `<div class="sp-l"><span>${esc(txt)}</span><b>+${p}</b></div>`).join('');
-    this.pol.innerHTML = `<div class="sp-card">${img ? `<img src="${img}" alt="">` : '<div class="sp-noimg">📷</div>'}
+    this.pol.innerHTML = T`<div class="sp-card">${img ? `<img src="${img}" alt="">` : '<div class="sp-noimg">📷</div>'}
       <div class="sp-cap"><b>${esc(ac.reg || ac.cs)}</b> · ${esc(t.name)}<small>${esc(al.name)}${ac.special ? ` · ${SPECIALS[ac.special].icon} ${esc(SPECIALS[ac.special].name)}` : ''}</small></div>
       <div class="sp-lines">${lines}</div><div class="sp-tot">📷 +${res.pts} Spotterpunkte <small>Spotterbuch öffnen (J)</small></div></div>`;
     this.pol.classList.remove('hidden', 'in');
@@ -164,7 +165,7 @@ export class SpotterUi {
     const mo = motifOf(state);
     if (state.role === 'observer' && this.motifDay !== mo.day && (state.time / 3600) % 24 > 6) {
       this.motifDay = mo.day;
-      if (!motifDone(state)) toast(`🎯 Motiv des Tages: ${mo.t} fotografieren (+${MOTIF_PTS} Punkte)`, 'info', 5000);
+      if (!motifDone(state)) toast(T`🎯 Motiv des Tages: ${mo.t} fotografieren (+${MOTIF_PTS} Punkte)`, 'info', 5000);
     }
     // höchstens ein Hinweis alle 15 Sekunden (sonst stapeln sich bei leerem Spotterbuch die Meldungen)
     if (performance.now() - (this.lastHint || 0) < 15000) return;
@@ -175,7 +176,7 @@ export class SpotterUi {
       this.hinted.add(ac.id);
       const big = ac.special || ac.type === 'A388';
       if (state.role !== 'observer' && !big) continue;
-      toast(`📷 Fotomotiv: ${w} – ${esc(ac.cs)} anklicken und „Spotten“`, 'info', 4200);
+      toast(T`📷 Fotomotiv: ${w} – ${esc(ac.cs)} anklicken und „Spotten“`, 'info', 4200);
       this.lastHint = performance.now();
       break;
     }
@@ -194,7 +195,7 @@ export class SpotterUi {
               (p) => `<figure class="sb-ph" data-sbimg>${p.img ? `<img src="${p.img}" alt="">` : '<div class="sp-noimg">📷</div>'}<figcaption><b>${esc(p.reg || p.cs)}</b> · ${esc(AC_TYPES[p.type]?.name || p.type)}<small>${esc(AIRLINES[p.al]?.name || '')}${p.sp && SPECIALS[p.sp] ? ` · ${SPECIALS[p.sp].icon}` : ''} · ${fmtClock(p.clock || 0)} ${(p.m || []).map((k) => MOMENTS[k]?.icon || '').join('')}</small><em>+${p.pts}</em></figcaption></figure>`,
             )
             .join('')}</div>`
-        : `<div class="sb-empty">Noch keine Fotos. Klicke ein Flugzeug auf der Karte an und drücke <b>📷 Spotten</b> (oder <kbd>F</kbd> außerhalb des Towers). Seltene Typen, Sonderlackierungen und besondere Momente – Landung im Regen, Nachtstart, Enteisung – bringen mehr Punkte.</div>`;
+        : T`<div class="sb-empty">Noch keine Fotos. Klicke ein Flugzeug auf der Karte an und drücke <b>📷 Spotten</b> (oder <kbd>F</kbd> außerhalb des Towers). Seltene Typen, Sonderlackierungen und besondere Momente – Landung im Regen, Nachtstart, Enteisung – bringen mehr Punkte.</div>`;
     } else if (this.tab === 'types') {
       body = `<div class="sb-grid">${Object.keys(RARITY)
         .sort((a, c) => RARITY[a] - RARITY[c] || a.localeCompare(c))
@@ -206,27 +207,27 @@ export class SpotterUi {
         })
         .join('')}</div>`;
     } else if (this.tab === 'liv') {
-      body = `<h4>Airlines</h4><div class="sb-livs">${Object.values(AIRLINES)
+      body = T`<h4>Airlines</h4><div class="sb-livs">${Object.values(AIRLINES)
         .map((a) => {
           const n = b.airlines[a.code] || 0;
-          return `<div class="sb-liv ${n ? '' : 'locked'}">${fin(a.color, a.color2)}<b>${n ? esc(a.name) : '???'}</b><small>${n ? `${n}×` : 'noch nicht gesehen'}</small></div>`;
+          return `<div class="sb-liv ${n ? '' : 'locked'}">${fin(a.color, a.color2)}<b>${n ? esc(a.name) : '???'}</b><small>${n ? `${n}×` : T('noch nicht gesehen')}</small></div>`;
         })
         .join('')}</div>
         <h4>Sonderlackierungen <small>selten – etwa jede 18. Maschine</small></h4><div class="sb-livs">${SPECIAL_KEYS.map((k) => {
           const sp = SPECIALS[k];
           const n = b.specials[k] || 0;
-          return `<div class="sb-liv sp ${n ? '' : 'locked'}">${fin(sp.fin, sp.accent, sp.stripes)}<b>${n ? `${sp.icon} ${esc(sp.name)}` : '???'}</b><small>${n ? `${n}×` : 'noch nicht gesehen'}</small></div>`;
+          return `<div class="sb-liv sp ${n ? '' : 'locked'}">${fin(sp.fin, sp.accent, sp.stripes)}<b>${n ? `${sp.icon} ${esc(sp.name)}` : '???'}</b><small>${n ? `${n}×` : T('noch nicht gesehen')}</small></div>`;
         }).join('')}</div>`;
     } else {
       body = `<div class="sb-moms">${Object.entries(MOMENTS)
         .map(([k, m]) => {
           const n = b.moments[k] || 0;
-          return `<div class="sb-mom ${n ? '' : 'locked'}"><i>${n ? m.icon : '🔒'}</i><b>${esc(m.name)}</b><small>${n ? `${n} Foto${n > 1 ? 's' : ''}` : 'noch offen'}</small></div>`;
+          return `<div class="sb-mom ${n ? '' : 'locked'}"><i>${n ? m.icon : '🔒'}</i><b>${esc(m.name)}</b><small>${n ? (n > 1 ? T`${n} Fotos` : T`${n} Foto`) : T('noch offen')}</small></div>`;
         })
         .join('')}</div>`;
     }
-    this.el.innerHTML = `<div class="sb-box"><div class="sb-head"><div class="sb-title">📷 Spotterbuch <small>gilt für alle Spielstände</small></div>${this.game.state ? `<div class="sb-motif ${motifDone(this.game.state) ? 'done' : ''}">🎯 Motiv des Tages: <b>${esc(motifOf(this.game.state).t)}</b> ${motifDone(this.game.state) ? '✓ erledigt' : `+${MOTIF_PTS}`}</div>` : ''}<button class="icon-btn" data-sb-close aria-label="Schließen">✕</button></div>
-      <div class="sb-stats">${chip('⭐', st.pts.toLocaleString('de-DE'), 0, 'Spotterpunkte')}${chip('🖼️', st.shots, 0, 'Fotos')}${chip('✈️', st.types, st.typesAll, 'Typen')}${chip('🏷️', st.airlines, st.airlinesAll, 'Airlines')}${chip('🎨', st.specials, st.specialsAll, 'Sonderlack.')}${chip('✨', st.moments, st.momentsAll, 'Momente')}</div>
+    this.el.innerHTML = T`<div class="sb-box"><div class="sb-head"><div class="sb-title">📷 Spotterbuch <small>gilt für alle Spielstände</small></div>${this.game.state ? T`<div class="sb-motif ${motifDone(this.game.state) ? 'done' : ''}">🎯 Motiv des Tages: <b>${esc(motifOf(this.game.state).t)}</b> ${motifDone(this.game.state) ? T('✓ erledigt') : `+${MOTIF_PTS}`}</div>` : ''}<button class="icon-btn" data-sb-close aria-label="Schließen">✕</button></div>
+      <div class="sb-stats">${chip('⭐', st.pts.toLocaleString(LOCALE), 0, T('Spotterpunkte'))}${chip('🖼️', st.shots, 0, T('Fotos'))}${chip('✈️', st.types, st.typesAll, T('Typen'))}${chip('🏷️', st.airlines, st.airlinesAll, 'Airlines')}${chip('🎨', st.specials, st.specialsAll, T('Sonderlack.'))}${chip('✨', st.moments, st.momentsAll, T('Momente'))}</div>
       <div class="sb-tabs">${TABS.map(([k, n]) => `<button data-sbt="${k}" class="${this.tab === k ? 'on' : ''}">${n}</button>`).join('')}</div>
       <div class="sb-body">${body}</div></div>`;
   }

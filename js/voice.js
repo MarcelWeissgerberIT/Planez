@@ -1,6 +1,7 @@
 // Echter Funk: Sprachausgabe mit Funk-Charakter (Sendetasten-Klick, Rauschen), eine Frequenz mit
 // Warteschlange, feste Lotsenstimme, eigene Stimme je Flugzeug, ICAO-Aussprache von Zahlen.
 import { AIRLINES } from './config.js';
+import { T, EN } from './i18n.js';
 
 const DIGIT = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'niner'];
 const digits = (s) => String(s).split('').map((c) => (/\d/.test(c) ? DIGIT[+c] : c === '.' ? 'decimal' : c)).join(' ');
@@ -21,7 +22,7 @@ export function spoken(text) {
   t = t.replace(/\b(\d{1,2})(\d{3}) (feet|ft)\b/g, (_, th, rest, u) => `${spokenThousands(+(th + rest))} feet`);
   t = t.replace(/\b(\d{4}) (feet|ft)\b/g, (_, n) => `${spokenThousands(+n)} feet`);
   t = t.replace(/\b(\d{3})\.(\d{1,3})\b/g, (_, a, b) => `${digits(a)} decimal ${digits(b)}`);
-  t = t.replace(/\bwind (\d{3}) degrees (\d{1,2}) knots\b/g, (_, d, k) => `wind ${digits(d)} degrees, ${digits(k)} knots`);
+  t = t.replace(/\bwind (\d{3}) degrees (\d{1,2}) knots\b/g, (_, d, k) => T`wind ${digits(d)} degrees, ${digits(k)} knots`);
   t = t.replace(/\bQNH (\d{3,4})\b/g, (_, n) => `Q N H ${digits(n)}`);
   t = t.replace(/\b(ILS|CTOT|TSAT|TOBT|ATIS|VOR|RVR|LVP)\b/g, (m) => m.split('').join(' '));
   t = t.replace(/\bnumber (\d)\b/g, (_, n) => `number ${DIGIT[+n] === 'niner' ? 'nine' : DIGIT[+n]}`);
@@ -115,7 +116,10 @@ export function micClick(vol = 0.9) {
 
 // ---------------- Stimmen ----------------
 let voices = [];
+// Stimmen in der Spielsprache (Bodencrew, Durchsagen, Kommentar): Deutsch oder im englischen Spiel Englisch
 let deVoices = [];
+const LOC = EN ? 'en' : 'de';
+const LOC_TAG = EN ? 'en-GB' : 'de-DE';
 // Spaß- und Effektstimmen (v. a. macOS) taugen nicht für den Funk
 const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|wobble|zarvox|trinoids|whisper|jester|organ|superstar|good news|deranged|hysterical|junior|ralph|\bfred\b|kathy|princess|grandma|grandpa|\beddy\b|\bflo\b|\breed\b|rocko|\bsandy\b|shelley|novelty/i;
 // natürlich klingende Stimmen zuerst (Edge „Online (Natural)“, Google, Siri/Premium/Enhanced)
@@ -126,7 +130,7 @@ function loadVoices() {
   const en = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith('en'));
   const good = en.filter((v) => !NOVELTY.test(v.name));
   voices = (good.length ? good : en).slice().sort((a, b) => quality(b) - quality(a));
-  deVoices = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith('de') && !NOVELTY.test(v.name)).sort((a, b) => quality(b) - quality(a));
+  deVoices = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith(LOC) && !NOVELTY.test(v.name)).sort((a, b) => quality(b) - quality(a));
 }
 // Bodencrew (Betriebsfunk, Deutsch): feste Stimme je Fahrzeug
 function crewVoice(from) {
@@ -232,7 +236,7 @@ export const voice = {
     if (v) {
       u.voice = v;
       u.lang = v.lang;
-    } else u.lang = isCrew ? 'de-DE' : 'en-US';
+    } else u.lang = isCrew ? LOC_TAG : 'en-US';
     const h = hash(m.from || 'TWR');
     // natürliche Stimmen klingen bei starker Tonhöhenverschiebung künstlich: nur leicht variieren
     u.rate = (isCrew ? 1.02 : isAtc ? 1.08 : 1.03 + (h % 5) * 0.025) * this.rate;
@@ -275,16 +279,16 @@ export const voice = {
   announce(text) {
     if (!this.on || !window.speechSynthesis || this.current || this.queue.length) return false;
     const u = new SpeechSynthesisUtterance(text);
-    const de = deVoices.filter((x) => /de/i.test(x.lang));
+    const de = deVoices.filter((x) => x.lang.toLowerCase().startsWith(LOC));
     const v = de[1] || de[0] || deVoices[0];
     if (v) {
       u.voice = v;
       u.lang = v.lang;
-    } else u.lang = 'de-DE';
+    } else u.lang = LOC_TAG;
     u.rate = 0.92 * this.rate;
     u.pitch = 1.05;
     u.volume = this.vol * 0.75;
-    const m = { kind: 'pa', from: 'Durchsage', text };
+    const m = { kind: 'pa', from: T('Durchsage'), text };
     this.current = m;
     const done = () => {
       if (this.current !== m) return;
@@ -303,15 +307,15 @@ export const voice = {
   narrate(text) {
     if (!this.on || !window.speechSynthesis || this.current || this.queue.length) return false;
     const u = new SpeechSynthesisUtterance(text);
-    const v = deVoices.find((x) => /de-DE/i.test(x.lang)) || deVoices[0];
+    const v = deVoices.find((x) => x.lang.replace('_', '-').toLowerCase() === LOC_TAG.toLowerCase()) || deVoices[0];
     if (v) {
       u.voice = v;
       u.lang = v.lang;
-    } else u.lang = 'de-DE';
+    } else u.lang = LOC_TAG;
     u.rate = 1.04 * this.rate;
     u.pitch = 1;
     u.volume = this.vol * 0.9;
-    const m = { kind: 'narr', from: 'Kommentar', text };
+    const m = { kind: 'narr', from: T('Kommentar'), text };
     this.current = m;
     const done = () => {
       if (this.current !== m) return;

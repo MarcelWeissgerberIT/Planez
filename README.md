@@ -13,6 +13,7 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 **Spielen:** https://marcelweissgerberit.github.io/Planez/
 
 ## Features
+- 🌐 **Deutsch und Englisch**: Das ganze Spiel gibt es auf Deutsch und Englisch – Menüs, Hilfe, Glossar, Tutorials, Meldungen, Zeitung, Livestream, Bodencrew-Funk, Durchsagen und Kommentator (Sprachausgabe in der gewählten Sprache). Umschalten unter Einstellungen › Sprache; ohne Wahl entscheidet die Browsersprache, `?lang=en` erzwingt Englisch. Zahlen, Geld (€1.25m) und Uhrzeiten im englischen Format; der Lotsenfunk bleibt in beiden Sprachen englisch
 - 🔴 **Leitstand „Live am Platz“** (Manager und Beobachter): Fotokarte zum Verkehr am Platz – nächste Landung mit Countdown, Abfertigung mit Fortschritt, Start, Sonderbesuche zuerst; zehn Fotos je Bauart und Lage, weich überblendet und langsam bewegt, Klick zeigt das Flugzeug auf der Karte. Darunter ein Mini-Radar mit umlaufendem Strahl, nachleuchtenden Echos, Spuren und Kennungen. Kennzahlen mit Verlaufslinie, Aufgaben und Baustellen mit Vorschaubild und laufendem Fortschrittsbalken; Tipps passen zur Ausbaustufe
 - 🌾 **Management-Zentrale passend zur Ausbaustufe**: Am Grasplatz zeigt sie die Abstellwiese (Plätze W1–W10 mit Kennzeichen und Typ), Pflege der Graspiste (mähen und walzen, neue Grasnarbe) mit Länge und Belag der Bahn, Platzwart und Helfer statt Fuhrpark, Gebühren nur bei Tag (Sichtflug), Kredite passend zum Rahmen, Stimmen von Piloten und Ausflugsgästen und Meldungen aus Vereinsheim und Lokalzeitung; ab Verkehrslandeplatz dazu das kleine Vorfeld. Ausbauten der späteren Stufen stehen gesperrt mit der nötigen Stufe da. Ränge heißen im Aufbau nach der Person (Neu am Platz … Luftfahrt-Legende)
 - 🚛 **3D-Fahrzeuge im Detail**: Schlepper, Gepäckzug mit LD3-Containern, Tankwagen mit Laufsteg, Catering-Hubwagen (Kasten fährt an der Schere zur Tür), Reinigungstransporter, Vorfeldbus, Enteiser mit Korbarm zum Flugzeug und Sprühstrahl, Flughafenfeuerwehr mit Dachwerfer, Räumkolonne mit Schneefahne, Follow-me-Auto; Scheinwerfer nachts. Flugzeuge mit hellen Klappenverkleidungen, Fahrwerk mit Felgen und Klappen, H-77X mit Dreiachs-Drehgestell (Galerie: `tools/gallery3d.html`)
@@ -148,9 +149,24 @@ Du übernimmst eine Station am Flughafen, alle anderen Bereiche laufen automatis
 Reines HTML/CSS/JavaScript (ES-Module, Canvas 2D) ohne Build-Schritt – läuft direkt auf GitHub Pages.
 Lokal starten: `npx http-server .` und `http://localhost:8080` öffnen. Headless-Simulationstest: `node tools/simtest.mjs 3`.
 
+## Sprache und Übersetzung
+Deutsch ist die Quellsprache im Code. Jeder sichtbare Text läuft über `T('…')` bzw. `` T`… ${x} …` `` aus `js/i18n.js`;
+für Englisch schlägt `T` im Wörterbuch `js/i18n/en.js` nach (Schlüssel = deutscher Text, Platzhalter `{0}`, `{1}` … für
+die `${…}`-Stellen). Mehrdeutige kurze Wörter bekommen mit `TC('radar', 'frei')` einen Kontext-Schlüssel (`"radar|frei"`).
+Zahlen- und Datumsformate nutzen `LOCALE`/`DEC`, Geldbeträge `fmtMoney`. Neue Texte: im Code mit `T` markieren und im
+Wörterbuch ergänzen – fehlt ein Eintrag, erscheint der deutsche Text. Die Spiellogik hängt nie an übersetzten Texten
+(Simulation, Karriere und alle Szenarien liefern auf Deutsch und Englisch identische Ergebnisse,
+`PLANEZ_LANG=en node tools/simtest.mjs`).
+
+## Shop-Material
+`store/art/` enthält das Titelbild (Quer- und Hochformat, ohne Schrift). `node tools/capsules.mjs` setzt daraus Logo und
+Slogan zusammen und schreibt alle Formate nach `store/capsules/` (nicht im Repository): Steam Header 920×430, Small 462×174,
+Main 1232×706, Vertical 748×896, Library Capsule 600×900, Library Hero 3840×1240 (ohne Schrift), Library Logo 1280×720
+(transparent), itch.io-Cover 630×500 und Social-Vorschau 1200×630 – jeweils auf Deutsch und Englisch.
+
 ## Credits
 Alle Grafiken (Gebäude-, Flugzeug- und Fahrzeug-Sprites, Baumaschinen, Rohbau, Texturen, Rollen-Porträts, Logo) sowie die Menü-Hintergrundvideos wurden mit **Higgsfield AI** generiert (GPT Image 2.5, Kling 3.0 – Clips mit Start- und Endbild verkettet, dadurch nahtlose Übergänge).
-Alle Airlines und Flugnummern sind fiktiv.
+Alle Airlines und Flugnummern sind fiktiv. Titelbild für den Shop ebenfalls mit Higgsfield (GPT Image 2.5, hochskaliert).
 
 ## Vollversion und Demo bauen
 

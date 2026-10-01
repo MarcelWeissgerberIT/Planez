@@ -11,13 +11,14 @@ import { onBlock, onPushbackStart, onPushbackDone, assignStandAuto } from './gro
 import { onLanding, onTakeoff, penalize } from './economy.js';
 import { slotOpen, acdmOnTakeoff } from './acdm.js';
 import { wakeDepSec } from './wake.js';
-import { depGap, sidOf } from './sid.js';
+import { depGap, sidOf, SID_SAME_SEC } from './sid.js';
 import { runwayClosed, decelFactor, onRunwayLanding, brakingAction, stripGeom, rwyName, closeRunway } from './runway.js';
 import { scoreGoAround } from './score.js';
 import { diff } from './difficulty.js';
 import { vfrTel } from './vfr.js';
-import { isReg, typeAllowed } from './career.js';
+import { isReg, typeAllowed, smallField } from './career.js';
 import { standFits, standFree } from './ground.js';
+import { T } from '../i18n.js';
 // freie, passende Position für einen Gastflieger? (auch schon reservierte zählen als belegt)
 function gaStandFree(state, type) {
   const fake = { type };
@@ -31,10 +32,10 @@ export const PH = {
   LINED: 'LINED_UP', TAKEOFF: 'TAKEOFF', MISSED: 'MISSED', DEPART: 'DEPARTURE', GONE: 'GONE',
 };
 export const PHASE_DE = {
-  ARR_INBOUND: 'Im Anflug', ARR_HOLD: 'Warteschleife', ARR_APPROACH: 'Anflug frei', GO_AROUND: 'Durchstarten',
-  FINAL: 'Endanflug', ROLLOUT: 'Ausrollen', VACATED: 'Wartet auf Rollfreigabe', TAXI_WAIT: 'Rollt zur Warteposition', TAXI_IN: 'Rollt zur Position', AT_STAND: 'Abfertigung',
-  PUSHBACK: 'Pushback', STARTUP: 'Triebwerksstart', TAXI_OUT: 'Rollt zum Rollhalt', HOLDING: 'Am Rollhalt', LINEUP: 'Rollt auf die Piste',
-  LINED_UP: 'Aufgestellt', TAKEOFF: 'Startlauf', MISSED: 'Fehlanflug', DEPARTURE: 'Abflug', GONE: '—',
+  ARR_INBOUND: T('Im Anflug'), ARR_HOLD: T('Warteschleife'), ARR_APPROACH: T('Anflug frei'), GO_AROUND: T('Durchstarten'),
+  FINAL: T('Endanflug'), ROLLOUT: T('Ausrollen'), VACATED: T('Wartet auf Rollfreigabe'), TAXI_WAIT: T('Rollt zur Warteposition'), TAXI_IN: T('Rollt zur Position'), AT_STAND: T('Abfertigung'),
+  PUSHBACK: T('Pushback'), STARTUP: T('Triebwerksstart'), TAXI_OUT: T('Rollt zum Rollhalt'), HOLDING: T('Am Rollhalt'), LINEUP: T('Rollt auf die Piste'),
+  LINED_UP: T('Aufgestellt'), TAKEOFF: T('Startlauf'), MISSED: T('Fehlanflug'), DEPARTURE: T('Abflug'), GONE: '—',
 };
 export const AIR_PHASES = new Set([PH.INBOUND, PH.HOLD, PH.APPROACH, PH.GOAROUND, PH.DEPART]);
 export const RWY_PHASES = new Set([PH.ROLLOUT, PH.LINEUP, PH.LINED, PH.TAKEOFF]);
@@ -57,7 +58,7 @@ export function tel(ac) {
 const ATIS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const atisName = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliett', 'Kilo', 'Lima', 'Mike', 'November', 'Oscar', 'Papa', 'Quebec', 'Romeo', 'Sierra', 'Tango', 'Uniform', 'Victor', 'Whiskey', 'X-ray', 'Yankee', 'Zulu'];
 export const atis = (state) => atisName[(state.atisN ?? Math.floor(state.time / 3600)) % 26];
-export const windStr = (state) => `wind ${String(Math.round(state.wind.dir / 10) * 10).padStart(3, '0')} degrees ${Math.round(state.wind.spd)} knots`;
+export const windStr = (state) => T`wind ${String(Math.round(state.wind.dir / 10) * 10).padStart(3, '0')} degrees ${Math.round(state.wind.spd)} knots`;
 
 export function getRot(state, ac) {
   return state.rots[ac.rot];
@@ -70,7 +71,7 @@ export function spawnArrival(state, rot, force = false) {
   if (rot.ga && rot.airline === 'GAV' && !gaStandFree(state, rot.type)) {
     rot.status = 'cancelled';
     state.stats.today.turnedAway = (state.stats.today.turnedAway || 0) + 1;
-    if ((state.stats.today.turnedAway || 0) % 3 === 1) log(state, 'gnd', `Abstellfläche voll – ${rot.arrNo} fliegt einen anderen Platz an.`);
+    if ((state.stats.today.turnedAway || 0) % 3 === 1) log(state, 'gnd', T`Abstellfläche voll – ${rot.arrNo} fliegt einen anderen Platz an.`);
     return null;
   }
   const brg = CITIES[rot.city].brg + randRange(state, -10, 10);
@@ -254,8 +255,8 @@ function updateFuel(state, ac, dt) {
   if (ac.fuelMin <= 12 && !ac.minFuel) {
     ac.minFuel = true;
     radio(state, ac.cs, `${tel(ac)}, declaring minimum fuel.`);
-    notify(state, `⛽ ${ac.cs}: MINIMUM FUEL – bald Anflug freigeben`, 'warn');
-    log(state, 'sys', `${ac.cs} meldet Minimum Fuel (noch ca. ${Math.round(ac.fuelMin)} min Reserve).`);
+    notify(state, T`⛽ ${ac.cs}: MINIMUM FUEL – bald Anflug freigeben`, 'warn');
+    log(state, 'sys', T`${ac.cs} meldet Minimum Fuel (noch ca. ${Math.round(ac.fuelMin)} min Reserve).`);
     state.stats.today.minFuel = (state.stats.today.minFuel || 0) + 1;
   }
   if (ac.fuelMin <= 5 && !ac.fuelEmergency) {
@@ -263,12 +264,12 @@ function updateFuel(state, ac, dt) {
     ac.emergency = true;
     ac.squawk = '7700';
     radio(state, ac.cs, `MAYDAY MAYDAY MAYDAY, ${tel(ac)}, fuel emergency, request immediate approach.`);
-    notify(state, `🚨 ${ac.cs}: MAYDAY FUEL – sofort landen lassen!`, 'bad');
+    notify(state, T`🚨 ${ac.cs}: MAYDAY FUEL – sofort landen lassen!`, 'bad');
     penalize(state, 'fuelEmergency', ac);
     state.fireAlert = state.fireAlert || { ac: ac.id, t: state.time };
   }
   if (ac.fuelMin <= 0 && (ac.phase === PH.HOLD || ac.phase === PH.INBOUND)) {
-    divert(state, ac, 'Treibstoffmangel');
+    divert(state, ac, T('Treibstoffmangel'));
     return true;
   }
   return false;
@@ -331,7 +332,7 @@ function updateAir(state, ac, dt) {
       // Landefreigabe-Anfrage
       if (!ac.clr.land && d < 9) setReq(state, ac, 'land');
       if (!ac.clr.land && d <= 1.0) {
-        goAround(state, ac, 'keine Landefreigabe');
+        goAround(state, ac, T('keine Landefreigabe'));
         return;
       }
       if (d <= AS.MAP_FINAL_NM) {
@@ -406,7 +407,7 @@ function passWaypoint(state, ac, w) {
   if (w.iaf && ac.phase === PH.INBOUND) {
     enterHold(state, ac, w);
   } else if (w.faf && ac.phase === PH.APPROACH) {
-    radio(state, ac.cs, `${tel(ac)}, established ILS runway ${rwyName(state, ac.strip || 'N', ac.rwy)}${ac.clr.land ? '' : ', request landing'}.`);
+    radio(state, ac.cs, `${tel(ac)}, ${smallField(state) ? 'final' : 'established ILS'} runway ${rwyName(state, ac.strip || 'N', ac.rwy)}${ac.clr.land ? '' : ', request landing'}.`);
     if (!ac.clr.land) setReq(state, ac, 'land');
   } else if (w.exit && ac.phase === PH.DEPART) {
     ac.phase = PH.GONE;
@@ -455,8 +456,8 @@ export function goAround(state, ac, reason) {
   const rot = getRot(state, ac);
   state.stats.today.goArounds++;
   radio(state, ac.cs, `${tel(ac)}, going around${reason ? '' : ''}.`);
-  log(state, 'sys', `${ac.cs} startet durch – ${reason}.`);
-  notify(state, `↗️ ${ac.cs} startet durch (${reason})`, 'warn');
+  log(state, 'sys', T`${ac.cs} startet durch – ${T(reason)}.`);
+  notify(state, T`↗️ ${ac.cs} startet durch (${T(reason)})`, 'warn');
   penalize(state, 'goaround', ac);
   scoreGoAround(state, ac, reason);
   if (state.life) state.life.landStreak = 0;
@@ -475,8 +476,8 @@ export function goAround(state, ac, reason) {
 export function divert(state, ac, reason, pen = 'diversion') {
   const rot = getRot(state, ac);
   radio(state, ac.cs, `${tel(ac)}, unable to continue, diverting to alternate.`);
-  log(state, 'sys', `${ac.cs} weicht aus: ${reason}.`);
-  notify(state, `✈️↪ ${ac.cs} ausgewichen (${reason})`, 'bad');
+  log(state, 'sys', T`${ac.cs} weicht aus: ${T(reason)}.`);
+  notify(state, T`✈️↪ ${ac.cs} ausgewichen (${T(reason)})`, 'bad');
   state.stats.today.diversions++;
   penalize(state, pen, ac);
   if (rot) rot.status = 'diverted';
@@ -506,12 +507,12 @@ function updateMap(state, ac, dt) {
         // ausrollende Sportflieger vor ihm schon über 280 m weiter die Bahn hinunter ist
         if (blk && blk.phase === PH.ROLLOUT && t.wake === 'L' && t.size === 'S' && AC_TYPES[blk.type] && AC_TYPES[blk.type].light && (blk.x - tdx) * d > 14) blk = null;
         if (blk) {
-          goAround(state, ac, `Piste belegt durch ${blk.cs}`);
+          goAround(state, ac, T`Piste belegt durch ${blk.cs}`);
           if (ac.clr.landGivenBlocked) penalize(state, 'incursion', ac);
           return;
         }
         if (closed) {
-          goAround(state, ac, `Piste gesperrt – ${closed}`);
+          goAround(state, ac, T`Piste gesperrt – ${closed}`);
           return;
         }
       }
@@ -555,7 +556,7 @@ function updateMap(state, ac, dt) {
           if (!ac.fireStop && ac.v <= ac.ve + 0.03) {
             ac.fireStop = state.time;
             ac.v = 0;
-            closeRunway(state, 8, 'Feuerwehreinsatz', ac.strip || 'N');
+            closeRunway(state, 8, T('Feuerwehreinsatz'), ac.strip || 'N');
             radio(state, ac.cs, ac.emgKind === 'smoke' ? `${tel(ac)}, stopping on the runway, evacuating via the slides, request fire services.` : `${tel(ac)}, stopping on the runway, evacuation not required, request fire services.`);
             if (state.fireAlert) state.fireAlert.stop = true;
           }
@@ -567,7 +568,7 @@ function updateMap(state, ac, dt) {
               ac.fireDone = true;
               ac.v = ac.ve;
               if (fa && (fa.sprayed || 0) > 100) state.life.fireOut = (state.life.fireOut || 0) + 1;
-              if (state.rwyClosedWhy === 'Feuerwehreinsatz') state.rwyClosedUntil = Math.min(state.rwyClosedUntil, state.time + 60);
+              if (state.rwyClosedWhy === T('Feuerwehreinsatz')) state.rwyClosedUntil = Math.min(state.rwyClosedUntil, state.time + 60);
               radio(state, ac.cs, `${tel(ac)}, fire services report fire extinguished, vacating the runway.`);
             }
             break;
@@ -700,7 +701,7 @@ function updateMap(state, ac, dt) {
           ac.wakeCall = true;
           const g = depGap(state, ac);
           const w = Math.max(1, Math.ceil((g.sec - g.since) / 60));
-          if (g.same && g.why.startsWith('gleiche')) {
+          if (g.same && g.sec === SID_SAME_SEC) {
             radio(state, ac.cs, `${tel(ac)}, same departure route as the preceding traffic, we'll wait ${w} minute${w > 1 ? 's' : ''} for spacing.`);
             state.stats.today.sidWait = (state.stats.today.sidWait || 0) + 1;
           } else {
@@ -1006,7 +1007,7 @@ function resolveDeadlocks(state) {
       // Hinweis an den Spieler: Rollverkehr hat sich verkeilt (die Simulation löst es auf, der eine rollt vorbei)
       if (mutual && !state.auto.atc && (state.role === 'tower' || state.role === 'ground') && !a.dlWarned) {
         a.dlWarned = b.dlWarned = true;
-        notify(state, `⚠ Rollverkehr verkeilt: ${a.cs} und ${b.cs} standen sich im Weg – künftig einen per „Halt“ warten lassen`, 'warn');
+        notify(state, T`⚠ Rollverkehr verkeilt: ${a.cs} und ${b.cs} standen sich im Weg – künftig einen per „Halt“ warten lassen`, 'warn');
       }
       loser.ghostUntil = state.time + 40;
       loser.blockedT = 0;

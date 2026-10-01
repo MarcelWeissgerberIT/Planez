@@ -10,6 +10,7 @@ import { closeRunway, runwayClosed, rwyName } from './runway.js';
 import { penalize } from './economy.js';
 import { scoreInspect } from './score.js';
 import { diff } from './difficulty.js';
+import { T } from '../i18n.js';
 
 export const INSP_MIN = 3; // Minuten auf der Bahn
 export const CHECK = 'CHECK1';
@@ -42,12 +43,12 @@ export function inspConflict(state) {
       if (a.phase === PH.ROLLOUT && a.vacated) continue;
       if (a.phase === PH.TAKEOFF && a.z > 1) continue;
       if (a.arr && (a.strip || 'N') !== 'N') continue;
-      return { ac: a, hard: true, why: a.phase === PH.FINAL ? 'im kurzen Endanflug' : a.arr ? 'auf der Bahn' : 'auf der Bahn' };
+      return { ac: a, hard: true, why: a.phase === PH.FINAL ? T('im kurzen Endanflug') : a.arr ? T('auf der Bahn') : T('auf der Bahn') };
     }
     if (a.mode === 'air' && a.arr && a.phase === PH.APPROACH && (a.strip || 'N') === 'N') {
       const d = AS.routeDistance(a.pos, a.route.length ? a.route : [AS.THR[a.rwy]]);
-      if (a.clr.land && d < 6) return { ac: a, hard: true, why: `mit Landefreigabe ${d.toFixed(1)} NM vor der Schwelle` };
-      if (d < 11 && (!soft || d < soft.d)) soft = { ac: a, hard: false, d, why: `${d.toFixed(1)} NM im Anflug – müsste durchstarten` };
+      if (a.clr.land && d < 6) return { ac: a, hard: true, why: T`mit Landefreigabe ${d.toFixed(1)} NM vor der Schwelle` };
+      if (d < 11 && (!soft || d < soft.d)) soft = { ac: a, hard: false, d, why: T`${d.toFixed(1)} NM im Anflug – müsste durchstarten` };
     }
   }
   return soft;
@@ -59,18 +60,18 @@ function rq(state) {
 
 export function approveInspection(state) {
   const I = inspState(state);
-  if (!I.req) return { ok: false, msg: 'Keine Anfrage der Pistenkontrolle offen' };
+  if (!I.req) return { ok: false, msg: T('Keine Anfrage der Pistenkontrolle offen') };
   const c = inspConflict(state);
   const rn = rq(state);
   I.req = null;
   I.active = { start: state.time, until: state.time + INSP_MIN * 60 };
-  closeRunway(state, INSP_MIN, 'Pistenkontrolle', 'N');
+  closeRunway(state, INSP_MIN, T('Pistenkontrolle'), 'N');
   radio(state, 'TWR', `Runway Check 1, enter runway ${rn}, inspection approved, report vacated.`, 'atc');
   radio(state, CHECK, `Entering runway ${rn} for inspection, wilco, Check 1.`, 'pilot');
   if (c && c.hard) {
     penalize(state, 'incursion', c.ac);
-    log(state, 'sys', `⚠ Pistenbetretung: Kontrollfahrzeug auf Bahn ${rn}, während ${c.ac.cs} ${c.why} ist.`);
-    notify(state, `⚠ Pistenbetretung! Kontrollfahrzeug auf der Bahn, ${c.ac.cs} ${c.why}`, 'bad');
+    log(state, 'sys', T`⚠ Pistenbetretung: Kontrollfahrzeug auf Bahn ${rn}, während ${c.ac.cs} ${c.why} ist.`);
+    notify(state, T`⚠ Pistenbetretung! Kontrollfahrzeug auf der Bahn, ${c.ac.cs} ${c.why}`, 'bad');
     return { ok: true, bad: true };
   }
   if (humanTower(state)) scoreInspect(state, !c);
@@ -105,8 +106,8 @@ export function updateInspection(state, dt) {
       const L = state.life || (state.life = {});
       L.fodFound = (L.fodFound || 0) + 1;
       radio(state, CHECK, `Tower, Check 1, runway ${rn} vacated, debris found and removed, runway clear.`, 'pilot');
-      log(state, 'sys', `🚙 Pistenkontrolle beendet – Fremdkörper gefunden und entfernt, bevor etwas passiert ist.`);
-      notify(state, '🚙 Pistenkontrolle: Fremdkörper gefunden und entfernt', 'good');
+      log(state, 'sys', T`🚙 Pistenkontrolle beendet – Fremdkörper gefunden und entfernt, bevor etwas passiert ist.`);
+      notify(state, T('🚙 Pistenkontrolle: Fremdkörper gefunden und entfernt'), 'good');
     } else {
       radio(state, CHECK, `Tower, Check 1, runway ${rn} vacated, inspection complete, nothing found.`, 'pilot');
     }
@@ -135,5 +136,5 @@ export function updateInspection(state, dt) {
   if (state.time < I.next || h < 6 || h > 22 || runwayClosed(state, 'N') || state.rwyWorking || state.rwyPending) return;
   I.req = { t: state.time };
   radio(state, CHECK, `Tower, Runway Check 1, holding point A, request enter runway ${rq(state)} for inspection, ${INSP_MIN} minutes.`, 'pilot');
-  if (humanTower(state)) notify(state, `🚙 Pistenkontrolle bittet, Bahn ${rq(state)} abzufahren (${INSP_MIN} min) – Lücke im Verkehr abpassen`, 'info');
+  if (humanTower(state)) notify(state, T`🚙 Pistenkontrolle bittet, Bahn ${rq(state)} abzufahren (${INSP_MIN} min) – Lücke im Verkehr abpassen`, 'info');
 }

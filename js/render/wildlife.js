@@ -4,6 +4,7 @@
 import * as LY from '../layout.js';
 import { clamp, hourOf } from '../util.js';
 import { Q } from './quality.js';
+import { T } from '../i18n.js';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 
@@ -60,7 +61,7 @@ export class Wildlife {
     const calm = state.weather.kind === 'clear' || state.weather.kind === 'clouds';
     const D = state.decisions && state.decisions.active ? state.decisions.active : [];
     const danger = D.some((d) => d.key === 'birds') || (state.birdRisk && state.time < state.birdRisk);
-    const scare = state.rwyClosedWhy === 'Vogelvergrämung' && state.rwyClosedUntil > state.time;
+    const scare = state.rwyClosedWhy === T('Vogelvergrämung') && state.rwyClosedUntil > state.time;
     // Möwen über der Piste bei Vogelschlag-Gefahr
     if (danger && !this.flocks.some((f) => f.gulls)) this.flocks.push(this.makeFlock(true));
     for (const f of this.flocks) if (f.gulls && (scare || !danger)) f.leave = true;

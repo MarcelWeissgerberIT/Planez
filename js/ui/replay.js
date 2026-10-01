@@ -4,6 +4,7 @@
 // Während der Wiederholung ruht die Simulation; Esc oder ein Klick beendet sie.
 import { PH } from '../sim/aircraft.js';
 import { esc } from '../util.js';
+import { T } from '../i18n.js';
 
 const HZ = 20, KEEP = 14; // Sekunden
 const SLOW = 0.55;
@@ -18,7 +19,7 @@ export class Replay {
     const el = document.createElement('div');
     el.id = 'replay';
     el.className = 'hidden';
-    el.innerHTML = `<div class="rp-bar top"></div><div class="rp-bar bot"></div><div class="rp-badge"><b>⏪ WIEDERHOLUNG</b><span></span></div><div class="rp-prog"><i></i></div><div class="rp-help">Esc oder Klick beendet</div>`;
+    el.innerHTML = T`<div class="rp-bar top"></div><div class="rp-bar bot"></div><div class="rp-badge"><b>⏪ WIEDERHOLUNG</b><span></span></div><div class="rp-prog"><i></i></div><div class="rp-help">Esc oder Klick beendet</div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
     this.sub = el.querySelector('.rp-badge span');
@@ -46,12 +47,12 @@ export class Replay {
       const p = this.prev.get(ac.id);
       this.prev.set(ac.id, ac.phase);
       if (!p || p === ac.phase) continue;
-      if (ac.phase === PH.MISSED) this.offer(ac, `Durchstarten ${ac.cs}`);
+      if (ac.phase === PH.MISSED) this.offer(ac, T`Durchstarten ${ac.cs}`);
       else if (p === PH.FINAL && ac.phase === PH.ROLLOUT) {
-        if (ac.emergency) this.offer(ac, `Notlandung ${ac.cs}`);
-        else if (ac.tdFpm >= 600) this.offer(ac, `Harte Landung ${ac.cs} · ${ac.tdFpm} ft/min`);
-        else if (ac.tdFpm && ac.tdFpm < 90) this.offer(ac, `Butterlandung ${ac.cs} · ${ac.tdFpm} ft/min`);
-        else if (ac.type === 'A388' || ac.protocol) this.offer(ac, `Landung ${ac.cs}`);
+        if (ac.emergency) this.offer(ac, T`Notlandung ${ac.cs}`);
+        else if (ac.tdFpm >= 600) this.offer(ac, T`Harte Landung ${ac.cs} · ${ac.tdFpm} ft/min`);
+        else if (ac.tdFpm && ac.tdFpm < 90) this.offer(ac, T`Butterlandung ${ac.cs} · ${ac.tdFpm} ft/min`);
+        else if (ac.type === 'A388' || ac.protocol) this.offer(ac, T`Landung ${ac.cs}`);
       }
     }
     // Wassertaufe: kurz nachdem das Flugzeug durch den Bogen gerollt ist
@@ -59,7 +60,7 @@ export class Replay {
     if (sal && sal.done && this.salOffered !== sal.t) {
       this.salOffered = sal.t;
       const ac = s.acs.find((a) => a.id === sal.ac);
-      if (ac) this.offer(ac, `Wassertaufe ${ac.cs}`);
+      if (ac) this.offer(ac, T`Wassertaufe ${ac.cs}`);
     }
     if (this.prev.size > 300) this.prev.clear();
     if (this.offerUntil && performance.now() > this.offerUntil) {
@@ -73,7 +74,7 @@ export class Replay {
     if ((g.cinema && g.cinema.on) || (g.photo && g.photo.on)) return;
     this.offerAc = ac.id;
     this.offerText = text;
-    this.offerEl.innerHTML = `⏪ <b>Wiederholung</b> ${esc(text)} <kbd>⇧R</kbd>`;
+    this.offerEl.innerHTML = T`⏪ <b>Wiederholung</b> ${esc(text)} <kbd>⇧R</kbd>`;
     this.offerEl.classList.remove('hidden');
     this.offerUntil = performance.now() + 9000;
   }
@@ -97,7 +98,7 @@ export class Replay {
     s.speed = 0;
     this.labels = this.game.ui.labels;
     this.game.ui.labels = false;
-    this.sub.textContent = text || 'Die letzten Sekunden';
+    this.sub.textContent = text || T('Die letzten Sekunden');
     this.el.classList.remove('hidden');
     this.offerEl.classList.add('hidden');
     this.offerUntil = 0;

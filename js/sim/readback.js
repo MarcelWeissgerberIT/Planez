@@ -10,6 +10,7 @@ import { penalize } from './economy.js';
 import { rwyName } from './runway.js';
 import { scoreReadback } from './score.js';
 import { departureWait } from './atc.js';
+import { T } from '../i18n.js';
 
 export const RB_WINDOW = 14; // Echtzeit-Sekunden zum Korrigieren
 export const RB_HINT = 3.5; // danach blendet die Leiste einen Hinweis ein
@@ -45,7 +46,7 @@ export function readbackText(state, ac, kind, right) {
 // Korrektur durch den Lotsen
 export function correctReadback(state, ac) {
   const e = ac && ac.rbErr;
-  if (!e) return { ok: false, msg: 'Kein falscher Readback offen' };
+  if (!e) return { ok: false, msg: T('Kein falscher Readback offen') };
   if (e.kind === 'lineup') {
     const rn = rwyName(state, 'N', ac.rwy);
     radio(state, 'TWR', `${tel(ac)}, negative, hold position, runway ${rn} line up and wait only, I say again, line up and wait.`, 'atc');
@@ -61,7 +62,7 @@ export function correctReadback(state, ac) {
   const L = state.life || (state.life = {});
   L.rbFixed = (L.rbFixed || 0) + 1;
   scoreReadback(state, ac, true, quick);
-  if (ac.mode === 'map') fx(state, ac.x, ac.y - 0.9, quick ? '👂 Gut aufgepasst!' : '✔ Readback korrigiert', 'good');
+  if (ac.mode === 'map') fx(state, ac.x, ac.y - 0.9, quick ? T('👂 Gut aufgepasst!') : T('✔ Readback korrigiert'), 'good');
   return { ok: true, quick };
 }
 
@@ -96,13 +97,13 @@ export function updateReadback(state, dt) {
       ac.clr.noClr = true;
       ac.req = null;
       radio(state, ac.cs, `${tel(ac)}, rolling.`, 'pilot');
-      notify(state, `⚠️ ${ac.cs} startet ohne Startfreigabe – der falsche Readback wurde nicht korrigiert.`, 'bad');
+      notify(state, T`⚠️ ${ac.cs} startet ohne Startfreigabe – der falsche Readback wurde nicht korrigiert.`, 'bad');
       // gefährlich, wenn die Piste belegt ist oder gleich jemand landet
-      penalize(state, departureWait(state, ac).sec > 0 && departureWait(state, ac).why !== 'Wirbelschleppen-Abstand' ? 'incursion' : 'readback', ac);
+      penalize(state, departureWait(state, ac).sec > 0 && !departureWait(state, ac).wakeOnly ? 'incursion' : 'readback', ac);
     } else {
       // falsche Bahn im Anflug: kurz vor der Schwelle bemerkt der Pilot den Fehler
       ac.rbGoAround = true;
-      notify(state, `⚠️ ${ac.cs} fliegt Piste ${ac.rbWrongRwy || '?'} an – der falsche Readback wurde nicht korrigiert.`, 'bad');
+      notify(state, T`⚠️ ${ac.cs} fliegt Piste ${ac.rbWrongRwy || '?'} an – der falsche Readback wurde nicht korrigiert.`, 'bad');
     }
   }
   // unkorrigierte Bahnverwechslung: bei rund 2 NM durchstarten
@@ -118,7 +119,7 @@ export function updateReadback(state, dt) {
       ac.rbGoAround = false;
       ac.clr.land = false;
       radio(state, ac.cs, `${tel(ac)}, going around, we were lined up for the wrong runway.`, 'pilot');
-      goAround(state, ac, 'Falsche Piste (Readback)');
+      goAround(state, ac, T('Falsche Piste (Readback)'));
     }
   }
 }

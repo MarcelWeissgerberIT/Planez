@@ -2,9 +2,10 @@
 // Zwei Starts auf derselben Route brauchen mehr Abstand als auf verschiedenen – die Startreihenfolge wird zum Puzzle.
 import { CITIES } from '../config.js';
 import { wakeDepSec } from './wake.js';
+import { T } from '../i18n.js';
 
 export const SID_SAME_SEC = 100; // gleiche Abflugroute: 100 s zwischen zwei Starts (statt 75 s)
-export const SIDS = { NOLTA: 'Nordost', SUDEN: 'Südost', RIMOS: 'Südwest', WELDA: 'Nordwest' };
+export const SIDS = { NOLTA: T('Nordost'), SUDEN: T('Südost'), RIMOS: T('Südwest'), WELDA: T('Nordwest') };
 export function sidOfBrg(brg) {
   const b = ((brg % 360) + 360) % 360;
   return b < 90 ? 'NOLTA' : b < 180 ? 'SUDEN' : b < 270 ? 'RIMOS' : 'WELDA';
@@ -27,5 +28,6 @@ export function depGap(state, ac) {
   const wake = wakeDepSec(state.lastTakeoffWake, ac.wake);
   const same = !!(state.lastTakeoffSid && sid && state.lastTakeoffSid === sid);
   const sec = Math.max(wake, same ? SID_SAME_SEC : 0);
-  return { sec, since: state.time - (state.lastTakeoff || -1e9), why: same && SID_SAME_SEC >= wake ? `gleiche Abflugroute (${sid})` : 'Wirbelschleppen-Abstand', sid, same };
+  const byWake = !(same && SID_SAME_SEC >= wake);
+  return { sec, since: state.time - (state.lastTakeoff || -1e9), why: byWake ? T('Wirbelschleppen-Abstand') : T`gleiche Abflugroute (${sid})`, sid, same, byWake };
 }

@@ -11,6 +11,7 @@ import { penalize } from './economy.js';
 import { scoreWx } from './score.js';
 import { degDiff } from '../util.js';
 import { diff } from './difficulty.js';
+import { T as tr_ } from '../i18n.js';
 
 export const WX_WINDOW = 14; // Echtzeit-Sekunden, bis der Pilot ohne Antwort selbst ausweicht (oder 5 NM vor der Zelle)
 const BUF = 1.5; // Sicherheitsabstand zur Zelle (NM)
@@ -111,7 +112,7 @@ function request(state, ac, k) {
 // Lotse genehmigt (auch Auto-Lotse und Pilot auf eigene Verantwortung: own)
 export function approveWx(state, ac, own = false) {
   const q = ac && ac.wxReq;
-  if (!q) return { ok: false, msg: 'Keine Ausweich-Anfrage offen' };
+  if (!q) return { ok: false, msg: tr_('Keine Ausweich-Anfrage offen') };
   ac.wxReq = null;
   const W = ac.wxDone || (ac.wxDone = {});
   const k = findConflict(state, ac, q.cell);
@@ -128,7 +129,7 @@ export function approveWx(state, ac, own = false) {
   const nx = nextName(ac, k.i + 1);
   if (own) {
     radio(state, ac.cs, `${tel(ac)}, no reply, deviating ${q.deg} degrees ${q.side} due weather.`);
-    log(state, 'sys', `⛈️ ${ac.cs} weicht ohne Freigabe der Gewitterzelle aus – Anfrage blieb unbeantwortet.`);
+    log(state, 'sys', tr_`⛈️ ${ac.cs} weicht ohne Freigabe der Gewitterzelle aus – Anfrage blieb unbeantwortet.`);
     if (diff(state).events <= 1) scoreWx(state, ac, 'late'); // auf „Entspannt“ ohne Punktabzug
   } else {
     radio(state, 'TWR', `${tel(ac)}, deviation ${q.deg} degrees ${q.side} approved${nx ? `, when clear of weather proceed direct ${nx}` : ', report clear of weather'}.`, 'atc');
@@ -145,7 +146,7 @@ export function approveWx(state, ac, own = false) {
 // Lotse lehnt ab (Verkehr): das Flugzeug bleibt auf Kurs und fliegt durch die Zelle
 export function denyWx(state, ac) {
   const q = ac && ac.wxReq;
-  if (!q) return { ok: false, msg: 'Keine Ausweich-Anfrage offen' };
+  if (!q) return { ok: false, msg: tr_('Keine Ausweich-Anfrage offen') };
   ac.wxReq = null;
   (ac.wxDone || (ac.wxDone = {}))[q.cell] = 'no';
   radio(state, 'TWR', `${tel(ac)}, unable due traffic, continue present routing, expect moderate turbulence.`, 'atc');
@@ -247,12 +248,12 @@ function turbulence(state, ac, cells) {
     const severe = d < c.r * 0.45;
     radio(state, ac.cs, `${tel(ac)}, encountering ${severe ? 'severe' : 'moderate'} turbulence.`);
     const denied = (ac.wxDone || {})[c.id] === 'no';
-    log(state, 'sys', `⛈️ ${ac.cs} fliegt durch eine Gewitterzelle – ${severe ? 'starke' : 'mäßige'} Turbulenz, Fluggäste durchgeschüttelt${denied ? ' (Umweg war abgelehnt)' : ''}.`);
+    log(state, 'sys', tr_`⛈️ ${ac.cs} fliegt durch eine Gewitterzelle – ${severe ? tr_('starke') : tr_('mäßige')} Turbulenz, Fluggäste durchgeschüttelt${denied ? tr_(' (Umweg war abgelehnt)') : ''}.`);
     if (denied) {
       penalize(state, 'turbulence', ac);
       scoreWx(state, ac, 'turb');
-      notify(state, `⛈️ ${ac.cs}: ${severe ? 'starke' : 'mäßige'} Turbulenz nach abgelehntem Umweg – Ansehen sinkt`, 'warn');
+      notify(state, tr_`⛈️ ${ac.cs}: ${severe ? tr_('starke') : tr_('mäßige')} Turbulenz nach abgelehntem Umweg – Ansehen sinkt`, 'warn');
     }
-    if (ac.mode === 'map') fx(state, ac.x, ac.y - 0.8, '⛈️ Turbulenz', 'bad');
+    if (ac.mode === 'map') fx(state, ac.x, ac.y - 0.8, tr_('⛈️ Turbulenz'), 'bad');
   }
 }

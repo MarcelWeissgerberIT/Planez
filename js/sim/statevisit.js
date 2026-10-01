@@ -8,6 +8,7 @@ import { scoreProtocol } from './score.js';
 import { pushNews } from './news.js';
 import { clamp } from '../util.js';
 import { AC_TYPES } from '../config.js';
+import { T as tr_ } from '../i18n.js';
 
 const DAY = 86400;
 // gleichmäßige Pseudozufallszahl aus der Spielzeit (verbraucht den Zufallsgenerator des Spiels nicht)
@@ -16,7 +17,7 @@ const hash01 = (t) => {
   h = Math.imul(h ^ (h >>> 13), 3266489917) >>> 0;
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 };
-const GUESTS = ['Staatspräsidentin', 'Premierminister', 'Königspaar', 'Bundeskanzlerin', 'Außenminister', 'Staatspräsident'];
+const GUESTS = [tr_('Staatspräsidentin'), tr_('Premierminister'), tr_('Königspaar'), tr_('Bundeskanzlerin'), tr_('Außenminister'), tr_('Staatspräsident')];
 
 export const svActive = (state) => state.sv && !state.sv.done ? state.sv : null;
 export const isProtocol = (state, ac) => !!(state.sv && !state.sv.done && ac && state.sv.ac === ac.id);
@@ -42,10 +43,10 @@ export function startStateVisit(state) {
   state.sv = { ac: ac.id, rot: ac.rot, t: state.time, guest, held: false, landT: null, onT: null, offT: null, arrOk: null, depOk: null, done: false };
   const L = state.life || (state.life = {});
   L.stateVisit = (L.stateVisit || 0) + 1;
-  notify(state, `🎖️ Staatsbesuch: ${guest} im Anflug (${ac.cs}) – Protokoll: Landung ohne Warteschleife, Abflug pünktlich`, 'good');
-  if (state.role === 'ground') notify(state, '🎖️ Vorfeld: eine freie Großraum-Kontaktposition (3 oder 5) für die Regierungsmaschine bereithalten', 'info');
-  pushNews(state, `Staatsbesuch: ${guest} landet heute in ${state.name} – die Polizei sperrt die Zufahrt zum Vorfeld.`, 'info', '🎖️');
-  log(state, 'sys', `🎖️ Staatsbesuch angekündigt: ${guest} mit der Regierungsmaschine ${ac.cs} (AV-33). Roter Teppich und Kolonne stehen bereit.`);
+  notify(state, tr_`🎖️ Staatsbesuch: ${guest} im Anflug (${ac.cs}) – Protokoll: Landung ohne Warteschleife, Abflug pünktlich`, 'good');
+  if (state.role === 'ground') notify(state, tr_('🎖️ Vorfeld: eine freie Großraum-Kontaktposition (3 oder 5) für die Regierungsmaschine bereithalten'), 'info');
+  pushNews(state, tr_`Staatsbesuch: ${guest} landet heute in ${state.name} – die Polizei sperrt die Zufahrt zum Vorfeld.`, 'info', '🎖️');
+  log(state, 'sys', tr_`🎖️ Staatsbesuch angekündigt: ${guest} mit der Regierungsmaschine ${ac.cs} (AV-33). Roter Teppich und Kolonne stehen bereit.`);
   return ac;
 }
 
@@ -63,7 +64,7 @@ export function updateStateVisit(state, dt) {
   if (ac.phase === PH.HOLD) S.holdT = (S.holdT || 0) + dt;
   if (S.holdT > 4 * 60 && !S.held) {
     S.held = true;
-    log(state, 'sys', `🎖️ ${ac.cs} muss in die Warteschleife – das Protokoll ist nicht begeistert.`);
+    log(state, 'sys', tr_`🎖️ ${ac.cs} muss in die Warteschleife – das Protokoll ist nicht begeistert.`);
   }
   if (S.landT == null && ac.mode === 'map' && [PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN].includes(ac.phase)) {
     S.landT = state.time;
@@ -71,18 +72,18 @@ export function updateStateVisit(state, dt) {
     S.arrOk = !S.held && !ga;
     if (S.arrOk) {
       rep(state, 1);
-      notify(state, `🎖️ ${ac.cs} gelandet – pünktlich nach Protokoll, ohne Warteschleife`, 'good');
+      notify(state, tr_`🎖️ ${ac.cs} gelandet – pünktlich nach Protokoll, ohne Warteschleife`, 'good');
     } else {
       rep(state, -1);
-      notify(state, `🎖️ ${ac.cs} gelandet – ${ga ? 'nach einem Durchstarten' : 'nach der Warteschleife'}; die Delegation ist verstimmt`, 'warn');
+      notify(state, tr_`🎖️ ${ac.cs} gelandet – ${ga ? tr_('nach einem Durchstarten') : tr_('nach der Warteschleife')}; die Delegation ist verstimmt`, 'warn');
     }
     scoreProtocol(state, ac, 'tower', S.arrOk);
-    if (state.role === 'ground') log(state, 'crew', `Vorfeld, Vorfeldaufsicht, die Kolonne für ${S.guest} rollt über die Vorfeldstraße, bitte Fahrweg freihalten.`, 'Vorfeldaufsicht', { prio: 2 });
+    if (state.role === 'ground') log(state, 'crew', tr_`Vorfeld, Vorfeldaufsicht, die Kolonne für ${S.guest} rollt über die Vorfeldstraße, bitte Fahrweg freihalten.`, tr_('Vorfeldaufsicht'), { prio: 2 });
   }
   if (S.onT == null && ac.phase === PH.STAND) {
     S.onT = state.time;
     S.stand = ac.stand;
-    log(state, 'sys', `🎖️ ${S.guest} schreitet an Position ${ac.stand} den roten Teppich ab – Ehrenformation und Kolonne stehen bereit.`);
+    log(state, 'sys', tr_`🎖️ ${S.guest} schreitet an Position ${ac.stand} den roten Teppich ab – Ehrenformation und Kolonne stehen bereit.`);
     radio(state, ac.cs, `Ground, ${tel(ac)}, on blocks, thank you for the warm welcome.`);
   }
   if (S.offT == null && S.onT != null && [PH.PUSH, PH.STARTUP, PH.TAXI_OUT].includes(ac.phase)) {
@@ -91,10 +92,10 @@ export function updateStateVisit(state, dt) {
     S.depOk = late <= 5;
     if (S.depOk) {
       rep(state, 1);
-      notify(state, `🎖️ ${ac.cs} pünktlich off-block – die Delegation verabschiedet sich zufrieden`, 'good');
+      notify(state, tr_`🎖️ ${ac.cs} pünktlich off-block – die Delegation verabschiedet sich zufrieden`, 'good');
     } else {
       rep(state, -1);
-      notify(state, `🎖️ ${ac.cs} ${Math.round(late)} min zu spät – das Protokoll vermerkt die Verspätung`, 'warn');
+      notify(state, tr_`🎖️ ${ac.cs} ${Math.round(late)} min zu spät – das Protokoll vermerkt die Verspätung`, 'warn');
     }
     scoreProtocol(state, ac, 'ground', S.depOk);
   }
@@ -107,10 +108,10 @@ function finish(state, S, rot) {
   const L = state.life || (state.life = {});
   if (perfect) L.svPerfect = (L.svPerfect || 0) + 1;
   if (S.landT == null) return; // ausgewichen – kein Abschlussbericht
-  log(state, 'sys', perfect ? `🎖️ Staatsbesuch ohne Makel: ${S.guest} bedankt sich für den reibungslosen Ablauf.` : `🎖️ Staatsbesuch beendet${S.arrOk === false ? ' – Ankunft nicht nach Protokoll' : ''}${S.depOk === false ? ' – Abflug verspätet' : ''}.`);
+  log(state, 'sys', perfect ? tr_`🎖️ Staatsbesuch ohne Makel: ${S.guest} bedankt sich für den reibungslosen Ablauf.` : tr_`🎖️ Staatsbesuch beendet${S.arrOk === false ? tr_(' – Ankunft nicht nach Protokoll') : ''}${S.depOk === false ? tr_(' – Abflug verspätet') : ''}.`);
   if (perfect) {
-    notify(state, '🎖️ Staatsbesuch ohne Makel – Dankschreiben der Staatskanzlei', 'good');
-    pushNews(state, `${S.guest} reist ab – Lob für den reibungslosen Ablauf am Flughafen.`, 'good', '🎖️');
+    notify(state, tr_('🎖️ Staatsbesuch ohne Makel – Dankschreiben der Staatskanzlei'), 'good');
+    pushNews(state, tr_`${S.guest} reist ab – Lob für den reibungslosen Ablauf am Flughafen.`, 'good', '🎖️');
   }
 }
 

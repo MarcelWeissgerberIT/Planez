@@ -3,6 +3,7 @@
 import * as LY from '../layout.js';
 import { ROLES } from '../state.js';
 import { fmtClock, dayOf, esc } from '../util.js';
+import { T } from '../i18n.js';
 
 const DUR = 7.5;
 const ease = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
@@ -13,7 +14,7 @@ export function playIntro(game, done) {
   const g = document.getElementById('game');
   const el = document.createElement('div');
   el.id = 'intro';
-  el.innerHTML = `<i class="in-bar top"></i><i class="in-bar bot"></i>
+  el.innerHTML = T`<i class="in-bar top"></i><i class="in-bar bot"></i>
     <div class="in-t"><small>${ROLES[s.role].icon} ${esc(ROLES[s.role].name)} · Tag ${dayOf(s.time)} · ${fmtClock(s.time)}</small><b>${esc(s.name)}</b><em>Landen. Abfertigen. Ausbauen. Wachsen.</em></div>
     <button class="in-skip">Überspringen ▸</button>`;
   g.appendChild(el);

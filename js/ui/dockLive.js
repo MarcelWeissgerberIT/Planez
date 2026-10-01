@@ -8,6 +8,7 @@ import { PH } from '../sim/aircraft.js';
 import { esc, fmtClock } from '../util.js';
 import { isCareer, stageOf } from '../sim/career.js';
 import { stagePic } from './careerUi.js';
+import { T } from '../i18n.js';
 
 const SP = (k) => `assets/spot/${k}.webp`;
 const CAT = (type) => (AC_TYPES[type] || {}).sprite || 'plane_narrow';
@@ -41,31 +42,31 @@ function who(s, ac) {
 function slideFor(s, ac) {
   const { al, t, r, city } = who(s, ac);
   const sp = r.special;
-  const tag = sp === 'a380' ? 'Sonderbesuch' : sp === 'vip' ? 'VIP-Flug' : sp === 'state' ? 'Staatsbesuch' : al.partner ? al.name : al.ga ? 'Gastflieger' : al.name || '';
+  const tag = sp === 'a380' ? T('Sonderbesuch') : sp === 'vip' ? T('VIP-Flug') : sp === 'state' ? T('Staatsbesuch') : al.partner ? al.name : al.ga ? T('Gastflieger') : al.name || '';
   if (ARR.has(ac.phase)) {
     const m = etaMin(ac);
-    const kick = ac.phase === PH.ROLLOUT ? 'Gelandet' : ac.phase === PH.FINAL ? 'Im Endanflug' : ac.phase === PH.HOLD ? 'In der Warteschleife' : 'Im Anflug';
-    return { key: 'a' + ac.id, kind: 'arr', pic: PIC.arr[CAT(ac.type)], kick, title: ac.cs, tag, sub: `${typeName(ac.type)}${city ? ' · aus ' + city : ''}`, live: ac.phase === PH.ROLLOUT ? 'rollt aus' : ac.phase === PH.FINAL ? 'gleich am Boden' : `Landung in ~${m} min`, ac: ac.id };
+    const kick = ac.phase === PH.ROLLOUT ? T('Gelandet') : ac.phase === PH.FINAL ? T('Im Endanflug') : ac.phase === PH.HOLD ? T('In der Warteschleife') : T('Im Anflug');
+    return { key: 'a' + ac.id, kind: 'arr', pic: PIC.arr[CAT(ac.type)], kick, title: ac.cs, tag, sub: `${typeName(ac.type)}${city ? T(' · aus ') + city : ''}`, live: ac.phase === PH.ROLLOUT ? T('rollt aus') : ac.phase === PH.FINAL ? T('gleich am Boden') : T`Landung in ~${m} min`, ac: ac.id };
   }
   if (ac.phase === PH.STAND || ac.phase === PH.PUSH || ac.phase === PH.STARTUP || ac.phase === PH.TAXI_IN) {
     const ta = ac.ta && ac.ta.tasks ? Object.values(ac.ta.tasks) : [];
     const done = ta.filter((x) => x.st === 'done').length;
     const st = s.stands.find((x) => x.id === ac.stand);
-    const pos = st ? (st.ga ? `Wiese W${s.stands.filter((x) => x.ga).indexOf(st) + 1}` : `Position P${st.id}`) : '';
-    const kick = ac.phase === PH.TAXI_IN ? 'Rollt zur Position' : ac.phase === PH.PUSH ? 'Pushback' : ac.phase === PH.STARTUP ? 'Triebwerke an' : 'Abfertigung';
-    const live = ac.phase === PH.STAND && ta.length ? `${done}/${ta.length} Schritte${r.std ? ' · Abflug ' + fmtClock(r.std) : ''}` : r.std ? 'Abflug ' + fmtClock(r.std) : '';
+    const pos = st ? (st.ga ? T`Wiese W${s.stands.filter((x) => x.ga).indexOf(st) + 1}` : T`Position P${st.id}`) : '';
+    const kick = ac.phase === PH.TAXI_IN ? T('Rollt zur Position') : ac.phase === PH.PUSH ? T('Pushback') : ac.phase === PH.STARTUP ? T('Triebwerke an') : T('Abfertigung');
+    const live = ac.phase === PH.STAND && ta.length ? T`${done}/${ta.length} Schritte${r.std ? T(' · Abflug ') + fmtClock(r.std) : ''}` : r.std ? T('Abflug ') + fmtClock(r.std) : '';
     return { key: 's' + ac.id, kind: 'stand', pic: night(s) && !AC_TYPES[ac.type]?.light ? 'apron_night' : PIC.stand[CAT(ac.type)], kick, title: ac.cs, tag, sub: `${typeName(ac.type)}${pos ? ' · ' + pos : ''}`, live, prog: ta.length ? done / ta.length : null, ac: ac.id };
   }
   if (DEP.has(ac.phase)) {
-    const kick = ac.phase === PH.TAKEOFF ? 'Startlauf' : ac.phase === PH.DEPART ? 'Im Steigflug' : ac.phase === PH.LINEUP || ac.phase === PH.LINED ? 'Auf der Piste' : 'Rollt zum Start';
-    return { key: 'd' + ac.id, kind: 'dep', pic: PIC.dep[CAT(ac.type)], kick, title: ac.cs, tag, sub: `${typeName(ac.type)}${city ? ' · nach ' + city : ''}`, live: `Bahn ${ac.rwy || s.rwy}`, ac: ac.id };
+    const kick = ac.phase === PH.TAKEOFF ? T('Startlauf') : ac.phase === PH.DEPART ? T('Im Steigflug') : ac.phase === PH.LINEUP || ac.phase === PH.LINED ? T('Auf der Piste') : T('Rollt zum Start');
+    return { key: 'd' + ac.id, kind: 'dep', pic: PIC.dep[CAT(ac.type)], kick, title: ac.cs, tag, sub: `${typeName(ac.type)}${city ? T(' · nach ') + city : ''}`, live: T`Bahn ${ac.rwy || s.rwy}`, ac: ac.id };
   }
   return null;
 }
 function ambient(s) {
   const next = Object.values(s.rots).filter((r) => r.sta && r.sta > s.time).sort((a, b) => a.sta - b.sta)[0];
   const pic = night(s) ? SP('apron_night') : isCareer(s) ? stagePic(stageOf(s)) : SP('narrow_gate');
-  return { key: 'amb', kind: 'amb', url: pic, kick: night(s) ? 'Nachtruhe' : 'Ruhige Minute', title: s.name, tag: '', sub: next ? `Nächste Ankunft ${fmtClock(next.sta)}` : 'Kein Verkehr angemeldet', live: '' };
+  return { key: 'amb', kind: 'amb', url: pic, kick: night(s) ? T('Nachtruhe') : T('Ruhige Minute'), title: s.name, tag: '', sub: next ? T`Nächste Ankunft ${fmtClock(next.sta)}` : T('Kein Verkehr angemeldet'), live: '' };
 }
 
 export class Spotlight {
@@ -94,7 +95,7 @@ export class Spotlight {
       if (sl && !(ac.mode === 'air' && sl.kind === 'dep' && ac.phase === PH.DEPART && (ac.alt || 0) > 6000)) list.push(sl);
     }
     // Sonderflüge zuerst, dann Abwechslung zwischen Anflug, Abfertigung, Start
-    const rank = (x) => (x.tag === 'Sonderbesuch' || x.tag === 'VIP-Flug' || x.tag === 'Staatsbesuch' ? 0 : 1);
+    const rank = (x) => (x.tag === T('Sonderbesuch') || x.tag === T('VIP-Flug') || x.tag === T('Staatsbesuch') ? 0 : 1);
     list.sort((a, b) => rank(a) - rank(b));
     return list;
   }

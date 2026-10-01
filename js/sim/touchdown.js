@@ -5,6 +5,7 @@
 import { AC_TYPES } from '../config.js';
 import { log } from './messages.js';
 import { pushNews } from './news.js';
+import { T as tr_ } from '../i18n.js';
 
 const hash01 = (str) => {
   let h = 2166136261;
@@ -15,11 +16,11 @@ const hash01 = (str) => {
 
 export const HARD = 600;
 export const GRADES = [
-  [110, 'Butter', '🧈', 'good'],
-  [220, 'sanft', '👌', 'good'],
-  [380, 'solide', '', 'info'],
-  [HARD, 'fest', '', 'warn'],
-  [Infinity, 'harte Landung', '⚠', 'bad'],
+  [110, tr_('Butter'), '🧈', 'good'],
+  [220, tr_('sanft'), '👌', 'good'],
+  [380, tr_('solide'), '', 'info'],
+  [HARD, tr_('fest'), '', 'warn'],
+  [Infinity, tr_('harte Landung'), '⚠', 'bad'],
 ];
 export const gradeOf = (fpm) => GRADES.find((g) => fpm < g[0]);
 
@@ -53,8 +54,8 @@ export function touchdown(state, ac) {
     ac.hardLanding = true;
     L.hardLand = (L.hardLand || 0) + 1;
     T.hardLand = (T.hardLand || 0) + 1;
-    pushNews(state, `Harte Landung: ${ac.cs} setzt mit ${fpm} ft/min auf – die Technik prüft das Fahrwerk.`, 'bad', '⚠️');
-    log(state, 'sys', `⚠ Harte Landung: ${ac.cs} mit ${fpm} ft/min${late ? ' nach später Landefreigabe' : ''} – die Technik prüft das Fahrwerk an der Position.`);
+    pushNews(state, tr_`Harte Landung: ${ac.cs} setzt mit ${fpm} ft/min auf – die Technik prüft das Fahrwerk.`, 'bad', '⚠️');
+    log(state, 'sys', tr_`⚠ Harte Landung: ${ac.cs} mit ${fpm} ft/min${late ? tr_(' nach später Landefreigabe') : ''} – die Technik prüft das Fahrwerk an der Position.`);
   }
   return { fpm, late: !!late };
 }
@@ -64,6 +65,6 @@ export function hardLandingCheck(state, ac) {
   if (!ac.hardLanding || !ac.ta) return;
   ac.hardLanding = false;
   for (const tk of Object.values(ac.ta.tasks || {})) if (tk.st !== 'done') tk.pausedUntil = state.time + 20 * 60;
-  log(state, 'gnd', `🔧 ${ac.cs}: Fahrwerkscheck nach harter Landung – Abfertigung ruht 20 Minuten.`);
-  if (state.role === 'ground') log(state, 'crew', `Vorfeld, Technik an Position ${ac.stand}, wir checken das Fahrwerk von ${ac.cs} nach der harten Landung, zwanzig Minuten.`, 'Technik', { prio: 2 });
+  log(state, 'gnd', tr_`🔧 ${ac.cs}: Fahrwerkscheck nach harter Landung – Abfertigung ruht 20 Minuten.`);
+  if (state.role === 'ground') log(state, 'crew', tr_`Vorfeld, Technik an Position ${ac.stand}, wir checken das Fahrwerk von ${ac.cs} nach der harten Landung, zwanzig Minuten.`, tr_('Technik'), { prio: 2 });
 }

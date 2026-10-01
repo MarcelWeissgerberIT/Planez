@@ -16,36 +16,37 @@ import { earn, spend, capex } from './economy.js';
 import { startProject, projects } from './construction.js';
 import { makeVehicle, freeBay } from './ground.js';
 import { loanLimit as loanLimitFn, takeLoan as takeLoanFn } from './finance.js';
+import { T, LOCALE } from '../i18n.js';
 
 const H = 3600;
 export const STAGES = [
   {
-    name: 'Grasplatz', icon: '🌾', img: 'assets/sprites/clubhouse.webp',
-    desc: 'Graspiste 560 m, Vereinsheim mit Flugleitung, Zapfsäule – nur Sportflugzeuge.',
+    name: T('Grasplatz'), icon: '🌾', img: 'assets/sprites/clubhouse.webp',
+    desc: T('Graspiste 560 m, Vereinsheim mit Flugleitung, Zapfsäule – nur Sportflugzeuge.'),
     geo: { x0: 26, x1: 54, hw: 0.85, td: 1.6, thr09: 27, thr27: 53, grass: true, exits: [32, 44], conn: [38.5, 56] },
     staff: 3,
   },
   {
-    name: 'Verkehrslandeplatz', icon: '🛩️', img: 'assets/sprites/small_terminal.webp',
-    desc: 'Asphaltbahn 960 m, Vorfeld mit fünf Positionen, Abfertigungsgebäude, Flugleitung – Turboprops, Lufttaxis, Geschäftsflieger.',
+    name: T('Verkehrslandeplatz'), icon: '🛩️', img: 'assets/sprites/small_terminal.webp',
+    desc: T('Asphaltbahn 960 m, Vorfeld mit fünf Positionen, Abfertigungsgebäude, Flugleitung – Turboprops, Lufttaxis, Geschäftsflieger.'),
     geo: { x0: 16, x1: 64, hw: 1.0, td: 2.2, thr09: 18, thr27: 62, exits: [20, 32, 44, 56], conn: [12, 38.5, 56] },
     staff: 18,
   },
   {
-    name: 'Regionalflughafen', icon: '🛫', img: 'assets/sprites/terminal_hall.webp',
-    desc: 'Piste 1.400 m mit ILS, Terminal mit Fluggastbrücken, Tower, Tanklager, Parkhaus – Regionaljets und Mittelstrecke.',
+    name: T('Regionalflughafen'), icon: '🛫', img: 'assets/sprites/terminal_hall.webp',
+    desc: T('Piste 1.400 m mit ILS, Terminal mit Fluggastbrücken, Tower, Tanklager, Parkhaus – Regionaljets und Mittelstrecke.'),
     geo: {},
     staff: 30,
   },
   {
-    name: 'Internationaler Flughafen', icon: '🌍', img: 'assets/sprites/cargo.webp',
-    desc: 'Langstrecke und Fracht: Großraumflugzeuge, Frachtterminal, Radar.',
+    name: T('Internationaler Flughafen'), icon: '🌍', img: 'assets/sprites/cargo.webp',
+    desc: T('Langstrecke und Fracht: Großraumflugzeuge, Frachtterminal, Radar.'),
     geo: {},
     staff: 44,
   },
   {
-    name: 'Drehkreuz', icon: '🌐', img: 'assets/sprites/tower.webp',
-    desc: 'Parallelbahn, Superjumbo-tauglich – das Ziel der Karriere.',
+    name: T('Drehkreuz'), icon: '🌐', img: 'assets/sprites/tower.webp',
+    desc: T('Parallelbahn, Superjumbo-tauglich – das Ziel der Karriere.'),
     geo: {},
     staff: 60,
   },
@@ -237,10 +238,10 @@ export function generateVisitors(state, day, extra = 0, window = [8.2, 17.6]) {
 
 // ---------- Partner (Verträge mit Flugschule, Fallschirmclub, Rundflügen, Lufttaxi) ----------
 export const PARTNERS = {
-  school: { al: 'FSH', name: 'Flugschule', icon: '🎓', perDay: 4, rent: 220, perFlight: 35, city: 'PLR', fame: 0, stage: 0, desc: 'Schulungsflüge mit Platzrunden, zahlt Pacht für Halle und Schulungsraum.' },
-  scenic: { al: 'RFS', name: 'Rundflüge', icon: '🏞️', perDay: 3, rent: 120, perFlight: 80, city: 'RND', fame: 14, stage: 0, desc: 'Rundflüge über die Gegend – Provision je Flug, zieht Besucher ans Vereinsheim.' },
-  skydive: { al: 'SKD', name: 'Fallschirmsprung', icon: '🪂', perDay: 5, rent: 300, perFlight: 150, city: 'JMP', fame: 24, stage: 0, desc: 'Absetzflüge mit Springern – viele Bewegungen, gute Provision, beliebt bei Zuschauern.' },
-  taxi: { al: 'ATX', name: 'Lufttaxi', icon: '💼', perDay: 2, rent: 450, perFlight: 260, city: null, fame: 0, stage: 1, desc: 'Geschäftsreisende mit Turboprops – zahlt gut, will pünktliche Abfertigung.' },
+  school: { al: 'FSH', name: T('Flugschule'), icon: '🎓', perDay: 4, rent: 220, perFlight: 35, city: 'PLR', fame: 0, stage: 0, desc: T('Schulungsflüge mit Platzrunden, zahlt Pacht für Halle und Schulungsraum.') },
+  scenic: { al: 'RFS', name: T('Rundflüge'), icon: '🏞️', perDay: 3, rent: 120, perFlight: 80, city: 'RND', fame: 14, stage: 0, desc: T('Rundflüge über die Gegend – Provision je Flug, zieht Besucher ans Vereinsheim.') },
+  skydive: { al: 'SKD', name: T('Fallschirmsprung'), icon: '🪂', perDay: 5, rent: 300, perFlight: 150, city: 'JMP', fame: 24, stage: 0, desc: T('Absetzflüge mit Springern – viele Bewegungen, gute Provision, beliebt bei Zuschauern.') },
+  taxi: { al: 'ATX', name: T('Lufttaxi'), icon: '💼', perDay: 2, rent: 450, perFlight: 260, city: null, fame: 0, stage: 1, desc: T('Geschäftsreisende mit Turboprops – zahlt gut, will pünktliche Abfertigung.') },
 };
 export const partnerOf = (c) => (c && AIRLINES[c.airline] ? AIRLINES[c.airline].partner : null);
 export const partnerContracts = (state) => state.contracts.filter((c) => partnerOf(c));
@@ -282,40 +283,40 @@ export function careerOffer(state) {
 // ---------- Marketing ----------
 export const ACTIONS = {
   fest: {
-    name: (st) => (st <= 1 ? 'Flugplatzfest' : 'Flughafenfest'), icon: '🎪',
+    name: (st) => (st <= 1 ? T('Flugplatzfest') : T('Flughafenfest')), icon: '🎪',
     cost: [4500, 15000, 80000, 160000, 250000], cd: 6,
-    desc: 'Morgen von 10 bis 18 Uhr: Besucher, Essen, Musik, Gastflieger. Bringt Eintritt und Ansehen, macht den Platz bekannt – bei Regen kommen weniger.',
+    desc: T('Morgen von 10 bis 18 Uhr: Besucher, Essen, Musik, Gastflieger. Bringt Eintritt und Ansehen, macht den Platz bekannt – bei Regen kommen weniger.'),
     run(state) {
       const day = dayOf(state.time) + (hourOf(state.time) < 8 ? 0 : 1);
       const C = careerState(state);
       C.fest = { from: (day - 1) * 86400 + 10 * H, until: (day - 1) * 86400 + 18 * H, paid: 0, visitors: 0 };
       state.openDay = { from: C.fest.from, until: C.fest.until, big: stageOf(state) >= 2, fest: true };
       generateVisitors(state, day, 6 + Math.round(C.fame / 8), [10, 15.5]);
-      return `Fest für ${day === dayOf(state.time) ? 'heute' : 'morgen'} angekündigt – Plakate hängen, der Grill ist bestellt.`;
+      return day === dayOf(state.time) ? T('Fest für heute angekündigt – Plakate hängen, der Grill ist bestellt.') : T('Fest für morgen angekündigt – Plakate hängen, der Grill ist bestellt.');
     },
   },
   ad: {
-    name: (st) => (st <= 1 ? 'Anzeige im Fliegermagazin' : 'Werbekampagne'), icon: '📰',
+    name: (st) => (st <= 1 ? T('Anzeige im Fliegermagazin') : T('Werbekampagne')), icon: '📰',
     cost: [1200, 6000, 40000, 120000, 200000], cd: 4,
-    desc: '4 Tage lang mehr Gastflieger und Interesse von Partnern; Bekanntheit steigt.',
+    desc: T('4 Tage lang mehr Gastflieger und Interesse von Partnern; Bekanntheit steigt.'),
     run(state) {
       const C = careerState(state);
       C.adUntil = state.time + 4 * 86400;
       C.fame = clamp(C.fame + 5, 0, 100);
       state.offerTimer = Math.min(state.offerTimer ?? 0, 3 * H);
-      return 'Anzeige geschaltet – Piloten in der Gegend werden aufmerksam.';
+      return T('Anzeige geschaltet – Piloten in der Gegend werden aufmerksam.');
     },
   },
   flyin: {
-    name: () => 'Fly-In (Pilotentreffen)', icon: '🛩️', maxStage: 1,
+    name: () => T('Fly-In (Pilotentreffen)'), icon: '🛩️', maxStage: 1,
     cost: [2000, 5000], cd: 5,
-    desc: 'Morgen kommen viele Gastflieger auf einmal: Landegebühren, Sprit und volles Vereinsheim – die Flugleitung hat zu tun.',
+    desc: T('Morgen kommen viele Gastflieger auf einmal: Landegebühren, Sprit und volles Vereinsheim – die Flugleitung hat zu tun.'),
     run(state) {
       const day = dayOf(state.time) + 1;
       const C = careerState(state);
       generateVisitors(state, day, 10 + Math.round(C.fame / 10), [9, 13]);
       C.fame = clamp(C.fame + 3, 0, 100);
-      return 'Einladung verschickt – morgen Vormittag wird es voll in der Platzrunde.';
+      return T('Einladung verschickt – morgen Vormittag wird es voll in der Platzrunde.');
     },
   },
 };
@@ -327,11 +328,11 @@ export function actionReady(state, k) {
   const a = ACTIONS[k];
   const C = careerState(state);
   const st = stageOf(state);
-  if (a.maxStage !== undefined && st > a.maxStage) return { ok: false, why: 'nicht mehr in dieser Ausbaustufe' };
+  if (a.maxStage !== undefined && st > a.maxStage) return { ok: false, why: T('nicht mehr in dieser Ausbaustufe') };
   const left = (C['cd_' + k] || 0) - state.time;
-  if (left > 0) return { ok: false, why: `wieder in ${Math.ceil(left / 86400)} Tag${left > 86400 ? 'en' : ''}` };
-  if (k === 'fest' && C.fest && C.fest.until > state.time) return { ok: false, why: 'Fest läuft schon' };
-  if (state.cash < actionCost(state, k)) return { ok: false, why: 'zu wenig Geld' };
+  if (left > 0) return { ok: false, days: Math.ceil(left / 86400), why: left > 86400 ? T`wieder in ${Math.ceil(left / 86400)} Tagen` : T`wieder in ${Math.ceil(left / 86400)} Tag` };
+  if (k === 'fest' && C.fest && C.fest.until > state.time) return { ok: false, why: T('Fest läuft schon') };
+  if (state.cash < actionCost(state, k)) return { ok: false, why: T('zu wenig Geld') };
   return { ok: true };
 }
 export function runAction(state, k) {
@@ -356,38 +357,38 @@ const airlineContracts = (state) => state.contracts.filter((c) => !partnerOf(c) 
 export const STAGE_UP = {
   1: {
     total: 3200000, own: 60000, hours: 30,
-    what: 'Asphaltbahn 960 m mit Befeuerung, Vorfeld mit fünf Positionen, Abfertigungsgebäude, Flugleitung, Feuerwehr und Grundausstattung an Fahrzeugen',
+    what: T('Asphaltbahn 960 m mit Befeuerung, Vorfeld mit fünf Positionen, Abfertigungsgebäude, Flugleitung, Feuerwehr und Grundausstattung an Fahrzeugen'),
     reqs: [
-      { label: 'Ansehen ≥ 56', ok: (s) => s.reputation >= 56, have: (s) => `${Math.round(s.reputation)}` },
-      { label: '≥ 24 Bewegungen an einem der letzten 2 Tage', ok: (s) => best(s, 'mov') >= 24, have: (s) => `${best(s, 'mov')}` },
-      { label: '≥ 2 Partner (Flugschule, Rundflüge, Fallschirm)', ok: (s) => partnerContracts(s).length >= 2, have: (s) => `${partnerContracts(s).length}` },
+      { label: T('Ansehen ≥ 56'), ok: (s) => s.reputation >= 56, have: (s) => `${Math.round(s.reputation)}` },
+      { label: T('≥ 24 Bewegungen an einem der letzten 2 Tage'), ok: (s) => best(s, 'mov') >= 24, have: (s) => `${best(s, 'mov')}` },
+      { label: T('≥ 2 Partner (Flugschule, Rundflüge, Fallschirm)'), ok: (s) => partnerContracts(s).length >= 2, have: (s) => `${partnerContracts(s).length}` },
     ],
   },
   2: {
     total: 46000000, own: 450000, hours: 54,
-    what: 'Piste auf 1.400 m mit ILS, Terminal mit Fluggastbrücken, Tower, Tanklager, Parkhaus und Wartungshalle',
+    what: T('Piste auf 1.400 m mit ILS, Terminal mit Fluggastbrücken, Tower, Tanklager, Parkhaus und Wartungshalle'),
     reqs: [
-      { label: 'Ansehen ≥ 60', ok: (s) => s.reputation >= 60, have: (s) => `${Math.round(s.reputation)}` },
-      { label: '≥ 3 Linien-Verträge mit Airlines', ok: (s) => airlineContracts(s) >= 3, have: (s) => `${airlineContracts(s)}` },
-      { label: '≥ 500 Passagiere an einem der letzten 2 Tage', ok: (s) => best(s, 'pax') >= 500, have: (s) => `${best(s, 'pax')}` },
+      { label: T('Ansehen ≥ 60'), ok: (s) => s.reputation >= 60, have: (s) => `${Math.round(s.reputation)}` },
+      { label: T('≥ 3 Linien-Verträge mit Airlines'), ok: (s) => airlineContracts(s) >= 3, have: (s) => `${airlineContracts(s)}` },
+      { label: T('≥ 500 Passagiere an einem der letzten 2 Tage'), ok: (s) => best(s, 'pax') >= 500, have: (s) => `${best(s, 'pax')}` },
     ],
   },
   3: {
     total: 180000000, own: 1600000, hours: 66,
-    what: 'Großraum-Positionen, Frachtterminal mit Frachtposition, Radar und Lounge-Bereich',
+    what: T('Großraum-Positionen, Frachtterminal mit Frachtposition, Radar und Lounge-Bereich'),
     reqs: [
-      { label: 'Ansehen ≥ 64', ok: (s) => s.reputation >= 64, have: (s) => `${Math.round(s.reputation)}` },
-      { label: '≥ 9 Linien-Verträge', ok: (s) => airlineContracts(s) >= 9, have: (s) => `${airlineContracts(s)}` },
-      { label: '≥ 3.500 Passagiere an einem der letzten 2 Tage', ok: (s) => best(s, 'pax') >= 3500, have: (s) => `${best(s, 'pax')}` },
+      { label: T('Ansehen ≥ 64'), ok: (s) => s.reputation >= 64, have: (s) => `${Math.round(s.reputation)}` },
+      { label: T('≥ 9 Linien-Verträge'), ok: (s) => airlineContracts(s) >= 9, have: (s) => `${airlineContracts(s)}` },
+      { label: T('≥ 3.500 Passagiere an einem der letzten 2 Tage'), ok: (s) => best(s, 'pax') >= 3500, have: (s) => `${best(s, 'pax')}` },
     ],
   },
   4: {
     total: 420000000, own: 4000000, hours: 60,
-    what: 'Parallelbahn Süd mit Rollweg B – getrennter Betrieb für Landungen und Starts, Superjumbo-tauglich',
+    what: T('Parallelbahn Süd mit Rollweg B – getrennter Betrieb für Landungen und Starts, Superjumbo-tauglich'),
     reqs: [
-      { label: 'Ansehen ≥ 64', ok: (s) => s.reputation >= 64, have: (s) => `${Math.round(s.reputation)}` },
-      { label: '≥ 14 Linien-Verträge', ok: (s) => airlineContracts(s) >= 14, have: (s) => `${airlineContracts(s)}` },
-      { label: '≥ 8.000 Passagiere an einem der letzten 2 Tage', ok: (s) => best(s, 'pax') >= 8000, have: (s) => `${best(s, 'pax')}` },
+      { label: T('Ansehen ≥ 64'), ok: (s) => s.reputation >= 64, have: (s) => `${Math.round(s.reputation)}` },
+      { label: T('≥ 14 Linien-Verträge'), ok: (s) => airlineContracts(s) >= 14, have: (s) => `${airlineContracts(s)}` },
+      { label: T('≥ 8.000 Passagiere an einem der letzten 2 Tage'), ok: (s) => best(s, 'pax') >= 8000, have: (s) => `${best(s, 'pax')}` },
     ],
   },
 };
@@ -406,11 +407,11 @@ export const demoLocked = (to) => IS_DEMO && to > DEMO.careerMaxStage;
 export function startStageUp(state) {
   const S = stageUpStatus(state);
   if (!S) return false;
-  if (demoLocked(S.to)) return notify(state, `🔒 Der Ausbau zum ${STAGES[S.to].name} ist Teil der Vollversion`, 'info'), false;
-  if (!S.ready) return notify(state, S.building ? 'Der Ausbau läuft bereits' : 'Bedingungen für den Ausbau noch nicht erfüllt', 'warn'), false;
-  capex(state, S.def.own, `Eigenanteil Ausbau zum ${STAGES[S.to].name}`);
-  startProject(state, 'stage', S.to, { name: `Ausbau zum ${STAGES[S.to].name}`, cost: S.def.own, hours: S.def.hours });
-  pushNews(state, `Spatenstich in ${state.name}: Land, Kreis und Investoren bauen den Platz zum ${STAGES[S.to].name} aus (${fmtMoney(S.def.total)}).`, 'good', '🏗️');
+  if (demoLocked(S.to)) return notify(state, T`🔒 Der Ausbau zum ${STAGES[S.to].name} ist Teil der Vollversion`, 'info'), false;
+  if (!S.ready) return notify(state, S.building ? T('Der Ausbau läuft bereits') : T('Bedingungen für den Ausbau noch nicht erfüllt'), 'warn'), false;
+  capex(state, S.def.own, T`Eigenanteil Ausbau zum ${STAGES[S.to].name}`);
+  startProject(state, 'stage', S.to, { name: T`Ausbau zum ${STAGES[S.to].name}`, cost: S.def.own, hours: S.def.hours });
+  pushNews(state, T`Spatenstich in ${state.name}: Land, Kreis und Investoren bauen den Platz zum ${STAGES[S.to].name} aus (${fmtMoney(S.def.total)}).`, 'good', '🏗️');
   return true;
 }
 
@@ -443,9 +444,9 @@ export function completeStage(state, to) {
   C.log.push({ stage: to, t: state.time });
   state.life = state.life || {};
   state.life.stageMax = Math.max(state.life.stageMax || 0, to);
-  log(state, 'mgr', `🎉 ${state.name} ist jetzt ${STAGES[to].name}: ${STAGES[to].desc}`);
-  notify(state, `🎉 Neue Ausbaustufe: ${STAGES[to].name}!`, 'good');
-  pushNews(state, `Eröffnung: ${state.name} ist jetzt ${STAGES[to].name}. ${STAGES[to].desc}`, 'good', STAGES[to].icon);
+  log(state, 'mgr', T`🎉 ${state.name} ist jetzt ${STAGES[to].name}: ${STAGES[to].desc}`);
+  notify(state, T`🎉 Neue Ausbaustufe: ${STAGES[to].name}!`, 'good');
+  pushNews(state, T`Eröffnung: ${state.name} ist jetzt ${STAGES[to].name}. ${STAGES[to].desc}`, 'good', STAGES[to].icon);
   fx(state, 40, 26, `${STAGES[to].icon} ${STAGES[to].name}`, 'good');
   state.stageUpT = state.time; // für das Eröffnungs-Banner
 }
@@ -513,8 +514,8 @@ export function hourlyCareer(state) {
       F.done = true;
       state.life = state.life || {};
       state.life.fests = (state.life.fests || 0) + 1;
-      log(state, 'mgr', `🎪 Fest vorbei: ${F.visitors.toLocaleString('de-DE')} Besucher, Einnahmen ${fmtMoney(F.paid)}.`);
-      pushNews(state, `${F.visitors.toLocaleString('de-DE')} Besucher beim Fest in ${state.name}${wx === 'clear' ? ' – bei bestem Flugwetter' : ''}.`, 'good', '🎪');
+      log(state, 'mgr', T`🎪 Fest vorbei: ${F.visitors.toLocaleString(LOCALE)} Besucher, Einnahmen ${fmtMoney(F.paid)}.`);
+      pushNews(state, T`${F.visitors.toLocaleString(LOCALE)} Besucher beim Fest in ${state.name}${wx === 'clear' ? T(' – bei bestem Flugwetter') : ''}.`, 'good', '🎪');
     }
   }
 }
@@ -528,7 +529,7 @@ export function dailyCareer(state, rec) {
   if (state.cash < 0) {
     C.redDays = (C.redDays || 0) + 1;
     state.reputation = clamp(state.reputation - 1.5 * C.redDays, 0, 100);
-    notify(state, C.redDays >= 3 ? '🏦 Die Bank wird ungeduldig – Kosten senken oder Kredit aufnehmen!' : '⚠️ Konto im Minus – Partner und Gäste merken das', 'bad');
+    notify(state, C.redDays >= 3 ? T('🏦 Die Bank wird ungeduldig – Kosten senken oder Kredit aufnehmen!') : T('⚠️ Konto im Minus – Partner und Gäste merken das'), 'bad');
   } else C.redDays = 0;
 }
 

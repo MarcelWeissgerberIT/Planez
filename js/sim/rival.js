@@ -8,6 +8,7 @@ import { feeIndex } from './schedule.js';
 import { pushDecision } from './decisions.js';
 import { pushNews } from './news.js';
 import { isCareer, stageOf } from './career.js';
+import { T } from '../i18n.js';
 
 const H = 3600, D = 86400;
 export const RIVAL_NAME = 'Nordhafen';
@@ -56,8 +57,8 @@ const MOVES = {
     ok: (s, R) => R.feeCutUntil < s.time,
     run: (s, R) => {
       R.feeCutUntil = s.time + randRange(s, 4, 7) * D;
-      news(s, `${RIVAL_NAME} senkt die Landeentgelte um 12 % – Kampfansage an ${s.name}.`, 'bad', '💸');
-      if (s.role === 'manager') notify(s, `💸 ${RIVAL_NAME} senkt die Entgelte – prüfe deine Gebühren`, 'warn');
+      news(s, T`${RIVAL_NAME} senkt die Landeentgelte um 12 % – Kampfansage an ${s.name}.`, 'bad', '💸');
+      if (s.role === 'manager') notify(s, T`💸 ${RIVAL_NAME} senkt die Entgelte – prüfe deine Gebühren`, 'warn');
     },
   },
   expand: {
@@ -65,7 +66,7 @@ const MOVES = {
     ok: (s, R) => R.cap < 1.5,
     run: (s, R) => {
       R.cap = Math.min(1.6, R.cap + 0.12);
-      news(s, `${RIVAL_NAME} eröffnet einen neuen Flugsteig mit ${randInt(s, 4, 8)} Positionen.`, 'bad', '🏗️');
+      news(s, T`${RIVAL_NAME} eröffnet einen neuen Flugsteig mit ${randInt(s, 4, 8)} Positionen.`, 'bad', '🏗️');
     },
   },
   marketing: {
@@ -73,17 +74,17 @@ const MOVES = {
     ok: () => true,
     run: (s, R) => {
       R.rep = Math.min(92, R.rep + randRange(s, 2, 4));
-      news(s, `${RIVAL_NAME} startet eine große Werbekampagne („Näher. Schneller. ${RIVAL_NAME}.“).`, 'bad', '📣');
+      news(s, T`${RIVAL_NAME} startet eine große Werbekampagne („Näher. Schneller. ${RIVAL_NAME}.“).`, 'bad', '📣');
     },
   },
   scandal: {
     w: 0.8,
     ok: () => true,
     run: (s, R) => {
-      const what = pick(s, ['Gepäckchaos', 'stundenlange Sicherheitskontrollen', 'ein Computerausfall beim Check-in', 'ein Streit mit der Gewerkschaft']);
+      const what = pick(s, [T('Gepäckchaos'), T('stundenlange Sicherheitskontrollen'), T('ein Computerausfall beim Check-in'), T('ein Streit mit der Gewerkschaft')]);
       R.rep = Math.max(30, R.rep - randRange(s, 3, 6));
       R.punct = Math.max(0.6, R.punct - 0.05);
-      news(s, `Ärger in ${RIVAL_NAME}: ${what} – Reisende weichen auf ${s.name} aus.`, 'good', '📰');
+      news(s, T`Ärger in ${RIVAL_NAME}: ${what} – Reisende weichen auf ${s.name} aus.`, 'good', '📰');
     },
   },
   poach: {
@@ -100,10 +101,10 @@ const MOVES = {
     w: 0.6,
     ok: (s, R) => R.closedUntil < s.time,
     run: (s, R) => {
-      const why = pick(s, ['Pistenschaden', 'Streik der Fluglotsen', 'Stromausfall im Tower', 'Schneechaos']);
+      const why = pick(s, [T('Pistenschaden'), T('Streik der Fluglotsen'), T('Stromausfall im Tower'), T('Schneechaos')]);
       R.closedUntil = s.time + randRange(s, 2, 4) * H;
       R.punct = Math.max(0.6, R.punct - 0.04);
-      news(s, `${RIVAL_NAME} gesperrt: ${why}. Airlines suchen Ausweichflughäfen.`, 'good', '⛔');
+      news(s, T`${RIVAL_NAME} gesperrt: ${why}. Airlines suchen Ausweichflughäfen.`, 'good', '⛔');
       pushDecision(s, 'rivalDivert', { n: randInt(s, 3, 5), why });
     },
   },
@@ -147,8 +148,8 @@ export function rivalDayEnd(state) {
   R.hist.push(Math.round(R.share * 10) / 10);
   if (R.hist.length > 30) R.hist.shift();
   const y = R.hist.length > 1 ? R.hist[R.hist.length - 2] : null;
-  if (y !== null && R.share >= 60 && y < 60) news(state, `${state.name} überholt ${RIVAL_NAME} deutlich: ${Math.round(R.share)} % Marktanteil in der Region.`, 'good', '🏆');
-  if (y !== null && R.share <= 40 && y > 40) news(state, `${RIVAL_NAME} zieht davon – ${state.name} fällt auf ${Math.round(R.share)} % Marktanteil.`, 'bad', '📉');
+  if (y !== null && R.share >= 60 && y < 60) news(state, T`${state.name} überholt ${RIVAL_NAME} deutlich: ${Math.round(R.share)} % Marktanteil in der Region.`, 'good', '🏆');
+  if (y !== null && R.share <= 40 && y > 40) news(state, T`${RIVAL_NAME} zieht davon – ${state.name} fällt auf ${Math.round(R.share)} % Marktanteil.`, 'bad', '📉');
 }
 
 // Umleitungen annehmen: Zusatzflüge in der nächsten Stunde
@@ -167,5 +168,5 @@ export function acceptDiversions(state, n) {
   R.won += n;
   state.reputation = clamp(state.reputation + 1, 0, 100);
   R.share = Math.min(88, R.share + 1.5);
-  notify(state, `🛬 ${n} Umleitungen von ${RIVAL_NAME} angenommen – sie kommen in der nächsten Stunde`, 'info');
+  notify(state, T`🛬 ${n} Umleitungen von ${RIVAL_NAME} angenommen – sie kommen in der nächsten Stunde`, 'info');
 }

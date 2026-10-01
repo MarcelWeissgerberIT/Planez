@@ -4,6 +4,7 @@ import { clamp, rand, randRange, fmtClock, fmtMoney } from '../util.js';
 import { log, notify } from './messages.js';
 import { nextId } from './schedule.js';
 import { isCareer, stageOf } from './career.js';
+import { T } from '../i18n.js';
 
 export const FUEL = {
   cap: 1500, // t Tanklager
@@ -70,15 +71,15 @@ export function maxOrder(state) {
 export function orderFuel(state, qty, auto = false) {
   const f = fuelState(state);
   qty = Math.min(Math.round(qty), maxOrder(state));
-  if (qty < 10) return notify(state, 'Tanklager voll – keine Bestellung möglich', 'warn'), false;
+  if (qty < 10) return notify(state, T('Tanklager voll – keine Bestellung möglich'), 'warn'), false;
   const unit = f.price * 1.02; // inkl. Transport
   const cost = qty * unit;
-  if (state.cash < cost) return notify(state, 'Nicht genug Geld für Kerosin', 'bad'), false;
+  if (state.cash < cost) return notify(state, T('Nicht genug Geld für Kerosin'), 'bad'), false;
   state.cash -= cost;
   state.ledger.fuelBuy = (state.ledger.fuelBuy || 0) + cost;
   const eta = state.time + randRange(state, 2, 3.5) * 3600;
   f.orders.push({ id: nextId(state, 'k'), qty, unit, eta });
-  log(state, 'mgr', `${auto ? 'Automatische ' : ''}Kerosinbestellung: ${qty} t zu ${Math.round(unit)} €/t (${fmtMoney(cost)}), Lieferung ca. ${fmtClock(eta)}.`);
+  log(state, 'mgr', auto ? T`Automatische Kerosinbestellung: ${qty} t zu ${Math.round(unit)} €/t (${fmtMoney(cost)}), Lieferung ca. ${fmtClock(eta)}.` : T`Kerosinbestellung: ${qty} t zu ${Math.round(unit)} €/t (${fmtMoney(cost)}), Lieferung ca. ${fmtClock(eta)}.`);
   return true;
 }
 
@@ -105,7 +106,7 @@ export function updateFuel(state, dt) {
     f.stock += add;
     f.value += o.qty * o.unit;
     f.orders = f.orders.filter((x) => x !== o);
-    log(state, 'gnd', `Kerosinlieferung eingetroffen: ${Math.round(add)} t (Tanklager ${Math.round(f.stock)} t).`);
+    log(state, 'gnd', T`Kerosinlieferung eingetroffen: ${Math.round(add)} t (Tanklager ${Math.round(f.stock)} t).`);
   }
   // stündlich: Marktpreis, Statistik, Automatik
   const hour = Math.floor(state.time / 3600);
@@ -118,7 +119,7 @@ export function updateFuel(state, dt) {
     if (rand(state) < 0.01) {
       const up = rand(state) < 0.5;
       f.price = clamp(f.price * (up ? 1.14 : 0.88), 520, 1300);
-      notify(state, up ? '🛢️ Ölpreis steigt sprunghaft – Kerosin teurer' : '🛢️ Ölpreis fällt – günstige Gelegenheit zum Einkauf', up ? 'warn' : 'good');
+      notify(state, up ? T('🛢️ Ölpreis steigt sprunghaft – Kerosin teurer') : T('🛢️ Ölpreis fällt – günstige Gelegenheit zum Einkauf'), up ? 'warn' : 'good');
     }
     f.hist.push({ t: f.lastHour * 3600, p: Math.round(f.price), s: Math.round(f.stock), sold: Math.max(0, sold) });
     if (f.hist.length > 96) f.hist.shift();
@@ -128,7 +129,7 @@ export function updateFuel(state, dt) {
   // Warnung bei knappem Bestand
   if (!(isCareer(state) && stageOf(state) < 2) && f.stock < FUEL.cap * 0.12 && state.time - (f.warned || 0) > 3 * 3600) {
     f.warned = state.time;
-    notify(state, `⛽ Tanklager fast leer (${Math.round(f.stock)} t) – Kerosin bestellen!`, 'bad');
+    notify(state, T`⛽ Tanklager fast leer (${Math.round(f.stock)} t) – Kerosin bestellen!`, 'bad');
   }
 }
 

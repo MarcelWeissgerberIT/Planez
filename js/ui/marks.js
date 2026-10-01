@@ -1,17 +1,18 @@
 // Markierungen von Flügen: auf Streifen, Karte und Radar setzen und anzeigen
 import { esc } from '../util.js';
+import { T } from '../i18n.js';
 
 // Ring/Fahne als eigene Form – unabhängig von den Farben der Pistenfolge
 export const MARKS = {
-  gelb: { name: 'Gelb', hex: '#fde047' },
-  gruen: { name: 'Grün', hex: '#4ade80' },
-  blau: { name: 'Blau', hex: '#3b82f6' },
-  violett: { name: 'Violett', hex: '#a78bfa' },
-  weiss: { name: 'Weiß', hex: '#f8fafc' },
-  rot: { name: 'Rot', hex: '#f87171' },
+  gelb: { name: T('Gelb'), hex: '#fde047' },
+  gruen: { name: T('Grün'), hex: '#4ade80' },
+  blau: { name: T('Blau'), hex: '#3b82f6' },
+  violett: { name: T('Violett'), hex: '#a78bfa' },
+  weiss: { name: T('Weiß'), hex: '#f8fafc' },
+  rot: { name: T('Rot'), hex: '#f87171' },
 };
 export const MARK_KEYS = Object.keys(MARKS);
-export const NOTE_PRESETS = ['Vorrang', 'Beobachten', 'VIP', 'Funk prüfen', 'Verspätet', 'Wirbel'];
+export const NOTE_PRESETS = [T('Vorrang'), T('Beobachten'), 'VIP', T('Funk prüfen'), T('Verspätet'), T('Wirbel')];
 
 export const markHex = (ac) => (ac && ac.mark && MARKS[ac.mark.c] ? MARKS[ac.mark.c].hex : null);
 
@@ -40,7 +41,7 @@ export function flagHtml(ac) {
 }
 export function flagButton(ac) {
   const hex = markHex(ac);
-  return `<button class="flag-btn${hex ? ' on' : ''}" data-mark="${ac.id}" style="--m:${hex || 'transparent'}" title="Markieren (M) – auch per Rechtsklick auf Karte/Radar">⚑</button>`;
+  return `<button class="flag-btn${hex ? ' on' : ''}" data-mark="${ac.id}" style="--m:${hex || 'transparent'}" title="${T('Markieren (M) – auch per Rechtsklick auf Karte/Radar')}">⚑</button>`;
 }
 
 // ---------- Popup ----------
@@ -93,11 +94,11 @@ export function openMarkMenu(game, acId, x, y) {
   popAc = acId;
   const cur = ac.mark || {};
   pop.innerHTML = `
-    <div class="mp-head">⚑ <b>${esc(ac.cs)}</b> markieren</div>
+    <div class="mp-head">${T`⚑ <b>${esc(ac.cs)}</b> markieren`}</div>
     <div class="mp-sw">${MARK_KEYS.map((k) => `<button data-mc="${k}" class="${cur.c === k ? 'cur' : ''}" style="--m:${MARKS[k].hex}" title="${MARKS[k].name}" aria-label="${MARKS[k].name}"></button>`).join('')}</div>
     <div class="mp-pre">${NOTE_PRESETS.map((n) => `<button data-mn="${n}" class="${cur.note === n ? 'cur' : ''}">${n}</button>`).join('')}</div>
-    <div class="mp-in"><input maxlength="14" placeholder="eigene Notiz…" value="${esc(cur.note || '')}" /><button class="mini" data-mok>OK</button></div>
-    ${ac.mark ? '<button class="mini mp-del" data-mdel>Markierung entfernen</button>' : ''}`;
+    <div class="mp-in"><input maxlength="14" placeholder="${T('eigene Notiz…')}" value="${esc(cur.note || '')}" /><button class="mini" data-mok>OK</button></div>
+    ${ac.mark ? T('<button class="mini mp-del" data-mdel>Markierung entfernen</button>') : ''}`;
   pop.classList.remove('hidden');
   const w = pop.offsetWidth, h = pop.offsetHeight;
   pop.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, x + 8)) + 'px';

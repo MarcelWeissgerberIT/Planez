@@ -13,6 +13,7 @@ import { SPECIALS } from '../sim/spotter.js';
 import { secState } from '../sim/security.js';
 import { fuelState } from '../sim/fuel.js';
 import { Q } from '../render/quality.js';
+import { T as tr_, LOCALE } from '../i18n.js';
 
 // Rundgang: Gebäude und Anlagen mit Live-Zahlen im Kommentar
 function tourSpots(s) {
@@ -20,19 +21,19 @@ function tourSpots(s) {
   const at = (b, z) => ({ x: b.fx - b.w / 2, y: b.fy - b.d / 2, z });
   const t = s.stats.today;
   const list = [
-    { id: 'tour:tower', ...at(B.tower, 2.3), k: 'TOWER', title: 'Kontrollturm', sub: `Betriebsrichtung ${s.rwy}${t.mov ? ` · ${t.mov} Bewegungen heute` : ''}`, lines: ['Der Tower: Von hier oben behalten die Lotsen jede Landung und jeden Start im Blick.', t.mov > 5 ? `Im Kontrollturm laufen die Fäden zusammen – ${t.mov} Bewegungen bisher heute.` : 'Im Kontrollturm beginnt die Schicht – gleich kommt die erste Welle.'] },
-    { id: 'tour:fire', ...at(B.fire, 2), k: 'FEUERWACHE', title: 'Flughafenfeuerwehr', sub: 'Drei Großlöschfahrzeuge, rund um die Uhr besetzt', lines: ['Die Flughafenfeuerwehr: In unter drei Minuten muss sie jeden Punkt der Bahn erreichen.', 'Drei Großlöschfahrzeuge stehen bereit – hoffentlich bleibt es heute ruhig.'] },
-    { id: 'tour:hall', ...at(B.hall, 1.05), k: 'TERMINAL', title: 'Terminal', sub: t.pax ? `${t.pax.toLocaleString('de-DE')} Reisende heute · Kontrolle ${Math.round(secState(s).wait)} min` : 'Check-in, Sicherheitskontrolle, Gates', lines: [t.pax > 200 ? `Das Terminal: ${t.pax.toLocaleString('de-DE')} Reisende sind heute schon durch diese Türen gegangen.` : 'Das Terminal – hier beginnt und endet jede Reise.', secState(s).wait >= 3 ? `An der Sicherheitskontrolle warten die Reisenden gerade etwa ${Math.round(secState(s).wait)} Minuten.` : 'An der Sicherheitskontrolle geht es gerade zügig voran.'] },
-    { id: 'tour:cargo', ...at(B.cargo, 1.4), k: 'FRACHT', title: 'Frachtterminal', sub: 'Umschlag von Luftfracht', lines: ['Im Frachtterminal wird umgeschlagen – von Ersatzteilen bis zu frischem Fisch.', 'Fracht fliegt oft nachts – hier wird schon für die nächste Maschine sortiert.'] },
-    { id: 'tour:hangar', ...at(B.hangar, 1.5), k: 'WARTUNG', title: 'Wartungshangar', sub: 'Technik und Instandhaltung', lines: ['Im Wartungshangar werden Flugzeuge gecheckt – Schraube für Schraube.', 'Ohne die Technik im Hangar hebt hier nichts ab.'] },
-    { id: 'tour:fuel', ...at(B.fuel, 2), k: 'TANKLAGER', title: 'Tanklager', sub: `${Math.round(fuelState(s).stock)} t Kerosin auf Lager`, lines: [`Das Tanklager: ${Math.round(fuelState(s).stock)} Tonnen Kerosin warten auf ihren Einsatz.`, 'Von hier rollen die Tankwagen zu jeder Maschine auf dem Vorfeld.'] },
-    { id: 'tour:parking', ...at(B.parking, 1.7), k: 'LANDSEITE', title: 'Parkhaus', sub: 'Parken direkt am Terminal', lines: ['Das Parkhaus – für viele Reisende der erste Eindruck vom Flughafen.', 'Wer früh kommt, parkt nah am Terminal.'] },
-    { id: 'tour:spotters', x: 77.3, y: 36.2, z: 2.2, k: 'SPOTTER', title: 'Spotterhügel', sub: 'Am Zaun beim Anflug auf die 27', lines: ['Am Spotterhügel warten die Fotografen auf das perfekte Bild – Teleobjektiv Richtung Anflug.', 'Leitern, Stative, Thermoskannen: Am Zaun wird jede Landung dokumentiert.'] },
-    { id: 'tour:radar', ...at(B.radar, 2.4), k: 'RADAR', title: 'Radaranlage', sub: 'Rundsichtradar für Anflug und Abflug', lines: ['Die Radarantenne dreht sich unermüdlich – jede Umdrehung ein neues Lagebild für die Lotsen.'] },
+    { id: 'tour:tower', ...at(B.tower, 2.3), k: 'TOWER', title: tr_('Kontrollturm'), sub: tr_`Betriebsrichtung ${s.rwy}${t.mov ? tr_` · ${t.mov} Bewegungen heute` : ''}`, lines: [tr_('Der Tower: Von hier oben behalten die Lotsen jede Landung und jeden Start im Blick.'), t.mov > 5 ? tr_`Im Kontrollturm laufen die Fäden zusammen – ${t.mov} Bewegungen bisher heute.` : tr_('Im Kontrollturm beginnt die Schicht – gleich kommt die erste Welle.')] },
+    { id: 'tour:fire', ...at(B.fire, 2), k: tr_('FEUERWACHE'), title: tr_('Flughafenfeuerwehr'), sub: tr_('Drei Großlöschfahrzeuge, rund um die Uhr besetzt'), lines: [tr_('Die Flughafenfeuerwehr: In unter drei Minuten muss sie jeden Punkt der Bahn erreichen.'), tr_('Drei Großlöschfahrzeuge stehen bereit – hoffentlich bleibt es heute ruhig.')] },
+    { id: 'tour:hall', ...at(B.hall, 1.05), k: 'TERMINAL', title: tr_('Terminal'), sub: t.pax ? tr_`${t.pax.toLocaleString(LOCALE)} Reisende heute · Kontrolle ${Math.round(secState(s).wait)} min` : tr_('Check-in, Sicherheitskontrolle, Gates'), lines: [t.pax > 200 ? tr_`Das Terminal: ${t.pax.toLocaleString(LOCALE)} Reisende sind heute schon durch diese Türen gegangen.` : tr_('Das Terminal – hier beginnt und endet jede Reise.'), secState(s).wait >= 3 ? tr_`An der Sicherheitskontrolle warten die Reisenden gerade etwa ${Math.round(secState(s).wait)} Minuten.` : tr_('An der Sicherheitskontrolle geht es gerade zügig voran.')] },
+    { id: 'tour:cargo', ...at(B.cargo, 1.4), k: tr_('FRACHT'), title: tr_('Frachtterminal'), sub: tr_('Umschlag von Luftfracht'), lines: [tr_('Im Frachtterminal wird umgeschlagen – von Ersatzteilen bis zu frischem Fisch.'), tr_('Fracht fliegt oft nachts – hier wird schon für die nächste Maschine sortiert.')] },
+    { id: 'tour:hangar', ...at(B.hangar, 1.5), k: tr_('WARTUNG'), title: tr_('Wartungshangar'), sub: tr_('Technik und Instandhaltung'), lines: [tr_('Im Wartungshangar werden Flugzeuge gecheckt – Schraube für Schraube.'), tr_('Ohne die Technik im Hangar hebt hier nichts ab.')] },
+    { id: 'tour:fuel', ...at(B.fuel, 2), k: tr_('TANKLAGER'), title: tr_('Tanklager'), sub: tr_`${Math.round(fuelState(s).stock)} t Kerosin auf Lager`, lines: [tr_`Das Tanklager: ${Math.round(fuelState(s).stock)} Tonnen Kerosin warten auf ihren Einsatz.`, tr_('Von hier rollen die Tankwagen zu jeder Maschine auf dem Vorfeld.')] },
+    { id: 'tour:parking', ...at(B.parking, 1.7), k: tr_('LANDSEITE'), title: tr_('Parkhaus'), sub: tr_('Parken direkt am Terminal'), lines: [tr_('Das Parkhaus – für viele Reisende der erste Eindruck vom Flughafen.'), tr_('Wer früh kommt, parkt nah am Terminal.')] },
+    { id: 'tour:spotters', x: 77.3, y: 36.2, z: 2.2, k: 'SPOTTER', title: tr_('Spotterhügel'), sub: tr_('Am Zaun beim Anflug auf die 27'), lines: [tr_('Am Spotterhügel warten die Fotografen auf das perfekte Bild – Teleobjektiv Richtung Anflug.'), tr_('Leitern, Stative, Thermoskannen: Am Zaun wird jede Landung dokumentiert.')] },
+    { id: 'tour:radar', ...at(B.radar, 2.4), k: 'RADAR', title: tr_('Radaranlage'), sub: tr_('Rundsichtradar für Anflug und Abflug'), lines: [tr_('Die Radarantenne dreht sich unermüdlich – jede Umdrehung ein neues Lagebild für die Lotsen.')] },
   ];
-  if (s.upgrades.hotel) list.push({ id: 'tour:hotel', ...at(B.hotel, 1.9), k: 'HOTEL', title: 'Flughafenhotel', sub: 'Übernachten mit Blick aufs Vorfeld', lines: ['Das Flughafenhotel – für Crews, Umsteiger und alle, die früh fliegen.'] });
-  if (s.upgrades.solar) list.push({ id: 'tour:solar', x: (LY.SOLAR.x0 + LY.SOLAR.x1) / 2, y: (LY.SOLAR.y0 + LY.SOLAR.y1) / 2, z: 1.3, k: 'ENERGIE', title: 'Solarpark', sub: s.weather.kind === 'clear' ? 'volle Sonne, volle Leistung' : 'Strom vom eigenen Dach', lines: ['Der Solarpark liefert Strom für Terminal und Vorfeld – und senkt die Kosten.'] });
-  if (s.upgrades.rail) list.push({ id: 'tour:rail', x: (LY.RAIL.station.x0 + LY.RAIL.station.x1) / 2, y: (LY.RAIL.station.y0 + LY.RAIL.station.y1) / 2, z: 1.7, k: 'BAHNHOF', title: 'Flughafenbahnhof', sub: 'Mit dem Zug zum Flug', lines: ['Der Flughafenbahnhof: Mit dem Zug in die Stadt – weniger Autos, mehr Reisende.'] });
+  if (s.upgrades.hotel) list.push({ id: 'tour:hotel', ...at(B.hotel, 1.9), k: 'HOTEL', title: tr_('Flughafenhotel'), sub: tr_('Übernachten mit Blick aufs Vorfeld'), lines: [tr_('Das Flughafenhotel – für Crews, Umsteiger und alle, die früh fliegen.')] });
+  if (s.upgrades.solar) list.push({ id: 'tour:solar', x: (LY.SOLAR.x0 + LY.SOLAR.x1) / 2, y: (LY.SOLAR.y0 + LY.SOLAR.y1) / 2, z: 1.3, k: tr_('ENERGIE'), title: tr_('Solarpark'), sub: s.weather.kind === 'clear' ? tr_('volle Sonne, volle Leistung') : tr_('Strom vom eigenen Dach'), lines: [tr_('Der Solarpark liefert Strom für Terminal und Vorfeld – und senkt die Kosten.')] });
+  if (s.upgrades.rail) list.push({ id: 'tour:rail', x: (LY.RAIL.station.x0 + LY.RAIL.station.x1) / 2, y: (LY.RAIL.station.y0 + LY.RAIL.station.y1) / 2, z: 1.7, k: tr_('BAHNHOF'), title: tr_('Flughafenbahnhof'), sub: tr_('Mit dem Zug zum Flug'), lines: [tr_('Der Flughafenbahnhof: Mit dem Zug in die Stadt – weniger Autos, mehr Reisende.')] });
   return list;
 }
 
@@ -59,7 +60,7 @@ export class Cinema {
     const el = document.createElement('div');
     el.id = 'cinema';
     el.className = 'hidden';
-    el.innerHTML = `<div class="cn-tilt top"></div><div class="cn-tilt bot"></div><canvas class="cn-rain"></canvas><div class="cn-bar top"></div><div class="cn-bar bot"></div>
+    el.innerHTML = tr_`<div class="cn-tilt top"></div><div class="cn-tilt bot"></div><canvas class="cn-rain"></canvas><div class="cn-bar top"></div><div class="cn-bar bot"></div>
       <div class="cn-cap"><div class="cn-k"></div><div class="cn-t"></div><div class="cn-s"></div><div class="cn-n"></div></div>
       <div class="cn-brand">${esc(AIRPORT.name || 'Planez')} · LIVE</div>
       <div class="cn-help">K / Esc beenden · ← → nächste Szene</div>
@@ -237,33 +238,33 @@ export class Cinema {
       this.el.querySelector('.cn-cap').classList.add('in');
     };
     const ac = sh.id && s.acs.find((a) => a.id === sh.id);
-    if (sh.kind === 'medic') return set('RETTUNGSDIENST', 'Rettungswagen am Gate', 'Sanitäter holen einen Passagier ab');
-    if (sh.kind === 'openday') return set('TAG DER OFFENEN TÜR', s.name, 'Besucher auf der Terrasse');
-    if (sh.kind === 'rainbow') return set('NACH DEM SCHAUER', 'Regenbogen', 'über ' + s.name);
+    if (sh.kind === 'medic') return set(tr_('RETTUNGSDIENST'), tr_('Rettungswagen am Gate'), tr_('Sanitäter holen einen Passagier ab'));
+    if (sh.kind === 'openday') return set(tr_('TAG DER OFFENEN TÜR'), s.name, tr_('Besucher auf der Terrasse'));
+    if (sh.kind === 'rainbow') return set(tr_('NACH DEM SCHAUER'), tr_('Regenbogen'), tr_`über ${s.name}`);
     const acText = (a) => {
       const al = AIRLINES[a.airline];
       const rot = s.rots[a.rot];
       const city = rot ? CITIES[rot.city]?.name : '';
-      return { t: `${al ? al.name : ''} ${a.cs.replace(/^[A-Z]+/, '')}`, sub: `${AC_TYPES[a.type].name}${city ? (ARR_PH.has(a.phase) ? ` · aus ${city}` : ` · nach ${city}`) : ''}` };
+      return { t: `${al ? al.name : ''} ${a.cs.replace(/^[A-Z]+/, '')}`, sub: `${AC_TYPES[a.type].name}${city ? (ARR_PH.has(a.phase) ? tr_` · aus ${city}` : tr_` · nach ${city}`) : ''}` };
     };
     if (ac) {
       const x = acText(ac);
-      const K = { land: ac.emergency ? 'NOTLANDUNG' : 'LANDUNG', dep: 'START', goaround: 'DURCHSTARTEN', push: 'PUSHBACK', taxi: 'ROLLVERKEHR', turn: 'ABFERTIGUNG' }[sh.kind];
+      const K = { land: ac.emergency ? tr_('NOTLANDUNG') : tr_('LANDUNG'), dep: tr_('START'), goaround: tr_('DURCHSTARTEN'), push: 'PUSHBACK', taxi: tr_('ROLLVERKEHR'), turn: tr_('ABFERTIGUNG') }[sh.kind];
       return set(K, x.t, x.sub);
     }
     if (sh.kind === 'site') {
       const p = (s.projects || []).find((q) => q.id === sh.id);
-      return set('BAUSTELLE', p ? p.name : 'Bauarbeiten', p ? `${Math.floor(p.prog * 100)} % fertig` : '');
+      return set(tr_('BAUSTELLE'), p ? p.name : tr_('Bauarbeiten'), p ? tr_`${Math.floor(p.prog * 100)} % fertig` : '');
     }
     if (sh.kind === 'tour') {
       const sp = tourSpots(s).find((q) => q.id === sh.id);
       if (sp) return set(sp.k, sp.title, sp.sub);
     }
-    if (sh.kind === 'heli') return set('RETTUNGSFLUG', 'Rescue 7', s.heli.h && s.heli.h.st === 'req' ? 'wartet auf die Querung der Bahnen' : 'quert die Bahnen zur Klinik');
-    if (sh.kind === 'vfr' && s.vfr.p) return set('PLATZRUNDE', s.vfr.p.cs, `Alcedo AL-4 · Runde ${Math.min(s.vfr.p.laps + 1, s.vfr.p.lapsMax)} von ${s.vfr.p.lapsMax}`);
-    if (sh.kind === 'land-side') return set('LANDSEITE', 'Terminal-Vorfahrt', 'Taxis, Busse und Reisende');
-    if (sh.kind === 'night') return set('NACHT', s.name, 'Befeuerung und Nachtbetrieb');
-    return set('ÜBERBLICK', s.name, `${s.acs.filter((a) => a.mode === 'map').length} Flugzeuge am Platz`);
+    if (sh.kind === 'heli') return set(tr_('RETTUNGSFLUG'), 'Rescue 7', s.heli.h && s.heli.h.st === 'req' ? tr_('wartet auf die Querung der Bahnen') : tr_('quert die Bahnen zur Klinik'));
+    if (sh.kind === 'vfr' && s.vfr.p) return set(tr_('PLATZRUNDE'), s.vfr.p.cs, tr_`Alcedo AL-4 · Runde ${Math.min(s.vfr.p.laps + 1, s.vfr.p.lapsMax)} von ${s.vfr.p.lapsMax}`);
+    if (sh.kind === 'land-side') return set(tr_('LANDSEITE'), tr_('Terminal-Vorfahrt'), tr_('Taxis, Busse und Reisende'));
+    if (sh.kind === 'night') return set(tr_('NACHT'), s.name, tr_('Befeuerung und Nachtbetrieb'));
+    return set(tr_('ÜBERBLICK'), s.name, tr_`${s.acs.filter((a) => a.mode === 'map').length} Flugzeuge am Platz`);
   }
 
   // jeden Frame: Kamera führen
@@ -348,7 +349,7 @@ export class Cinema {
     if (this.infoT <= 0) {
       this.infoT = 0.25;
       const w = WEATHER[s.weather.kind];
-      const clock = `TAG ${dayOf(s.time)} · ${fmtClock(s.time)} · ${w.icon} ${Math.round(temperature(s))} °C · WIND ${String(Math.round(s.wind.dir / 10) * 10).padStart(3, '0')}/${Math.round(s.wind.spd)}`;
+      const clock = tr_`TAG ${dayOf(s.time)} · ${fmtClock(s.time)} · ${w.icon} ${Math.round(temperature(s))} °C · WIND ${String(Math.round(s.wind.dir / 10) * 10).padStart(3, '0')}/${Math.round(s.wind.spd)}`;
       if (this.clockEl.textContent !== clock) this.clockEl.textContent = clock;
       let data = '';
       if (ac && ac.mode === 'map') {
@@ -367,52 +368,52 @@ export class Cinema {
 // ---------- Kommentar ----------
 let nComm = 0;
 const pickC = (list) => list[(nComm++ * 7 + list.length) % list.length];
-const CAT = { short: 'Kurzstrecke', mid: 'Mittelstrecke', long: 'Langstrecke' };
+const CAT = { short: tr_('Kurzstrecke'), mid: tr_('Mittelstrecke'), long: tr_('Langstrecke') };
 function commentary(s, sh, ac) {
   if (ac) {
     const al = AIRLINES[ac.airline];
     const rot = s.rots[ac.rot];
     const city = rot ? CITIES[rot.city] : null;
-    const cn = city ? city.name : 'unbekannt';
+    const cn = city ? city.name : tr_('unbekannt');
     const t = AC_TYPES[ac.type];
     const who = `${al ? al.name : ''} ${ac.cs.replace(/^[A-Z]+/, '')}`;
     const arriving = ARR_PH.has(ac.phase);
     const pax = rot ? (arriving ? rot.paxIn : rot.paxOut) : 0;
     const wet = ['rain', 'storm', 'snow'].includes(s.weather.kind);
-    if (ac.emergency) return pickC([`Hier läuft ein Notfall: ${who} landet, die Feuerwehr steht bereit.`, `Spannung am Platz – ${who} hat einen Notfall gemeldet und bekommt Vorrang.`]);
-    if (s.salute && s.salute.ac === ac.id && s.salute.p) return pickC([`Ein Erstflug! ${who} kommt zum ersten Mal aus ${cn} – und die Feuerwehr schießt den Wasserbogen.`, `Wassertaufe für ${who}: So begrüßt ein Flughafen eine neue Strecke.`]);
-    if (ac.protocol && s.sv) return pickC([`Staatsbesuch! ${s.sv.guest} an Bord der Regierungsmaschine – ${sh.kind === 'land' ? 'unten wartet schon der rote Teppich' : sh.kind === 'dep' ? 'die Delegation verabschiedet sich' : 'die Kolonne steht bereit'}.`, `Protokoll auf die Minute: ${who} mit ${s.sv.guest} – heute schaut das ganze Land auf ${s.name}.`]);
-    if (ac.nordo) return `Ohne Funk unterwegs: ${who} bekommt vom Tower nur Lichtsignale.`;
-    if (ac.type === 'A388' && (sh.kind === 'land' || sh.kind === 'dep')) return pickC([`Der Superjumbo! Die AV-38 von ${al.name} – über 500 Tonnen ${sh.kind === 'land' ? 'auf dem Weg zur Bahn' : 'heben gleich ab'}.`, `Das größte Passagierflugzeug der Welt – ${who} mit ${pax || 'über 500'} Menschen an Bord.`]);
-    if (ac.special && SPECIALS[ac.special]) return pickC([`Ein echter Hingucker: ${al.name} in der Sonderlackierung „${SPECIALS[ac.special].name}“!`, `Spotter aufgepasst – ${who} trägt heute „${SPECIALS[ac.special].name}“.`]);
-    if (sh.kind === 'land') return pickC([`Und da kommt ${who} rein – eine ${t.name} aus ${cn}.`, `${t.name} von ${al.name} im kurzen Endanflug${pax ? `, an Bord ${pax} Passagiere` : ''} aus ${cn}.`, wet ? `Bei diesem Wetter keine leichte Landung für ${who} – die Bahn ist nass.` : `Bilderbuchanflug: ${who} setzt gleich auf.`]);
-    if (sh.kind === 'dep') return pickC([`Startlauf für ${who} – ${city ? CAT[city.cat] + ' nach ' + cn : 'auf dem Weg'}.`, `Volle Schubkraft: die ${t.name} von ${al.name} hebt gleich ab Richtung ${cn}.`, `${who} rollt an – ${pax ? pax + ' Reisende' : 'die Crew'} auf dem Weg nach ${cn}.`]);
-    if (sh.kind === 'goaround') return pickC([`Durchstarten! ${who} bricht den Anflug ab und kommt noch einmal herum.`, `Da passt etwas nicht – ${who} startet durch.`]);
-    if (sh.kind === 'push') return pickC([`Pushback an Position ${ac.stand || '—'}: ${who} nach ${cn} macht sich auf den Weg.`, `Der Schlepper schiebt ${who} zurück – gleich geht es nach ${cn}.`]);
-    if (sh.kind === 'taxi') return pickC([`Auf dem Rollweg: ${who} ${arriving ? `rollt nach der Landung aus ${cn} zur Position` : `rollt zur Startbahn, Ziel ${cn}`}.`, `Rollverkehr – ${t.name} von ${al.name} ${arriving ? 'kommt gerade von der Bahn' : 'auf dem Weg zum Rollhalt'}.`]);
+    if (ac.emergency) return pickC([tr_`Hier läuft ein Notfall: ${who} landet, die Feuerwehr steht bereit.`, tr_`Spannung am Platz – ${who} hat einen Notfall gemeldet und bekommt Vorrang.`]);
+    if (s.salute && s.salute.ac === ac.id && s.salute.p) return pickC([tr_`Ein Erstflug! ${who} kommt zum ersten Mal aus ${cn} – und die Feuerwehr schießt den Wasserbogen.`, tr_`Wassertaufe für ${who}: So begrüßt ein Flughafen eine neue Strecke.`]);
+    if (ac.protocol && s.sv) return pickC([tr_`Staatsbesuch! ${s.sv.guest} an Bord der Regierungsmaschine – ${sh.kind === 'land' ? tr_('unten wartet schon der rote Teppich') : sh.kind === 'dep' ? tr_('die Delegation verabschiedet sich') : tr_('die Kolonne steht bereit')}.`, tr_`Protokoll auf die Minute: ${who} mit ${s.sv.guest} – heute schaut das ganze Land auf ${s.name}.`]);
+    if (ac.nordo) return tr_`Ohne Funk unterwegs: ${who} bekommt vom Tower nur Lichtsignale.`;
+    if (ac.type === 'A388' && (sh.kind === 'land' || sh.kind === 'dep')) return pickC([tr_`Der Superjumbo! Die AV-38 von ${al.name} – über 500 Tonnen ${sh.kind === 'land' ? tr_('auf dem Weg zur Bahn') : tr_('heben gleich ab')}.`, tr_`Das größte Passagierflugzeug der Welt – ${who} mit ${pax || tr_('über 500')} Menschen an Bord.`]);
+    if (ac.special && SPECIALS[ac.special]) return pickC([tr_`Ein echter Hingucker: ${al.name} in der Sonderlackierung „${SPECIALS[ac.special].name}“!`, tr_`Spotter aufgepasst – ${who} trägt heute „${SPECIALS[ac.special].name}“.`]);
+    if (sh.kind === 'land') return pickC([tr_`Und da kommt ${who} rein – eine ${t.name} aus ${cn}.`, tr_`${t.name} von ${al.name} im kurzen Endanflug${pax ? tr_`, an Bord ${pax} Passagiere` : ''} aus ${cn}.`, wet ? tr_`Bei diesem Wetter keine leichte Landung für ${who} – die Bahn ist nass.` : tr_`Bilderbuchanflug: ${who} setzt gleich auf.`]);
+    if (sh.kind === 'dep') return pickC([tr_`Startlauf für ${who} – ${city ? tr_`${CAT[city.cat]} nach ${cn}` : tr_('auf dem Weg')}.`, tr_`Volle Schubkraft: die ${t.name} von ${al.name} hebt gleich ab Richtung ${cn}.`, tr_`${who} rollt an – ${pax ? tr_`${pax} Reisende` : tr_('die Crew')} auf dem Weg nach ${cn}.`]);
+    if (sh.kind === 'goaround') return pickC([tr_`Durchstarten! ${who} bricht den Anflug ab und kommt noch einmal herum.`, tr_`Da passt etwas nicht – ${who} startet durch.`]);
+    if (sh.kind === 'push') return pickC([tr_`Pushback an Position ${ac.stand || '—'}: ${who} nach ${cn} macht sich auf den Weg.`, tr_`Der Schlepper schiebt ${who} zurück – gleich geht es nach ${cn}.`]);
+    if (sh.kind === 'taxi') return pickC([tr_`Auf dem Rollweg: ${who} ${arriving ? tr_`rollt nach der Landung aus ${cn} zur Position` : tr_`rollt zur Startbahn, Ziel ${cn}`}.`, tr_`Rollverkehr – ${t.name} von ${al.name} ${arriving ? tr_('kommt gerade von der Bahn') : tr_('auf dem Weg zum Rollhalt')}.`]);
     if (sh.kind === 'turn' && ac.ta) {
       const tk = Object.values(ac.ta.tasks);
       const done = tk.filter((x) => x.st === 'done').length;
-      return pickC([`Boxenstopp an Position ${ac.stand}: ${done} von ${tk.length} Arbeiten erledigt.`, `Tanken, Catering, Gepäck – die Crews wuseln um ${who}.`]);
+      return pickC([tr_`Boxenstopp an Position ${ac.stand}: ${done} von ${tk.length} Arbeiten erledigt.`, tr_`Tanken, Catering, Gepäck – die Crews wuseln um ${who}.`]);
     }
     return '';
   }
   if (sh.kind === 'site') {
     const p = (s.projects || []).find((q) => q.id === sh.id);
-    return p ? `Hier wird gebaut: ${p.name} – ${Math.floor(p.prog * 100)} Prozent fertig.` : '';
+    return p ? tr_`Hier wird gebaut: ${p.name} – ${Math.floor(p.prog * 100)} Prozent fertig.` : '';
   }
   if (sh.kind === 'tour') {
     const sp = tourSpots(s).find((q) => q.id === sh.id);
     if (sp) return pickC(sp.lines);
   }
-  if (sh.kind === 'medic') return pickC(['Medizinischer Notfall an Bord – der Rettungswagen wartete schon an der Position.', 'Die Sanitäter übernehmen: Für einen Passagier geht die Reise im Krankenwagen weiter.']);
-  if (sh.kind === 'openday') return pickC([`Tag der offenen Tür in ${s.name}: Familien und Spotter winken von der Terrasse.`, 'Luftballons, Wimpel und Flugzeuge zum Anfassen – heute gehört der Flughafen den Besuchern.']);
-  if (sh.kind === 'rainbow') return pickC(['Der Schauer ist durch – und über dem Flughafen steht ein Regenbogen.', 'Nach dem Regen: Ein Regenbogen spannt sich über die Bahnen.']);
-  if (sh.kind === 'heli') return pickC(['Der Rettungshubschrauber: Rescue 7 bringt einen Patienten in die Klinik – der Tower lässt ihn über die Bahnen.', 'Jede Minute zählt – Rescue 7 im Tiefflug über dem Flughafen.']);
-  if (sh.kind === 'vfr' && s.vfr.p) return pickC([`Zwischen den Großen übt eine kleine Alcedo: ${s.vfr.p.cs} dreht Platzrunden mit Touch and Go.`, 'Aufsetzen, Gas geben, wieder hoch – Platzrunden sind das Brot der Flugschüler.', `${s.vfr.p.cs} im Gegenanflug – der Tower sucht eine Lücke zwischen den Linienflügen.`]);
-  if (sh.kind === 'land-side') return pickC([`Vor dem Terminal ist Betrieb – heute schon ${s.stats.today.pax.toLocaleString('de-DE')} Reisende.`, 'Taxis, Busse, Koffer – die Landseite erwacht.']);
-  if (sh.kind === 'night') return pickC([`Nachtbetrieb in ${s.name} – die Befeuerung weist den Weg.`, 'Ruhige Stunden am Flughafen, nur die Lichter blinken.']);
+  if (sh.kind === 'medic') return pickC([tr_('Medizinischer Notfall an Bord – der Rettungswagen wartete schon an der Position.'), tr_('Die Sanitäter übernehmen: Für einen Passagier geht die Reise im Krankenwagen weiter.')]);
+  if (sh.kind === 'openday') return pickC([tr_`Tag der offenen Tür in ${s.name}: Familien und Spotter winken von der Terrasse.`, tr_('Luftballons, Wimpel und Flugzeuge zum Anfassen – heute gehört der Flughafen den Besuchern.')]);
+  if (sh.kind === 'rainbow') return pickC([tr_('Der Schauer ist durch – und über dem Flughafen steht ein Regenbogen.'), tr_('Nach dem Regen: Ein Regenbogen spannt sich über die Bahnen.')]);
+  if (sh.kind === 'heli') return pickC([tr_('Der Rettungshubschrauber: Rescue 7 bringt einen Patienten in die Klinik – der Tower lässt ihn über die Bahnen.'), tr_('Jede Minute zählt – Rescue 7 im Tiefflug über dem Flughafen.')]);
+  if (sh.kind === 'vfr' && s.vfr.p) return pickC([tr_`Zwischen den Großen übt eine kleine Alcedo: ${s.vfr.p.cs} dreht Platzrunden mit Touch and Go.`, tr_('Aufsetzen, Gas geben, wieder hoch – Platzrunden sind das Brot der Flugschüler.'), tr_`${s.vfr.p.cs} im Gegenanflug – der Tower sucht eine Lücke zwischen den Linienflügen.`]);
+  if (sh.kind === 'land-side') return pickC([tr_`Vor dem Terminal ist Betrieb – heute schon ${s.stats.today.pax.toLocaleString(LOCALE)} Reisende.`, tr_('Taxis, Busse, Koffer – die Landseite erwacht.')]);
+  if (sh.kind === 'night') return pickC([tr_`Nachtbetrieb in ${s.name} – die Befeuerung weist den Weg.`, tr_('Ruhige Stunden am Flughafen, nur die Lichter blinken.')]);
   const t = s.stats.today;
   const d = t.onTime + t.delayed;
-  return pickC([`Ein Blick über ${s.name}: ${s.acs.filter((a) => a.mode === 'map').length} Flugzeuge am Platz.`, `${t.mov} Bewegungen bisher heute${d ? `, ${Math.round((t.onTime / d) * 100)} Prozent pünktlich` : ''}.`]);
+  return pickC([tr_`Ein Blick über ${s.name}: ${s.acs.filter((a) => a.mode === 'map').length} Flugzeuge am Platz.`, tr_`${t.mov} Bewegungen bisher heute${d ? tr_`, ${Math.round((t.onTime / d) * 100)} Prozent pünktlich` : ''}.`]);
 }

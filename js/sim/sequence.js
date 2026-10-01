@@ -4,6 +4,7 @@ import * as AS from './airspace.js';
 import { pathLength } from '../util.js';
 import { wakeArrSec, wakeDepSec } from './wake.js';
 import { depSepSec } from './sid.js';
+import { T } from '../i18n.js';
 
 const ARR_SEQ = new Set([PH.APPROACH, PH.FINAL, PH.ROLLOUT]);
 const DEP_SEQ = new Set([PH.STARTUP, PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAKEOFF]);
@@ -171,7 +172,7 @@ function orderOk(state, next) {
 function tryOrder(state, next) {
   const bad = orderOk(state, next);
   if (bad) {
-    state.seqErr = `${bad.cs} ist ${isSeqArrival(bad) ? 'schon im Endanflug' : 'schon auf der Piste'} – davor geht nichts mehr`;
+    state.seqErr = T`${bad.cs} ist ${isSeqArrival(bad) ? T('schon im Endanflug') : T('schon auf der Piste')} – davor geht nichts mehr`;
     return false;
   }
   state.seq = next;
