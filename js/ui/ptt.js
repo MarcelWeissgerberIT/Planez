@@ -1,6 +1,9 @@
 // Sprechtaste (Push-to-Talk): V gedrückt halten oder 🎙 drücken und auf Englisch funken.
 // Die Spracherkennung des Browsers (Chrome/Edge) liefert den Text, voiceCmd erkennt Rufzeichen und Freigabe.
-import { parseVoice } from '../voiceCmd.js';
+import { parseVoice, parseSide } from '../voiceCmd.js';
+import { approveHeli, holdHeli } from '../sim/heli.js';
+import { clearVfr, extendVfr, vfrTel } from '../sim/vfr.js';
+import { approveInspection, deferInspection } from '../sim/inspect.js';
 import { CMDS, command } from '../sim/atc.js';
 import { voice, micClick } from '../voice.js';
 import { toast } from './dom.js';
@@ -88,6 +91,9 @@ export function initPTT(game) {
     if (!said) return hide(600);
     handled = said;
     const s = game.state;
+    // Nebenverkehr: Rettungshubschrauber, Cessna in der Platzrunde, Pistenkontrolle
+    const sd = parseSide(s, said);
+    if (sd) return sideCmd(s, sd, said);
     const r = parseVoice(s, said);
     // „Negative …“: falschen Readback korrigieren (ohne erkanntes Rufzeichen den einzigen offenen)
     if (r.cmd === 'rbfix') {
@@ -138,6 +144,30 @@ export function initPTT(game) {
       game.select(r.ac.id, false);
     }
     hide(2200);
+  }
+
+  function sideCmd(s, sd, said) {
+    const name = { heli: 'Rescue 7', vfr: s.vfr && s.vfr.p ? s.vfr.p.cs : 'Cessna', insp: 'Check 1' }[sd.side];
+    if (!sd.cmd) {
+      show(`„${said}“ – ${name}: Freigabe nicht erkannt`, 'bad');
+      const who = { heli: 'Rescue 7', vfr: s.vfr && s.vfr.p ? vfrTel(s.vfr.p.cs) : 'Cessna', insp: 'Check 1' }[sd.side];
+      radio(s, sd.side === 'heli' ? 'RESCUE7' : sd.side === 'insp' ? 'CHECK1' : s.vfr.p.cs, `Say again, ${who}.`, 'pilot');
+      return hide(2600);
+    }
+    voice.muteAtcUntil = performance.now() + 2500;
+    const ok = sd.cmd === 'ok';
+    const r = sd.side === 'heli' ? (ok ? approveHeli(s) : holdHeli(s)) : sd.side === 'vfr' ? (ok ? clearVfr(s) : extendVfr(s)) : ok ? approveInspection(s) : deferInspection(s);
+    if (!r.ok) {
+      show(`${name}: ${ok ? 'nichts freizugeben' : 'wartet bereits'}`, 'info');
+      return hide(2200);
+    }
+    const label = { heli: ok ? 'Querung frei' : 'warten südlich', vfr: ok ? 'Touch and Go frei' : 'Gegenanflug verlängern', insp: ok ? 'Bahn frei zur Kontrolle' : 'vor der Bahn warten' }[sd.side];
+    if (r.bad) show(`⚠ ${name} · ${label} – Konflikt mit dem Linienverkehr!`, 'bad');
+    else show(`✓ ${name} · ${label}${r.soft ? ` – knapp, ${r.soft.ac.cs} ist ${r.soft.why}` : ''}`, 'ok');
+    s.life = s.life || {};
+    s.life.voiceCmd = (s.life.voiceCmd || 0) + 1;
+    game.refreshUi && game.refreshUi();
+    hide(2400);
   }
 
   const typing = (e) => e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName);

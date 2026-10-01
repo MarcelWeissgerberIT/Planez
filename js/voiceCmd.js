@@ -1,6 +1,7 @@
 // Sprachbefehle des Tower-Lotsen verstehen: Rufzeichen finden und Freigabe erkennen.
 // Beispiel: "Aurora five four two, runway two seven, cleared to land" -> { id, cmd: 'land' }
 import { AIRLINES } from './config.js';
+import { PHON } from './sim/vfr.js';
 
 const NUM = { zero: 0, oh: 0, o: 0, one: 1, won: 1, two: 2, to: 2, too: 2, three: 3, tree: 3, four: 4, for: 4, fore: 4, five: 5, fife: 5, six: 6, seven: 7, eight: 8, ate: 8, nine: 9, niner: 9, ten: 10 };
 
@@ -83,4 +84,35 @@ export function parseVoice(state, transcript) {
     if (SPEEDS.includes(v)) cmd = 'spd' + v;
   }
   return { ac: best ? best.ac : null, cmd, text: raw, sure: !!best && best.score >= 1.5 };
+}
+
+// Nebenverkehr per Sprechtaste: Rettungshubschrauber („Rescue seven, cross runways“ / „hold south“), Cessna in der
+// Platzrunde („Delta Lima Mike, cleared touch and go“ / „extend downwind“) und Pistenkontrolle („Check one, enter
+// runway“ / „hold short“). Liefert { side, cmd: 'ok' | 'hold' | null } oder null, wenn niemand davon gemeint ist.
+export function parseSide(state, transcript) {
+  const raw = transcript.toLowerCase().replace(/[.,!?;:]/g, ' ').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+  const words = raw.split(' ');
+  const has = (w, min = 0.75) => words.some((x) => sim(x, w) >= min);
+  const H = state.heli && state.heli.h;
+  if (H && H.st === 'req' && (has('rescue', 0.7) || /\bhelicopter\b/.test(raw))) {
+    const cmd = /\bhold\b|\bremain\b|\bstand ?by\b/.test(raw) ? 'hold' : /\bcross(ing)?\b|\bproceed\b|\bapproved\b/.test(raw) ? 'ok' : null;
+    return { side: 'heli', cmd, text: raw };
+  }
+  const P = state.vfr && state.vfr.p;
+  if (P && P.req && !P.clr) {
+    const l = P.cs.replace('-', '');
+    const tail = [PHON[l[3]], PHON[l[4]]].map((x) => x.toLowerCase());
+    let hit = has('cessna', 0.7);
+    for (let i = 0; i < words.length - 1 && !hit; i++) if (sim(words[i], tail[0]) >= 0.7 && sim(words[i + 1], tail[1]) >= 0.7) hit = true;
+    if (hit) {
+      const cmd = /\bextend\b|\borbit\b|\bhold\b/.test(raw) ? 'hold' : /\btouch\b|\bcleared\b|\bclear\b/.test(raw) ? 'ok' : null;
+      return { side: 'vfr', cmd, text: raw };
+    }
+  }
+  const I = state.insp;
+  if (I && I.req && (/\b(runway )?check (one|1|won)\b/.test(raw) || /\binspection\b/.test(raw))) {
+    const cmd = /\bhold short\b|\bhold\b|\bexpect\b/.test(raw) ? 'hold' : /\benter\b|\bapproved\b|\bcleared\b|\bproceed\b/.test(raw) ? 'ok' : null;
+    return { side: 'insp', cmd, text: raw };
+  }
+  return null;
 }

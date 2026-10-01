@@ -111,7 +111,7 @@ const SIDE = {
       <li>💦 <b>Wassertaufe</b> für jeden Erstflug · 🛬 <b>Aufsetzrate</b> von 🧈 Butter bis hart · ✨ <b>Highlights</b> im Tagesbericht</li>
       <li>🎖️ <b>Staatsbesuch</b> mit rotem Teppich und Kolonne · 📡 <b>Livestream</b> mit Live-Chat (<kbd>L</kbd>)</li>
       <li>🎞️ <b>Kino-Look</b> mit Tilt-Shift und Regen auf der Linse · 🔍 <b>Miniatur-Fotos</b> · 🔔 <b>Terminal-Durchsagen</b></li>
-      <li>😊 <b>Fluggast-Zufriedenheit</b> in der Management-Zentrale · 🎤 <b>Pressekonferenz</b> · 📋 <b>Loadsheet</b> und 🌡️ <b>Hitze</b> im Vorfeld · 📻 Crews melden Ereignisse per Funk</li>
+      <li>🎙️ <b>Sprechtaste</b> auch für Heli, Cessna und Pistenkontrolle · 😊 <b>Fluggast-Zufriedenheit</b> in der Management-Zentrale · 🎤 <b>Pressekonferenz</b> · 📋 <b>Loadsheet</b> und 🌡️ <b>Hitze</b> im Vorfeld · 📻 Crews melden Ereignisse per Funk</li>
       <li>📖 <b>Kampagne</b>: 10 Kapitel mit Story · 🏛️ <b>Aufsichtsrat</b> · ⛈️ <b>Wetterumflüge</b> · 🚙 <b>Pistenkontrolle</b></li>
     </ul><div class="ms-sec">Davor</div><ul>
       <li>🎵 Musik im Spiel · ♿ Barrierefreiheit · 🎞️ Kino-Intro · 📰 Planezer Kurier · 🌐 Basis-Angebote</li>

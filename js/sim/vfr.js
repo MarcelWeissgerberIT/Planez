@@ -36,7 +36,14 @@ function circuit(rwy) {
   return rwy === '27' ? P : P.map((p) => ({ ...p, x: 80 - p.x }));
 }
 const SPD = 0.26, SPD_GND = 0.16; // Kacheln/s – etwa 90 kt im Verhältnis zu den Linienflügen (135 kt ≈ 0,42)
-const tel = (cs) => cs;
+// Funk-Rufzeichen im ICAO-Alphabet: beim Erstanruf vollständig („Delta Echo Kilo Lima Mike“), danach wie in
+// Deutschland üblich abgekürzt auf Nationalitätszeichen und die letzten beiden Buchstaben („Delta Lima Mike“)
+export const PHON = { A: 'Alpha', B: 'Bravo', C: 'Charlie', D: 'Delta', E: 'Echo', F: 'Foxtrot', G: 'Golf', H: 'Hotel', I: 'India', K: 'Kilo', L: 'Lima', M: 'Mike', N: 'November', O: 'Oscar', P: 'Papa', R: 'Romeo', S: 'Sierra', T: 'Tango', U: 'Uniform', W: 'Whiskey' };
+export const vfrTel = (cs, full = false) => {
+  const l = cs.replace('-', '');
+  return (full ? l.split('') : [l[0], l[3], l[4]]).map((c) => PHON[c] || c).join(' ');
+};
+const tel = (cs) => vfrTel(cs);
 
 export function vfrState(state) {
   if (!state.vfr) state.vfr = { next: state.time + EVERY * (0.3 + 0.6 * hash01(state.time + 3)), p: null, n: 0 };
@@ -133,8 +140,8 @@ export function updateVfr(state, dt) {
     const sx = state.rwy === '27' ? 34 : 46;
     S.p = p = { cs, rwy: state.rwy, x: sx, y: -6, z: 3.4, hdg: Math.PI / 2, i: 5, mode: 'join', laps: 0, lapsMax: 3 + Math.floor(h * 3), clr: false, req: false, orbits: 0 };
     p.C = C;
-    radio(state, cs, `Planez Tower, ${tel(cs)}, Cessna 172, five miles north, request circuits with touch and go.`, 'pilot');
-    radio(state, 'TWR', `${tel(cs)}, join downwind runway ${state.rwy}, report downwind.`, 'atc');
+    radio(state, cs, `Planez Tower, ${vfrTel(cs, true)}, Cessna 172, five miles north, request circuits with touch and go.`, 'pilot');
+    radio(state, 'TWR', `${vfrTel(cs, true)}, join downwind runway ${state.rwy}, report downwind.`, 'atc');
     if (humanTower(state)) notify(state, `🛩️ ${cs} übt Platzrunden – im Gegenanflug um „Touch and Go“ bitten lassen und in eine Lücke setzen`, 'info');
     return;
   }
