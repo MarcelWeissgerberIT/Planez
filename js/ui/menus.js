@@ -7,6 +7,7 @@ import { sfx } from '../audio.js';
 import { scenarioListHtml, scenarioSide } from './scenarioUi.js';
 import { careerSummary, careerRank } from '../career.js';
 import { SCENARIOS, totalStars } from '../sim/scenarios.js';
+import { campaignProgress } from '../sim/campaign.js';
 
 // Szenen des Hintergrund-Loops (je ~9,6 s, nahtlos ineinander übergehend)
 const SCENES = ['Anflug im Morgengrauen', 'Tower zur blauen Stunde', 'Vorfeld bei Nacht', 'Frachtverladung im Regen', 'Start in den Sonnenuntergang'];
@@ -142,7 +143,7 @@ const SIDE = {
       <div class="cr-id"><div class="cr-badge">${R.cur.icon}</div><div><div class="cr-k">Dienstausweis · Planez</div><div class="cr-rank">${esc(R.cur.name)}</div><div class="cr-pts">${R.pts.toLocaleString('de-DE')} Karrierepunkte</div></div></div>
       <div class="cr-bar"><i style="width:${Math.round(R.frac * 100)}%"></i></div>
       <div class="cr-next">${R.next ? `Nächster Rang: ${R.next.icon} <b>${esc(R.next.name)}</b> ab ${R.next.pts.toLocaleString('de-DE')}` : 'Höchster Rang erreicht'}</div>
-      <div class="cr-grid">${cell('Schichten (Tage)', c.days)}${cell('Spielzeit', `${h} h ${m} min`)}${cell('Bewegungen', c.mov.toLocaleString('de-DE'))}${cell('Passagiere', c.pax.toLocaleString('de-DE'))}${cell('Perfekte Tage ★★★★★', c.perfect)}${cell('Erfolge', `${c.ach.length} / ${S.achAll}`)}${cell('Herausforderungen', `⭐ ${S.stars}`)}${cell('Tagesserie', `🔥 ${S.daily.streak || 0} · Rekord ${S.daily.best || 0}`)}${cell('Spotterpunkte', S.spot.pts.toLocaleString('de-DE'))}</div>
+      <div class="cr-grid">${cell('Schichten (Tage)', c.days)}${cell('Spielzeit', `${h} h ${m} min`)}${cell('Bewegungen', c.mov.toLocaleString('de-DE'))}${cell('Passagiere', c.pax.toLocaleString('de-DE'))}${cell('Perfekte Tage ★★★★★', c.perfect)}${cell('Erfolge', `${c.ach.length} / ${S.achAll}`)}${cell('Kampagne', (() => { const cp = campaignProgress(); return cp.next == null ? `🏆 ${cp.total}/${cp.total}` : `📖 ${cp.done}/${cp.total} Kapitel`; })())}${cell('Herausforderungen', `⭐ ${S.stars}`)}${cell('Tagesserie', `🔥 ${S.daily.streak || 0} · Rekord ${S.daily.best || 0}`)}${cell('Spotterpunkte', S.spot.pts.toLocaleString('de-DE'))}</div>
       <div class="ms-sec">Je Station</div>
       <table class="cr-tab"><tr><th></th><th>Tage</th><th>Bestwert ⭐</th><th>Pünktl.</th><th>Perfekt</th></tr>${['tower', 'ground', 'manager', 'observer'].map(role).join('')}</table>
       <div class="ms-auto">Punkte gibt es für gespielte Tage, Verkehr, Sterne, Erfolge, Tagesherausforderungen, perfekte Tage und das Spotterbuch.</div></div></div>`;
