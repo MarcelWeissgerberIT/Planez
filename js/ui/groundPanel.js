@@ -1,5 +1,6 @@
 // Vorfeld-Leitstand: Parkpositionen, Turnaround, Fahrzeuge
 import { icon } from './icons.js';
+const TASK_ICO = { deboard: 'deboard', unload: 'unload', clean: 'clean', cater: 'cater', fuel: 'fuel', board: 'board', load: 'load', deice: 'deice', push: 'tug' };
 import { StandPlan } from './standPlan.js';
 import { AC_TYPES, TASKS, TASK_ORDER, VEH_TYPES, CITIES } from '../config.js';
 import { PH, PHASE_DE } from '../sim/aircraft.js';
@@ -33,7 +34,7 @@ export function taskChips(state, ac, interactive = true) {
       if (st === 'ready' && !t.need) lbl = 'Brücke';
       const title = `${def.name}${t.need ? ' · ' + VEH_TYPES[t.need].name : ' · Fluggastbrücke'}${k === 'fuel' && t.uplift ? ` · ${Math.round(t.uplift)} t Kerosin` : ''}`;
       const clickable = interactive && st === 'ready' && t.need && !isAuto;
-      return `<div class="task ${st}${isAuto ? ' auto' : ''}" title="${title}" ${clickable ? `data-disp="${k}" data-ac="${ac.id}"` : ''}><span class="ti">${def.icon}</span><span class="tl">${lbl}</span>${st === 'active' && k !== 'push' ? `<i class="pb" style="width:${Math.round(t.prog * 100)}%"></i>` : ''}</div>`;
+      return `<div class="task ${st}${isAuto ? ' auto' : ''}" title="${title}" ${clickable ? `data-disp="${k}" data-ac="${ac.id}"` : ''}><span class="ti">${icon(TASK_ICO[k] || 'tug')}</span><span class="tl">${lbl}</span>${st === 'active' && k !== 'push' ? `<i class="pb" style="width:${Math.round(t.prog * 100)}%"></i>` : ''}</div>`;
     })
     .join('');
 }
@@ -55,10 +56,10 @@ export class GroundPanel {
         <div id="gp-alert"></div>
         <div class="p-sec"><span>Ankünfte · Parkpositionen${qm('inb')}</span><span class="cnt" id="gp-c-inb">0</span></div>
         <div class="toggle-row"><span>Positionen automatisch vergeben</span><button class="switch" id="gp-sauto"></button></div>
-        <button class="btn gp-plan" id="gp-plan" title="Zeitstrahl aller Positionen – Ankünfte per Ziehen zuweisen (Taste G)">📊 Positionsplan <kbd>G</kbd></button>
+        <button class="btn gp-plan" id="gp-plan" title="Zeitstrahl aller Positionen – Ankünfte per Ziehen zuweisen (Taste G)">${icon('planChart')} Positionsplan <kbd>G</kbd></button>
         <div id="gp-inb"></div>
         <div class="p-sec"><span>Abfertigung (Turnaround)${qm('ta')}</span><span class="cnt" id="gp-c-ta">0</span></div>
-        <div class="gp-bar"><button class="btn btn-good" id="gp-all" title="Alle gelben Aufgaben mit freien Fahrzeugen bedienen (Taste D)">⚡ Alles bedienen <kbd>D</kbd></button><small>Dringendste oben · Balken = Zeit bis TOBT, ▼ = voraussichtlich fertig</small></div>
+        <div class="gp-bar"><button class="btn btn-good" id="gp-all" title="Alle gelben Aufgaben mit freien Fahrzeugen bedienen (Taste D)">${icon('bolt')} Alles bedienen <kbd>D</kbd></button><small>Dringendste oben · Balken = Zeit bis TOBT, ▼ = voraussichtlich fertig</small></div>
         <div id="gp-ta"></div>
         <div class="p-sec"><span>Fuhrpark · Auto-Disposition${qm('fleet')}</span></div>
         <div class="fleet" id="gp-fleet"></div>

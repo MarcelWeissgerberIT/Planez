@@ -40,6 +40,18 @@ const P = {
   follow: '<rect x="3" y="7" width="12" height="10" rx="1.5"/><path d="M15 10.5l5.5-3v9l-5.5-3"/><circle class="a" cx="7" cy="10.5" r="1.1"/>',
   trails: '<path d="M3 17c5-1 9-4 12-9"/><path d="M3 20c6-1 11-5 15-11" opacity=".6"/><circle class="a" cx="18.5" cy="6" r="2"/>',
   tilt: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/><path class="a" d="M8 11h6"/>',
+  // Abfertigung (Vorfeld)
+  deboard: '<circle cx="10" cy="4.5" r="1.8"/><path d="M10 7.5v6l-2.5 6.5M10 13.5l3 6M10 9.5l-3 2.5M10 9.5l3.5 1.5"/><path class="a" d="M16 8h4.5M18.5 6l2 2-2 2"/>',
+  board: '<circle cx="14" cy="4.5" r="1.8"/><path d="M14 7.5v6l2.5 6.5M14 13.5l-3 6M14 9.5l3 2.5M14 9.5l-3.5 1.5"/><path class="a" d="M8 8H3.5M5.5 6l-2 2 2 2"/>',
+  unload: '<rect x="4" y="8" width="11" height="9" rx="1.5"/><path d="M7.5 8V6h4v2M4 12.5h11"/><path class="a" d="M17.5 12.5h4M19.5 10.5l2 2-2 2"/><circle cx="6.5" cy="19" r="1.2"/><circle cx="12.5" cy="19" r="1.2"/>',
+  load: '<rect x="9" y="8" width="11" height="9" rx="1.5"/><path d="M12.5 8V6h4v2M9 12.5h11"/><path class="a" d="M6.5 12.5h-4M4.5 10.5l-2 2 2 2"/><circle cx="11.5" cy="19" r="1.2"/><circle cx="17.5" cy="19" r="1.2"/>',
+  clean: '<path d="M9 3.5h4l1 5h-6z"/><path d="M8 8.5h8l1.5 12h-11z"/><path class="a" d="M17.5 4l1.2-1.2M19 6.5h1.8M17.5 9l1.2 1.2"/>',
+  cater: '<rect x="4.5" y="5" width="15" height="15" rx="1.5"/><path d="M4.5 10h15M4.5 15h15M12 5v15"/><circle class="a" cx="8.3" cy="7.5" r=".9"/>',
+  fuel: '<path d="M5 20.5V5a1.5 1.5 0 0 1 1.5-1.5h6A1.5 1.5 0 0 1 14 5v15.5M3.5 20.5h12M14 9.5h2a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 0 3 0V8l-2.5-2.5"/><path class="a" d="M7 7h5v3.5H7z"/>',
+  deice: '<path d="M4 20h7M7.5 20v-6l7-7"/><path d="M14.5 7l2-2"/><path class="a" d="M17.5 9.5v4M15.5 11.5h4M16 10l3 3M19 10l-3 3"/>',
+  tug: '<path d="M3 16.5V12l2-4h7l2 4h6.5v4.5z"/><path d="M7 8V5.5h3V8"/><circle cx="7" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/><path class="a" d="M20.5 13.5H23"/>',
+  planChart: '<rect x="3.5" y="4" width="17" height="16" rx="1.5"/><path d="M3.5 9h17M8 4v16"/><path class="a" d="M10 12h6M11.5 15.5h7"/>',
+  bolt: '<path class="a" d="M13.5 2.5L5 13.5h6l-1.5 8L18 10.5h-6z"/>',
   medal: '<path d="M8 3.5l2.5 6M16 3.5l-2.5 6"/><circle cx="12" cy="15" r="5.5"/><path class="a" d="M12 12.2l.9 1.9 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/>',
 };
 
