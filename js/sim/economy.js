@@ -164,6 +164,7 @@ export function penalize(state, kind, ac) {
   if (kind !== 'goaround' && !p.minor) {
     state.stats.today.incidents++;
     scoreIncident(state, ac);
+    state.lastInc = { t: state.time, kind, cs: ac ? ac.cs : null }; // für die Pressekonferenz
   }
   if (state.life && kind !== 'wake') state.life.safeStreak = 0;
 }

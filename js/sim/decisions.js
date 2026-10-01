@@ -349,6 +349,24 @@ export const CATALOG = {
       };
     },
   },
+  // Nach einem Zwischenfall wollen die Medien Antworten
+  press: {
+    role: 'manager', weight: 0, urgent: 4 * H, timeout: 2 * H,
+    cond: (s) => (!s.scenario && s.lastInc && !s.lastInc.press && s.time - s.lastInc.t < 2 * H ? { kind: s.lastInc.kind, cs: s.lastInc.cs, t: s.lastInc.t } : null),
+    card: (s, p) => {
+      const what = { incursion: 'der Pistenbetretung', diversion: 'der Ausweichlandung', separation: 'der Staffelungsunterschreitung', airprox: 'der Beinahe-Kollision', fuelEmergency: 'dem Treibstoff-Notfall' }[p.kind] || 'dem Zwischenfall';
+      const done = (st) => st.lastInc && st.lastInc.t === p.t && (st.lastInc.press = true);
+      return {
+        icon: '🎤', title: 'Pressekonferenz',
+        text: `Nach ${what}${p.cs ? ` (${p.cs})` : ''} stehen Kamerateams vor dem Terminal. Nordhafen nutzt jede Schlagzeile – was sagen Sie den Journalisten?`,
+        options: [
+          { label: 'Offen informieren', detail: 'Ansehen +1 · Marktanteil −1', run: (st) => { done(st); repDelta(st, 1); const r = rivalState(st); r.share = clamp(r.share - 1, 5, 95); pushNews(st, `Flughafenchef erklärt offen, was bei ${what} passiert ist – Lob für die Transparenz.`, 'good', '🎤'); } },
+          { label: 'Pressesprecherin schicken', detail: '8.000 € · Ansehen +0,5', run: (st) => { done(st); spend(st, 'other', 8000); repDelta(st, 0.5); } },
+          { label: 'Kein Kommentar', detail: 'Ansehen −1,5', run: (st) => { done(st); repDelta(st, -1.5); pushNews(st, `„Kein Kommentar“ – Flughafen schweigt nach ${what}.`, 'bad', '🎤'); } },
+        ],
+      };
+    },
+  },
   noise: {
     role: 'manager', weight: 0.9, timeout: 3 * H,
     cond: (s) => ((s.stats.today.complaints || 0) + (s.stats.yesterday?.complaints || 0) > 6 || rand(s) < 0.3 ? {} : null),
