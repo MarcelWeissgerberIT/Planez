@@ -369,6 +369,7 @@ export class MapRenderer {
     if (state.fire) for (const t of state.fire.trucks) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
     items.push({ d: 66 + 35.6, f: () => this.drawWindsock(state) });
     this.runwayWorkItems(state, items, lights);
+    this.followMeItems(state, items, lights);
     plowItems(this, state, items, lights);
     infraItems(this, state, items, lights, night);
     deiceFx(this, state, items);
@@ -512,6 +513,35 @@ export class MapRenderer {
         ctx.lineTo(cx + 1.4, rw.y - 0.85);
         ctx.stroke();
       }
+    }
+  }
+
+  // „Follow me“: Superjumbo und VIP-Jets werden nach der Landung von einem gelben Lotsenfahrzeug zur Position geführt
+  followMeItems(state, items, lights) {
+    for (const ac of state.acs) {
+      if (ac.mode !== 'map' || ac.phase !== 'TAXI_IN' || !ac.path || ac.pi == null) continue;
+      const sp = state.rots[ac.rot] && state.rots[ac.rot].special;
+      if (sp !== 'a380' && sp !== 'vip' && ac.type !== 'A388') continue;
+      // Punkt ein Stück voraus auf dem Rollpfad
+      let need = ac.len * 0.55 + 1.5, px = ac.x, py = ac.y, hdg = ac.hdg;
+      for (let i = Math.max(1, ac.pi + 1); i < ac.path.length; i++) {
+        const q = ac.path[i];
+        const dx = q.x - px, dy = q.y - py, L = Math.hypot(dx, dy);
+        if (L < 1e-6) continue;
+        hdg = Math.atan2(dy, dx);
+        if (L >= need) {
+          px += (dx / L) * need;
+          py += (dy / L) * need;
+          need = 0;
+          break;
+        }
+        need -= L;
+        px = q.x;
+        py = q.y;
+      }
+      if (need > 0.2) continue; // Pfad fast zu Ende: Fahrzeug fährt schon zur Seite
+      const fv = { id: 'fm' + ac.id, type: 'tug', x: px, y: py, hdg, st: 'work', brokenUntil: 0 };
+      items.push({ d: px + py, f: () => this.drawVehicle(state, fv, lights) });
     }
   }
 
