@@ -14,9 +14,18 @@ import { T } from '../i18n.js';
 const H = 3600;
 const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
-// Stoßzeit: jede Welle bringt mehr zusätzliche Anflüge (1, 1, 1, 2, 2, 2, 3 …) aus den vorhandenen Linien
+// Stoßzeit: jede Welle bringt mehr zusätzliche Anflüge (1, 1, 1, 2, 2, 2, 3 …) aus den vorhandenen Linien;
+// nach jeder vollen Stunde gibt es einen Schichtbonus (1 aus 3)
 function rushWave(s, i) {
-  const n = 1 + Math.floor(i / 3);
+  const sc = s.scenario;
+  if ((i + 1) % 4 === 0 && i < 30) offerShiftBonus(s);
+  if (sc.skip > 0) {
+    sc.skip--;
+    notify(s, T('🌤️ Atempause: Diese Welle fällt aus.'), 'good');
+    return;
+  }
+  const n = Math.max(1, 1 + Math.floor(i / 3) - (sc.minus || 0));
+  const gap = sc.spread ? 160 : 90;
   const cs = s.contracts.filter((c) => !c.cargo && AC_TYPES[c.type] && AC_TYPES[c.type].size !== 'L' && AIRLINES[c.airline]);
   if (!cs.length) return;
   for (let k = 0; k < n; k++) {
@@ -24,17 +33,49 @@ function rushWave(s, i) {
     const t = AC_TYPES[c.type];
     const al = AIRLINES[c.airline];
     const fn = 600 + ((i * 7 + k * 3) % 380);
-    const sta = s.time + (21 + k * 3 + Math.round(rand(s) * 4)) * 60;
+    const sta = s.time + Math.round((21 + (k * gap) / 30 + Math.round(rand(s) * 4)) * 60);
     const rot = {
       id: nextId(s, 'r'), contract: c.id, airline: c.airline, type: c.type, arrNo: `${al.code}${fn}`, depNo: `${al.code}${fn + 1}`, city: c.city,
       sta, std: sta + t.turn * 60 + 15 * 60, arrDelay: 0,
       paxIn: Math.round(t.pax * 0.85), paxOut: Math.round(t.pax * 0.8), cargoIn: Math.round(t.pax * 0.01), cargoOut: Math.round(t.pax * 0.012),
-      status: 'planned', feeMult: c.feeMult || 1, spawnAt: s.time + k * 90, ac: null,
+      status: 'planned', feeMult: c.feeMult || 1, spawnAt: s.time + k * gap, ac: null,
     };
     s.rots[rot.id] = rot;
   }
   notify(s, n > 1 ? T`⏱️ Neue Welle: ${n} zusätzliche Anflüge` : T('⏱️ Neue Welle: ein zusätzlicher Anflug'), 'warn');
 }
+export const SHIFT_BONI = {
+  buffer: { icon: '🛡️', name: () => T('Rückendeckung'), desc: () => T('Ein Vorfall mehr, bevor du abgelöst wirst.') },
+  smaller: { icon: '✂️', name: () => T('Kleinere Wellen'), desc: () => T('Jede weitere Welle bringt einen Anflug weniger (mindestens einen).') },
+  calm: { icon: '🌤️', name: () => T('Atempause'), desc: () => T('Die nächste Welle fällt aus.') },
+  spread: { icon: '📡', name: () => T('Anflugkoordinator'), desc: () => T('Die Anflüge einer Welle kommen mit deutlich größerem Abstand.') },
+  fuel: { icon: '⛽', name: () => T('Volle Tanks'), desc: () => T('Alle Anflüge – auch die schon in der Luft – haben 10 Minuten mehr Treibstoff.') },
+};
+const BONUS_AI = ['buffer', 'smaller', 'calm', 'spread', 'fuel'];
+function offerShiftBonus(s) {
+  const sc = s.scenario;
+  const pool = Object.keys(SHIFT_BONI).filter((k) => !(k === 'spread' && sc.spread));
+  const opts = [];
+  while (opts.length < 3 && pool.length) opts.push(pool.splice(Math.floor(rand(s) * pool.length), 1)[0]);
+  sc.bonusChoice = { opts, hour: Math.round((s.time - sc.start) / H) };
+  if (s.auto.atc) chooseShiftBonus(s, BONUS_AI.find((k) => opts.includes(k)));
+}
+export function chooseShiftBonus(s, k) {
+  const sc = s.scenario;
+  if (!sc || !sc.bonusChoice || !sc.bonusChoice.opts.includes(k)) return;
+  sc.bonusChoice = null;
+  (sc.boni = sc.boni || []).push(k);
+  if (k === 'buffer') sc.lives = (sc.lives || 0) + 1;
+  else if (k === 'smaller') sc.minus = (sc.minus || 0) + 1;
+  else if (k === 'calm') sc.skip = (sc.skip || 0) + 1;
+  else if (k === 'spread') sc.spread = true;
+  else if (k === 'fuel') {
+    sc.fuelPlus = (sc.fuelPlus || 0) + 10;
+    for (const ac of s.acs) if (ac.arr && ac.fuelMin !== undefined) ac.fuelMin += 10;
+  }
+  notify(s, T`${SHIFT_BONI[k].icon} Schichtbonus: ${SHIFT_BONI[k].name()}`, 'good');
+}
+export const shiftLimit = (s) => 3 + ((s.scenario && s.scenario.lives) || 0);
 
 // Kennzahlen aus den Zählern (Zuwachs seit Szenariostart)
 function metrics(state) {
@@ -211,7 +252,7 @@ export const SCENARIOS = [
   },
   {
     id: 'rushhour', role: 'tower', icon: '⏱️', diff: 3, title: T('Stoßzeit (endlos)'), img: 'assets/scn/rushhour.webp', endless: true,
-    brief: T('Kein Feierabend in Sicht: Alle 15 Minuten kommt eine neue Welle Anflüge – und jede ist größer als die letzte. Wie lange hältst du die Bahn sicher? Beim dritten Vorfall wirst du abgelöst.'),
+    brief: T('Kein Feierabend in Sicht: Alle 15 Minuten kommt eine neue Welle Anflüge – und jede ist größer als die letzte. Nach jeder vollen Stunde wählst du einen Schichtbonus. Wie lange hältst du die Bahn sicher? Beim dritten Vorfall wirst du abgelöst.'),
     tips: [T('Starts konsequent in die Lücken legen, sonst stauen sich die Rollhalte'), T('Warteschleifen früh nutzen, bevor der Treibstoff knapp wird'), T('Lieber ein Durchstart als ein Vorfall')],
     hour: 7, dur: 8 * H, density: 1.2,
     setup: (s) => {
@@ -223,7 +264,7 @@ export const SCENARIOS = [
       { text: T('Überstandene Minuten'), key: 'mins', t: [90, 180, 300] },
       { text: T('Bewegungen (Landungen + Starts)'), key: 'mov', t: [30, 60, 100] },
     ],
-    fail: (m) => (m.incidents >= 3 ? T('Drei Vorfälle – die Schicht wurde abgelöst.') : null),
+    fail: (m, s) => (m.incidents >= shiftLimit(s) ? T`${m.incidents} Vorfälle – die Schicht wurde abgelöst.` : null),
   },
   {
     id: 'rushGround', role: 'ground', icon: '🧳', diff: 1, title: T('Ferienstart'), img: 'assets/scn/rush.webp',
@@ -441,7 +482,7 @@ export function finishScenario(state, failed = null) {
   sc.done = true;
   const pts = state.score ? state.score.pts : 0;
   sc.result = { stars, failed, rows: rows.map((r) => ({ v: r.v, stars: r.stars })), m, pts };
-  if (def.endless) sc.result.waves = Math.min(def.script.length, Math.floor(m.mins / 15));
+  if (def.endless) Object.assign(sc.result, { waves: Math.min(def.script.length, Math.floor(m.mins / 15)), boni: sc.boni || [] });
   state.speed = 0;
   const best = recordBest(def.id, stars, rows, pts, def.endless ? m.mins : 0);
   sc.result.best = best;

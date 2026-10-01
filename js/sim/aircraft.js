@@ -164,7 +164,7 @@ function makeAircraft(state, rot, o) {
     engines: true,
     arr: true,
     // Treibstoff für Anflug + Reserve in Minuten (Warteschleifen zehren daran)
-    fuelMin: (16 + randRange(state, 28, 50) + (t.size === 'L' ? 8 : 0) + (t.vmax ? 50 : 0)) * diff(state).fuel,
+    fuelMin: (16 + randRange(state, 28, 50) + (t.size === 'L' ? 8 : 0) + (t.vmax ? 50 : 0)) * diff(state).fuel + ((state.scenario && state.scenario.fuelPlus) || 0),
   };
   assignLook(ac, rot);
   return ac;

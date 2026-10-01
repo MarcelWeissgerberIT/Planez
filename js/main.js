@@ -61,8 +61,8 @@ import { initMainMenu, refreshMainMenu, showPauseMenu, loadPrefs, savePrefs, app
 import { ManagementPage } from './ui/mgmtPage.js';
 import { ManagerDock } from './ui/managerDock.js';
 import { projects, cancelProject } from './sim/construction.js';
-import { scenarioById, applyScenario, scenarioListeners } from './sim/scenarios.js';
-import { ScenarioUi } from './ui/scenarioUi.js';
+import { scenarioById, applyScenario, scenarioListeners, chooseShiftBonus } from './sim/scenarios.js';
+import { ScenarioUi, shiftBonusHtml } from './ui/scenarioUi.js';
 import { StandPlan } from './ui/standPlan.js';
 import { scoreState } from './sim/score.js';
 import { keysHtml } from './ui/keys.js';
@@ -497,6 +497,26 @@ function maybeShowPerks(s) {
   });
 }
 
+// Stoßzeit: Schichtbonus wählen – das Spiel bleibt angehalten, bis einer gewählt ist
+function maybeShowShiftBonus(s) {
+  const ch = s.scenario && s.scenario.bonusChoice;
+  if (!ch || modalOpen() || (game.scn && game.scn.isOpen()) || performance.now() < (game.sbonNext || 0)) return;
+  game.sbonNext = performance.now() + 1500;
+  if (s.speed) game.sbonSpeed = s.speed;
+  s.speed = 0;
+  openModal(shiftBonusHtml(ch), (box) => {
+    box.querySelectorAll('[data-sbon]').forEach((b) =>
+      b.addEventListener('click', () => {
+        chooseShiftBonus(s, b.dataset.sbon);
+        closeModal();
+        s.speed = game.sbonSpeed || 1;
+        sfx.cash && sfx.cash();
+        game.refreshUi();
+      })
+    );
+  });
+}
+
 // ---------------- Schleife ----------------
 function loop(ts) {
   requestAnimationFrame(loop);
@@ -510,6 +530,7 @@ function loop(ts) {
   }
   if (!modalOpen() || s.speed === 0) run(s, dt);
   maybeShowPerks(s);
+  maybeShowShiftBonus(s);
   // Leistung prüfen: nach dem Start 8 s messen, bei unter ~22 fps einmalig den Leistungsmodus einschalten
   const fp = game.fpsProbe;
   if (fp && !fp.done && !document.hidden) {
@@ -1797,7 +1818,7 @@ function helpGuide(first) {
     <p><b>🎥 Folgen:</b> Auf der Info-Karte eines Flugzeugs oder Fahrzeugs lässt „Folgen“ die Kamera mitfahren – vom Endanflug über die Abfertigung bis zum Start. Karte ziehen beendet das Folgen.</p>
     <p><b>🎬 Kino-Modus</b> (<kbd>K</kbd> oder 🎬): Die Kamera fährt selbst zu Landungen, Starts, Durchstarts, Rundgängen um Tower, Feuerwache, Terminal und Co., Abfertigungen, Baustellen und zur Landseite – mit Letterbox und Bildunterschrift. ← → nächste Szene, <kbd>K</kbd>/<kbd>Esc</kbd> beendet.</p>
     <p><b>Entscheidungen:</b> Ab und zu kommt eine Ereigniskarte (links) – Gepäckband kaputt, fehlender Passagier, technischer Defekt, Koffer im falschen Flugzeug, keine freie Position, medizinischer Notfall, Vogelschwarm, Drohne im Anflugsektor, Laserblendung, Airline will Rabatt, Gewerkschaft, Festival-Charter, Tag der offenen Tür (Besucher, Wimpel und Ballons auf der Terminal-Terrasse) … Jede Option hat echte Folgen. Ohne Antwort gilt nach Ablauf die erste Option. Auf der Karte zeigen aufsteigende Texte, was gerade passiert (✓ pünktlich, +Erlös, Verspätung).</p>
-    <p>Karte ziehen = verschieben · Mausrad/Pinch = Zoom · Klick = auswählen · <kbd>Leertaste</kbd> Pause · <kbd>1</kbd>–<kbd>5</kbd> Tempo (1×, 2×, 5×, 10×, 20× – bei <b>10×</b> dauert ein Tag etwa <b>10 Minuten</b>; Manager und Beobachter starten mit 10×) · <kbd>B</kbd> Beschriftungen · Pfeiltasten scrollen.</p>` + T('<h3>🎁 Ausbau-Bonus</h3><ul><li>Im Aufbau-Modus bieten dir Land, Partner und Team nach jeder neuen Ausbaustufe <b>drei Vorteile</b> an – du wählst einen: Fördermittel, Pressetag, Werbepartner, Engagierte Crew, Pistenpflege-Vertrag, Stammkunden, Sicherheitskultur oder Tankvertrag. Dauerhafte Boni gibt es je einmal, sie stehen in der Management-Zentrale auf der Seite „Aufbau“. Esc verschiebt die Wahl kurz.</li></ul>') + T('<h3>💾 Spielstände</h3><ul><li>Drei Speicherplätze, automatisch alle 45 Sekunden gespeichert. Zusätzlich hält das Spiel je Platz eine <b>Sicherungskopie</b> (höchstens 10 Minuten alt) – ist ein Stand einmal beschädigt, wird sie automatisch geladen. Unter Hauptmenü › Spielstände sichert ⬇ einen Platz als Datei, „Spielstand importieren“ lädt sie wieder – so bleibt der Flughafen auch erhalten, wenn die Browserdaten gelöscht werden, und lässt sich auf einen anderen Rechner mitnehmen.</li></ul>') + T('<h3>🌐 Sprache · Language</h3><ul><li>Deutsch oder Englisch unter Einstellungen › <b>Sprache</b> (das Spiel lädt kurz neu, Spielstände bleiben erhalten). Ohne Wahl richtet sich die Sprache nach dem Browser; <code>?lang=en</code> in der Adresse erzwingt Englisch. Der Lotsenfunk ist in beiden Sprachen englisch wie im echten Flugfunk, Bodencrews, Durchsagen und Kommentator sprechen die gewählte Sprache.</li></ul>') + T('<h3>⏱️ Stoßzeit (endlos)</h3><ul><li>Die sechste Tower-Herausforderung hat kein festes Ende: Alle 15 Minuten Spielzeit kommt eine neue Welle zusätzlicher Anflüge, und jede dritte Welle bringt einen Flieger mehr. Beim dritten Vorfall wirst du abgelöst – gewertet werden die überstandenen Minuten und die Bewegungen. Die Leiste oben zeigt Welle und Vorfälle, das Spiel merkt sich deine längste Schicht als Rekordzeit.</li></ul>');
+    <p>Karte ziehen = verschieben · Mausrad/Pinch = Zoom · Klick = auswählen · <kbd>Leertaste</kbd> Pause · <kbd>1</kbd>–<kbd>5</kbd> Tempo (1×, 2×, 5×, 10×, 20× – bei <b>10×</b> dauert ein Tag etwa <b>10 Minuten</b>; Manager und Beobachter starten mit 10×) · <kbd>B</kbd> Beschriftungen · Pfeiltasten scrollen.</p>` + T('<h3>🎁 Ausbau-Bonus</h3><ul><li>Im Aufbau-Modus bieten dir Land, Partner und Team nach jeder neuen Ausbaustufe <b>drei Vorteile</b> an – du wählst einen: Fördermittel, Pressetag, Werbepartner, Engagierte Crew, Pistenpflege-Vertrag, Stammkunden, Sicherheitskultur oder Tankvertrag. Dauerhafte Boni gibt es je einmal, sie stehen in der Management-Zentrale auf der Seite „Aufbau“. Esc verschiebt die Wahl kurz.</li></ul>') + T('<h3>💾 Spielstände</h3><ul><li>Drei Speicherplätze, automatisch alle 45 Sekunden gespeichert. Zusätzlich hält das Spiel je Platz eine <b>Sicherungskopie</b> (höchstens 10 Minuten alt) – ist ein Stand einmal beschädigt, wird sie automatisch geladen. Unter Hauptmenü › Spielstände sichert ⬇ einen Platz als Datei, „Spielstand importieren“ lädt sie wieder – so bleibt der Flughafen auch erhalten, wenn die Browserdaten gelöscht werden, und lässt sich auf einen anderen Rechner mitnehmen.</li></ul>') + T('<h3>🌐 Sprache · Language</h3><ul><li>Deutsch oder Englisch unter Einstellungen › <b>Sprache</b> (das Spiel lädt kurz neu, Spielstände bleiben erhalten). Ohne Wahl richtet sich die Sprache nach dem Browser; <code>?lang=en</code> in der Adresse erzwingt Englisch. Der Lotsenfunk ist in beiden Sprachen englisch wie im echten Flugfunk, Bodencrews, Durchsagen und Kommentator sprechen die gewählte Sprache.</li></ul>') + T('<h3>⏱️ Stoßzeit (endlos)</h3><ul><li>Die sechste Tower-Herausforderung hat kein festes Ende: Alle 15 Minuten Spielzeit kommt eine neue Welle zusätzlicher Anflüge, und jede dritte Welle bringt einen Flieger mehr. Nach jeder vollen Stunde hält das Spiel an und bietet drei <b>Schichtboni</b> an – Rückendeckung (ein Vorfall mehr erlaubt), Kleinere Wellen, Atempause, Anflugkoordinator oder Volle Tanks; einer gehört dir bis zum Schichtende. Beim dritten Vorfall wirst du abgelöst – gewertet werden die überstandenen Minuten und die Bewegungen. Die Leiste oben zeigt Welle, Vorfälle und deine Boni, das Spiel merkt sich deine längste Schicht als Rekordzeit.</li></ul>');
 }
 
 function showHelp(first, tab = 'guide') {
