@@ -12,6 +12,7 @@ import { AC_TYPES, CITIES, AIRPORT } from '../config.js';
 import { fmtClock, esc } from '../util.js';
 import { syncList, setHTML, toast, $ } from './dom.js';
 import { sfx } from '../audio.js';
+import { icon } from './icons.js';
 import { flagButton, flagHtml, openMarkMenu } from './marks.js';
 import { updateSequence, isSeqArrival, seqSlot, seqMove, seqMoveTo, seqSortByEta, seqIndex, updateArrQueue, arrQMoveTo } from '../sim/sequence.js';
 import { qm, glTag } from './glossary.js';
@@ -211,7 +212,7 @@ export class TowerPanel {
     root.classList.add('tw-side');
     root.innerHTML = `
       <div class="p-head">
-        <div class="p-title">🎧 Tower <small>${AIRPORT.tower} ${AIRPORT.freq}</small></div>
+        <div class="p-title">${icon('headset')} Tower <small>${AIRPORT.tower} ${AIRPORT.freq}</small></div>
         <button class="mini" id="tw-rwy-t" title="Pistenstatus ein-/ausklappen">Pisten ▾</button>
       </div>
       <div class="tw-radar-slot" id="tw-radar-slot"></div>
@@ -235,7 +236,7 @@ export class TowerPanel {
     rail.id = 'rail';
     rail.innerHTML = `
       <div class="rail-head">
-        <div class="rail-title">✈️ Flugstreifen${qm('seq')}</div>
+        <div class="rail-title">${icon('plane')} Flugstreifen${qm('seq')}</div>
         <div class="seg" id="rl-filter" title="Filter: nur Landungen, beide oder nur Starts"><button data-f="arr">🛬 An</button><button data-f="both">Beide</button><button data-f="dep">🛫 Ab</button></div>
         <button class="rl-tg" id="rl-spacing" title="Reihenfolge per Drag &amp; Drop – Anflugfreigaben, Geschwindigkeit und Lücken für Starts passen sich automatisch an"><span class="switch"></span>Auto-Staffelung</button>
         <button class="rl-tg" id="rl-gauto" title="Rollverkehr (Pushback, Rollen, Kreuzen) automatisch – du kümmerst dich nur um Luftraum und Piste"><span class="switch"></span>Rollverkehr auto</button>

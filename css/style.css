@@ -1667,3 +1667,13 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .cmd.risk { background: rgba(244,63,94,.2) !important; border-color: #f43f5e !important; color: #fecdd3; animation: riskPulse 1.2s ease-in-out infinite; }
 @keyframes riskPulse { 50% { box-shadow: 0 0 0 3px rgba(244,63,94,.25); } }
 @media (prefers-reduced-motion: reduce) { .cmd.risk { animation: none; } }
+/* Eigene Icons (js/ui/icons.js): Linien in Textfarbe, Akzent in der Rollenfarbe */
+.ico { width: 1.2em; height: 1.2em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.24em; flex: none; }
+.ico .a { fill: var(--role, #38d6f5); stroke: var(--role, #38d6f5); stroke-width: 1.2; }
+.icon-btn .ico { width: 20px; height: 20px; vertical-align: 0; }
+.icon-btn { color: var(--text, #e2e8f0); }
+.icon-btn.on .ico { color: #fff; }
+[data-ico] { display: inline-flex; align-items: center; font-style: normal; }
+.dock-open span .ico { width: 22px; height: 22px; vertical-align: -5px; }
+.p-title .ico, .rail-title .ico { color: var(--role, #38d6f5); }
+.p-title .ico .a, .rail-title .ico .a { fill: #fff; stroke: #fff; }

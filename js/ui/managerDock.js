@@ -1,4 +1,5 @@
 // Kompakter Leitstand (Manager/Beobachter): das Wichtigste auf einen Blick, Details in der Management-Zentrale
+import { icon } from './icons.js';
 import { setHTML } from './dom.js';
 import { rivalState } from '../sim/rival.js';
 import { boardBadge } from './board.js';
@@ -18,10 +19,10 @@ export class ManagerDock {
     this.root = root;
     this.game = game;
     root.innerHTML = `
-      <div class="p-head"><div class="p-title">${observer ? '👁️ Beobachter' : '💼 Leitstand'} <small id="mp-sub"></small></div></div>
+      <div class="p-head"><div class="p-title">${observer ? icon('eye') + ' Beobachter' : icon('briefcase') + ' Leitstand'} <small id="mp-sub"></small></div></div>
       <div class="p-body dock-body">
-        <button class="dock-open" data-open="over"><span>💼</span><b>Management-Zentrale</b><kbd>O</kbd></button>
-        ${observer ? '<button class="dock-open cine" data-cine><span>🎬</span><b>Kino-Modus</b><kbd>K</kbd></button><button class="dock-open spot" data-spotbook><span>📒</span><b>Spotterbuch</b><kbd>J</kbd></button><button class="dock-open stream" data-stream><span>📡</span><b>Livestream</b><kbd>L</kbd></button><div class="dock-spot-tip">Flugzeug anklicken, dann <kbd>F</kbd> oder 📷 Spotten: seltene Typen, Sonderlackierungen und besondere Momente sammeln.</div><div class="dock-motif" id="dk-motif"></div>' : ''}
+        <button class="dock-open" data-open="over"><span>${icon('briefcase')}</span><b>Management-Zentrale</b><kbd>O</kbd></button>
+        ${observer ? '<button class="dock-open cine" data-cine><span>' + icon('cinema') + '</span><b>Kino-Modus</b><kbd>K</kbd></button><button class="dock-open spot" data-spotbook><span>' + icon('spotbook') + '</span><b>Spotterbuch</b><kbd>J</kbd></button><button class="dock-open stream" data-stream><span>' + icon('stream') + '</span><b>Livestream</b><kbd>L</kbd></button><div class="dock-spot-tip">Flugzeug anklicken, dann <kbd>F</kbd> oder 📷 Spotten: seltene Typen, Sonderlackierungen und besondere Momente sammeln.</div><div class="dock-motif" id="dk-motif"></div>' : ''}
         <div id="dk-kpi"></div>
         <div class="p-sec"><span>Jetzt wichtig</span></div>
         <div id="dk-todo"></div>

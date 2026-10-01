@@ -1,4 +1,5 @@
 // Planez – Airport Simulator: Start, Spielschleife, Eingabe
+import { icon, hydrateIcons } from './ui/icons.js';
 import { loadAssets } from './assets.js';
 import { Camera } from './render/camera.js';
 import { MapRenderer } from './render/map.js';
@@ -68,6 +69,9 @@ import { SpotterUi } from './ui/spotter.js';
 import { briefingHtml } from './ui/briefing.js';
 import { careerDayEnd, careerAch, careerTick, careerRank } from './career.js';
 import { RankUp } from './ui/rankUp.js';
+
+// eigene SVG-Icons in die statischen Knöpfe (Kartenleiste, Menü, Radar/Funk-Köpfe) einsetzen
+hydrateIcons(document);
 
 const game = {
   state: null,
@@ -395,7 +399,7 @@ function applyRole() {
     });
     head.after(h);
   }
-  $('#btn-role').textContent = `${ROLES[s.role].icon} ${ROLES[s.role].short} ▾`;
+  $('#btn-role').innerHTML = `${icon({ tower: 'headset', ground: 'vest', manager: 'briefcase', observer: 'eye' }[s.role] || 'eye')} ${ROLES[s.role].short} ▾`;
   toggleRadar(s.role === 'tower');
   if (game.syncVoice) game.syncVoice();
   if (game.tutorial && game.tutorial.on) game.tutorial.stop();

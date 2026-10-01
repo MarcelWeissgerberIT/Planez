@@ -1,4 +1,5 @@
 // Vorfeld-Leitstand: Parkpositionen, Turnaround, Fahrzeuge
+import { icon } from './icons.js';
 import { StandPlan } from './standPlan.js';
 import { AC_TYPES, TASKS, TASK_ORDER, VEH_TYPES, CITIES } from '../config.js';
 import { PH, PHASE_DE } from '../sim/aircraft.js';
@@ -48,7 +49,7 @@ export class GroundPanel {
     this.game = game;
     root.innerHTML = `
       <div class="p-head">
-        <div class="p-title">🦺 Vorfeld-Leitstand <small id="gp-eff"></small></div>
+        <div class="p-title">${icon('vest')} Vorfeld-Leitstand <small id="gp-eff"></small></div>
       </div>
       <div class="p-body">
         <div id="gp-alert"></div>
