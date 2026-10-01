@@ -8,6 +8,7 @@ import { clamp, esc } from '../util.js';
 import { voice } from '../voice.js';
 import { icon } from './icons.js';
 import { toast } from './dom.js';
+import { sfx } from '../audio.js';
 
 const KT = 323; // Kacheln je Spielsekunde -> Knoten (wie Info-Karte und Kino)
 const FT = 500; // z -> Fuß
@@ -95,7 +96,7 @@ export class Ride {
   // Höhenansage im Endanflug (englisch, kurz)
   callout(n) {
     if (!window.speechSynthesis || !this.game.state.settings.tts) return;
-    const u = new SpeechSynthesisUtterance(n === 500 ? 'five hundred' : n === 100 ? 'one hundred' : String(n));
+    const u = new SpeechSynthesisUtterance(typeof n === 'string' ? n : n === 500 ? 'five hundred' : n === 100 ? 'one hundred' : String(n));
     u.lang = 'en-US';
     u.rate = 1.25;
     u.pitch = 0.9;
@@ -137,8 +138,11 @@ export class Ride {
       tz = 2.2;
     }
     const k = 1 - Math.pow(this.mode === 'cockpit' ? 0.0001 : 0.001, dt);
-    cam.x += (tx - cam.x) * k;
-    cam.y += (ty - cam.y) * k;
+    // Rütteln auf der Bahn: Startlauf und Ausrollen, je schneller, desto stärker
+    const rumble = (ac.phase === PH.TAKEOFF && z < 0.05) || (ac.phase === PH.ROLLOUT && (ac.v || 0) > 0.15) ? Math.min(0.05, (ac.v || 0) * 0.08) : 0;
+    const jx = rumble ? (Math.random() - 0.5) * rumble : 0, jy = rumble ? (Math.random() - 0.5) * rumble : 0;
+    cam.x += (tx - cam.x) * k + jx;
+    cam.y += (ty - cam.y) * k + jy;
     cam.zoom += (tz - cam.zoom) * Math.min(1, dt * 2);
     cam.tx = null;
     // Instrumente und Anzeige
@@ -150,6 +154,8 @@ export class Ride {
     const city = rot && CITIES[rot.city] ? CITIES[rot.city].name : '';
     const arrNow = ARR_PH.has(ac.phase);
     const belt = ac.phase !== PH.STAND;
+    if (this.belt !== undefined && this.belt !== belt) sfx.chime && sfx.chime();
+    this.belt = belt;
     this.el.querySelector('.rd-belt').classList.toggle('on', !!belt);
     const where = `${esc(ac.cs)} · ${esc(AC_TYPES[ac.type].name)}${city ? ` · ${arrNow ? 'aus' : 'nach'} ${esc(city)}` : ''}`;
     const txt = this.mode === 'window' ? `Platz ${12 + (ac.id.length * 7) % 18}F · ${where} · ${PHASE_DE[ac.phase] || ''}${alt > 0 ? ` · ${alt} ft` : ''}` : `Cockpit · ${where}`;
@@ -165,6 +171,12 @@ export class Ride {
       const pitch = ac.phase === PH.TAKEOFF && z > 0.02 ? 12 : ac.phase === PH.MISSED ? 10 : ac.phase === PH.FINAL ? (z < 0.12 ? 4 : -2.5) : 0;
       this.el.querySelector('.rd-hor').style.transform = `translateY(${pitch * 2.2}px)`;
       this.R.nd.textContent = ac.phase === PH.FINAL ? `RWY ${s.rwy} · ${((distLeft(ac)) * 20 / 1852).toFixed(1)} NM` : arrNow ? (ac.stand ? `→ P${ac.stand}` : '') : rot && rot.sid ? rot.sid : '';
+      // Startlauf: V1, Rotate, Positive rate
+      if (ac.phase === PH.TAKEOFF) {
+        if (kt >= 120 && !this.called.has('v1')) (this.called.add('v1'), this.callout('V one'));
+        if (z > 0.01 && !this.called.has('rot')) (this.called.add('rot'), this.callout('Rotate'));
+        if (z > 0.25 && !this.called.has('pos')) (this.called.add('pos'), this.callout('Positive rate. Gear up.'));
+      }
       // Höhenansagen im Endanflug
       if (ac.phase === PH.FINAL) for (const n of CALLS) if (alt <= n && alt > 0 && !this.called.has(n)) {
         this.called.add(n);
