@@ -164,6 +164,13 @@ Slogan zusammen und schreibt alle Formate nach `store/capsules/` (nicht im Repos
 Main 1232×706, Vertical 748×896, Library Capsule 600×900, Library Hero 3840×1240 (ohne Schrift), Library Logo 1280×720
 (transparent), itch.io-Cover 630×500 und Social-Vorschau 1200×630 – jeweils auf Deutsch und Englisch.
 
+`node tools/storeshots.mjs [de|en|all] [02,06 …]` nimmt acht Screenshots in Full HD auf (Menü, Grasplatz, Tower, Vorfeld,
+Management-Zentrale, Nacht, 3D-Landung, Turmblick) → `store/screenshots/<sprache>/`.
+`node tools/trailer.mjs [en|de] [--from=szene]` nimmt einen Trailer von etwa 50 Sekunden aus echtem Spielmaterial auf –
+Bild für Bild mit angehaltener Spieluhr, deshalb flüssig auch auf langsamen Rechnern – mit Untertiteln, Titel- und
+Schlusskarte und der Menümusik → `store/trailer/planez_trailer_<sprache>.mp4` (braucht `ffmpeg`, Pfad auch über `FFMPEG`).
+Beide Werkzeuge bringen einen eigenen kleinen Webserver mit; `--from=szene` setzt eine abgebrochene Aufnahme fort.
+
 ## Credits
 Alle Grafiken (Gebäude-, Flugzeug- und Fahrzeug-Sprites, Baumaschinen, Rohbau, Texturen, Rollen-Porträts, Logo) sowie die Menü-Hintergrundvideos wurden mit **Higgsfield AI** generiert (GPT Image 2.5, Kling 3.0 – Clips mit Start- und Endbild verkettet, dadurch nahtlose Übergänge).
 Alle Airlines und Flugnummern sind fiktiv. Titelbild für den Shop ebenfalls mit Higgsfield (GPT Image 2.5, hochskaliert).

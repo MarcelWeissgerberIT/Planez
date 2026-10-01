@@ -1,13 +1,29 @@
 // Shop-Screenshots (1920×1080) in Deutsch und Englisch: Menü, Grasplatz, Tower, Vorfeld, Management-Zentrale, Nacht, 3D-Kino.
-// Aufruf: lokalen Server starten (python3 -m http.server 8765) und dann  node tools/storeshots.mjs [de|en|all] [02,06 …]
+// Aufruf: node tools/storeshots.mjs [de|en|all] [02,06 …]  (eigener Mini-Server; PLANEZ_URL nutzt einen anderen)
 // Ausgabe: store/screenshots/<sprache>/NN_name.jpg (nicht im Repository)
 import fs from 'fs';
+import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BASE = process.env.PLANEZ_URL || 'http://localhost:8765/index.html';
+// eingebauter Mini-Server für den Spielordner (ohne PLANEZ_URL kein externer Server nötig)
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4', '.webm': 'video/webm', '.glb': 'model/gltf-binary' };
+async function serve() {
+  if (process.env.PLANEZ_URL) return { url: process.env.PLANEZ_URL, close: () => {} };
+  const srv = http.createServer((req, res) => {
+    const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '') || 'index.html';
+    const f = path.join(ROOT, rel);
+    if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) return res.writeHead(404).end();
+    res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream' });
+    fs.createReadStream(f).pipe(res);
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  return { url: `http://127.0.0.1:${srv.address().port}/index.html`, close: () => srv.close() };
+}
+const SERVER = await serve();
+const BASE = SERVER.url;
 const LANGS = process.argv[2] && process.argv[2] !== 'all' ? [process.argv[2]] : ['de', 'en'];
 const ONLY = process.argv[3] ? process.argv[3].split(',') : null; // z. B. 02,06
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -123,3 +139,4 @@ for (const lang of LANGS) {
   }
 }
 await browser.close();
+SERVER.close();

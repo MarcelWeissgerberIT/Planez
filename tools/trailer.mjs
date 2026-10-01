@@ -1,18 +1,36 @@
 // Trailer aus echtem Spielmaterial: Szenen werden Bild für Bild mit angehaltener Uhr aufgenommen (flüssig auch auf
 // langsamen Rechnern), mit Untertiteln, Titel- und Schlusskarte versehen und mit der Menümusik zu einer MP4 gemischt.
-// Aufruf: lokalen Server starten (python3 -m http.server 8765), dann  node tools/trailer.mjs [en|de] [nur,diese,szenen]
+// Aufruf: node tools/trailer.mjs [en|de] [nur,diese,szenen | --from=szene]  (eigener Mini-Server; PLANEZ_URL nutzt einen anderen)
 // Braucht Playwright + Chromium und ffmpeg (Umgebungsvariable FFMPEG oder ffmpeg im PATH).
 // Ausgabe: store/trailer/planez_trailer_<sprache>.mp4 (nicht im Repository)
 import fs from 'fs';
+import http from 'http';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BASE = process.env.PLANEZ_URL || 'http://localhost:8765/index.html';
+// eingebauter Mini-Server für den Spielordner (ohne PLANEZ_URL kein externer Server nötig)
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4', '.webm': 'video/webm', '.glb': 'model/gltf-binary' };
+async function serve() {
+  if (process.env.PLANEZ_URL) return { url: process.env.PLANEZ_URL, close: () => {} };
+  const srv = http.createServer((req, res) => {
+    const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '') || 'index.html';
+    const f = path.join(ROOT, rel);
+    if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) return res.writeHead(404).end();
+    res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream' });
+    fs.createReadStream(f).pipe(res);
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  return { url: `http://127.0.0.1:${srv.address().port}/index.html`, close: () => srv.close() };
+}
+const SERVER = await serve();
+const BASE = SERVER.url;
 const LANG = process.argv[2] || 'en';
-const ONLY = process.argv[3] ? process.argv[3].split(',') : null;
+const ARG = process.argv[3] || '';
+const FROM = ARG.startsWith('--from=') ? ARG.slice(7) : null; // Aufnahme ab dieser Szene fortsetzen, frühere Bilder bleiben
+const ONLY = ARG && !FROM ? ARG.split(',') : null;
 const FPS = 30;
 const W = 1920, H = 1080;
 const FFMPEG = process.env.FFMPEG || 'ffmpeg';
@@ -175,13 +193,17 @@ const OVERLAY = ({ tag, end1, end2 }) => {
 };
 
 const ease = (t) => (t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t));
-fs.rmSync(FR, { recursive: true, force: true });
+// Bildnummer, mit der eine Szene beginnt (jede Szene hat feste Länge)
+const startOf = (id) => CLIPS.slice(0, CLIPS.findIndex((c) => c.id === id)).reduce((a, c) => a + Math.round(c.dur * FPS), 0);
+if (!FROM) fs.rmSync(FR, { recursive: true, force: true });
 fs.mkdirSync(FR, { recursive: true });
+if (FROM) for (const f of fs.readdirSync(FR)) if (+f.slice(0, 5) >= startOf(FROM)) fs.rmSync(path.join(FR, f));
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-let frame = 0;
+let frame = FROM ? startOf(FROM) : 0;
 const t0 = Date.now();
 for (const clip of CLIPS) {
   if (ONLY && !ONLY.includes(clip.id)) continue;
+  if (FROM && CLIPS.indexOf(clip) < CLIPS.findIndex((c) => c.id === FROM)) continue;
   const page = await browser.newPage({ viewport: { width: W, height: H } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -224,6 +246,7 @@ for (const clip of CLIPS) {
   await page.close();
 }
 await browser.close();
+SERVER.close();
 
 // ---------- Video + Musik ----------
 const total = frame / FPS;
