@@ -374,6 +374,7 @@ export class MapRenderer {
     this.runwayWorkItems(state, items, lights);
     this.followMeItems(state, items, lights);
     this.stateVisitItems(state, items, lights, night);
+    this.festiveLights(state, lights, night);
     const sal = saluteView(state);
     if (sal) for (const t of sal.trucks) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
     plowItems(this, state, items, lights);
@@ -1358,6 +1359,17 @@ export class MapRenderer {
       g.addColorStop(1, 'rgba(240,244,250,0)');
       ctx.fillStyle = g;
       ctx.fillRect(p.x - 22 * cam.zoom, p.y - 22 * cam.zoom, 44 * cam.zoom, 44 * cam.zoom);
+    }
+  }
+
+  // Winter: Lichterketten an der Dachkante des Terminals (Vorfeldseite), funkeln in den Abend- und Nachtstunden
+  festiveLights(state, lights, night) {
+    if (night < 0.25 || seasonOf(state).id !== 'winter') return;
+    const T = LY.TERMINAL, C = ['#ff4040', '#40ff70', '#ffd040', '#60a0ff'];
+    const t = this.time;
+    for (let x = T.x0 + 0.4, k = 0; x < T.x1 - 0.3; x += 0.55, k++) {
+      const tw = 0.55 + 0.45 * Math.sin(t * 2.2 + k * 1.7);
+      lights.push({ x, y: T.y1 + 0.02, z: T.h + 0.02, c: C[k % 4], s: 5, a: 0.5 + 0.45 * tw * night });
     }
   }
 
