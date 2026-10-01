@@ -1,5 +1,6 @@
-// Bodencrew an der Parkposition: Ein Einwinker mit orangen Leuchtkellen steht vor dem Stand, winkt das einrollende
-// Flugzeug heran und kreuzt die Kellen über dem Kopf, sobald es steht. Während der Abfertigung markieren Pylonen
+// Bodencrew an der Parkposition: An Außenpositionen steht ein Einwinker mit orangen Leuchtkellen vor dem Stand,
+// winkt das einrollende Flugzeug heran und kreuzt die Kellen über dem Kopf, sobald es steht. An Brückenpositionen
+// übernimmt das eine Andockanzeige (VDGS) an der Terminalfassade: Typ, Restabstand in Metern, „STOP“, dann „OK“. Während der Abfertigung markieren Pylonen
 // Flügelspitzen und Heck; vor dem Pushback räumt die Crew sie wieder weg. Nur Darstellung.
 import { IMG } from '../assets.js';
 import { AC_TYPES, ZS } from '../config.js';
@@ -23,17 +24,26 @@ export class StandCrew {
       const st = state.stands.find((s) => s.id === ac.stand);
       if (!st) continue;
       const mx = st.x, my = LY.STAND_NOSE - 0.55;
+      const vdgs = st.kind === 'contact';
+      const T = LY.TERMINAL;
+      const dock = (text, col, bar) => items.push({ d: st.x + T.y1 + 0.3, f: () => this.vdgs(r, st.x, T.y1 + 0.03, text, col, bar, lights) });
       if (ac.phase === PH.TAXI_IN) {
         // erst auf dem letzten Stück in die Position hinein
         if (Math.abs(ac.x - st.x) > 0.4 || ac.y > LY.LANE - 0.3 || !visible(mx, my)) continue;
-        items.push({ d: mx + my, f: () => this.marshal(r, mx, my, 'come', now, lights, night) });
+        if (vdgs) {
+          const m = Math.max(0, Math.round((ac.y - ac.len / 2 - LY.STAND_NOSE) * 20));
+          dock(m > 15 ? AC_TYPES[ac.type].id : `${m} m`, m > 15 ? '#fde047' : '#fde047', Math.min(1, m / 15));
+        } else items.push({ d: mx + my, f: () => this.marshal(r, mx, my, 'come', now, lights, night) });
         continue;
       }
       if (ac.phase !== PH.STAND) continue;
       seen.add(ac.id);
       if (!this.arr.has(ac.id)) this.arr.set(ac.id, now);
       const since = now - this.arr.get(ac.id);
-      if (since < STOP_S && visible(mx, my)) items.push({ d: mx + my, f: () => this.marshal(r, mx, my, 'stop', now, lights, night) });
+      if (vdgs) {
+        if (since < STOP_S) dock('STOP', '#ef4444', 0);
+        else if (since < STOP_S + 3) dock('OK', '#22c55e', 0);
+      } else if (since < STOP_S && visible(mx, my)) items.push({ d: mx + my, f: () => this.marshal(r, mx, my, 'stop', now, lights, night) });
       if (since < CONE_S) continue;
       const L = ac.len;
       const img = IMG[AC_TYPES[ac.type].sprite];
@@ -47,6 +57,33 @@ export class StandCrew {
       for (const [x, y] of cones) if (visible(x, y)) items.push({ d: x + y, f: () => cone(r, x, y) });
     }
     for (const id of this.arr.keys()) if (!seen.has(id)) this.arr.delete(id);
+  }
+
+  // Andockanzeige an der Fassade: dunkles Gehäuse mit leuchtender Schrift und Annäherungsbalken
+  vdgs(r, x, y, text, col, bar, lights) {
+    const { ctx, cam } = r;
+    cam.setScreen(ctx);
+    const p = cam.toScreen(x, y, 0.62);
+    const z = cam.zoom;
+    const w = 17 * z + 5, h = 10 * z + 4;
+    ctx.fillStyle = '#0b0f17';
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 1;
+    ctx.fillRect(p.x - w / 2, p.y - h / 2, w, h);
+    ctx.strokeRect(p.x - w / 2, p.y - h / 2, w, h);
+    ctx.fillStyle = col;
+    ctx.font = `bold ${Math.max(5, Math.round(4.3 * z + 2))}px ui-monospace, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, p.x, p.y - (bar > 0 ? h * 0.12 : 0));
+    if (bar > 0) {
+      ctx.fillStyle = '#fde047';
+      const bw = (w - 6) * bar;
+      ctx.fillRect(p.x - bw / 2, p.y + h * 0.28, bw, Math.max(1, h * 0.1));
+    }
+    ctx.textAlign = 'start';
+    ctx.textBaseline = 'alphabetic';
+    if (lights) lights.push({ x, y: y + 0.05, z: 0.62, c: col, s: 7, a: 0.5 });
   }
 
   // Einwinker: „Kommen“ (Kellen schwingen über dem Kopf zum Körper) oder „Halt“ (Kellen über dem Kopf gekreuzt)
