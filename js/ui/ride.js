@@ -63,7 +63,8 @@ export class Ride {
       if (touches.size === 2) {
         const [a, b] = [...touches.values()];
         const d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (pinch) this.zoomK = clamp(this.zoomK * (d / pinch), 0.45, 2.4);
+        if (pinch && this.mode === 'tower') (this.fov = clamp((this.fov || 55) * (pinch / d), 5, 70)), (this.autoZoom = false);
+        else if (pinch) this.zoomK = clamp(this.zoomK * (d / pinch), 0.45, 2.4);
         pinch = d;
         return;
       }

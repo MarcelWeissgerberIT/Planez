@@ -101,6 +101,7 @@ export class View3D {
     this.acs = new Map();
     this.vehs = new Map();
     this.vis = new Map(); // je Flugzeug: geglättete Höhe, Neigung, Querlage, letzte Phase
+    this.refs = new WeakMap(); // je Flugzeugmodell: Verweise auf Fahrwerk, Lichter, Propeller …
     this.puffs = [];
     this.built = false;
     this.rwy2 = false;
@@ -908,8 +909,16 @@ export class View3D {
         g = buildAircraft(ac);
         this.scene.add(g);
         this.acs.set(ac.id, g);
+        // Teile einmal nachschlagen statt jeden Frame zu suchen
+        const R = {};
+        for (const n of ['gear', 'landing', 'taxi', 'gse', 'stairs', 'navL', 'navR', 'navT', 'bcnT', 'bcnB', 'strL', 'strR', 'strT']) R[n] = g.getObjectByName(n);
+        R.props = [];
+        R.discs = [];
+        g.traverse((o) => (o.name === 'prop' ? R.props.push(o) : o.name === 'disc' ? R.discs.push(o) : null));
+        this.refs.set(g, R);
       }
       const u = g.userData;
+      const R = this.refs.get(g);
       const p = this.pose(ac);
       let v = this.vis.get(ac.id);
       const ty = this.targetY(ac);
@@ -955,18 +964,16 @@ export class View3D {
         this.puff(w.x, w.y, w.z, 'spray');
       }
       // Fahrwerk, Propeller, Lichter
-      const gear = g.getObjectByName('gear');
+      const gear = R.gear;
       gear.visible = ac.mode === 'map' ? v.y < 2.5 || ac.phase === PH.FINAL : (ac.alt || 0) < 2000;
       const running = ac.phase !== PH.STAND && ac.phase !== PH.PUSH;
-      g.traverse((o) => {
-        if (o.name === 'prop') o.rotation.x += running ? dt * 40 : 0;
-        else if (o.name === 'disc') o.visible = running;
-      });
+      if (running) for (const o of R.props) o.rotation.x += dt * 40;
+      for (const o of R.discs) o.visible = running;
       const air = ac.mode === 'air' || v.y > 0.05;
       const onRwy = ON_RWY.has(ac.phase) || air;
       const glow = lightsOn ? 1 : 0.35;
       const set = (n, on, s) => {
-        const o = g.getObjectByName(n);
+        const o = R[n];
         if (o) (o.visible = on, o.scale.setScalar(s));
       };
       const navOn = ac.phase !== PH.STAND;
@@ -979,19 +986,19 @@ export class View3D {
       const ph = (now + ac.id.length * 0.21) % 1.2;
       const strobe = onRwy && (ph < 0.05 || (ph > 0.12 && ph < 0.16));
       for (const n of ['strL', 'strR', 'strT']) set(n, strobe, 0.6 * glow + 0.15);
-      const land = g.getObjectByName('landing');
+      const land = R.landing;
       land.visible = (onRwy && (ac.mode === 'map' || (ac.alt || 0) < 10000)) && (lightsOn || ac.phase === PH.FINAL || ac.phase === PH.TAKEOFF);
       for (const o of land.children) if (o.isGroup) o.visible = lightsOn && v.y < 3;
-      g.getObjectByName('taxi').visible = lightsOn && !onRwy && ac.mode === 'map' && (ac.phase === PH.TAXI_IN || ac.phase === PH.TAXI_OUT || ac.phase === PH.TAXI_WAIT || ac.phase === PH.VACATED || ac.phase === PH.HOLDING);
+      R.taxi.visible = lightsOn && !onRwy && ac.mode === 'map' && (ac.phase === PH.TAXI_IN || ac.phase === PH.TAXI_OUT || ac.phase === PH.TAXI_WAIT || ac.phase === PH.VACATED || ac.phase === PH.HOLDING);
       g.visible = !(ride.mode === 'cockpit' && ac.id === ride.id);
       g.name = ac.id;
       // Bodengeräte während der Abfertigung, Treppe nur an Außenpositionen
-      const gse = g.getObjectByName('gse');
+      const gse = R.gse;
       const atStand = ac.mode === 'map' && ac.phase === PH.STAND;
       gse.visible = atStand;
       if (atStand) {
         const st = ac.stand && state.stands.find((x) => x.id === ac.stand || x.n === ac.stand);
-        gse.getObjectByName('stairs').visible = !(st && st.kind === 'contact');
+        R.stairs.visible = !(st && st.kind === 'contact');
       }
     }
     for (const [id, g] of this.acs) if (!seen.has(id)) (this.scene.remove(g), this.acs.delete(id), this.vis.delete(id));
