@@ -228,6 +228,19 @@ export class Stream {
         this.say(r(['Wassertaufe!! 💦', 'Erstflug mit Wasserbogen 😍', 'Die Feuerwehr gibt alles 💦🚒', 'Gänsehaut, Erstflug!']), 3);
       }
     }
+    // Hasen im Bild (nah herangezoomt)
+    const wl = this.game.map && this.game.map.wildlife;
+    if (wl && wl.hares && this.game.cam.zoom > 1.3 && performance.now() - (this.hareT || 0) > 60000) {
+      const cam = this.game.cam;
+      const seenHare = wl.hares.some((h) => {
+        const p = cam.toScreen(h.x, h.y, 0);
+        return p.x > 0 && p.y > 0 && p.x < cam.w && p.y < cam.h;
+      });
+      if (seenHare) {
+        this.hareT = performance.now();
+        this.say(r(['Ein Hase!! 🐇', 'Da hoppelt was 🐇', 'Der Hase ist der wahre Star hier', 'Hasen-Cam bitte 🐇🐇']), 2);
+      }
+    }
     // Plaudern zwischendurch
     this.next -= dt;
     if (this.next <= 0) {
