@@ -1,0 +1,29 @@
+{
+  "name": "planez-desktop",
+  "productName": "Planez",
+  "version": "1.0.0",
+  "description": "Planez – Airport Simulator (Desktop-Version)",
+  "main": "main.cjs",
+  "private": true,
+  "author": "Planez",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.planez.airport",
+    "productName": "Planez",
+    "copyright": "© Planez",
+    "files": ["main.cjs", "icon.png", "game/**/*"],
+    "asar": true,
+    "directories": { "output": "../dist/desktop" },
+    "artifactName": "Planez-${version}-${os}-${arch}.${ext}",
+    "win": { "target": [{ "target": "zip", "arch": ["x64"] }], "icon": "icon.png", "signAndEditExecutable": false },
+    "linux": { "target": [{ "target": "dir", "arch": ["x64"] }, { "target": "tar.gz", "arch": ["x64"] }], "icon": "icon.png", "category": "Game", "executableName": "planez" },
+    "mac": { "target": [{ "target": "zip", "arch": ["universal"] }], "icon": "icon.png", "category": "public.app-category.simulation-games" }
+  }
+}

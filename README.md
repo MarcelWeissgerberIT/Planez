@@ -191,4 +191,15 @@ node tools/build.mjs demo     # nur die Demo
 
 Erzeugt `dist/planez-full/` und `dist/planez-demo/` (je ein spielfertiger Ordner) sowie ZIP-Dateien zum Hochladen, z. B. bei itch.io als HTML-Spiel. Die Ausgabe steht fest in `js/edition.js`; im Quellstand lässt sich die Demo mit `?demo` in der Adresse ausprobieren.
 
+**Desktop-Version (Steam):**
+
+```
+node tools/desktop.mjs win          # Windows-ZIP (x64), läuft auch unter Linux
+node tools/desktop.mjs linux        # Linux-Ordner und TAR
+node tools/desktop.mjs mac          # nur auf einem Mac
+node tools/desktop.mjs win demo     # Demo als eigene App
+```
+
+Packt die Vollversion (oder Demo) in die Electron-Hülle aus `desktop/` und legt die Pakete in `dist/desktop/` ab; beim ersten Aufruf installiert npm Electron und electron-builder in `desktop/node_modules`. Die Hülle lädt das Spiel über ein eigenes Schema (`app://planez/`), damit Module, Videos und Spielstände wie im Browser funktionieren. Demo und Vollversion teilen sich den Datenordner, Spielstände laufen also weiter. F11 oder Alt+Enter schaltet Vollbild, im Hauptmenü erscheint „Beenden“, Links öffnen im Standardbrowser, und es läuft nur ein Fenster gleichzeitig. Die Sprechtaste gibt es nur im Browser (die Spracherkennung von Electron braucht Google-Schlüssel). Beim Schließen des Fensters wird gespeichert. App-Symbol: `desktop/icon.png`, für Steam außerdem `store/art/planez.ico` und `store/art/steam_community_icon.jpg`.
+
 **Demo-Umfang** (`DEMO` in `js/edition.js`): Aufbau-Modus bis zum Verkehrslandeplatz, freies Spiel drei Tage, die Herausforderungen „Morgenwelle“ und „Ferienstart“, das erste Kapitel der Kampagne und die Tagesherausforderung. Danach erscheint ein Hinweis auf die Vollversion; Spielstände aus der Demo laufen in der Vollversion weiter. Den Link zur Shopseite trägt man in `SHOP_URL` ein (leer = Knopf ausgeblendet).

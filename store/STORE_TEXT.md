@@ -58,6 +58,7 @@ Alle Airlines, Flugzeughersteller und Typen sind frei erfunden. Komplett auf Deu
 - Aktueller Browser mit WebGL (Chrome, Edge, Firefox, Safari 16+), 4 GB RAM, Bildschirm ab 1280×720
 - Sprechtaste: Chrome oder Edge mit Mikrofon; Sprachausgabe nutzt die Stimmen des Systems
 - Läuft nach dem Laden ohne Internetverbindung, keine Konten, keine Werbung, keine Datensammlung
+- Desktop-Version (Windows/Linux): Vollbild mit F11; die Sprechtaste gibt es nur im Browser
 
 ---
 
@@ -113,6 +114,7 @@ All airlines, aircraft manufacturers and types are fictional. Fully playable in 
 - Current browser with WebGL (Chrome, Edge, Firefox, Safari 16+), 4 GB RAM, screen 1280×720 or larger
 - Push-to-talk: Chrome or Edge with a microphone; voice output uses your system voices
 - Runs offline once loaded – no accounts, no ads, no data collection
+- Desktop version (Windows/Linux): F11 for fullscreen; push-to-talk is browser-only
 
 ---
 
@@ -125,6 +127,10 @@ Simulation, Management, Building, Strategy, Economy, Flight, Atmospheric, Single
   KI-Inhalte; die Sprachausgabe nutzt die Systemstimmen des Browsers.
   Englisch: *Pre-generated content (graphics, key art, menu videos and music) was created with AI tools. The game does
   not generate AI content at runtime; voice output uses the browser's built-in system voices.*
-- **Steam** erwartet ein installierbares Spiel: dafür den Ordner aus `node tools/build.mjs` in einen Desktop-Rahmen
-  (z. B. Electron oder NW.js) packen. **itch.io** nimmt die ZIP direkt als HTML5-Spiel.
+- **Steam** erwartet ein installierbares Spiel: `node tools/desktop.mjs win` (bzw. `linux`, `mac` auf einem Mac) packt die
+  Vollversion in die Electron-Hülle aus `desktop/` → `dist/desktop/` (Windows-ZIP, Linux-Ordner/TAR). Den entpackten
+  Ordner als Depot hochladen, Startprogramm `Planez.exe` bzw. `planez`. Demo als eigene App: `node tools/desktop.mjs win demo`.
+  **itch.io** nimmt die ZIP aus `node tools/build.mjs` direkt als HTML5-Spiel.
+- **Symbole:** `desktop/icon.png` (1024 px, App-Symbol), `store/art/planez.ico` (Steam-Client-Symbol),
+  `store/art/steam_community_icon.jpg` (184 px).
 - Fiktive Namen: alle Airlines, Hersteller und Typen sind erfunden (siehe `LIZENZEN.md`).

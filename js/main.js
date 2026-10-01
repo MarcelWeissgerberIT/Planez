@@ -1304,6 +1304,10 @@ function wireGame() {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && game.state && game.running) saveGame(game.state);
   });
+  // Fenster schließen (Desktop-Version, Tab zu): zuletzt noch speichern
+  window.addEventListener('pagehide', () => {
+    if (game.state && game.running) saveGame(game.state);
+  });
 }
 
 const keys = new Set();

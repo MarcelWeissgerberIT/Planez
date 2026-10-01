@@ -5,3 +5,6 @@ dist/
 store/capsules/
 store/screenshots/
 store/trailer/
+desktop/node_modules/
+desktop/game/
+desktop/package-lock.json

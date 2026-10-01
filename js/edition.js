@@ -9,6 +9,8 @@ const fromUrl = () => {
 };
 export const EDITION = fromUrl() ? 'demo' : 'full';
 export const IS_DEMO = EDITION === 'demo';
+// Desktop-Version (Electron-Hülle aus desktop/): Knopf „Beenden“, keine Spracherkennung
+export const DESKTOP = typeof navigator !== 'undefined' && /Electron\//.test(navigator.userAgent || '');
 // Link zur Shopseite (leer = Knopf „Vollversion“ ausblenden)
 export const SHOP_URL = '';
 // Umfang der Demo: Aufbau bis zum Verkehrslandeplatz, freies Spiel drei Tage, zwei Herausforderungen und das erste Kapitel

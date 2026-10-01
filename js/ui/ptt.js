@@ -13,6 +13,7 @@ import { tel } from '../sim/aircraft.js';
 import { correctReadback } from '../sim/readback.js';
 import { callNordo } from '../sim/nordo.js';
 import { T } from '../i18n.js';
+import { DESKTOP } from '../edition.js';
 
 const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
@@ -36,6 +37,7 @@ export function initPTT(game) {
     const s = game.state;
     if (!s || active) return;
     if (s.role !== 'tower') return toast(T('Sprechtaste gibt es in der Tower-Rolle'), 'info', 2000);
+    if (DESKTOP) return toast(T('Die Sprechtaste gibt es nur im Browser (Chrome oder Edge) – hier gibst du Freigaben per Klick oder Tastatur'), 'info', 4200);
     if (!SR) return toast(T('Spracherkennung wird von diesem Browser nicht unterstützt – bitte Chrome oder Edge nutzen'), 'warn', 4200);
     active = true;
     final = '';
@@ -61,6 +63,7 @@ export function initPTT(game) {
       };
       rec.onerror = (e) => {
         if (e.error === 'not-allowed') toast(T('Mikrofon nicht freigegeben – im Browser erlauben'), 'warn', 4000);
+        else if (e.error === 'network') toast(T('Spracherkennung braucht eine Internetverbindung'), 'warn', 3500);
         else if (e.error !== 'aborted' && e.error !== 'no-speech') toast(T`Spracherkennung: ${e.error}`, 'warn', 2500);
       };
       rec.onend = () => {

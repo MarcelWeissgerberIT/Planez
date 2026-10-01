@@ -1,6 +1,6 @@
 // Hauptmenü und Pausenmenü: großer Titel, nummerierte Einträge, Status-Panel, Szenen-Video im Hintergrund
 import { VERSION } from '../version.js';
-import { IS_DEMO } from '../edition.js';
+import { IS_DEMO, DESKTOP } from '../edition.js';
 import { ROLES, slotInfo, loadGame, deleteSave, freeSlot, exportSave, importSave } from '../state.js';
 import { toast } from './dom.js';
 import { esc, fmtMoney, fmtClock, dayOf } from '../util.js';
@@ -254,6 +254,7 @@ export function initMainMenu(api) {
   const scene = root.querySelector('#mm-scene');
   const video = root.querySelector('#menu-video');
   mm = { root, lists, side, cur: 'main', save: null, api };
+  root.querySelector('#btn-quit').classList.toggle('hidden', !DESKTOP); // nur die Desktop-Version lässt sich beenden
 
   const showSide = (key) => {
     let html = '';
@@ -320,6 +321,7 @@ export function initMainMenu(api) {
       else if (a === 'about') showSide('about');
       else if (a === 'whatsnew') showSide('whatsnew');
       else if (a === 'career') showSide('career');
+      else if (a === 'quit') window.close();
       return;
     }
     const ex = e.target.closest('[data-slot-exp]');
