@@ -260,5 +260,5 @@ SERVER.close();
 // ---------- Video + Musik ----------
 const total = (REDO ? TOTAL : frame) / FPS;
 const out = path.join(OUT, `planez_trailer_${LANG}${ONLY ? '_part' : ''}.mp4`);
-execFileSync(FFMPEG, ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(FR, '%05d.jpg'), '-i', path.join(ROOT, 'assets/music/menu.mp3'), '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'slow', '-crf', '21', '-maxrate', '14M', '-bufsize', '28M', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-af', `afade=t=in:d=0.8,afade=t=out:st=${(total - 2.5).toFixed(2)}:d=2.5`, '-t', total.toFixed(2), '-movflags', '+faststart', out]);
+execFileSync(FFMPEG, ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(FR, '%05d.jpg'), '-i', path.join(ROOT, 'assets/music/menu.mp3'), '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'slow', '-crf', '21', '-maxrate', '14M', '-bufsize', '28M', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-af', `afade=t=in:d=0.8,afade=t=out:st=${Math.max(0, total - 2.5).toFixed(2)}:d=2.5`, '-t', total.toFixed(2), '-movflags', '+faststart', out]);
 console.log('trailer', path.relative(ROOT, out), total.toFixed(1), 's');
