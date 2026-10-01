@@ -10,6 +10,7 @@ import { SPEEDS, AC_TYPES, dayMinutes } from './config.js';
 import { TowerPanel, REQ_DE, fixReadback } from './ui/tower.js';
 import { boardMeetingHtml } from './ui/board.js';
 import { playIntro } from './ui/intro.js';
+import { newspaperHtml } from './ui/newspaper.js';
 import { chooseStrategy, STRATEGIES } from './sim/board.js';
 import { CHAPTERS, chapterOf } from './sim/campaign.js';
 import { GroundPanel } from './ui/groundPanel.js';
@@ -746,6 +747,7 @@ function showReport(rec) {
       ${reportExtras(rec)}
     </div>
     ${dayChart(rec)}
+    ${newspaperHtml(game.state, rec)}
     ${momentsHtml()}
     ${rec.score && (game.state.role === 'tower' || game.state.role === 'ground') ? `<p class="rep-score">⭐ Schichtpunkte heute: <b>${rec.score.toLocaleString('de-DE')}</b>${rec.score >= rec.scoreBest ? ' · <span>neuer Tagesbestwert!</span>' : ` · Bestwert ${rec.scoreBest.toLocaleString('de-DE')}`}</p>` : ''}
     ${rec.xp ? `<p style="margin:10px 0 0;color:var(--muted)">🏅 +${rec.xp} XP für den Tag · ${RANKS[goalsState(game.state).rank].name} (${goalsState(game.state).xp} XP)</p>` : ''}
