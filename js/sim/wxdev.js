@@ -15,7 +15,7 @@ import { diff } from './difficulty.js';
 export const WX_WINDOW = 14; // Echtzeit-Sekunden, bis der Pilot ohne Antwort selbst ausweicht (oder 5 NM vor der Zelle)
 const BUF = 1.5; // Sicherheitsabstand zur Zelle (NM)
 const LOOKAHEAD = 20; // Zellen bis so weit voraus melden (NM)
-const humanTower = (s) => s.role === 'tower' && !s.auto.atc;
+const humanTower = (s) => s.role === 'tower' && !s.auto.atc && !(s.settings && s.settings.wxAuto); // „Umwege auto“: der Kollege genehmigt
 
 // nächster Punkt der Strecke a→b zum Zellmittelpunkt c
 function segHit(a, b, c) {

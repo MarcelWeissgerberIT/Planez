@@ -64,7 +64,7 @@ export function runwayStatusHtml(state) {
   }
   // Pistenkontrolle: Anfrage mit Lücken-Check, laufende Kontrolle
   const I = state.insp;
-  if (I && I.req && !state.auto.atc) {
+  if (I && I.req && !state.auto.atc && !state.settings.inspAuto) {
     const c = inspConflict(state);
     const wait = Math.max(0, Math.round((state.time - I.req.t) / 60));
     h += `<div class="insp-rq${c ? (c.hard ? ' hard' : ' soft') : ' ok'}">🚙 <b>Pistenkontrolle</b> bittet, Bahn ${rwyName(state, 'N')} abzufahren (${INSP_MIN} min)${wait ? ` · wartet seit ${wait} min` : ''}<small>${c ? `⚠ ${esc(c.ac.cs)} ${esc(c.why)}` : '✓ Lücke – jetzt freigeben'}</small></div><div class="insp-b"><button class="cmd ${c ? '' : 'big'}" data-insp="ok">Freigeben</button><button class="cmd" data-insp="later">Später</button></div>`;
@@ -72,6 +72,8 @@ export function runwayStatusHtml(state) {
     const left = Math.max(0, I.active.until - state.time);
     h += `<div class="insp-rq act">🚙 Pistenkontrolle auf Bahn ${rwyName(state, 'N')} – noch ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}</div><div></div>`;
   }
+  // Assistenz: Wetterumwege und Pistenkontrollen dem Kollegen überlassen
+  if (!state.auto.atc) h += `<div class="rwy-assist"><span>Assistenz</span><button class="rl-tg" data-assist="wxAuto" title="Umweg-Anfragen bei Gewitter automatisch genehmigen (ohne Punkte)"><span class="switch ${state.settings.wxAuto ? 'on' : ''}"></span>Umwege auto</button><button class="rl-tg" data-assist="inspAuto" title="Pistenkontrollen in ruhigen Phasen automatisch freigeben (ohne Punkte)"><span class="switch ${state.settings.inspAuto ? 'on' : ''}"></span>Kontrolle auto</button></div>`;
   if (hasRwy2(state)) h += `<div class="rwy-cond">Betriebsart: <b>${segregated(state) ? 'getrennt (Landungen Süd, Starts Nord)' : 'eine Bahn (alles auf der Nordbahn)'}</b></div><button class="cmd" data-rwymode="${segregated(state) ? 'single' : 'seg'}">${segregated(state) ? '→ eine Bahn' : '→ getrennt'}</button>`;
   h += `<div class="rwy-cond">${temperature(state).toFixed(0)} °C · ${state.weather.kind === 'fog' ? `RVR <b>${state.weather.rvr ?? '—'} m</b> · LVP · ` : ''}${isNight(state) ? `🌙 Nacht${state.settings.curfew ? 'flugverbot' : ''}` : '☀️ Tagbetrieb'}</div>${qm('rwy')}`;
   return h;
@@ -267,6 +269,14 @@ export class TowerPanel {
     }
     const rw = e.target.closest('[data-rwy]');
     if (rw) return requestRunwayChange(s, rw.dataset.rwy);
+    const ab = e.target.closest('[data-assist]');
+    if (ab) {
+      const k = ab.dataset.assist;
+      s.settings[k] = !s.settings[k];
+      toast(k === 'wxAuto' ? (s.settings[k] ? '⛈️ Umweg-Anfragen genehmigt jetzt der Kollege' : '⛈️ Umweg-Anfragen wieder selbst beantworten') : s.settings[k] ? '🚙 Pistenkontrollen gibt jetzt der Kollege in ruhigen Phasen frei' : '🚙 Pistenkontrollen wieder selbst freigeben', 'info', 2600);
+      this.update(s);
+      return;
+    }
     const ib = e.target.closest('[data-insp]');
     if (ib) {
       const r = ib.dataset.insp === 'ok' ? approveInspection(s) : deferInspection(s);

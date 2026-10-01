@@ -14,7 +14,7 @@ import { diff } from './difficulty.js';
 export const INSP_MIN = 3; // Minuten auf der Bahn
 export const CHECK = 'CHECK1';
 const EVERY = 3 * 3600;
-const humanTower = (s) => s.role === 'tower' && !s.auto.atc;
+const humanTower = (s) => s.role === 'tower' && !s.auto.atc && !(s.settings && s.settings.inspAuto); // „Kontrolle auto“: Freigabe in ruhigen Phasen
 // gleichmäßige Pseudozufallszahl aus der Spielzeit (verbraucht den Zufallsgenerator des Spiels nicht)
 const hash01 = (t) => {
   let h = (Math.floor(t / 60) * 2654435761) >>> 0;
