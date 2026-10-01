@@ -527,7 +527,7 @@ function updateMap(state, ac, dt) {
             ac.fireStop = state.time;
             ac.v = 0;
             closeRunway(state, 8, 'Feuerwehreinsatz', ac.strip || 'N');
-            radio(state, ac.cs, `${tel(ac)}, stopping on the runway, evacuation not required, request fire services.`);
+            radio(state, ac.cs, ac.emgKind === 'smoke' ? `${tel(ac)}, stopping on the runway, evacuating via the slides, request fire services.` : `${tel(ac)}, stopping on the runway, evacuation not required, request fire services.`);
             if (state.fireAlert) state.fireAlert.stop = true;
           }
           if (ac.fireStop) {

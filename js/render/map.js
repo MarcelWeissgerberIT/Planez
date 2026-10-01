@@ -375,6 +375,7 @@ export class MapRenderer {
     this.followMeItems(state, items, lights);
     this.stateVisitItems(state, items, lights, night);
     this.festiveLights(state, lights, night);
+    this.evacItems(state, items, lights, night);
     const sal = saluteView(state);
     if (sal) for (const t of sal.trucks) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
     plowItems(this, state, items, lights);
@@ -1367,6 +1368,105 @@ export class MapRenderer {
       g.addColorStop(1, 'rgba(240,244,250,0)');
       ctx.fillStyle = g;
       ctx.fillRect(p.x - 22 * cam.zoom, p.y - 22 * cam.zoom, 44 * cam.zoom, 44 * cam.zoom);
+    }
+  }
+
+  // Evakuierung bei Rauch in der Kabine: Notrutschen an beiden Seiten, Reisende laufen zum Sammelpunkt nördlich
+  // der Bahn, ein Bus holt sie ab – nur Darstellung, solange das Flugzeug mit der Feuerwehr auf der Bahn steht
+  evacItems(state, items, lights, night) {
+    for (const ac of state.acs) {
+      if (ac.mode !== 'map' || ac.emgKind !== 'smoke' || !ac.fireStop || ac.fireDone) continue;
+      const el = state.time - ac.fireStop;
+      const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg), rx = -fy, ry = fx;
+      const half = 0.2 * (AC_TYPES[ac.type].scale || 1) * 0.55 + 0.1;
+      const doors = [0.32, -0.28].map((a) => a * ac.len);
+      const ctx = this.ctx, cam = this.cam;
+      // Rutschen (gelb, flach am Boden) – erst nach ein paar Sekunden aufgeblasen
+      const inf = clamp(el / 20, 0, 1);
+      for (const along of doors) {
+        for (const sg of [-1, 1]) {
+          const bx = ac.x + fx * along + rx * half * sg, by = ac.y + fy * along + ry * half * sg;
+          items.push({
+            d: bx + by - 0.4,
+            f: () => {
+              cam.setIso(ctx, 0);
+              ctx.save();
+              ctx.translate(bx, by);
+              ctx.rotate(Math.atan2(ry * sg, rx * sg));
+              ctx.fillStyle = 'rgba(250,204,21,0.95)';
+              ctx.beginPath();
+              ctx.moveTo(0, -0.06);
+              ctx.lineTo(0.55 * inf, -0.1);
+              ctx.lineTo(0.55 * inf, 0.1);
+              ctx.lineTo(0, 0.06);
+              ctx.closePath();
+              ctx.fill();
+              ctx.fillStyle = 'rgba(202,138,4,0.9)';
+              ctx.fillRect(0, -0.015, 0.55 * inf, 0.03);
+              ctx.restore();
+            },
+          });
+        }
+      }
+      if (inf < 1 || this.cam.zoom < 0.5) continue;
+      // Sammelpunkt: nördlich der Bahn, neben dem Flugzeug
+      const side = ry < 0 ? 1 : -1; // die Seite Richtung Norden (kleineres y)
+      const gx = ac.x, gy = ac.y - 3.2;
+      const busT = el - 160; // nach knapp drei Minuten kommt der Bus
+      const n = 36;
+      for (let k = 0; k < n; k++) {
+        const along = doors[k % 2], sg = k % 4 < 2 ? side : -side;
+        const sx = ac.x + fx * along + rx * (half + 0.55) * sg, sy = ac.y + fy * along + ry * (half + 0.55) * sg;
+        const start = 20 + k * 2.2;
+        const u = clamp((el - start) / 45, 0, 1);
+        if (u <= 0) continue;
+        if (busT > 0 && busT * 0.35 > k) continue; // schon im Bus
+        const h = ((k * 7919) % 100) / 100;
+        const tx = gx + (h - 0.5) * 2.2, ty = gy + (((k * 104729) % 100) / 100 - 0.5) * 0.9;
+        // wer auf der Südseite herauskommt, läuft vor der Nase herum auf die Nordseite
+        const pts = [{ x: sx, y: sy }];
+        if (sg !== side) {
+          const ax = ac.x + fx * ac.len * 0.75, ay = ac.y + fy * ac.len * 0.75;
+          pts.push({ x: ax + rx * (half + 0.6) * sg, y: ay + ry * (half + 0.6) * sg }, { x: ax + rx * (half + 0.6) * side, y: ay + ry * (half + 0.6) * side });
+        }
+        pts.push({ x: tx, y: ty });
+        const seg = u * (pts.length - 1), i0 = Math.min(pts.length - 2, Math.floor(seg)), f = seg - i0;
+        const px = pts[i0].x + (pts[i0 + 1].x - pts[i0].x) * f, py = pts[i0].y + (pts[i0 + 1].y - pts[i0].y) * f;
+        const col = ['#1e3a8a', '#7c2d12', '#334155', '#be123c', '#065f46', '#6d28d9'][k % 6];
+        items.push({ d: px + py, f: () => drawPerson(this, px, py, col, 1, false, this.time + k, u < 1) });
+      }
+      if (busT > 0) {
+        const bu = clamp(busT / 25, 0, 1);
+        const bx = gx - 6 + 6 * bu, by = gy - 0.8;
+        items.push({ d: bx + by, f: () => this.drawAmbientCar({ kind: 'bus', col: '#e2e8f0' }, { x: bx, y: by, h: 0 }, night, lights) });
+      }
+      // Sammelpunkt merken: die Reisenden warten dort weiter, wenn das Flugzeug abrollt
+      this.evacs = this.evacs || new Map();
+      this.evacs.set(ac.id, { gx, gy, t0: ac.fireStop, busT0: ac.fireStop + 160 });
+    }
+    // nach dem Abrollen: Gruppe am Sammelpunkt, der Bus holt alle ab
+    if (this.evacs) {
+      for (const [id, E] of this.evacs) {
+        const ac = state.acs.find((a) => a.id === id);
+        if (ac && ac.fireStop && !ac.fireDone) continue;
+        if (!E.doneT) E.doneT = Math.max(state.time, E.t0 + 60);
+        const bt = state.time - Math.max(E.doneT, E.busT0 - 140);
+        if (bt > 120 || state.time < E.t0) {
+          this.evacs.delete(id);
+          continue;
+        }
+        const left = Math.max(0, 36 - Math.max(0, bt - 25) * 0.5);
+        for (let k = 0; k < left; k++) {
+          const h = ((k * 7919) % 100) / 100;
+          const px = E.gx + (h - 0.5) * 2.2, py = E.gy + (((k * 104729) % 100) / 100 - 0.5) * 0.9;
+          const col = ['#1e3a8a', '#7c2d12', '#334155', '#be123c', '#065f46', '#6d28d9'][k % 6];
+          items.push({ d: px + py, f: () => drawPerson(this, px, py, col, 1, false, this.time + k, false) });
+        }
+        const bu = clamp(bt / 25, 0, 1);
+        const away = bt > 25 + 72 ? clamp((bt - 97) / 20, 0, 1) : 0;
+        const bx = E.gx - 6 + 6 * bu + 8 * away, by = E.gy - 0.8;
+        if (bt > 0) items.push({ d: bx + by, f: () => this.drawAmbientCar({ kind: 'bus', col: '#e2e8f0' }, { x: bx, y: by, h: 0 }, night, lights) });
+      }
     }
   }
 
