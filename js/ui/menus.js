@@ -107,13 +107,18 @@ const SIDE = {
     <ul><li>Kurze Einsätze mit festem Start: Morgenwelle, Nebel, Gewitterfront, Notfälle, Streik, Winterchaos, Sanierungsfall …</li><li>Jedes Ziel bringt 1–3 Sterne – der Bestwert bleibt gespeichert</li><li>Mit einem Stern schaltest du die nächste Stufe deiner Station frei</li></ul></div></div>`,
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
+      <li>🪟 <b>Mitfliegen</b> am Fensterplatz oder im Cockpit mit Instrumenten und Höhenansagen</li>
+      <li>🛡️ <b>Sicherheitsnetz</b> gegen gefährliche Freigaben · 🎙️ natürlichere <b>englische Funkstimmen</b> mit Akzent je Airline</li>
+      <li>🎨 <b>Eigene Icons</b> im Spiel-Look · 🦺 <b>Einwinker</b>, Andockanzeige, Wing Walker · 🚑 <b>Rettungswagen</b></li>
+      <li>🌌 <b>Lichtspuren</b> im Fotomodus · 📸 <b>Spotterhügel</b> · 🔎 <b>Spotter-Quiz</b> · 🎈 <b>Tag der offenen Tür</b></li>
+      <li>🌬️ <b>Seitenwind-Anflüge</b> · 💨 Kondensfahnen · 🌈 Regenbogen · 🛞 Reifenquietschen · 😊 <b>Fluggast-Zufriedenheit</b></li>
+    </ul><div class="ms-sec">Davor</div><ul>
+      <li>🎙️ <b>Sprechtaste</b> auch für Heli, Cessna und Pistenkontrolle · 🎤 <b>Pressekonferenz</b> · 📋 <b>Loadsheet</b> und 🌡️ <b>Hitze</b> im Vorfeld · 📻 Crews melden Ereignisse per Funk</li>
       <li>⏪ <b>Wiederholung</b> in Zeitlupe (<kbd>⇧R</kbd>) · 🛩️ <b>Platzrunden</b> · 🚁 <b>Rettungshubschrauber</b> · 🛩️ <b>Großer Flugtag</b></li>
       <li>💦 <b>Wassertaufe</b> für jeden Erstflug · 🛬 <b>Aufsetzrate</b> von 🧈 Butter bis hart · ✨ <b>Highlights</b> im Tagesbericht</li>
       <li>🎖️ <b>Staatsbesuch</b> mit rotem Teppich und Kolonne · 📡 <b>Livestream</b> mit Live-Chat (<kbd>L</kbd>)</li>
       <li>🎞️ <b>Kino-Look</b> mit Tilt-Shift und Regen auf der Linse · 🔍 <b>Miniatur-Fotos</b> · 🔔 <b>Terminal-Durchsagen</b></li>
-      <li>🪟 <b>Mitfliegen</b> am Fensterplatz oder im Cockpit · 🎨 <b>Eigene Icons</b> im Spiel-Look · 🛡️ <b>Sicherheitsnetz</b> gegen gefährliche Freigaben · 🎙️ bessere englische Funkstimmen · 📸 <b>Spotterhügel</b> · 🌌 <b>Lichtspuren</b> im Fotomodus · 🎈 <b>Tag der offenen Tür</b> · 🔎 <b>Spotter-Quiz</b> im Livestream · 🚑 <b>Rettungswagen</b> bei medizinischen Notfällen · 🦺 <b>Einwinker</b>, Andockanzeige und Wing Walker · 💨 Kondensfahnen · 🌈 Regenbogen · 🛞 Reifenquietschen · 🌬️ <b>Seitenwind-Anflüge</b> mit Vorhaltewinkel · 🎙️ <b>Sprechtaste</b> auch für Heli, Cessna und Pistenkontrolle · 😊 <b>Fluggast-Zufriedenheit</b> in der Management-Zentrale · 🎤 <b>Pressekonferenz</b> · 📋 <b>Loadsheet</b> und 🌡️ <b>Hitze</b> im Vorfeld · 📻 Crews melden Ereignisse per Funk</li>
       <li>📖 <b>Kampagne</b>: 10 Kapitel mit Story · 🏛️ <b>Aufsichtsrat</b> · ⛈️ <b>Wetterumflüge</b> · 🚙 <b>Pistenkontrolle</b></li>
-    </ul><div class="ms-sec">Davor</div><ul>
       <li>🎵 Musik im Spiel · ♿ Barrierefreiheit · 🎞️ Kino-Intro · 📰 Planezer Kurier · 🌐 Basis-Angebote</li>
       <li>✈️ A220, CRJ900, Dash 8-400, A330 · Lumen Air, Fjordwing · 📅 Tagesherausforderung · 🎖️ Karriere</li>
       <li>👂 Readback-Fehler · 📻✖ Funkausfall · 🏢 Nordhafen · 📒 Spotterbuch · 📋 Schichtbriefing</li>
