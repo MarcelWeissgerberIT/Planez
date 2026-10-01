@@ -142,9 +142,12 @@ export const CATALOG = {
   hubOffer: {
     role: 'manager', weight: 0.35, timeout: 4 * H,
     cond: (s) => {
-      if (s.hub || s.hubPending || s.time < 3 * 86400 || s.reputation < 55) return null;
-      const partners = [...new Set(s.contracts.map((c) => c.airline))].filter((a) => AIRLINES[a] && a !== 'VIP' && AIRLINES[a].types.some((t) => !AC_TYPES[t].cargo));
-      return partners.length ? { al: pick(s, partners) } : null;
+      if (s.scenario || s.hub || s.hubPending || s.time < 3 * 86400 || s.reputation < 55) return null; // nicht in kurzen Herausforderungen
+      // größter Partner (ohne Zufall – die Bedingung wird oft geprüft und soll den Spielverlauf nicht verschieben)
+      const cnt = {};
+      for (const c of s.contracts) if (AIRLINES[c.airline] && c.airline !== 'VIP' && AIRLINES[c.airline].types.some((t) => !AC_TYPES[t].cargo)) cnt[c.airline] = (cnt[c.airline] || 0) + 1;
+      const best = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
+      return best ? { al: best[0] } : null;
     },
     card: (s, p) => {
       const al = AIRLINES[p.al];
@@ -304,11 +307,19 @@ export const CATALOG = {
       return {
         icon: '⛽', title: 'Festpreis-Angebot für Kerosin',
         text: `Ein Händler bietet ${p.q} t zum Festpreis von ${unit} €/t an (Markt gerade ${Math.round(f.price)} €/t). Lieferung sofort.`,
-        options: [
-          { label: 'Kaufen', detail: `${fmtMoney(p.q * unit)}`, run: (st) => { const fs = fuelState(st); const q = Math.min(p.q, FUEL.cap - fs.stock); if (st.cash < q * unit) return notify(st, 'Nicht genug Geld für das Kerosin-Angebot', 'warn'); st.cash -= q * unit; st.ledger.fuelBuy = (st.ledger.fuelBuy || 0) + q * unit; fs.value = (fs.value || 0) + q * unit; fs.stock += q; log(st, 'mgr', `Kerosin-Festpreis: ${q} t zu ${unit} €/t gekauft.`); } },
+        // Standard bei Zeitablauf (erste Option): günstige Angebote kaufen, teure ablehnen
+        options: (p.f < 0.99 ? (a, b) => [b, a] : (a, b) => [a, b])(
           { label: 'Ablehnen', detail: 'kein Risiko', run: () => {} },
-        ],
+          { label: 'Kaufen', detail: `${fmtMoney(p.q * unit)} · ${p.f < 1 ? `${Math.round((1 - p.f) * 100)} % unter Markt` : `${Math.round((p.f - 1) * 100)} % über Markt`}`, run: (st) => { const fs = fuelState(st); const q = Math.min(p.q, FUEL.cap - fs.stock); if (st.cash < q * unit) return notify(st, 'Nicht genug Geld für das Kerosin-Angebot', 'warn'); st.cash -= q * unit; st.ledger.fuelBuy = (st.ledger.fuelBuy || 0) + q * unit; fs.value = (fs.value || 0) + q * unit; fs.stock += q; log(st, 'mgr', `Kerosin-Festpreis: ${q} t zu ${unit} €/t gekauft.`); } },
+        ),
       };
+    },
+    // KI: kaufen, wenn der Preis höchstens leicht über Markt liegt, Platz im Tanklager ist und das Geld reicht
+    // (das Kerosin wird mit Marge an die Airlines weiterverkauft)
+    ai: (s, p) => {
+      const f = fuelState(s);
+      const buy = p.f <= 1.03 && f.stock < FUEL.cap * 0.85 && s.cash > p.q * f.price * p.f * 1.5;
+      return buy === p.f < 0.99 ? 0 : 1; // Index je nach Reihenfolge der Optionen
     },
   },
   charter: {
