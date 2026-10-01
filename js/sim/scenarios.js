@@ -1,5 +1,7 @@
 // Herausforderungen: kurze Szenarien je Station mit festem Start (Uhrzeit, Wetter, Jahreszeit, Kasse),
 // Drehbuch-Ereignissen, Zeitlimit und Zielen mit 1–3 Sternen. Bestwerte bleiben im Browser gespeichert.
+import { vfrState } from './vfr.js';
+import { heliState } from './heli.js';
 import { notify, log, radio } from './messages.js';
 import { triggerEvent } from './events.js';
 import { requestRunwayChange } from './atc.js';
@@ -33,6 +35,7 @@ function metrics(state) {
     cash: state.cash,
     rep: Math.round(state.reputation),
     rwy2: state.upgrades.rwy2 ? 1 : 0,
+    side: d('touchGo') + d('heliX'),
   };
 }
 // Tageszähler aufsummieren (auch über den Tageswechsel hinweg)
@@ -152,6 +155,29 @@ export const SCENARIOS = [
     goals: [
       { text: 'Notfälle sicher gelandet', key: 'emg', t: [1, 2, 3] },
       { text: 'Bewegungen', key: 'mov', t: [9, 13, 17] },
+      { text: 'Vorfälle', key: 'incidents', t: [1, 0, 0], low: true },
+    ],
+    fail: (m) => (m.incidents >= 3 ? 'Drei Vorfälle – die Schicht wurde abgelöst.' : null),
+  },
+  {
+    id: 'flytag', role: 'tower', icon: '🛩️', diff: 3, title: 'Großer Flugtag', img: 'assets/scn/morning.webp', side: true,
+    brief: 'Sonnenschein und ein voller Himmel: Die Flugschule übt Platzrunden, der Rettungshubschrauber will mehrmals über die Bahnen, und am Vormittag landet ein Staatsgast. Dazwischen läuft der Linienverkehr ganz normal weiter.',
+    tips: ['Touch and Go nur in echte Lücken – sonst kreist die Cessna', 'Rescue 7 schwebt südlich: Querung frei, wenn niemand im Endanflug ist', 'Die Regierungsmaschine 🎖️ ohne Warteschleife hereinholen'],
+    hour: 9.5, dur: 2 * H, density: 1,
+    setup: (s) => {
+      setWeather(s, 'clear', 4);
+      windShift(s, 262, 8);
+    },
+    script: [
+      { at: 60, run: (s) => { vfrState(s).next = s.time; } },
+      { at: 20 * 60, run: (s) => retry(s, 'state') },
+      { at: 35 * 60, run: (s) => { heliState(s).next = s.time; } },
+      { at: 70 * 60, run: (s) => { const V = vfrState(s); if (!V.p) V.next = s.time; } },
+      { at: 85 * 60, run: (s) => { const Hs = heliState(s); if (!Hs.h) Hs.next = s.time; } },
+    ],
+    goals: [
+      { text: 'Bewegungen', key: 'mov', t: [9, 12, 15] },
+      { text: 'Nebenverkehr (Touch and Go, Heli-Querungen)', key: 'side', t: [4, 7, 10] },
       { text: 'Vorfälle', key: 'incidents', t: [1, 0, 0], low: true },
     ],
     fail: (m) => (m.incidents >= 3 ? 'Drei Vorfälle – die Schicht wurde abgelöst.' : null),
@@ -332,7 +358,7 @@ export function applyScenario(state, def) {
   def.setup && def.setup(state);
   state.eventTimer = def.dur + 6 * H; // keine zufälligen Großereignisse – das Drehbuch bestimmt
   state.speed = def.role === 'manager' ? 10 : 1;
-  state.scenario = { id: def.id, start: state.time, end: state.time + def.dur, base: { ...(state.life || {}) }, acc: {}, last: { ...state.stats.today }, fired: 0, done: false, result: null };
+  state.scenario = { id: def.id, side: !!def.side, start: state.time, end: state.time + def.dur, base: { ...(state.life || {}) }, acc: {}, last: { ...state.stats.today }, fired: 0, done: false, result: null };
   log(state, 'sys', `Herausforderung „${def.title}“ beginnt.`);
   return state;
 }

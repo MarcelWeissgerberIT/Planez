@@ -112,13 +112,13 @@ const SIDE = {
       <li>🎖️ <b>Staatsbesuch</b> mit rotem Teppich und Kolonne · 📡 <b>Livestream</b> mit Live-Chat (<kbd>L</kbd>)</li>
       <li>🎞️ <b>Kino-Look</b> mit Tilt-Shift und Regen auf der Linse · 🔍 <b>Miniatur-Fotos</b> · 🔔 <b>Terminal-Durchsagen</b></li>
       <li>🎤 <b>Pressekonferenz</b> · 📋 <b>Loadsheet</b> und 🌡️ <b>Hitze</b> im Vorfeld · 📻 Crews melden Ereignisse per Funk</li>
-      <li>📖 <b>Kampagne</b>: 9 Kapitel mit Story · 🏛️ <b>Aufsichtsrat</b> · ⛈️ <b>Wetterumflüge</b> · 🚙 <b>Pistenkontrolle</b></li>
+      <li>📖 <b>Kampagne</b>: 10 Kapitel mit Story · 🏛️ <b>Aufsichtsrat</b> · ⛈️ <b>Wetterumflüge</b> · 🚙 <b>Pistenkontrolle</b></li>
     </ul><div class="ms-sec">Davor</div><ul>
       <li>🎵 Musik im Spiel · ♿ Barrierefreiheit · 🎞️ Kino-Intro · 📰 Planezer Kurier · 🌐 Basis-Angebote</li>
       <li>✈️ A220, CRJ900, Dash 8-400, A330 · Lumen Air, Fjordwing · 📅 Tagesherausforderung · 🎖️ Karriere</li>
       <li>👂 Readback-Fehler · 📻✖ Funkausfall · 🏢 Nordhafen · 📒 Spotterbuch · 📋 Schichtbriefing</li>
     </ul><div class="ms-sec">Spielen</div><ul>
-      <li>⭐ <b>Herausforderungen</b>: 9 Szenarien mit Sternen und Punkte-Rekorden</li>
+      <li>⭐ <b>Herausforderungen</b>: 10 Szenarien mit Sternen und Punkte-Rekorden – neu: 🛩️ Großer Flugtag</li>
       <li>⭐ <b>Schichtpunkte</b> mit Kombo für Tower und Vorfeld</li>
       <li>🎚️ <b>Schwierigkeit</b> Entspannt / Normal / Profi · 💾 <b>3 Speicherplätze</b></li>
       <li>🦺 <b>Positionsplan</b> (G) mit Drag &amp; Drop im Vorfeld</li>

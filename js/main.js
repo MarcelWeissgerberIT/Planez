@@ -128,7 +128,7 @@ const LOAD_TIPS = [
   'Tipp: Der Positionsplan (<kbd>G</kbd>) im Vorfeld zeigt, welche Position wann frei wird.',
   'Tipp: Bei Angeboten kannst du verhandeln – die Erfolgschance steht direkt auf dem Knopf.',
   'Tipp: Die Wettervorhersage im Kopfbereich kündigt Gewitter 30 Minuten vorher an.',
-  'Tipp: Unter „Herausforderungen“ warten neun Szenarien mit Sternen – von der Morgenwelle bis zum Winterchaos.',
+  'Tipp: Unter „Herausforderungen“ warten zehn Szenarien mit Sternen – von der Morgenwelle bis zum Großen Flugtag.',
   'Tipp: „🎥 Folgen“ auf der Info-Karte lässt die Kamera ein Flugzeug durch den ganzen Umlauf begleiten.',
   'Wusstest du? Hinter einem Heavy braucht ein leichtes Flugzeug bis zu 6 NM Abstand – Wirbelschleppen.',
   'Wusstest du? Unter 550 m Pistensichtweite reicht ILS CAT I nicht mehr – dann hilft nur CAT III.',
@@ -1518,7 +1518,7 @@ function helpGuide(first) {
     <p>Im Tower und im Vorfeld gibt es Punkte für gute Arbeit – saubere Landungen, Starts in der Lücke vor der nächsten Landung, kurze Wartezeiten am Rollhalt, Pushbacks auf die Minute und schnelle Turnarounds. Jeder Erfolg erhöht den Kombo-Multiplikator (bis ×3, oben neben dem Rang); ein Durchstarten, ein Vorfall oder eine große Verspätung setzt ihn zurück. Windscherung zählt nicht gegen dich.</p>
     <h3>⭐ Herausforderungen</h3>
     <p><b>📅 Tagesherausforderung:</b> ganz oben in der Liste – jeden Kalendertag eine neue Mischung aus einem Tower- oder Vorfeld-Szenario und zwei Zusatzregeln (z.B. Funkausfall, Hochbetrieb, Superjumbo, Winddrehung, Tankwagen-Panne). Für alle gleich gewürfelt; mindestens ein Stern an aufeinanderfolgenden Tagen ergibt eine 🔥 Serie.</p>
-    <p>Im Hauptmenü unter <b>Herausforderungen</b>: kurze Einsätze mit festem Start – Morgenwelle, Nebelsuppe, Gewitterfront, Notfall-Schicht (Tower), Ferienstart, Streiktag, Winterchaos (Vorfeld), Sanierungsfall und Wachstumskurs (Manager). Oben zeigt eine Leiste Restzeit und Ziele; jedes Ziel bringt 1–3 Sterne, die Gesamtwertung ist der Durchschnitt (ein verfehltes Ziel = nicht geschafft). Ein Stern schaltet die nächste Herausforderung der Station frei. Herausforderungen überschreiben deinen Spielstand nicht.</p>
+    <p>Im Hauptmenü unter <b>Herausforderungen</b>: kurze Einsätze mit festem Start – Morgenwelle, Nebelsuppe, Gewitterfront, Notfall-Schicht, Großer Flugtag (Tower), Ferienstart, Streiktag, Winterchaos (Vorfeld), Sanierungsfall und Wachstumskurs (Manager). Oben zeigt eine Leiste Restzeit und Ziele; jedes Ziel bringt 1–3 Sterne, die Gesamtwertung ist der Durchschnitt (ein verfehltes Ziel = nicht geschafft). Ein Stern schaltet die nächste Herausforderung der Station frei. Herausforderungen überschreiben deinen Spielstand nicht.</p>
     <h3>🛩️ Platzrunden</h3>
     <p>Tagsüber bei gutem Wetter übt manchmal eine <b>Cessna 172</b> Platzrunden mit Touch and Go. Im Gegenanflug (nördlich der Bahn) bittet sie um Freigabe: <b>Touch &amp; Go</b> gibt die Bahn frei, <b>Vollkreis</b> schickt sie eine Runde drehen. Gib frei, wenn kein Linienflug im Endanflug, auf der Bahn oder im Startlauf ist. Während sie aufsetzt, ist die Bahn belegt; Abflüge wartet der Auto-Lotse ab. Bleibt die Freigabe aus, kreist sie – nach drei Vollkreisen bricht sie ab.</p>
     <h3>🚁 Rettungshubschrauber</h3>
@@ -1536,7 +1536,7 @@ function helpGuide(first) {
     <h3>📋 Schichtbriefing</h3>
     <p>Zu Beginn jedes Tages (Tower, Vorfeld, Manager) fasst ein Briefing die Schicht zusammen: Wetter und Vorhersage, geplanter Verkehr je Stunde mit Spitzenstunde, besondere Flüge (A380, VIP), die Lage deiner Station (Betriebsrichtung und Heavys, Positionen und Tanklager, Kasse, auslaufende Verträge und Marktanteil) und die Ziele der Schicht. <kbd>Enter</kbd> beginnt die Schicht; abschaltbar im Briefing oder unter Einstellungen.</p>
     <h3>📖 Kampagne</h3>
-    <p>Unter „Kampagne &amp; Szenarien“ führt eine Geschichte in neun Kapiteln durch alle Stationen – vom ersten Arbeitstag im Tower über Vorfeld und Geschäftsführung bis zum Drehkreuz. Vor jedem Kapitel erklärt die Aufsichtsratsvorsitzende Dr. Helene Brandt die Lage, danach kommentiert sie dein Ergebnis. Ein Stern genügt, um das nächste Kapitel zu öffnen; die Sterne zählen auch für die Herausforderungen.</p>
+    <p>Unter „Kampagne &amp; Szenarien“ führt eine Geschichte in zehn Kapiteln durch alle Stationen – vom ersten Arbeitstag im Tower über Vorfeld und Geschäftsführung bis zum Drehkreuz und zum Großen Flugtag als Epilog. Vor jedem Kapitel erklärt die Aufsichtsratsvorsitzende Dr. Helene Brandt die Lage, danach kommentiert sie dein Ergebnis. Ein Stern genügt, um das nächste Kapitel zu öffnen; die Sterne zählen auch für die Herausforderungen.</p>
     <h3>♿ Barrierefreiheit</h3>
     <p>Unter Einstellungen (Hauptmenü oder Pause): <b>Große Schrift</b> vergrößert Seitenleiste, Info-Karte, Funk, Fenster und Meldungen, ohne dass die Karte schrumpft. Der <b>Farbsehschwäche-Modus</b> nutzt Blau für gut/frei und Orange für schlecht/Konflikt statt Grün/Rot – in Leisten, Karten, Effekten und im Radar. <b>Bewegung reduzieren</b> schaltet pulsierende Hinweise, Übergänge und das Menü-Video ab.</p>
     <h3>🎵 Musik im Spiel</h3>

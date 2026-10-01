@@ -1,4 +1,4 @@
-// Kampagne „Planez – Vom Regionalflughafen zum Drehkreuz“: neun Kapitel in fester Reihenfolge über alle Stationen.
+// Kampagne „Planez – Vom Regionalflughafen zum Drehkreuz“: zehn Kapitel in fester Reihenfolge über alle Stationen.
 // Jedes Kapitel spielt eine Herausforderung; die Aufsichtsratsvorsitzende erzählt vorher, worum es geht, und
 // nachher, was es bewirkt hat. Ein Kapitel gilt mit mindestens einem Stern als geschafft und öffnet das nächste.
 import { loadBest } from './scenarios.js';
@@ -48,6 +48,11 @@ export const CHAPTERS = [
     scn: 'growth', title: 'Drehkreuz',
     intro: 'Das letzte Kapitel. Die Parallelbahn steht, die Airlines klopfen an. Machen Sie aus Planez ein Drehkreuz – mehr Passagiere, besseres Ansehen, solide Finanzen.',
     outro: 'Vom Regionalflughafen zum Drehkreuz. Ich habe in vierzig Jahren viele Flughafenchefs gesehen – Sie gehören zu den besten. Willkommen im Vorstand.',
+  },
+  {
+    scn: 'flytag', title: 'Großer Flugtag',
+    intro: 'Eine Bitte noch, bevor Sie im Vorstand verschwinden: Zum Jubiläum möchte ich Sie dort sehen, wo alles anfing – im Tower. Heute ist Flugtag: die Flugschule, der Rettungshubschrauber, ein Staatsgast und der ganz normale Linienverkehr. Zeigen Sie allen, wie man einen vollen Himmel ordnet.',
+    outro: 'Was für ein Tag. Die Flugschüler haben applaudiert, der Staatsgast hat sich bedankt, und Rescue 7 kam jedes Mal ohne Umweg durch. Planez ist bereit für alles, was kommt – und Sie auch.',
   },
 ];
 

@@ -76,7 +76,7 @@ export function holdHeli(state) {
 }
 
 export function updateHeli(state, dt) {
-  if (state.scenario) return;
+  if (state.scenario && !state.scenario.side) return;
   const S = heliState(state);
   const H = S.h;
   const hr = (state.time / 3600) % 24;
