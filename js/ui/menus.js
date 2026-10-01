@@ -107,7 +107,7 @@ const SIDE = {
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
       <li>📖 <b>Kampagne</b>: 9 Kapitel mit Story · 🎞️ <b>Kino-Intro</b> und 🎬 <b>Rundgänge</b> im Kino-Modus</li>
-      <li>🏛️ <b>Aufsichtsrat</b>: Wochenziele, Vertrauen, Zuschuss und Strategie für Manager</li>
+      <li>🏛️ <b>Aufsichtsrat</b> mit Wochenzielen und Strategie · 🌐 <b>Basis-Angebote</b> von Airlines</li>
       <li>⛈️ <b>Wetterumflüge</b> mit <kbd>Y</kbd> genehmigen · 🚙 <b>Pistenkontrolle</b> in Verkehrslücken</li>
       <li>🎵 <b>Musik im Spiel</b>, die auf die Lage reagiert · ♿ <b>Barrierefreiheit</b>: große Schrift, Farbsehschwäche, ruhige Bewegung</li>
       <li>✈️ <b>Neue Typen</b> A220, CRJ900, Dash 8-400, A330 · <b>Lumen Air</b> und <b>Fjordwing</b></li>

@@ -111,7 +111,25 @@ export function boardDayEnd(state, rec) {
     state.cash -= audit;
     state.reputation = Math.max(0, state.reputation - 2);
   }
-  const res = { week: B.week, day: rec.day, met, rows, conf: B.conf, before, bonus, audit, strategy: B.strategy };
+  // Basis-Partner: Pünktlichkeitszusage prüfen (zweimal verfehlt = Abzug)
+  let hub = null;
+  if (state.hub) {
+    const H = state.hub;
+    const ok = prog.punct >= H.min;
+    H.strikes = ok ? 0 : H.strikes + 1;
+    hub = { airline: H.airline, ok, strikes: H.strikes, left: H.strikes >= 2 };
+    for (const c of state.contracts) if (c.hub) c.sat = Math.max(0, Math.min(100, (c.sat ?? 70) + (ok ? 4 : -8)));
+    if (H.strikes >= 2) {
+      for (const c of state.contracts) if (c.hub) {
+        c.days = Math.min(c.days, 2);
+        c.hub = false;
+      }
+      state.hub = null;
+      state.reputation = Math.max(0, state.reputation - 3);
+      notify(state, '🌐 Der Basis-Partner zieht ab – Pünktlichkeitszusage zweimal verfehlt', 'bad');
+    } else if (!ok) notify(state, `🌐 Basis-Partner verwarnt: nur ${prog.punct} % pünktlich (Zusage ${H.min} %) – beim nächsten Mal zieht er ab`, 'warn');
+  }
+  const res = { week: B.week, day: rec.day, met, rows, conf: B.conf, before, bonus, audit, strategy: B.strategy, hub };
   B.hist.push({ week: B.week, met, conf: B.conf, strategy: B.strategy });
   if (B.hist.length > 20) B.hist.shift();
   const L = state.life || (state.life = {});

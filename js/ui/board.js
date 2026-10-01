@@ -1,6 +1,7 @@
 // Aufsichtsrat: Sitzungsprotokoll mit Strategiewahl (Modal) und Seite in der Management-Zentrale
 import { STRATEGIES, BOARD_DELTA, BOARD_BONUS, CHAIR, boardState, weekProgress, goalRows, chairQuote, strategy } from '../sim/board.js';
 import { fmtMoney } from '../util.js';
+import { AIRLINES } from '../config.js';
 
 const fmtV = (r, v) => (r.fmt === 'money' ? fmtMoney(v) : r.fmt === '%' ? `${Math.round(v)} %` : Math.round(v).toLocaleString('de-DE'));
 const confCls = (c) => (c >= 75 ? 'hi' : c >= 40 ? 'mid' : 'lo');
@@ -29,7 +30,7 @@ export function boardMeetingHtml(state, res) {
     <div class="bd-chair"><span class="bd-face">👩‍💼</span><div><b>${CHAIR}</b><small>Vorsitzende des Aufsichtsrats</small><p>„${chairQuote(met, res.conf)}“</p></div><div class="bd-score ${met >= 4 ? 'good' : met >= 3 ? 'mid' : 'bad'}"><b>${met}/5</b><small>Ziele erreicht</small></div></div>
     ${rowsTable(res.rows)}
     ${confMeter(res.conf, res.before)}
-    <div class="bd-money">${res.bonus ? `<span class="good">💶 Investitionszuschuss: <b>${fmtMoney(res.bonus)}</b>${res.conf >= 80 && res.bonus > BOARD_BONUS[met] ? ' (inkl. +50 % für volles Vertrauen)' : ''}</span>` : '<span>Kein Zuschuss – ab 3 erreichten Zielen gibt es Geld für Investitionen.</span>'}${res.audit ? `<span class="bad">🔎 Sonderprüfung: <b>−${fmtMoney(res.audit)}</b>, Ansehen −2</span>` : ''}</div>
+    <div class="bd-money">${res.bonus ? `<span class="good">💶 Investitionszuschuss: <b>${fmtMoney(res.bonus)}</b>${res.conf >= 80 && res.bonus > BOARD_BONUS[met] ? ' (inkl. +50 % für volles Vertrauen)' : ''}</span>` : '<span>Kein Zuschuss – ab 3 erreichten Zielen gibt es Geld für Investitionen.</span>'}${res.audit ? `<span class="bad">🔎 Sonderprüfung: <b>−${fmtMoney(res.audit)}</b>, Ansehen −2</span>` : ''}${res.hub ? `<span class="${res.hub.ok ? 'good' : 'bad'}">🌐 Basis-Partner ${AIRLINES[res.hub.airline]?.name || ''}: ${res.hub.ok ? 'Pünktlichkeitszusage eingehalten ✓' : res.hub.left ? 'Zusage zweimal verfehlt – die Airline zieht ab' : 'Zusage verfehlt – Verwarnung 1/2'}</span>` : ''}</div>
     <div class="p-sec"><span>Strategie für die nächste Woche</span></div>
     ${stratCards(state.board.strategy)}
     <div class="modal-acts"><button class="btn btn-primary" data-close-modal>Strategie beschließen</button></div></div>`;
@@ -47,6 +48,7 @@ export function boardPageHtml(state) {
     <div class="bd-st"><span>Strategie</span><b>${st.icon} ${st.name}</b><small>${st.fx}</small></div></div>`;
   h += rowsTable(rows, true);
   h += confMeter(B.conf);
+  if (state.hub) h += `<div class="bd-money"><span class="${state.hub.strikes ? 'bad' : 'good'}">🌐 Basis-Partner <b>${AIRLINES[state.hub.airline]?.name || ''}</b>: Zusage ≥ ${state.hub.min} % Pünktlichkeit je Woche (jetzt ${prog.punct} %) · Verwarnungen ${state.hub.strikes}/2 · Entgelte −${Math.round((1 - state.hub.mult) * 100)} %</span></div>`;
   h += `<div class="bd-rules"><div class="s">🏛️ Je erreichtem Ziel steigt das Vertrauen: ${BOARD_DELTA.map((d, i) => `${i}: ${d > 0 ? '+' : ''}${d}`).join(' · ')}.</div>
     <div class="s">💶 Zuschuss ab 3 Zielen (${BOARD_BONUS.slice(3).map((b) => fmtMoney(b)).join(' / ')}), ab 80 Vertrauen +50 %. Unter 25 Vertrauen: Sonderprüfung (120 Tsd €, Ansehen −2).</div>
     <div class="s">📋 Ziele kommen aus der Vorwoche: Passagiere und Ergebnis sollen wachsen, Pünktlichkeit und Ansehen halten, höchstens 2 Vorfälle. Die Strategie wählst du in der Sitzung.</div></div>`;

@@ -1,7 +1,7 @@
 // Ereigniskarten mit Entscheidungen für die gespielte Rolle (Tower, Vorfeld, Manager).
 // Jede Karte hat 2–3 Optionen mit echten Auswirkungen; ohne Antwort gilt nach Ablauf die erste Option.
 // Rollen, die die KI spielt, entscheiden still selbst.
-import { AIRLINES, CITIES } from '../config.js';
+import { AIRLINES, CITIES, AC_TYPES } from '../config.js';
 import { rand, randRange, randInt, pick, pickWeighted, clamp, fmtMoney } from '../util.js';
 import { log, notify, fx } from './messages.js';
 import { earn, spend } from './economy.js';
@@ -137,6 +137,39 @@ export const CATALOG = {
         { label: 'Weiterarbeiten', detail: '30 % Risiko: Unfall, Ansehen −6', run: (st) => { if (rand(st) < 0.3) { repDelta(st, -6); spend(st, 'penalties', 25000); notify(st, '⚡ Blitzeinschlag nahe eines Mitarbeiters – Arbeitsunfall, Ermittlungen', 'bad'); st.rampClosedUntil = st.time + 25 * MIN; } } },
       ],
     }),
+  },
+
+  hubOffer: {
+    role: 'manager', weight: 0.35, timeout: 4 * H,
+    cond: (s) => {
+      if (s.hub || s.hubPending || s.time < 3 * 86400 || s.reputation < 55) return null;
+      const partners = [...new Set(s.contracts.map((c) => c.airline))].filter((a) => AIRLINES[a] && a !== 'VIP' && AIRLINES[a].types.some((t) => !AC_TYPES[t].cargo));
+      return partners.length ? { al: pick(s, partners) } : null;
+    },
+    card: (s, p) => {
+      const al = AIRLINES[p.al];
+      return {
+        icon: '🌐', title: `${al.name} will eine Basis in ${s.name}`,
+        text: `${al.name} möchte Flugzeuge und Crews hier stationieren: vier neue Verbindungen auf einen Schlag, 30 Tage fest. Dafür verlangt die Airline 15 % Rabatt auf die Entgelte und jede Woche mindestens 85 % Pünktlichkeit – zweimal verfehlt, und sie zieht wieder ab.`,
+        options: [
+          { label: 'Ablehnen', detail: 'kein Risiko für Pünktlichkeit und Entgelte', run: (st) => log(st, 'mgr', `${al.name} bekommt keine Basis – die Airline schaut sich bei ${RIVAL_NAME} um.`) },
+          { label: 'Basis-Vertrag unterschreiben', detail: '4 Verbindungen · Entgelte −15 % · Ansehen +2', run: (st) => { st.hubPending = { airline: p.al, mult: 0.85 }; repDelta(st, 2); pushNews(st, `${al.name} macht ${st.name} zur Basis – neue Verbindungen ab übermorgen.`, 'good', '🌐'); } },
+          { label: 'Nachverhandeln (nur −8 %)', detail: '50 % Chance – sonst geht die Basis an Nordhafen', run: (st) => {
+            if (rand(st) < 0.5) {
+              st.hubPending = { airline: p.al, mult: 0.92 };
+              repDelta(st, 2);
+              pushNews(st, `Harte Verhandlung, gutes Ergebnis: ${al.name} eröffnet eine Basis in ${st.name}.`, 'good', '🌐');
+            } else {
+              const R = rivalState(st);
+              R.share = Math.max(5, R.share - 2);
+              pushNews(st, `${al.name} eröffnet ihre neue Basis in ${RIVAL_NAME} statt bei uns.`, 'bad', '🏢');
+            }
+          } },
+        ],
+      };
+    },
+    // KI: nur bei guter Pünktlichkeit zusagen
+    ai: (s) => (((s.history[s.history.length - 1] || {}).onTime || 0) >= 88 ? 1 : 0),
   },
 
   // ======== Tower ========

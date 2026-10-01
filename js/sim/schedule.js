@@ -146,7 +146,39 @@ export function dailyContracts(state) {
 }
 
 // Neue Vertragsangebote
+// Basis-Vertrag (Drehkreuz-Partner, aus der Entscheidungskarte): vier neue Verbindungen auf einmal, mit Rabatt
+// und Pünktlichkeitszusage (Prüfung jede Woche in der Aufsichtsratssitzung)
+function processHub(state) {
+  const p = state.hubPending;
+  state.hubPending = null;
+  const al = AIRLINES[p.airline];
+  if (!al) return;
+  const types = al.types.filter((t) => !AC_TYPES[t].cargo && t !== 'A388');
+  const used = new Set(state.contracts.filter((c) => c.airline === p.airline).map((c) => c.city));
+  let n = 0;
+  for (let i = 0; i < 4 && types.length; i++) {
+    const type = pick(state, types);
+    const cands = citiesFor(state, type).filter((c) => !used.has(c));
+    if (!cands.length) continue;
+    const city = pick(state, cands);
+    used.add(city);
+    const c = makeContract(state, p.airline, type, city, AC_TYPES[type].size === 'L' ? 1 : 2, 30);
+    c.feeMult = p.mult;
+    c.sat = 85;
+    c.hub = true;
+    state.contracts.push(c);
+    generateDay(state, Math.floor(state.time / 86400) + 2, c);
+    n++;
+  }
+  state.hub = { airline: p.airline, since: state.time, strikes: 0, min: 85, mult: p.mult, n };
+  state.life = state.life || {};
+  state.life.hub = (state.life.hub || 0) + 1;
+  log(state, 'mgr', `🌐 Basis-Vertrag mit ${al.name}: ${n} neue Verbindungen ab übermorgen, Entgelte −${Math.round((1 - p.mult) * 100)} %, Zusage ≥ 85 % Pünktlichkeit je Woche.`);
+  notify(state, `🌐 ${al.name} eröffnet eine Basis – ${n} neue Verbindungen`, 'good');
+}
+
 export function maybeOffer(state, dt) {
+  if (state.hubPending) processHub(state);
   state.offerTimer = (state.offerTimer ?? 3 * 3600) - dt;
   // abgelaufene Angebote entfernen
   state.offers = state.offers.filter((o) => o.expires > state.time);
