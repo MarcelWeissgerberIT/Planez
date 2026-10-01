@@ -499,10 +499,70 @@ export class MapRenderer {
     }
 
     this.drawRainbow(ctx, state, wx);
+    this.lightTrails(state);
 
     // Overlays: Positionen, Auswahl, Labels
     this.drawOverlays(state, ui);
     this.drawFx(dtReal);
+  }
+
+  // Langzeitbelichtung (Fotomodus „Lichtspuren“): Positions- und Landescheinwerfer bewegter Flugzeuge zeichnen
+  // Leuchtspuren, solange die Kamera still steht – nachts werden Starts und Landungen zu Lichtbändern.
+  lightTrails(state) {
+    if (!this.trailsOn) {
+      this.trailCv = null;
+      return;
+    }
+    const cam = this.cam, ctx = this.ctx;
+    const W = ctx.canvas.width, H = ctx.canvas.height;
+    const key = `${cam.x.toFixed(3)}|${cam.y.toFixed(3)}|${cam.zoom.toFixed(3)}|${W}|${H}`;
+    if (!this.trailCv || this.trailKey !== key) {
+      this.trailCv = document.createElement('canvas');
+      this.trailCv.width = W;
+      this.trailCv.height = H;
+      this.trailKey = key;
+      this.trailPrev = new Map();
+    }
+    const g = this.trailCv.getContext('2d');
+    cam.setScreen(g);
+    g.globalCompositeOperation = 'lighter';
+    g.lineCap = 'round';
+    const seen = new Set();
+    for (const ac of state.acs) {
+      if (ac.mode !== 'map' || (ac.v || 0) < 0.01) continue;
+      const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg), rx = -fy, ry = fx;
+      const half = ac.len * 0.47, zw = (ac.z || 0) + 0.1;
+      const pts = [
+        ['l', ac.x - rx * half, ac.y - ry * half, zw, 'rgba(255,60,50,0.55)', 1.6],
+        ['r', ac.x + rx * half, ac.y + ry * half, zw, 'rgba(60,255,120,0.55)', 1.6],
+        ['n', ac.x + fx * ac.len * 0.5, ac.y + fy * ac.len * 0.5, zw, 'rgba(255,244,214,0.6)', 2.4],
+      ];
+      for (const [k, x, y, z, col, w] of pts) {
+        const id = ac.id + k;
+        seen.add(id);
+        const p = cam.toScreen(x, y, z);
+        const q = this.trailPrev.get(id);
+        this.trailPrev.set(id, p);
+        if (!q || Math.hypot(p.x - q.x, p.y - q.y) < 0.4 || Math.hypot(p.x - q.x, p.y - q.y) > 80) continue;
+        const lw = w * Math.max(0.7, Math.sqrt(cam.zoom));
+        // weicher Schein und heller Kern
+        g.strokeStyle = col.replace(/[\d.]+\)$/, '0.09)');
+        g.lineWidth = lw * 4;
+        g.beginPath();
+        g.moveTo(q.x, q.y);
+        g.lineTo(p.x, p.y);
+        g.stroke();
+        g.strokeStyle = col;
+        g.lineWidth = lw;
+        g.stroke();
+      }
+    }
+    for (const id of this.trailPrev.keys()) if (!seen.has(id)) this.trailPrev.delete(id);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(this.trailCv, 0, 0);
+    ctx.restore();
   }
 
   // Regenbogen: Klart es nach Regen oder Gewitter bei tiefstehender Sonne auf (morgens oder am späten Nachmittag),

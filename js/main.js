@@ -138,7 +138,7 @@ const LOAD_TIPS = [
   'Wusstest du? Unter 550 m Pistensichtweite reicht ILS CAT I nicht mehr – dann hilft nur CAT III.',
   'Wusstest du? Das Martinshorn der deutschen Feuerwehr spielt eine Quarte – „Tatü-tata“.',
   'Tipp: Mit <kbd>V</kbd> (gedrückt halten) funkst du im Tower selbst – auf Englisch, wie echte Lotsen.',
-  'Tipp: 📷 bzw. <kbd>Umschalt</kbd>+<kbd>P</kbd> öffnet den Fotomodus mit Filtern und PNG-Export.',
+  'Tipp: 📷 bzw. <kbd>Umschalt</kbd>+<kbd>P</kbd> öffnet den Fotomodus mit Filtern, Miniatur-Effekt, Lichtspuren (Langzeitbelichtung, nachts am schönsten) und PNG-Export.',
   'Tipp: <kbd>?</kbd> zeigt im Spiel alle Tastenkürzel deiner Station.',
   'Tipp: Unter Wettbewerb siehst du deinen Marktanteil gegen Nordhafen – Ansehen und Pünktlichkeit zählen am meisten.',
   'Tipp: Im Tower lohnt sich Hinhören – ein falscher Readback lässt sich mit Q korrigieren.',

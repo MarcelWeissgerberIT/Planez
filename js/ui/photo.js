@@ -25,6 +25,7 @@ export class PhotoMode {
         <div class="ph-f">${FILTERS.map(([k, n]) => `<button data-pf="${k}">${n}</button>`).join('')}</div>
         <button class="ph-t" data-pt="freeze" title="Zeit anhalten">⏸ Zeit anhalten</button>
         <button class="ph-t" data-pt="labels" title="Beschriftungen">🏷️ Beschriftungen</button>
+        <button class="ph-t" data-pt="trails" title="Langzeitbelichtung: Lichter bewegter Flugzeuge ziehen Leuchtspuren, solange die Kamera still steht – nachts am schönsten">🌌 Lichtspuren</button>
         <button class="ph-t" data-pt="tilt" title="Tilt-Shift: oben und unten unscharf – der Flughafen wirkt wie ein Modell">🔍 Miniatur</button>
         <button class="ph-shot" data-pt="shot">● Aufnehmen</button>
         <button class="ph-x" data-pt="close" title="Beenden (Esc)">✕</button>
@@ -46,6 +47,11 @@ export class PhotoMode {
           this.resumeSpeed = s.speed;
           s.speed = 0;
         } else s.speed = this.resumeSpeed || 1;
+        this.sync();
+      } else if (k === 'trails') {
+        this.game.map.trailsOn = !this.game.map.trailsOn;
+        this.game.map.trailCv = null;
+        if (this.game.map.trailsOn) toast('🌌 Lichtspuren: Kamera ruhig halten und die Zeit laufen lassen', 'info', 2600);
         this.sync();
       } else if (k === 'tilt') {
         this.tilt = !this.tilt;
@@ -76,6 +82,7 @@ export class PhotoMode {
     document.getElementById('game').classList.remove('photo');
     this.el.classList.add('hidden');
     document.getElementById('map').style.filter = '';
+    this.game.map.trailsOn = false;
     const s = this.game.state;
     if (s && !s.speed && this.resumeSpeed) s.speed = this.resumeSpeed;
     this.resumeSpeed = 0;
@@ -91,6 +98,7 @@ export class PhotoMode {
     this.el.querySelector('[data-pt=freeze]').classList.toggle('on', !!s && !s.speed);
     this.el.querySelector('[data-pt=labels]').classList.toggle('on', !!this.game.ui.labels);
     this.el.querySelector('[data-pt=tilt]').classList.toggle('on', !!this.tilt);
+    this.el.querySelector('[data-pt=trails]').classList.toggle('on', !!this.game.map.trailsOn);
     this.el.classList.toggle('tilt', !!this.tilt);
   }
   shot() {
