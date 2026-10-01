@@ -248,6 +248,19 @@ export const soundscape = {
     // Mitfliegen innen (Cockpit/Fenster): der Klang des eigenen Flugzeugs statt der Umgebung – Triebwerke, Rollen,
     // Fahrtwind; beim Startlauf laufen die Triebwerke hörbar hoch
     const c = this.cabin;
+    // Drohne: helles Surren der Rotoren, sonst nur Wind
+    if (c && c.drone) {
+      const sp = c.speed || 0;
+      set(L.prop.g.gain, 0.012 + 0.012 * sp, 0.3);
+      set(L.prop.o.frequency, 165 + 55 * sp, 0.4);
+      for (const k of ['rumble', 'roar', 'jet', 'rotor', 'heli']) set(L[k].g.gain, 0, 0.4);
+      set(L.whine.g.gain, 0, 0.4);
+      set(L.rotorLfo.gain, 0, 0.4);
+      set(L.heliLfo.gain, 0, 0.4);
+      set(L.wind.g.gain, 0.012 + 0.02 * sp, 0.6);
+      this.levels = { jet: 0, roar: 0, ctx: A.state, cabin: true };
+      return;
+    }
     if (c) {
       const thrust = c.phase === PH.TAKEOFF || c.phase === PH.MISSED || c.climb ? 1 : c.phase === PH.ROLLOUT ? 0.55 : c.air ? 0.42 : c.moving ? 0.3 : c.phase === PH.STAND || c.phase === PH.PUSH ? 0.08 : 0.22;
       const spd = clamp(c.kt / 160, 0, 1.5);

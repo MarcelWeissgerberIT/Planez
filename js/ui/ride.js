@@ -34,7 +34,7 @@ export class Ride {
       <div class="rd-cockpit"><canvas class="rd-rain"></canvas><div class="rd-pillar l"></div><div class="rd-pillar r"></div><div class="rd-pillar c"></div>
         <div class="rd-glare"><div class="rd-pfd"><div class="rd-tape spd"><small>KT</small><b data-r="spd">0</b></div><div class="rd-ai"><div class="rd-hor"></div><i></i><span data-r="fma">TAXI</span></div><div class="rd-tape alt"><small>FT</small><b data-r="alt">0</b><em data-r="vs"></em></div></div>
         <div class="rd-nd"><div class="rd-rose" data-r="rose"></div><b data-r="hdg">000</b><small data-r="nd"></small></div></div></div>
-      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button><button data-rd="drone" title="Drohne: frei über den Flughafen fliegen (WASD, Q/E, Umschalt = schnell)">${icon('drone')} Drohne</button></span><span class="rd-dr"><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-photo" data-rd="photo" title="Foto fürs Spotterbuch (F) – fotografiert das Flugzeug in der Bildmitte">${icon('photo')}</button><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-labels"></div><div class="rd-cap"></div><div class="rd-pad"><button data-k="up" title="vor">▲</button><button data-k="left" title="links">◀</button><button data-k="down" title="zurück">▼</button><button data-k="right" title="rechts">▶</button><button data-k="rise" title="steigen">⤒</button><button data-k="sink" title="sinken">⤓</button></div><div class="rd-marshal"><div class="rd-wand l"></div><div class="rd-wand r"></div><div class="rd-mres"></div><button class="rd-stop" data-rd="mstop">STOPP <small>Leertaste</small></button></div>`;
+      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button><button data-rd="drone" title="Drohne: frei über den Flughafen fliegen (WASD, Q/E, Umschalt = schnell)">${icon('drone')} Drohne</button></span><span class="rd-dr"><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-photo" data-rd="photo" title="Foto fürs Spotterbuch (F) – fotografiert das Flugzeug in der Bildmitte">${icon('photo')}</button><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-bino"></div><div class="rd-labels"></div><div class="rd-cap"></div><div class="rd-pad"><button data-k="up" title="vor">▲</button><button data-k="left" title="links">◀</button><button data-k="down" title="zurück">▼</button><button data-k="right" title="rechts">▶</button><button data-k="rise" title="steigen">⤒</button><button data-k="sink" title="sinken">⤓</button></div><div class="rd-marshal"><div class="rd-wand l"></div><div class="rd-wand r"></div><div class="rd-mres"></div><button class="rd-stop" data-rd="mstop">STOPP <small>Leertaste</small></button></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
     this.tEl = el.querySelector('.rd-t');
@@ -304,6 +304,9 @@ export class Ride {
     }
     this.v3d.render(s, this, null);
     this.hearAt(Math.max(0.6, Math.min(3, 55 / (this.fov || 55) * 0.8)));
+    // Fernglas: ab etwa 3× Vergrößerung runder Sehrand
+    const bino = clamp((22 - (this.fov || 55)) / 8, 0, 1);
+    if (this.binoK !== bino) (this.binoK = bino), this.el.style.setProperty('--bino', bino.toFixed(2));
     this.drawLabels(s, sel);
     const wx = s.weather;
     const txt = `Turmblick${ac ? ` · ${ac.cs}` : ''} · ${Math.round(55 / (this.fov || 55) * 10) / 10}×`;
@@ -401,6 +404,8 @@ export class Ride {
       document.getElementById('game').classList.remove('towerview');
       document.getElementById('t-tower3d')?.classList.remove('on');
       this.el.classList.remove('tower');
+      this.el.style.removeProperty('--bino');
+      this.binoK = 0;
       this.el.querySelector('.rd-labels').innerHTML = '';
       this.el.querySelector('.rd-help').textContent = 'Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen';
       this.lbl = new Map();
@@ -1132,6 +1137,7 @@ Ride.prototype.updateDrone = function (dt) {
   this.camPos = { x: d.x, y: d.y, z: d.z };
   this.camLook = { x: d.x + Math.cos(yw) * Math.cos(pt) * 10, y: d.y - Math.sin(pt) * 10, z: d.z + Math.sin(yw) * Math.cos(pt) * 10 };
   this.cineChase = false;
+  soundscape.cabin = { drone: true, speed: Math.min(1.5, Math.hypot(d.vx || 0, d.vz || 0, d.vy || 0) / 8) };
   this.v3d.render(s, this, null);
   this.hearAt(Math.max(0.5, 2.2 - d.y * 0.08));
   const txt = `Drohne · Höhe ${Math.round(d.y * 20)} m${K.has('fast') ? ' · schnell' : ''}`;
