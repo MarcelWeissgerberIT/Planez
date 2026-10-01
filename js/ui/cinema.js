@@ -12,6 +12,7 @@ import { voice } from '../voice.js';
 import { SPECIALS } from '../sim/spotter.js';
 import { secState } from '../sim/security.js';
 import { fuelState } from '../sim/fuel.js';
+import { Q } from '../render/quality.js';
 
 // Rundgang: Gebäude und Anlagen mit Live-Zahlen im Kommentar
 function tourSpots(s) {
@@ -57,7 +58,7 @@ export class Cinema {
     const el = document.createElement('div');
     el.id = 'cinema';
     el.className = 'hidden';
-    el.innerHTML = `<div class="cn-bar top"></div><div class="cn-bar bot"></div>
+    el.innerHTML = `<div class="cn-tilt top"></div><div class="cn-tilt bot"></div><canvas class="cn-rain"></canvas><div class="cn-bar top"></div><div class="cn-bar bot"></div>
       <div class="cn-cap"><div class="cn-k"></div><div class="cn-t"></div><div class="cn-s"></div><div class="cn-n"></div></div>
       <div class="cn-brand">${esc(AIRPORT.name || 'Planez')} · LIVE</div>
       <div class="cn-help">K / Esc beenden · ← → nächste Szene</div>
@@ -67,6 +68,8 @@ export class Cinema {
     this.cap = { k: el.querySelector('.cn-k'), t: el.querySelector('.cn-t'), s: el.querySelector('.cn-s'), n: el.querySelector('.cn-n') };
     el.addEventListener('click', () => this.next(true));
     this.clockEl = el.querySelector('.cn-clock');
+    this.rainCv = el.querySelector('.cn-rain');
+    this.drops = [];
     this.dataEl = el.querySelector('.cn-data');
     this.subEl = el.querySelector('.cn-sub');
     // Funkverkehr als Untertitel
@@ -93,6 +96,8 @@ export class Cinema {
     this.prevLabels = this.game.ui.labels;
     this.game.ui.labels = false;
     document.getElementById('game').classList.add('cinema');
+    this.el.classList.toggle('lite', !!Q.perf); // Leistungsmodus: ohne Tilt-Shift und Farbfilter
+    document.getElementById('game').classList.toggle('lite', !!Q.perf);
     this.el.classList.remove('hidden');
     this.shot = null;
     this.next(true);
@@ -104,10 +109,54 @@ export class Cinema {
     const s = this.game.state;
     if (s && this.prevSpeed !== undefined) s.speed = this.prevSpeed;
     this.game.ui.labels = this.prevLabels !== false;
-    document.getElementById('game').classList.remove('cinema');
+    document.getElementById('game').classList.remove('cinema', 'lite');
+    this.drops = [];
+    this.lensRain({ weather: { kind: 'clear' }, speed: 0 }, 0);
     this.el.classList.add('hidden');
     this.game.cam.tx = null;
     this.shot = null;
+  }
+
+  // Regentropfen auf der Linse: bei Regen, Gewitter und Schneeregen sammeln sich Tropfen, manche laufen herunter
+  lensRain(s, dt) {
+    const cv = this.rainCv;
+    const wk = s.weather.kind;
+    const rate = { rain: 3, storm: 7 }[wk] || 0;
+    if (!rate && !this.drops.length) {
+      if (cv.width) cv.width = 0;
+      return;
+    }
+    const W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== W || cv.height !== H) {
+      cv.width = W;
+      cv.height = H;
+    }
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+    if (s.speed && Math.random() < rate * dt && this.drops.length < 45) this.drops.push({ x: Math.random() * W, y: Math.random() * H * 0.9, r: 4 + Math.random() * 12, life: 4 + Math.random() * 8, v: Math.random() < 0.3 ? 20 + Math.random() * 60 : 0 });
+    for (const d of this.drops) {
+      d.life -= dt * (rate ? 1 : 2.5);
+      d.y += d.v * dt;
+      const a = Math.min(1, d.life / 1.5) * 0.55;
+      const g = ctx.createRadialGradient(d.x - d.r * 0.3, d.y - d.r * 0.35, d.r * 0.1, d.x, d.y, d.r);
+      g.addColorStop(0, `rgba(255,255,255,${a * 0.8})`);
+      g.addColorStop(0.45, `rgba(200,220,240,${a * 0.12})`);
+      g.addColorStop(0.85, `rgba(20,30,45,${a * 0.35})`);
+      g.addColorStop(1, 'rgba(20,30,45,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(d.x, d.y, d.r * 0.9, d.r, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (d.v) {
+        ctx.strokeStyle = `rgba(210,225,240,${a * 0.25})`;
+        ctx.lineWidth = d.r * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(d.x, d.y - d.r);
+        ctx.lineTo(d.x, d.y - d.r - d.v * 0.5);
+        ctx.stroke();
+      }
+    }
+    this.drops = this.drops.filter((d) => d.life > 0 && d.y < H + 20);
   }
 
   // Szenen-Kandidaten mit Gewicht
@@ -266,6 +315,7 @@ export class Cinema {
     cam.zoom = clamp(cam.zoom + (tz - cam.zoom) * kz, 0.3, 2.6);
     cam.tx = null;
     if (sh.t > sh.dur) this.next();
+    this.lensRain(s, dt);
     // Einblendungen: Uhr/Wetter und Live-Daten des gezeigten Flugzeugs
     this.infoT = (this.infoT || 0) - dt;
     if (this.infoT <= 0) {
