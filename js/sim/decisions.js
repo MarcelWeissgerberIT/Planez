@@ -524,6 +524,24 @@ export const CATALOG = {
       ],
     }),
   },
+  // Tag der offenen Tür: Besucher auf der Terminal-Terrasse, Wimpel und Luftballons – kostet, bringt Ansehen
+  openDay: {
+    role: 'manager', weight: (s) => (s.scenario ? 0 : 0.5), timeout: 2 * H,
+    cond: (s) => {
+      const h = (s.time / H) % 24;
+      return s.time > 30 * H && h > 6 && h < 11 && !(s.openDay && s.time - s.openDay.until < 5 * 24 * H) ? {} : null;
+    },
+    card: () => ({
+      icon: '🎈', title: 'Tag der offenen Tür',
+      text: 'Der Förderverein schlägt vor, heute die Besucherterrasse für ein Flughafenfest zu öffnen: Familien, Spotter, Hüpfburg und Rundgänge. Das kostet, aber die Region liebt so etwas.',
+      // Standard bei Zeitablauf (erste Option): nur die Terrasse
+      options: [
+        { label: 'Nur die Terrasse öffnen', detail: '15.000 € · Ansehen +1', run: (st) => { spend(st, 'marketing', 15000); repDelta(st, 1); st.openDay = { from: st.time + H, until: st.time + 6 * H, big: false }; } },
+        { label: 'Großes Fest', detail: '60.000 € · Ansehen +3 · ab in einer Stunde bis zum Abend', run: (st) => { spend(st, 'marketing', 60000); repDelta(st, 3); st.openDay = { from: st.time + H, until: st.time + 9 * H, big: true }; pushNews(st, 'Tag der offenen Tür: Tausende Besucher drängen sich auf der Terrasse und winken den Fliegern zu.', 'good', '🎈'); } },
+        { label: 'Lieber nicht', detail: 'nichts passiert', run: (st) => { st.openDay = { from: st.time, until: st.time, big: false }; } },
+      ],
+    }),
+  },
   rent: {
     role: 'manager', weight: 0.6, timeout: 3 * H,
     cond: (s) => (!(s.rentUntil > s.time) ? {} : null),

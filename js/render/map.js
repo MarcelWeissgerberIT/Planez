@@ -380,6 +380,7 @@ export class MapRenderer {
     this.festiveLights(state, lights, night);
     this.evacItems(state, items, lights, night);
     this.medicalItems(state, items, lights, night);
+    this.openDayItems(state, items);
     const sal = saluteView(state);
     if (sal) for (const t of sal.trucks) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
     plowItems(this, state, items, lights);
@@ -1454,6 +1455,140 @@ export class MapRenderer {
 
   // Evakuierung bei Rauch in der Kabine: Notrutschen an beiden Seiten, Reisende laufen zum Sammelpunkt nördlich
   // der Bahn, ein Bus holt sie ab – nur Darstellung, solange das Flugzeug mit der Feuerwehr auf der Bahn steht
+  // Tag der offenen Tür (Manager-Entscheidung): Besucher an der Terrassenkante des Terminals, die den Fliegern
+  // zuwinken, eine Wimpelkette und aufsteigende Luftballons. Nur Darstellung.
+  openDayItems(state, items) {
+    const O = state.openDay;
+    if (!O || state.time < O.from || state.time > O.until) return;
+    const T = LY.TERMINAL, zr = T.h;
+    const n = O.big ? 120 : 40;
+    const cols = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#a855f7', '#f97316', '#ec4899', '#14b8a6', '#f8fafc', '#1f2937'];
+    const h01 = (i, k) => {
+      let x = Math.imul(i * 374761393 + k * 668265263, 1274126177) >>> 0;
+      x = Math.imul(x ^ (x >>> 13), 1103515245) >>> 0;
+      return (x >>> 8) / 16777216;
+    };
+    const span = T.x1 - T.x0 - 3;
+    for (let i = 0; i < n; i++) {
+      const x = T.x0 + 1.5 + ((i + h01(i, 1) * 0.8) / n) * span;
+      const y = T.y1 - 0.1 - (i % 3) * 0.16 - h01(i, 2) * 0.08; // drei lockere Reihen an der Brüstung
+      const col = cols[Math.floor(h01(i, 3) * cols.length)];
+      const kid = h01(i, 4) < 0.25;
+      items.push({ d: x + T.y1 + 0.05, f: () => this.roofPerson(x, y, zr, col, kid, this.time * 2 + i) });
+    }
+    // Sonnenschirme der Terrassen-Gastronomie
+    for (let i = 0; i < (O.big ? 8 : 3); i++) {
+      const x = T.x0 + 3 + ((i + 0.5) / (O.big ? 8 : 3)) * (span - 3), y = T.y1 - 0.9;
+      const col = ['#ef4444', '#f8fafc', '#eab308', '#3b82f6'][i % 4];
+      items.push({ d: x + y + 0.6, f: () => {
+        const ctx = this.ctx, cam = this.cam;
+        cam.setScreen(ctx);
+        const p = cam.toScreen(x, y, zr), t = cam.toScreen(x, y, zr + 0.17);
+        const rr = 0.3 * ZS * cam.zoom * 0.5;
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = Math.max(1, cam.zoom);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(t.x, t.y);
+        ctx.stroke();
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.ellipse(t.x, t.y, rr * 1.4, rr * 0.7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        ctx.beginPath();
+        ctx.ellipse(t.x, t.y + rr * 0.15, rr * 1.4, rr * 0.45, 0, 0, Math.PI);
+        ctx.fill();
+      } });
+    }
+    // Wimpelkette entlang der Terrassenkante
+    items.push({ d: T.x1 + T.y1, f: () => {
+      const ctx = this.ctx, cam = this.cam;
+      cam.setScreen(ctx);
+      const y = T.y1 - 0.04, z0 = zr + 0.32;
+      const x0 = T.x0 + 1, x1 = T.x1 - 1, seg = 2.2;
+      ctx.lineWidth = 1;
+      for (let x = x0; x < x1 - 0.01; x += seg) {
+        const xe = Math.min(x1, x + seg);
+        const sag = (u) => z0 - Math.sin(u * Math.PI) * 0.1;
+        ctx.strokeStyle = 'rgba(60,60,60,0.7)';
+        ctx.beginPath();
+        for (let k = 0; k <= 8; k++) {
+          const u = k / 8, p = cam.toScreen(x + (xe - x) * u, y, sag(u));
+          k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+        }
+        ctx.stroke();
+        for (let k = 1; k < 8; k++) {
+          const u = k / 8, xa = x + (xe - x) * u;
+          const a = cam.toScreen(xa - 0.08, y, sag(u)), b = cam.toScreen(xa + 0.08, y, sag(u)), c = cam.toScreen(xa, y, sag(u) - 0.14);
+          ctx.fillStyle = cols[(Math.round(xa * 4) + k) % 8];
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.lineTo(c.x, c.y);
+          ctx.fill();
+        }
+      }
+    } });
+    // Luftballons steigen auf und treiben mit dem Wind
+    const wd = ((state.wind.dir + 180 - 90) * Math.PI) / 180;
+    for (let i = 0; i < (O.big ? 9 : 4); i++) {
+      const per = 16 + h01(i, 7) * 8;
+      const u = ((this.time + h01(i, 8) * per) % per) / per;
+      const bx = T.x0 + 3 + h01(i, 9) * (span - 3) + Math.cos(wd) * u * 3, by = T.y1 - 0.2 + Math.sin(wd) * u * 3;
+      const bz = zr + 0.3 + u * 4.5;
+      const col = cols[i % 8];
+      items.push({ d: bx + by + 40, f: () => {
+        const ctx = this.ctx, cam = this.cam;
+        cam.setScreen(ctx);
+        const p = cam.toScreen(bx, by, bz), q = cam.toScreen(bx, by, bz - 0.35);
+        const rr = Math.max(1.5, 2.6 * cam.zoom);
+        ctx.globalAlpha = Math.min(1, (1 - u) * 3);
+        ctx.strokeStyle = 'rgba(80,80,80,0.6)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y + rr);
+        ctx.lineTo(q.x + Math.sin(this.time * 3 + i) * 1.5, q.y);
+        ctx.stroke();
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, rr * 0.85, rr, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.beginPath();
+        ctx.arc(p.x - rr * 0.3, p.y - rr * 0.35, rr * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      } });
+    }
+  }
+
+  roofPerson(x, y, z, col, kid, ph) {
+    const ctx = this.ctx, cam = this.cam;
+    cam.setScreen(ctx);
+    const b = cam.toScreen(x, y, z);
+    const zm = cam.zoom;
+    const H = (kid ? 0.08 : 0.12) * ZS * zm;
+    const w = Math.max(1, 0.035 * ZS * zm);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(b.x - w * 0.5, b.y - H * 0.45, w, H * 0.45);
+    ctx.fillStyle = col;
+    ctx.fillRect(b.x - w * 0.55, b.y - H * 0.85, w * 1.1, H * 0.42);
+    ctx.fillStyle = '#e0b48c';
+    ctx.beginPath();
+    ctx.arc(b.x, b.y - H * 0.93, w * 0.42, 0, Math.PI * 2);
+    ctx.fill();
+    // ab und zu winken
+    if (Math.sin(ph * 0.7) > 0.4) {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = Math.max(1, w * 0.3);
+      ctx.beginPath();
+      ctx.moveTo(b.x + w * 0.5, b.y - H * 0.8);
+      ctx.lineTo(b.x + w * (0.8 + Math.sin(ph * 6) * 0.3), b.y - H * 1.15);
+      ctx.stroke();
+    }
+  }
+
   // Medizinischer Notfall: Ein Rettungswagen fährt mit Blaulicht über die Vorfeldstraße an die Parkposition,
   // zwei Sanitäter tragen den Patienten auf der Trage von der vorderen rechten Tür zum Wagen, danach fährt er ab.
   // Nur Darstellung, zeitlich an die Spielzeit gekoppelt (Pause hält alles an).

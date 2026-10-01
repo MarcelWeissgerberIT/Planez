@@ -363,6 +363,12 @@ export class Stream {
       else if (ac.phase === PH.FINAL && AC_TYPES[ac.type].size === 'L' && Math.random() < 0.5) this.say(r(L.big), 1);
     }
     if (this.seen.size > 300) this.seen.clear();
+    // Tag der offenen Tür
+    const od = s.openDay;
+    if (od && s.time > od.from && s.time < od.until && this.odSeen !== od.from) {
+      this.odSeen = od.from;
+      this.say(r(['Tag der offenen Tür! Wer ist auch auf der Terrasse? 👋', 'Ich steh oben bei den Ballons 🎈', 'Hüpfburg und Flieger, perfekter Tag', 'Winkt mal in die Kamera 👋🎈']), 2);
+    }
     // Regenbogen nach dem Schauer
     const mp = this.game.map;
     if (mp && mp.rainbowOn && this.rainbowSeen !== mp.rainbowT) {
