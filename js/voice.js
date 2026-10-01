@@ -240,6 +240,34 @@ export const voice = {
     setTimeout(done, 1500 + u.text.length * 95);
     this.emit();
   },
+  // Terminal-Durchsage: ruhige deutsche Stimme mit Hall-Gefühl (langsamer, etwas tiefer), nur bei freiem Funk
+  announce(text) {
+    if (!this.on || !window.speechSynthesis || this.current || this.queue.length) return false;
+    const u = new SpeechSynthesisUtterance(text);
+    const de = deVoices.filter((x) => /de/i.test(x.lang));
+    const v = de[1] || de[0] || deVoices[0];
+    if (v) {
+      u.voice = v;
+      u.lang = v.lang;
+    } else u.lang = 'de-DE';
+    u.rate = 0.92 * this.rate;
+    u.pitch = 1.05;
+    u.volume = this.vol * 0.75;
+    const m = { kind: 'pa', from: 'Durchsage', text };
+    this.current = m;
+    const done = () => {
+      if (this.current !== m) return;
+      this.current = null;
+      this.emit();
+      setTimeout(() => this.pump(), 400);
+    };
+    u.onend = done;
+    u.onerror = done;
+    speechSynthesis.speak(u);
+    setTimeout(done, 2000 + text.length * 110);
+    this.emit();
+    return true;
+  },
   // Kommentator (Kino-Modus): deutsche Studiostimme ohne Funkrauschen, nur wenn der Funk gerade frei ist
   narrate(text) {
     if (!this.on || !window.speechSynthesis || this.current || this.queue.length) return false;

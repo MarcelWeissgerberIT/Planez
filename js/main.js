@@ -28,6 +28,7 @@ import { initPTT } from './ui/ptt.js';
 import { DecisionCard } from './ui/decision.js';
 import { NewsTicker } from './ui/ticker.js';
 import { Cinema } from './ui/cinema.js';
+import { paTick } from './ui/pa.js';
 import { highlightsHtml } from './ui/highlights.js';
 import { Stream } from './ui/stream.js';
 import { PhotoMode } from './ui/photo.js';
@@ -187,6 +188,7 @@ function syncGameMusic() {
   else gameMusic.stop();
 }
 setInterval(() => {
+  if (game.state && game.running && !modalOpen() && !(game.cinema && game.cinema.on)) paTick(game.state);
   if (game.state && gameMusic.playing) gameMusic.update(game.state, !game.state.speed || modalOpen());
 }, 2000);
 function syncMenuMusic() {

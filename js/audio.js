@@ -105,6 +105,13 @@ export const sfx = {
       tone(1200, 0.035, 'square', 0.025);
     }, 90);
   },
+  // Terminal-Gong vor Durchsagen (drei weiche Töne)
+  chime() {
+    [784, 988, 1175].forEach((f, i) => {
+      tone(f, 1.4, 'sine', 0.045, i * 0.42);
+      tone(f * 2, 0.6, 'sine', 0.008, i * 0.42);
+    });
+  },
   // kleine Fanfare (Dur-Arpeggio mit Schlussakkord)
   fanfare() {
     [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.22, 'triangle', 0.06, i * 0.12));
