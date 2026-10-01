@@ -74,7 +74,7 @@ export class View3D {
 
   constructor(game) {
     this.game = game;
-    const r = (this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true }));
+    const r = (this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }));
     r.setPixelRatio(Math.min(Q.perf ? 1 : 2, window.devicePixelRatio || 1));
     r.shadowMap.enabled = !Q.perf;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -82,7 +82,7 @@ export class View3D {
     r.domElement.className = 'hidden';
     document.getElementById('game').appendChild(r.domElement);
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(62, 1, 0.02, 9000);
+    this.camera = new THREE.PerspectiveCamera(62, 1, 0.03, 9000);
     this.scene.fog = new THREE.Fog(0xcfdbe2, 60, 420);
     this.hemi = new THREE.HemisphereLight(0xdbeafe, 0x4d5d2a, 1.1);
     this.sun = new THREE.DirectionalLight(0xffffff, 1.6);
@@ -169,6 +169,37 @@ export class View3D {
     this.static.add(m);
     return m;
   }
+  // Gebäude mit Fassade: Textur je Seite auf die Wandmaße skaliert (eine Kachel Textur = 2 × 1 Kacheln), Dach extra;
+  // die Leuchttextur lässt nachts Fenster leuchten
+  bldg(x0, x1, y0, y1, h, kind, roofColor) {
+    const T = this.textures().F;
+    const geo = new THREE.BoxGeometry(x1 - x0, h, y1 - y0);
+    const uv = geo.attributes.uv;
+    const W = x1 - x0, D = y1 - y0;
+    for (let f = 0; f < 6; f++) {
+      const fw = f < 2 ? D : W, fh = f === 2 || f === 3 ? D : h;
+      for (let i = 0; i < 4; i++) {
+        const k = f * 4 + i;
+        uv.setXY(k, (uv.getX(k) * fw) / 2, uv.getY(k) * (f === 2 || f === 3 ? fh / 2 : fh));
+      }
+    }
+    if (!this.bmats) this.bmats = new Map();
+    const key = kind;
+    if (!this.bmats.has(key)) {
+      const lit = T[kind + 'Lit'];
+      const m = new THREE.MeshLambertMaterial({ map: T[kind], emissiveMap: lit || null, emissive: lit ? 0xffffff : 0x000000, emissiveIntensity: 0 });
+      this.bmats.set(key, m);
+    }
+    const roof = new THREE.MeshLambertMaterial({ map: T.roof, color: roofColor || 0xffffff });
+    const side = this.bmats.get(key);
+    const m = new THREE.Mesh(geo, [side, side, roof, roof, side, side]);
+    m.position.set((x0 + x1) / 2, h / 2, (y0 + y1) / 2);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    this.static.add(m);
+    return m;
+  }
+
   // flache Fläche; mit uvK wird die Textur je uvK Kacheln wiederholt
   flat(x0, x1, y0, y1, color, lift = 0.005, uvK = 0) {
     const g = new THREE.PlaneGeometry(x1 - x0, y1 - y0);
@@ -259,7 +290,57 @@ export class View3D {
       const r = rng(9);
       for (let y = 6; y < 60; y += 12) for (let x = 5; x < 60; x += 11) if (r() < 0.45) (g.fillStyle = r() < 0.7 ? '#ffcf7a' : '#fff1c9', g.fillRect(x, y, 6, 6));
     });
-    return (this.tex = { grass, asphalt, apron, skid, facade, town, townLit });
+    // Fassaden je Gebäudeart: eine Textur deckt 2 Kacheln Breite × 1 Kachel Höhe; Leuchttextur für Fenster bei Nacht
+    const fac = (base, draw) => canvasTex(128, 64, (g, w, h) => ((g.fillStyle = base), g.fillRect(0, 0, w, h), draw(g, w, h)));
+    const winGrid = (g, col, fw, fh, gx, gy, x0 = 4, y0 = 4) => {
+      g.fillStyle = col;
+      for (let y = y0; y < 64 - fh; y += gy) for (let x = x0; x < 128 - fw; x += gx) g.fillRect(x, y, fw, fh);
+    };
+    const lit = (fw, fh, gx, gy, p, seed, x0 = 4, y0 = 4) => canvasTex(128, 64, (g) => {
+      g.fillStyle = '#000';
+      g.fillRect(0, 0, 128, 64);
+      const r = rng(seed);
+      for (let y = y0; y < 64 - fh; y += gy) for (let x = x0; x < 128 - fw; x += gx) if (r() < p) (g.fillStyle = r() < 0.75 ? '#ffd28a' : '#fff4d6', g.fillRect(x, y, fw, fh));
+    });
+    const F = {
+      hotel: fac('#e7e1d6', (g) => winGrid(g, '#3b4b5f', 6, 6, 10, 11)),
+      hotelLit: lit(6, 6, 10, 11, 0.55, 3),
+      parking: fac('#b9b6b0', (g) => {
+        for (let y = 6; y < 64; y += 16) (g.fillStyle = '#2b2f36', g.fillRect(0, y, 128, 7));
+        g.fillStyle = '#9b978f';
+        for (let x = 0; x < 128; x += 16) g.fillRect(x, 0, 2, 64);
+      }),
+      parkingLit: canvasTex(128, 64, (g) => {
+        g.fillStyle = '#000';
+        g.fillRect(0, 0, 128, 64);
+        for (let y = 6; y < 64; y += 16) (g.fillStyle = '#6b6450', g.fillRect(0, y, 128, 7));
+      }),
+      metal: fac('#a7b0ba', (g) => {
+        for (let x = 0; x < 128; x += 4) (g.fillStyle = x % 8 ? '#9aa3ad' : '#b4bcc5', g.fillRect(x, 0, 2, 64));
+        g.fillStyle = '#7b848e';
+        g.fillRect(0, 56, 128, 8);
+      }),
+      hall: fac('#4f7da6', (g) => {
+        const gr = g.createLinearGradient(0, 0, 0, 64);
+        gr.addColorStop(0, 'rgba(255,255,255,.28)');
+        gr.addColorStop(1, 'rgba(0,20,40,.25)');
+        g.fillStyle = gr;
+        g.fillRect(0, 0, 128, 64);
+        g.fillStyle = '#d1d9e2';
+        for (let x = 0; x < 128; x += 12) g.fillRect(x, 0, 2, 64);
+        g.fillRect(0, 30, 128, 2);
+        g.fillRect(0, 0, 128, 3);
+      }),
+      hallLit: canvasTex(128, 64, (g) => {
+        g.fillStyle = '#000';
+        g.fillRect(0, 0, 128, 64);
+        g.fillStyle = '#ffdca3';
+        for (let x = 2; x < 128; x += 12) (g.fillRect(x, 4, 9, 25), g.fillRect(x, 33, 9, 24));
+      }),
+      fire: fac('#b91c1c', (g) => winGrid(g, '#fca5a5', 8, 5, 14, 30, 4, 6)),
+      roof: canvasTex(64, 64, (g) => noise(g, 64, 64, '#6b7280', 40, 77, 0.2)),
+    };
+    return (this.tex = { grass, asphalt, apron, skid, facade, town, townLit, F });
   }
 
   // Kennziffer auf der Bahn (liegt flach, Oberkante zeigt in Landerichtung)
@@ -369,10 +450,21 @@ export class View3D {
     this.pools = [];
     this.scene.add(this.static);
     const T = this.textures();
-    // Gras weit bis zum Horizont
-    const gm = new THREE.MeshLambertMaterial({ map: T.grass });
-    const ground = this.flat(LY.W / 2 - 20000, LY.W / 2 + 20000, LY.H / 2 - 20000, LY.H / 2 + 20000, gm, 0, 6);
-    ground.position.y = 0;
+    // Gras bis zum Horizont: um den Flughafen ein fein unterteiltes Stück, weit draußen eine große Fläche etwas tiefer.
+    // Riesige Dreiecke verlieren Tiefengenauigkeit – darum unterteilt und per Polygon-Offset nach hinten geschoben,
+    // damit Vorfeld, Rollwege und Bahnen immer darüber liegen
+    const gm = new THREE.MeshLambertMaterial({ map: T.grass, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
+    const near = new THREE.PlaneGeometry(1600, 1600, 40, 40);
+    const nuv = near.attributes.uv;
+    for (let i = 0; i < nuv.count; i++) nuv.setXY(i, (nuv.getX(i) * 1600) / 6, (nuv.getY(i) * 1600) / 6);
+    const ground = new THREE.Mesh(near, gm);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.set(LY.W / 2, 0, LY.H / 2);
+    ground.receiveShadow = true;
+    this.static.add(ground);
+    const farMat = new THREE.MeshLambertMaterial({ map: T.grass, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 8 });
+    const far = this.flat(LY.W / 2 - 20000, LY.W / 2 + 20000, LY.H / 2 - 20000, LY.H / 2 + 20000, farMat, -0.15, 6);
+    far.receiveShadow = false;
     this.landscape();
     this.snowMat = new THREE.MeshLambertMaterial({ color: 0xf4f7fb, transparent: true, opacity: 0, depthWrite: false });
     this.snowPlane = this.flat(LY.W / 2 - 3000, LY.W / 2 + 3000, LY.H / 2 - 3000, LY.H / 2 + 3000, this.snowMat, 0.0045);
@@ -508,7 +600,46 @@ export class View3D {
         this.box(cx - b.w / 2, cx + b.w / 2, cy - b.d / 2, cy + b.d / 2, 0.7, 0x9aa4ae);
         continue;
       }
-      this.box(cx - b.w / 2, cx + b.w / 2, cy - b.d / 2, cy + b.d / 2, H[b.id] || 0.6, CO[b.id] || 0xa1a1aa);
+      const x0 = cx - b.w / 2, x1 = cx + b.w / 2, y0 = cy - b.d / 2, y1 = cy + b.d / 2;
+      if (b.id === 'radar') {
+        // Radarturm mit drehender Antenne
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.16, 1.2, 8), this.mat(0xd1d5db));
+        pole.position.set(cx, 0.6, cy);
+        pole.castShadow = true;
+        const ant = new THREE.Group();
+        ant.position.set(cx, 1.28, cy);
+        const dish = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.05), this.mat(0xf1f5f9));
+        dish.position.z = 0.08;
+        dish.rotation.x = -0.25;
+        ant.add(dish);
+        this.radarAnt = ant;
+        this.static.add(pole, ant);
+        continue;
+      }
+      if (b.id === 'hall') this.bldg(x0, x1, y0, y1, 1.4, 'hall', 0xd6dde5);
+      else if (b.id === 'hotel') this.bldg(x0, x1, y0, y1, 2.2, 'hotel', 0xcbd5e1);
+      else if (b.id === 'parking') {
+        this.bldg(x0, x1, y0, y1, 0.8, 'parking', 0x9aa0a6);
+        // Autos auf dem Parkdeck
+        const r = rng(55);
+        const cars = new THREE.InstancedMesh(new THREE.BoxGeometry(0.22, 0.08, 0.11), new THREE.MeshLambertMaterial({ color: 0xffffff }), 40);
+        const mx = new THREE.Matrix4(), col = new THREE.Color();
+        const CC = [0xe5e7eb, 0x1f2937, 0x991b1b, 0x1d4ed8, 0x9ca3af, 0x065f46, 0xf59e0b];
+        for (let i = 0; i < 40; i++) {
+          mx.makeTranslation(x0 + 0.3 + (i % 8) * ((b.w - 0.6) / 8), 0.84, y0 + 0.4 + Math.floor(i / 8) * ((b.d - 0.8) / 5));
+          cars.setMatrixAt(i, mx);
+          cars.setColorAt(i, col.setHex(r() < 0.3 ? 0x6b7280 : CC[Math.floor(r() * CC.length)]));
+        }
+        this.static.add(cars);
+      } else if (b.id === 'cargo' || b.id === 'depot') {
+        this.bldg(x0, x1, y0, y1, H[b.id], 'metal', 0x94a3b8);
+        // große Tore zur Vorfeldseite
+        for (let x = x0 + 0.6; x < x1 - 1; x += 2.2) this.box(x, x + 1.4, y1, y1 + 0.03, H[b.id] * 0.7, 0x475569, 0, false);
+      } else if (b.id === 'fire') {
+        this.bldg(x0, x1, y0, y1, 0.55, 'fire', 0x9ca3af);
+        // Fahrzeughallentore Richtung Bahn
+        for (let x = x0 + 0.4; x < x1 - 0.6; x += 1.05) this.box(x, x + 0.8, y0 - 0.03, y0, 0.42, 0xf1f5f9, 0, false);
+      } else this.box(x0, x1, y0, y1, H[b.id] || 0.6, CO[b.id] || 0xa1a1aa);
     }
     // Windsack an beiden Bahnenden
     this.socks = [];
@@ -546,7 +677,7 @@ export class View3D {
     const r = rng(987654);
     const T = this.textures();
     const COLS = [0x7a9a45, 0x8fae4f, 0xa8a24a, 0x6d8a3a, 0x9c8a55, 0x5f7f34, 0xb5ad62];
-    const fields = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xffffff }), 900);
+    const fields = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xffffff, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }), 900);
     const mx = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
     let n = 0;
     for (let i = 0; i < 900; i++) {
@@ -854,6 +985,14 @@ export class View3D {
       g.getObjectByName('taxi').visible = lightsOn && !onRwy && ac.mode === 'map' && (ac.phase === PH.TAXI_IN || ac.phase === PH.TAXI_OUT || ac.phase === PH.TAXI_WAIT || ac.phase === PH.VACATED || ac.phase === PH.HOLDING);
       g.visible = !(ride.mode === 'cockpit' && ac.id === ride.id);
       g.name = ac.id;
+      // Bodengeräte während der Abfertigung, Treppe nur an Außenpositionen
+      const gse = g.getObjectByName('gse');
+      const atStand = ac.mode === 'map' && ac.phase === PH.STAND;
+      gse.visible = atStand;
+      if (atStand) {
+        const st = ac.stand && state.stands.find((x) => x.id === ac.stand || x.n === ac.stand);
+        gse.getObjectByName('stairs').visible = !(st && st.kind === 'contact');
+      }
     }
     for (const [id, g] of this.acs) if (!seen.has(id)) (this.scene.remove(g), this.acs.delete(id), this.vis.delete(id));
   }
@@ -981,6 +1120,8 @@ export class View3D {
     if (this.termGlow) this.termGlow.material.opacity = clamp(0.8 - dayK * 1.1, 0, 0.8);
     if (this.townMat) this.townMat.emissiveIntensity = clamp(0.9 - dayK * 1.2, 0, 0.9);
     setNight(clamp(1 - dayK * 1.4, 0, 1));
+    if (this.bmats) for (const m of this.bmats.values()) m.emissiveIntensity = clamp(0.95 - dayK * 1.2, 0, 0.95);
+    if (this.radarAnt) this.radarAnt.rotation.y += dt * 1.6;
     if (this.poolMat) this.poolMat.opacity = lightsOn ? clamp(0.55 - dayK * 0.6, 0.08, 0.55) : 0;
     for (const p of this.pools) p.visible = lightsOn;
     this.traffic(dt, dayK < 0.6);

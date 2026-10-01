@@ -547,6 +547,46 @@ function template(type, airline) {
   taxi.visible = false;
   root.add(taxi);
 
+  // Bodengeräte an der Parkposition (nur sichtbar, solange abgefertigt wird): Pylonen an Bug, Flügelspitzen und Heck,
+  // Bodenstromaggregat, Gepäckband an der vorderen Frachttür und Treppe an der vorderen Tür (nur an Außenpositionen)
+  const gse = new THREE.Group();
+  gse.name = 'gse';
+  const cone = new THREE.ConeGeometry(0.018, 0.05, 8).translate(0, 0.025, 0);
+  const coneM = lamb(0xf97316);
+  for (const [x, z] of [[0.5 * L + 0.12, 0], [tLE - k.ct * L, -b - 0.06], [tLE - k.ct * L, b + 0.06], [-0.5 * L - 0.12, 0]]) {
+    const c = new THREE.Mesh(cone, coneM);
+    c.position.set(x, -H, z);
+    gse.add(c);
+  }
+  const gpu = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.06), lamb(0xe5e7eb));
+  gpu.position.set(0.32 * L, -H + 0.04, rz * 1.9);
+  gpu.castShadow = true;
+  gse.add(gpu);
+  if (!k.prop || L > 1.5) {
+    const belt = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.04, 0.07), lamb(0x334155));
+    base.position.set(0, 0.03, 0);
+    const ramp = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.015, 0.05), lamb(0x111827));
+    ramp.rotation.z = Math.atan2(Math.max(0.05, H - ry * 0.6), 0.3);
+    ramp.position.set(0.02, 0.06 + (H - ry * 0.6) / 2, 0);
+    belt.add(base, ramp);
+    belt.position.set(0.2 * L - 0.12, -H, -rz * 1.25);
+    gse.add(belt);
+  }
+  const stairs = new THREE.Group();
+  stairs.name = 'stairs';
+  const sh = H + ry * 0.1;
+  const stp = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.012, sh * 1.25), lamb(0xf8fafc));
+  stp.rotation.x = Math.atan2(sh, sh * 0.9);
+  stp.position.set(0, sh / 2, -sh * 0.45);
+  const truck = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, sh * 1.1), lamb(0x1d4ed8));
+  truck.position.set(0, 0.03, -sh * 0.5);
+  stairs.add(stp, truck);
+  stairs.position.set(0.33 * L, -H, -rz * 1.02);
+  gse.add(stairs);
+  gse.visible = false;
+  root.add(gse);
+
   root.userData = { L, R: rz, ry, H, span: b * 2, gearX: mx, gearZ: gz, noseX: nx, wy, eye: { cockpitX: 0.3 * L + noseL * 0.45, cockpitY: ry * 0.35, winX: rLE - 0.07 * L, winZ: rz * 1.02, winY: ry * 0.42 } };
   return root;
 }
