@@ -19,7 +19,7 @@ export function syncList(container, items, keyFn, renderFn, tag = 'div') {
     }
     if (r.cls !== undefined && el.className !== r.cls) el.className = r.cls;
     if (r.html !== undefined) {
-      if (el._html !== r.html) {
+      if (el._html !== r.html && !busy(el)) {
         el.innerHTML = r.html;
         el._html = r.html;
         glossify(el);
@@ -64,7 +64,19 @@ export function syncList(container, items, keyFn, renderFn, tag = 'div') {
   for (const el of [...container.children]) if (!el.dataset || !el.dataset.key) el.remove();
 }
 
+// Während ein Knopf gedrückt gehalten wird, seinen Container nicht neu zeichnen – sonst verschwindet das Element
+// zwischen Drücken und Loslassen und der Klick geht verloren (z. B. Info-Karte eines Flugzeugs im Anflug)
+let pressed = null;
+if (typeof window !== 'undefined') {
+  window.addEventListener('pointerdown', (e) => (pressed = e.target), true);
+  const release = () => setTimeout(() => (pressed = null), 30);
+  window.addEventListener('pointerup', release, true);
+  window.addEventListener('pointercancel', release, true);
+}
+const busy = (el) => pressed && pressed !== el && el.contains(pressed) && pressed.closest && pressed.closest('button, [data-cmd], [data-ride], [data-follow], [data-spot], a');
+
 export function setHTML(el, html) {
+  if (el._html !== html && busy(el)) return;
   if (el._html !== html) {
     el.innerHTML = html;
     el._html = html;
