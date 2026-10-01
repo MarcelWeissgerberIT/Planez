@@ -11,6 +11,7 @@ import { icon } from './icons.js';
 import { toast } from './dom.js';
 import { sfx } from '../audio.js';
 import { soundscape } from '../soundscape.js';
+import { SpotterUi } from './spotter.js';
 import * as AS from '../sim/airspace.js';
 import * as LY from '../layout.js';
 
@@ -31,7 +32,7 @@ export class Ride {
       <div class="rd-cockpit"><canvas class="rd-rain"></canvas><div class="rd-pillar l"></div><div class="rd-pillar r"></div><div class="rd-pillar c"></div>
         <div class="rd-glare"><div class="rd-pfd"><div class="rd-tape spd"><small>KT</small><b data-r="spd">0</b></div><div class="rd-ai"><div class="rd-hor"></div><i></i><span data-r="fma">TAXI</span></div><div class="rd-tape alt"><small>FT</small><b data-r="alt">0</b><em data-r="vs"></em></div></div>
         <div class="rd-nd"><div class="rd-rose" data-r="rose"></div><b data-r="hdg">000</b><small data-r="nd"></small></div></div></div>
-      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-labels"></div><div class="rd-cap"></div>`;
+      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-photo" data-rd="photo" title="Foto fürs Spotterbuch (F) – fotografiert das Flugzeug in der Bildmitte">${icon('photo')}</button><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-labels"></div><div class="rd-cap"></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
     this.tEl = el.querySelector('.rd-t');
@@ -44,6 +45,7 @@ export class Ride {
       else if (b.dataset.rd === 'cine') this.startCine3d();
       else if (b.dataset.rd === 'tower') this.startTower();
       else if (b.dataset.rd === 'nextshot') this.shot = null;
+      else if (b.dataset.rd === 'photo') this.photo();
       else this.setMode(b.dataset.rd);
     });
     // frei drehbare Kamera: Ziehen dreht (Gier) und neigt, Mausrad ändert den Abstand
@@ -106,6 +108,12 @@ export class Ride {
     }, { passive: false });
     drag.addEventListener('dblclick', () => (this.mode === 'tower' ? this.resetTower() : this.setMode(this.mode)));
     window.addEventListener('keydown', (e) => {
+      if (this.on && this.use3d && (e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target && e.target.tagName) || '')) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this.photo();
+        return;
+      }
       if (this.on && this.mode === 'cine3d' && (e.key === ' ' || e.key === 'ArrowRight')) {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -252,7 +260,7 @@ export class Ride {
     this.hearAt(Math.max(0.6, Math.min(3, 55 / (this.fov || 55) * 0.8)));
     this.drawLabels(s, sel);
     const wx = s.weather;
-    const txt = `Turmblick · ${s.name} · RWY ${s.rwy}${ac ? ` · ${ac.cs}` : ''} · Fernglas ${Math.round(55 / (this.fov || 55) * 10) / 10}×`;
+    const txt = `Turmblick${ac ? ` · ${ac.cs}` : ''} · ${Math.round(55 / (this.fov || 55) * 10) / 10}×`;
     if (this.tEl.textContent !== txt) this.tEl.textContent = txt;
     void wx;
   }
@@ -883,4 +891,22 @@ Ride.prototype.updateGA = function (dt) {
     this.R.fma.textContent = heli ? 'HOVER · NAV' : air ? 'VFR' : 'TAXI';
     this.R.nd.textContent = heli ? 'Klinik Nord' : `RWY ${o.rwy || s.rwy}`;
   }
+};
+
+// Foto aus der 3D-Ansicht fürs Spotterbuch: Außenkamera = das eigene Flugzeug, Kino = das Motiv der Szene,
+// sonst (Turmblick, Fenster, Cockpit) das Flugzeug, das der Bildmitte am nächsten ist
+Ride.prototype.photo = function () {
+  const g = this.game, s = g.state;
+  if (!s || !this.v3d || !this.use3d) return;
+  let id = null;
+  if (this.mode === 'chase' && this.id) id = this.id;
+  else if (this.mode === 'cine3d' && this.shot && s.acs.some((a) => a.id === this.shot.id)) id = this.shot.id;
+  else id = this.v3d.pickCenter(this.mode === 'cockpit' || this.mode === 'window' ? this.id : null);
+  const ac = id && s.acs.find((a) => a.id === id);
+  if (!g.spot) g.spot = new SpotterUi(g);
+  if (!ac) {
+    if (s.settings.sound !== false) sfx.shutter && sfx.shutter();
+    return toast('📷 Kein Flugzeug in der Bildmitte – Fernglas drauf und nochmal', 'info', 2400);
+  }
+  g.spot.shoot(ac);
 };

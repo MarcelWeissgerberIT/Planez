@@ -1277,6 +1277,55 @@ export class View3D {
     const r = this.renderer.domElement;
     return { x: ((v.x + 1) / 2) * r.clientWidth, y: ((1 - v.y) / 2) * r.clientHeight };
   }
+  // Flugzeug, das der Bildmitte am nächsten ist (Foto im Turmblick, aus dem Fenster …)
+  pickCenter(exclude) {
+    let best = null, bd = 0.5;
+    for (const [id, g] of this.acs) {
+      if (!g.visible || id === exclude) continue;
+      const v = g.position.clone().project(this.camera);
+      if (v.z > 1) continue;
+      const d = Math.hypot(v.x, v.y);
+      if (d < bd) (bd = d, (best = id));
+    }
+    return best;
+  }
+  // Foto aus der 3D-Ansicht: neu rendern und den Ausschnitt um das Flugzeug (Teleobjektiv) als JPEG holen
+  snapshot(id) {
+    try {
+      this.renderer.render(this.scene, this.camera);
+      const src = this.renderer.domElement;
+      const W = src.width, H = src.height;
+      let cx = W / 2, cy = H / 2, w = W * 0.6;
+      const g = id && this.acs.get(id);
+      if (g && g.visible) {
+        const v = g.position.clone().project(this.camera);
+        const a = g.position.clone().add(new THREE.Vector3(g.userData.L / 2, 0, 0)).project(this.camera);
+        const b = g.position.clone().add(new THREE.Vector3(0, 0, g.userData.L / 2)).project(this.camera);
+        if (v.z < 1) {
+          cx = ((v.x + 1) / 2) * W;
+          cy = ((1 - v.y) / 2) * H;
+          const r = Math.max(Math.hypot(a.x - v.x, a.y - v.y), Math.hypot(b.x - v.x, b.y - v.y)) * (W / 2);
+          w = clamp(r * 3.4, W * 0.18, W);
+        }
+      }
+      const h = w * 0.625;
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 160;
+      const x = c.getContext('2d');
+      x.fillStyle = '#0b1220';
+      x.fillRect(0, 0, 256, 160);
+      x.drawImage(src, cx - w / 2, cy - h / 2, w, h, 0, 0, 256, 160);
+      const vg = x.createRadialGradient(128, 80, 50, 128, 80, 160);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(0,0,0,0.3)');
+      x.fillStyle = vg;
+      x.fillRect(0, 0, 256, 160);
+      return c.toDataURL('image/jpeg', 0.8);
+    } catch (e) {
+      return null;
+    }
+  }
   acPos(id) {
     const g = this.acs.get(id);
     return g ? g.position : null;

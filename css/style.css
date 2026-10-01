@@ -1795,3 +1795,10 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 
 /* Cockpit: Regen auf der Scheibe mit Scheibenwischern */
 #ride .rd-rain { position: absolute; left: 0; right: 0; top: 0; height: 74%; width: 100%; pointer-events: none; }
+
+/* Foto in 3D-Ansichten: Polaroid und Spotterbuch über der 3D-Ansicht */
+#game.riding #spot-pol { z-index: 47; }
+#game.riding #spotbook { z-index: 48; }
+#ride .rd-photo { border: 1px solid var(--line-2, #475569); background: rgba(255,255,255,.06); color: #e2e8f0; border-radius: 8px; padding: 3px 7px; display: inline-flex; align-items: center; }
+#ride .rd-photo .ico { width: 15px; height: 15px; }
+#ride .rd-photo:hover { border-color: #38d6f5; }

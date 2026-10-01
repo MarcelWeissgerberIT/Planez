@@ -72,6 +72,11 @@ export class SpotterUi {
   // Kartenausschnitt um das Flugzeug als Vorschaubild (ohne Beschriftungen und Auswahl)
   capture(ac) {
     const g = this.game, cam = g.cam, map = g.map;
+    // in einer 3D-Ansicht (Mitfliegen, Turmblick, Kino) wird das 3D-Bild fotografiert
+    if (g.ride && g.ride.on && g.ride.use3d && g.ride.v3d) {
+      const u = g.ride.v3d.snapshot(ac.id);
+      if (u) return u;
+    }
     const canvas = map.canvas;
     const keep = { x: cam.x, y: cam.y, tx: cam.tx, zoom: cam.zoom };
     const ui = { ...g.ui, labels: false, sel: null, selected: null, hoverStand: null, selStand: null, showStands: false };
