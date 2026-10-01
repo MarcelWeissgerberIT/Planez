@@ -1,6 +1,7 @@
 // Fotomodus: Oberfläche aus, freie Kamera, Filter, Bild speichern (PNG)
 import { dayOf, fmtClock } from '../util.js';
 import { toast } from './dom.js';
+import { icon } from './icons.js';
 
 const FILTERS = [
   ['none', 'Natur', 'none'],
@@ -21,12 +22,12 @@ export class PhotoMode {
     el.className = 'hidden';
     el.innerHTML = `<div class="ph-tilt top"></div><div class="ph-tilt bot"></div><div class="ph-frame"></div>
       <div class="ph-bar">
-        <span class="ph-k">📷 Fotomodus</span>
+        <span class="ph-k">${icon('photo')} Fotomodus</span>
         <div class="ph-f">${FILTERS.map(([k, n]) => `<button data-pf="${k}">${n}</button>`).join('')}</div>
-        <button class="ph-t" data-pt="freeze" title="Zeit anhalten">⏸ Zeit anhalten</button>
-        <button class="ph-t" data-pt="labels" title="Beschriftungen">🏷️ Beschriftungen</button>
-        <button class="ph-t" data-pt="trails" title="Langzeitbelichtung: Lichter bewegter Flugzeuge ziehen Leuchtspuren, solange die Kamera still steht – nachts am schönsten">🌌 Lichtspuren</button>
-        <button class="ph-t" data-pt="tilt" title="Tilt-Shift: oben und unten unscharf – der Flughafen wirkt wie ein Modell">🔍 Miniatur</button>
+        <button class="ph-t" data-pt="freeze" title="Zeit anhalten">${icon('pause')} Zeit anhalten</button>
+        <button class="ph-t" data-pt="labels" title="Beschriftungen">${icon('labels')} Beschriftungen</button>
+        <button class="ph-t" data-pt="trails" title="Langzeitbelichtung: Lichter bewegter Flugzeuge ziehen Leuchtspuren, solange die Kamera still steht – nachts am schönsten">${icon('trails')} Lichtspuren</button>
+        <button class="ph-t" data-pt="tilt" title="Tilt-Shift: oben und unten unscharf – der Flughafen wirkt wie ein Modell">${icon('tilt')} Miniatur</button>
         <button class="ph-shot" data-pt="shot">● Aufnehmen</button>
         <button class="ph-x" data-pt="close" title="Beenden (Esc)">✕</button>
       </div>

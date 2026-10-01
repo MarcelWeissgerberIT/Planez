@@ -1677,3 +1677,11 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .dock-open span .ico { width: 22px; height: 22px; vertical-align: -5px; }
 .p-title .ico, .rail-title .ico { color: var(--role, #38d6f5); }
 .p-title .ico .a, .rail-title .ico .a { fill: #fff; stroke: #fff; }
+#hud-wx .ico .a { fill: #fcd34d; stroke: #fcd34d; }
+#hud-wx .ico.se { opacity: .9; }
+.sc-p .ico .a { fill: #fbbf24; stroke: #fbbf24; }
+.rk-i .ico { color: #fbbf24; width: 18px; height: 18px; }
+.rk-i .ico .a { fill: #fde68a; stroke: #fde68a; }
+#voice-t .ico, #ptt-btn .ico { width: 14px; height: 14px; vertical-align: -2px; }
+.ph-t .ico, .ph-k .ico { width: 15px; height: 15px; vertical-align: -3px; }
+.i-head .mini .ico { width: 13px; height: 13px; vertical-align: -2px; }

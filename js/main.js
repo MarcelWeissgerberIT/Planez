@@ -291,7 +291,7 @@ function syncVoice() {
   voice.set({ on, vol: loadPrefs().voiceVol ?? 0.9 });
   const b = $('#voice-t');
   if (b) {
-    b.textContent = s && s.settings.tts ? '🔊' : '🔇';
+    b.innerHTML = icon(s && s.settings.tts ? 'speaker' : 'mute');
     b.classList.toggle('on', !!(s && s.settings.tts));
   }
   const p = $('#ptt-btn');
@@ -549,7 +549,9 @@ function updateHUD(force) {
   const se = season(s);
   const fc = forecastInfo(s);
   const soon = fc.change && fc.at - s.time < 2 * 3600;
-  setHTML($('#hud-wx'), `<span title="${se.name}">${se.icon}</span> ${w.icon} ${w.name} · ${temperature(s).toFixed(0)} °C · ${Math.round(s.wind.dir / 10) * 10}°/${Math.round(s.wind.spd)} kt${soon ? ` <span class="wx-next ${['storm', 'fog', 'snow'].includes(fc.kind) ? 'warn' : ''}" title="Vorhersage: ab ${fmtClock(fc.at)} ${fc.name} (bis etwa ${fmtClock(fc.until)})">→ ${fc.icon} ${fmtClock(fc.at)}</span>` : ''}`);
+  const WX_ICO = { clear: 'sun', clouds: 'clouds', rain: 'rain', fog: 'fog', storm: 'storm', snow: 'snow' };
+  const SE_ICO = { autumn: 'leaf', winter: 'snow', spring: 'sprout', summer: 'sun' };
+  setHTML($('#hud-wx'), `<span title="${se.name}">${icon(SE_ICO[se.id] || 'leaf', 'se')}</span> ${icon(WX_ICO[s.weather.kind] || 'sun')} ${w.name} · ${temperature(s).toFixed(0)} °C · ${Math.round(s.wind.dir / 10) * 10}°/${Math.round(s.wind.spd)} kt${soon ? ` <span class="wx-next ${['storm', 'fog', 'snow'].includes(fc.kind) ? 'warn' : ''}" title="Vorhersage: ab ${fmtClock(fc.at)} ${fc.name} (bis etwa ${fmtClock(fc.until)})">→ ${icon(WX_ICO[fc.kind] || 'clouds')} ${fmtClock(fc.at)}</span>` : ''}`);
   setHTML($('#hud-rwy'), `RWY <b>${s.rwy}</b>${s.rwyPending ? ` <span class="pend">→ ${s.rwyPending}</span>` : ''}`);
   const cash = $('#hud-cash');
   setHTML(cash, fmtMoney(s.cash));
@@ -564,12 +566,12 @@ function updateHUD(force) {
   if (showSc) {
     const S = scoreState(s);
     const hot = S.combo >= 2 ? 'hot' : S.combo > 1 ? 'warm' : '';
-    setHTML(sc, `<span class="sc-p">⭐ ${S.today.toLocaleString('de-DE')}</span><span class="sc-c ${hot}">×${S.combo.toFixed(1)}</span>`);
+    setHTML(sc, `<span class="sc-p">${icon('star')} ${S.today.toLocaleString('de-DE')}</span><span class="sc-c ${hot}">×${S.combo.toFixed(1)}</span>`);
   }
   const G = goalsState(s);
   const next = RANKS[G.rank + 1];
   const pct = next ? Math.round(((G.xp - RANKS[G.rank].xp) / (next.xp - RANKS[G.rank].xp)) * 100) : 100;
-  setHTML($('#btn-rank'), `<span class="rk-i">🏅</span><span class="rk-t"><b>${RANKS[G.rank].name}</b><i style="--p:${pct}%"></i></span>`);
+  setHTML($('#btn-rank'), `<span class="rk-i">${icon('medal')}</span><span class="rk-t"><b>${RANKS[G.rank].name}</b><i style="--p:${pct}%"></i></span>`);
 }
 
 // Anfragen / Konflikte akustisch melden
