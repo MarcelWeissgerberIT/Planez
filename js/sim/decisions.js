@@ -5,7 +5,8 @@ import { AIRLINES, CITIES } from '../config.js';
 import { rand, randRange, randInt, pick, pickWeighted, clamp, fmtMoney } from '../util.js';
 import { log, notify, fx } from './messages.js';
 import { earn, spend } from './economy.js';
-import { PH, spawnSpecial } from './aircraft.js';
+import { PH, spawnSpecial, goAround } from './aircraft.js';
+import * as AS from './airspace.js';
 import { closeRunway } from './runway.js';
 import { birdstrikeOn } from './events.js';
 import { fuelState, FUEL, maxOrder } from './fuel.js';
@@ -153,6 +154,48 @@ export const CATALOG = {
         options: [
           { label: 'Vorrang + Rettungswagen', detail: 'Direktanflug, Ansehen +1,5', run: (st) => { const a = byId(st, p.ac); if (!a) return; a.medical = true; a.minFuel = true; if (CMDS.direct.valid(st, a)) command(st, a, 'direct'); repDelta(st, 1.5); } },
           { label: 'Normale Reihenfolge', detail: 'Ansehen −2 · Airline verärgert', run: (st) => { const a = byId(st, p.ac); repDelta(st, -2); satDelta(contractOfAc(st, a), -5); } },
+        ],
+      };
+    },
+  },
+  drone: {
+    role: 'tower', weight: 0.45, timeout: 3 * MIN,
+    cond: (s) => {
+      const h = (s.time / 3600) % 24;
+      return h > 7 && h < 21 && s.acs.some((a) => a.arr && a.mode === 'air' && a.phase === PH.APPROACH) ? {} : null;
+    },
+    card: () => ({
+      icon: '🛸', title: 'Drohne im Anflugsektor',
+      text: 'Ein Pilot meldet eine Drohne etwa 4 NM vor der Schwelle, ca. 800 ft. Weiterlanden ist riskant – eine Sperrung kostet Zeit.',
+      options: [
+        { label: 'Anflüge aussetzen', detail: 'Piste 6 min gesperrt · sicher', run: (st) => { closeRunway(st, 6, 'Drohnensichtung'); log(st, 'sys', '🛸 Drohnensichtung im Endanflug – Landungen für 6 Minuten ausgesetzt, Polizei informiert.'); } },
+        { label: 'Polizei-Hubschrauber', detail: '18 Tsd € · nur 3 min gesperrt', run: (st) => { spend(st, 'other', 18000); closeRunway(st, 3, 'Drohnensichtung'); log(st, 'sys', '🚁 Polizeihubschrauber vertreibt die Drohne – Piste nach 3 Minuten wieder frei.'); } },
+        { label: 'Mit Vorsicht weiter', detail: '30 % Risiko: Durchstart, Ansehen −3', run: (st) => {
+          if (rand(st) >= 0.3) return log(st, 'sys', '🛸 Die Drohne ist abgedreht – Betrieb läuft weiter.');
+          const a = st.acs.filter((x) => x.arr && x.phase === PH.APPROACH && x.mode === 'air').sort((x, y) => AS.routeDistance(x.pos, x.route) - AS.routeDistance(y.pos, y.route))[0];
+          if (a) goAround(st, a, 'Drohne im Endanflug');
+          repDelta(st, -3);
+          pushNews(st, 'Drohne zwingt Verkehrsflugzeug zum Durchstarten – Kritik an der Flughafenleitung.', 'bad', '🛸');
+        } },
+      ],
+    }),
+  },
+  laser: {
+    role: 'tower', weight: 0.35, timeout: 2 * MIN,
+    cond: (s) => {
+      const h = (s.time / 3600) % 24;
+      if (h > 6.5 && h < 19.5) return null; // nur bei Dunkelheit
+      const c = s.acs.filter((a) => a.arr && a.mode === 'air' && a.phase === PH.APPROACH && !a.emergency);
+      return c.length ? { ac: pick(s, c).id } : null;
+    },
+    card: (s, p) => {
+      const ac = byId(s, p.ac);
+      return {
+        icon: '🔦', title: `Laserblendung bei ${ac?.cs}`,
+        text: 'Die Besatzung meldet einen grünen Laser vom Boden, der Copilot ist kurz geblendet. Der Kommandant kann weiterfliegen – oder du lässt sicherheitshalber durchstarten.',
+        options: [
+          { label: 'Polizei rufen, Anflug fortsetzen', detail: '25 % Risiko: Pilot startet doch durch', run: (st) => { const a = byId(st, p.ac); log(st, 'sys', `🔦 Laserblendung bei ${a?.cs || 'einem Anflug'} – Polizei sucht den Täter.`); if (a && a.mode === 'air' && rand(st) < 0.25) goAround(st, a, 'Laserblendung'); } },
+          { label: 'Durchstarten lassen', detail: 'sicher · ~8 min Verspätung', run: (st) => { const a = byId(st, p.ac); if (a && (a.phase === PH.APPROACH || a.phase === PH.FINAL)) goAround(st, a, 'Laserblendung (Anweisung)'); repDelta(st, 0.5); } },
         ],
       };
     },

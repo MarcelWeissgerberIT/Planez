@@ -49,7 +49,7 @@ export function scoreTakeoff(state, ac) {
 }
 export function scoreGoAround(state, ac, reason) {
   if (!active(state, 'tower')) return;
-  if (/Windscherung/.test(reason || '')) return; // Wetter – nicht die Schuld des Lotsen
+  if (/Windscherung|Laserblendung/.test(reason || '')) return; // Wetter bzw. Laser – nicht die Schuld des Lotsen
   fail(state, ac, 150, 'Durchstarten');
 }
 export function scoreIncident(state, ac) {
