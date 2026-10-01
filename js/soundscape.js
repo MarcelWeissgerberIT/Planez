@@ -74,6 +74,24 @@ function init() {
   o.connect(of).connect(og).connect(bus);
   o.start();
   L.whine = { o, g: og };
+  // Propellerbrummen (Turboprops): Sägezahn, mit der Blattfrequenz moduliert, tiefpassgefiltert
+  const po = A.createOscillator();
+  po.type = 'sawtooth';
+  po.frequency.value = 88;
+  const pam = A.createGain();
+  pam.gain.value = 0.55;
+  const plfo = A.createOscillator();
+  plfo.frequency.value = 21;
+  const plfoG = A.createGain();
+  plfoG.gain.value = 0.45;
+  plfo.connect(plfoG).connect(pam.gain);
+  const pf = filt(A, 'lowpass', 460);
+  const pg = A.createGain();
+  pg.gain.value = 0;
+  po.connect(pam).connect(pf).connect(pg).connect(bus);
+  po.start();
+  plfo.start();
+  L.prop = { o: po, lfo: plfo, g: pg };
   L.roar = loop(A, brown, [filt(A, 'lowpass', 520), filt(A, 'peaking', 140, 1)]);
   L.wind = loop(A, white, [filt(A, 'bandpass', 480, 0.4)]);
   L.rain = loop(A, white, [filt(A, 'highpass', 1800), filt(A, 'lowpass', 9000)]);
@@ -173,7 +191,7 @@ export const soundscape = {
     const h = hourOf(state.time);
     const night = h < 5.5 || h > 21;
     // Triebwerke: Summe über Flugzeuge in Bildnähe, gewichtet mit Abstand zur Bildmitte und Zoom
-    let jet = 0, roar = 0, panSum = 0, wsum = 0;
+    let jet = 0, roar = 0, prop = 0, panSum = 0, wsum = 0;
     const zoomF = clamp((cam.zoom - 0.3) / 1.4, 0.15, 1.2);
     for (const ac of state.acs) {
       if (ac.mode !== 'map') continue;
@@ -182,13 +200,17 @@ export const soundscape = {
       if (near <= 0) continue;
       const big = { S: 0.6, M: 1, L: 1.5 }[AC_TYPES[ac.type].size] || 1;
       let lvl = 0;
-      if (ac.phase === PH.TAKEOFF || ac.phase === PH.MISSED) roar += near * big * 1.4;
+      const isProp = AC_TYPES[ac.type].sprite === 'plane_prop';
+      if (isProp && (ac.phase === PH.TAKEOFF || ac.phase === PH.MISSED)) prop += near * 1.5;
+      else if (isProp && ac.phase === PH.ROLLOUT) prop += near * 0.9;
+      else if (ac.phase === PH.TAKEOFF || ac.phase === PH.MISSED) roar += near * big * 1.4;
       else if (ac.phase === PH.ROLLOUT) roar += near * big * 0.8 * clamp(ac.v * 4, 0.2, 1);
       else if (ac.phase === PH.FINAL) lvl = 0.7;
       else if ([PH.TAXI_IN, PH.TAXI_OUT, PH.LINEUP, PH.LINED, PH.HOLDING, PH.STARTUP, PH.PUSH].includes(ac.phase)) lvl = ac.phase === PH.STARTUP ? 0.5 : 0.45;
       else if (ac.phase === PH.STAND && ac.engines) lvl = 0.3;
+      if (lvl && isProp) prop += near * lvl * 1.2;
       if (lvl) {
-        jet += near * lvl * big;
+        if (!isProp) jet += near * lvl * big;
         const sx = (ac.x - ac.y - (cam.x - cam.y)) * 0.08;
         panSum += clamp(sx, -1, 1) * near;
         wsum += near;
@@ -201,6 +223,10 @@ export const soundscape = {
     set(L.rumble.g.gain, 0.12 * jet + 0.02);
     set(L.whine.g.gain, 0.0035 * Math.min(1, jet));
     set(L.roar.g.gain, 0.22 * roar, 0.5);
+    prop = clamp(prop * zoomF, 0, 1.5);
+    set(L.prop.g.gain, 0.06 * prop, 0.4);
+    // Drehzahl hörbar: beim Startlauf höher
+    set(L.prop.o.frequency, 80 + 22 * Math.min(1, prop), 0.6);
     if (L.jet.pan && wsum) set(L.jet.pan.pan, clamp(panSum / wsum, -0.8, 0.8));
     // Martinshorn, solange Löschfahrzeuge ausrücken
     let siren = 0, sPan = 0;
