@@ -8,7 +8,7 @@ import * as LY from '../layout.js';
 import { clamp, dist, angNorm, hourOf, rand } from '../util.js';
 import { radio, log, notify } from './messages.js';
 import { nextId } from './schedule.js';
-import { tel, setReq, PH, getRot } from './aircraft.js';
+import { tel, setReq, PH, getRot, greet } from './aircraft.js';
 import { onOffBlock } from './economy.js';
 import { acdmOnBlock } from './acdm.js';
 import { FUEL, fuelState, upliftFor, sellFuel, truckTakeFuel } from './fuel.js';
@@ -263,7 +263,7 @@ export function updateGround(state, dt) {
     if (push.st === 'active' && workDone && bridgeGone && rot && state.time >= (rot.tobt || rot.std) - 5 * 60 && !(ac.pushWaitUntil > state.time)) {
       if (ac.req !== 'push') {
         setReq(state, ac, 'push');
-        radio(state, ac.cs, `${tel(ac)}, stand ${ac.stand}, request pushback.`);
+        radio(state, ac.cs, `${greet(state, ac).replace(/^./, (c) => c.toUpperCase())}${tel(ac)}, stand ${ac.stand}, request pushback.`);
       }
     }
   }

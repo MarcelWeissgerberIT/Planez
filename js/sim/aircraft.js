@@ -30,6 +30,15 @@ export const PHASE_DE = {
 export const AIR_PHASES = new Set([PH.INBOUND, PH.HOLD, PH.APPROACH, PH.GOAROUND, PH.DEPART]);
 export const RWY_PHASES = new Set([PH.ROLLOUT, PH.LINEUP, PH.LINED, PH.TAKEOFF]);
 
+// Gruß beim Erstkontakt je nach Tageszeit (nicht jeder grüßt – fest je Flug, ohne Spielzufall)
+export function greet(state, ac) {
+  let h = 0;
+  for (const c of ac.cs) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  if (h % 3 === 0) return '';
+  const hr = (state.time / 3600) % 24;
+  return hr < 11 ? 'good morning, ' : hr < 18 ? (h % 2 ? 'good day, ' : 'hello, ') : 'good evening, ';
+}
+
 export function tel(ac) {
   const al = AIRLINES[ac.airline];
   return `${al.tel} ${ac.cs.replace(/^[A-Z]+/, '')}`;
@@ -63,7 +72,7 @@ export function spawnArrival(state, rot, force = false) {
   rot.ac = ac.id;
   rot.status = 'inbound';
   state.acs.push(ac);
-  radio(state, ac.cs, `${AIRPORT.name.split(' ')[0]} Approach, ${tel(ac)}, FL${Math.round(alt / 100)}${rot.special === 'diversion' ? ', diverting from Nordhafen' : ''}, information ${atis(state)}.`);
+  radio(state, ac.cs, `${AIRPORT.name.split(' ')[0]} Approach, ${greet(state, ac)}${tel(ac)}, FL${Math.round(alt / 100)}${rot.special === 'diversion' ? ', diverting from Nordhafen' : ''}, information ${atis(state)}.`);
   if (state.auto.ground || state.settings.standAuto) assignStandAuto(state, ac);
   return ac;
 }
