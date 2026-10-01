@@ -107,6 +107,7 @@ export class Ride {
   update(dt) {
     if (!this.on) return;
     const g = this.game, s = g.state, cam = g.cam;
+    if (g.cinema && g.cinema.on) return this.stop();
     const ac = s && s.acs.find((a) => a.id === this.id);
     if (!ac || ac.mode !== 'map' || ac.phase === PH.GONE) {
       toast(ac && !this.arriving ? '✈️ Gute Reise! Das Flugzeug hat den Flughafen verlassen.' : 'Ausgestiegen', 'info', 2600);

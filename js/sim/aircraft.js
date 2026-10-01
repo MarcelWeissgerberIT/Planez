@@ -969,6 +969,11 @@ function resolveDeadlocks(state) {
     const longStuck = a.blockedT > 400;
     if (mutual || stuckOnParked || longStuck) {
       const loser = mutual ? (a.id < b.id ? a : b) : a;
+      // Hinweis an den Spieler: Rollverkehr hat sich verkeilt (die Simulation löst es auf, der eine rollt vorbei)
+      if (mutual && !state.auto.atc && (state.role === 'tower' || state.role === 'ground') && !a.dlWarned) {
+        a.dlWarned = b.dlWarned = true;
+        notify(state, `⚠ Rollverkehr verkeilt: ${a.cs} und ${b.cs} standen sich im Weg – künftig einen per „Halt“ warten lassen`, 'warn');
+      }
       loser.ghostUntil = state.time + 40;
       loser.blockedT = 0;
     }
