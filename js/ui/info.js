@@ -86,6 +86,12 @@ export function renderInfo(el, state, ui) {
     if (rot) h += `<div><span>${dep ? 'Abflug (STD)' : 'Ankunft (STA)'}</span><b>${fmtClock(dep ? rot.std : rot.sta)}</b></div><div><span>Verspätung</span><b>${delay}</b></div>`;
     if (ac.mode === 'air') h += `<div><span>Höhe</span><b>${fmtAlt(ac.alt)}</b></div><div><span>Geschw.</span><b>${Math.round(ac.spd)} kt</b></div><div><span>Kurs</span><b>${String(Math.round(ac.crs)).padStart(3, '0')}°</b></div><div><span>Squawk</span><b>${ac.squawk}</b></div>`;
     else h += `<div><span>Position</span><b>${ac.stand ? 'P' + ac.stand : '—'}</b></div><div><span>Passagiere</span><b>${rot ? (dep ? rot.paxOut : rot.paxIn) : '—'}</b></div>`;
+    // Live-Flugdaten wie auf dem Flugradar (Karte: Kacheln je Spielsekunde -> Knoten, Höhe aus z)
+    if (ac.mode === 'map' && ((ac.v || 0) > 0.004 || (ac.z || 0) > 0.02)) {
+      const kt = Math.round((ac.v || 0) * 323), alt = Math.round(((ac.z || 0) * 500) / 10) * 10;
+      const hdg = String(Math.round(((ac.hdg * 180) / Math.PI + 90 + 360) % 360)).padStart(3, '0');
+      h += `<div><span>Höhe</span><b>${alt > 0 ? alt + ' ft' : 'am Boden'}</b></div><div><span>Geschw. · Kurs</span><b>${kt} kt · ${hdg}°</b></div>`;
+    }
     if (ac.arr && ac.mode === 'air' && [PH.INBOUND, PH.HOLD, PH.APPROACH].includes(ac.phase)) h += `<div><span>Bis Landung</span><b>${distToLand(ac).toFixed(1)} NM</b></div><div><span>Treibstoff-Reserve</span><b>${fuelChip(ac) || '—'}</b></div>`;
     // A-CDM-Zeiten für den Abflug
     if (rot && rot.tobt && !rot.atd && dep) {
