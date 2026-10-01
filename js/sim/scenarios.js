@@ -6,11 +6,35 @@ import { heliState } from './heli.js';
 import { notify, log, radio } from './messages.js';
 import { triggerEvent } from './events.js';
 import { requestRunwayChange } from './atc.js';
-import { fmtMoney } from '../util.js';
+import { fmtMoney, rand } from '../util.js';
+import { AC_TYPES, AIRLINES } from '../config.js';
+import { nextId } from './schedule.js';
 import { T } from '../i18n.js';
 
 const H = 3600;
 const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0);
+
+// Stoßzeit: jede Welle bringt mehr zusätzliche Anflüge (1, 1, 1, 2, 2, 2, 3 …) aus den vorhandenen Linien
+function rushWave(s, i) {
+  const n = 1 + Math.floor(i / 3);
+  const cs = s.contracts.filter((c) => !c.cargo && AC_TYPES[c.type] && AC_TYPES[c.type].size !== 'L' && AIRLINES[c.airline]);
+  if (!cs.length) return;
+  for (let k = 0; k < n; k++) {
+    const c = cs[Math.floor(rand(s) * cs.length)];
+    const t = AC_TYPES[c.type];
+    const al = AIRLINES[c.airline];
+    const fn = 600 + ((i * 7 + k * 3) % 380);
+    const sta = s.time + (21 + k * 3 + Math.round(rand(s) * 4)) * 60;
+    const rot = {
+      id: nextId(s, 'r'), contract: c.id, airline: c.airline, type: c.type, arrNo: `${al.code}${fn}`, depNo: `${al.code}${fn + 1}`, city: c.city,
+      sta, std: sta + t.turn * 60 + 15 * 60, arrDelay: 0,
+      paxIn: Math.round(t.pax * 0.85), paxOut: Math.round(t.pax * 0.8), cargoIn: Math.round(t.pax * 0.01), cargoOut: Math.round(t.pax * 0.012),
+      status: 'planned', feeMult: c.feeMult || 1, spawnAt: s.time + k * 90, ac: null,
+    };
+    s.rots[rot.id] = rot;
+  }
+  notify(s, n > 1 ? T`⏱️ Neue Welle: ${n} zusätzliche Anflüge` : T('⏱️ Neue Welle: ein zusätzlicher Anflug'), 'warn');
+}
 
 // Kennzahlen aus den Zählern (Zuwachs seit Szenariostart)
 function metrics(state) {
@@ -38,6 +62,7 @@ function metrics(state) {
     rep: Math.round(state.reputation),
     rwy2: state.upgrades.rwy2 ? 1 : 0,
     side: d('touchGo') + d('heliX'),
+    mins: Math.round((state.time - sc.start) / 60),
   };
 }
 // Tageszähler aufsummieren (auch über den Tageswechsel hinweg)
@@ -181,6 +206,22 @@ export const SCENARIOS = [
       { text: T('Bewegungen'), key: 'mov', t: [9, 12, 15] },
       { text: T('Nebenverkehr (Touch and Go, Heli-Querungen)'), key: 'side', t: [4, 7, 10] },
       { text: T('Vorfälle'), key: 'incidents', t: [1, 0, 0], low: true },
+    ],
+    fail: (m) => (m.incidents >= 3 ? T('Drei Vorfälle – die Schicht wurde abgelöst.') : null),
+  },
+  {
+    id: 'rushhour', role: 'tower', icon: '⏱️', diff: 3, title: T('Stoßzeit (endlos)'), img: 'assets/scn/rushhour.webp', endless: true,
+    brief: T('Kein Feierabend in Sicht: Alle 15 Minuten kommt eine neue Welle Anflüge – und jede ist größer als die letzte. Wie lange hältst du die Bahn sicher? Beim dritten Vorfall wirst du abgelöst.'),
+    tips: [T('Starts konsequent in die Lücken legen, sonst stauen sich die Rollhalte'), T('Warteschleifen früh nutzen, bevor der Treibstoff knapp wird'), T('Lieber ein Durchstart als ein Vorfall')],
+    hour: 7, dur: 8 * H, density: 1.2,
+    setup: (s) => {
+      setWeather(s, 'clear', 9);
+      windShift(s, 255, 7);
+    },
+    script: Array.from({ length: 31 }, (_, i) => ({ at: (i + 1) * 15 * 60, run: (s) => rushWave(s, i) })),
+    goals: [
+      { text: T('Überstandene Minuten'), key: 'mins', t: [90, 180, 300] },
+      { text: T('Bewegungen (Landungen + Starts)'), key: 'mov', t: [30, 60, 100] },
     ],
     fail: (m) => (m.incidents >= 3 ? T('Drei Vorfälle – die Schicht wurde abgelöst.') : null),
   },
@@ -395,12 +436,14 @@ export function finishScenario(state, failed = null) {
   const def = scenarioById(sc.id);
   const m = metrics(state);
   const rows = def.goals.map((g) => ({ g, v: m[g.key], stars: goalStars(g, m[g.key]) }));
-  let stars = failed || rows.some((r) => !r.stars) ? 0 : Math.floor(rows.reduce((a, r) => a + r.stars, 0) / rows.length);
+  // Endlos-Herausforderung: Ablösung ist das normale Ende – gewertet wird trotzdem
+  let stars = (failed && !def.endless) || rows.some((r) => !r.stars) ? 0 : Math.floor(rows.reduce((a, r) => a + r.stars, 0) / rows.length);
   sc.done = true;
   const pts = state.score ? state.score.pts : 0;
   sc.result = { stars, failed, rows: rows.map((r) => ({ v: r.v, stars: r.stars })), m, pts };
+  if (def.endless) sc.result.waves = Math.min(def.script.length, Math.floor(m.mins / 15));
   state.speed = 0;
-  const best = recordBest(def.id, stars, rows, pts);
+  const best = recordBest(def.id, stars, rows, pts, def.endless ? m.mins : 0);
   sc.result.best = best;
   if (def.daily) sc.result.daily = recordDaily(def.daily, stars);
   radio(state, 'TWR', stars ? 'All stations, shift complete, good work.' : 'All stations, shift ended.', 'atc');
@@ -415,7 +458,7 @@ export function scenarioLive(state) {
   const def = scenarioById(sc.id);
   if (!def) return null;
   const m = metrics(state);
-  return { def, left: Math.max(0, sc.end - state.time), frac: Math.min(1, (state.time - sc.start) / (sc.end - sc.start)), rows: def.goals.map((g) => ({ g, v: m[g.key], stars: goalStars(g, m[g.key]) })) };
+  return { def, m, left: Math.max(0, sc.end - state.time), frac: Math.min(1, (state.time - sc.start) / (sc.end - sc.start)), rows: def.goals.map((g) => ({ g, v: m[g.key], stars: goalStars(g, m[g.key]) })) };
 }
 
 // ---------- Bestwerte ----------
@@ -427,19 +470,23 @@ export function loadBest() {
     return {};
   }
 }
-function recordBest(id, stars, rows, pts = 0) {
+// mins: Endlos-Herausforderung – längste überstandene Zeit als eigener Rekord
+function recordBest(id, stars, rows, pts = 0, mins = 0) {
   const all = loadBest();
   const old = all[id];
   const score = stars * 1000 + rows.reduce((a, r) => a + r.stars * 100, 0);
   const isNew = !old || score > (old.score || 0) || (score === (old.score || 0) && pts > (old.pts || 0));
   const ptsNew = pts > ((old && old.pts) || 0);
-  if (isNew || ptsNew) {
+  const minsNew = mins > ((old && old.mins) || 0);
+  if (isNew || ptsNew || minsNew) {
     all[id] = { stars: isNew ? stars : old.stars, score: isNew ? score : old.score, pts: Math.max(pts, (old && old.pts) || 0), at: Date.now() };
+    const mb = Math.max(mins, (old && old.mins) || 0);
+    if (mb) all[id].mins = mb;
     try {
       localStorage.setItem(BEST_KEY, JSON.stringify(all));
     } catch (e) {}
   }
-  return { ...all[id], ...(isNew || ptsNew ? {} : old), isNew, ptsNew, prev: old || null };
+  return { ...all[id], ...(isNew || ptsNew || minsNew ? {} : old), isNew, ptsNew, minsNew, prev: old || null };
 }
 export const totalStars = () => Object.entries(loadBest()).reduce((a, [k, b]) => a + (k.startsWith('daily-') ? 0 : b.stars || 0), 0);
 // Freischaltung: die erste Herausforderung je Station ist offen, weitere nach mindestens einem Stern

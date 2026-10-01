@@ -39,7 +39,7 @@ Grasstreifen, Spotterhügel, Livestream mit Chat, Lokalzeitung – und eine 3D-A
 und Mitfliegen im Cockpit.
 
 **Für Einsteiger und Profis.** Interaktive Einführung je Station, Glossar für jede Abkürzung, drei Schwierigkeitsgrade,
-KI-Pilot zum Zuschauen und Eingreifen, zehn Herausforderungen mit Sternen, eine Kampagne mit zehn Kapiteln und jeden Tag
+KI-Pilot zum Zuschauen und Eingreifen, elf Herausforderungen mit Sternen (eine davon endlos), eine Kampagne mit zehn Kapiteln und jeden Tag
 eine neue Tagesherausforderung.
 
 Alle Airlines, Flugzeughersteller und Typen sind frei erfunden. Komplett auf Deutsch und Englisch.
@@ -50,7 +50,7 @@ Alle Airlines, Flugzeughersteller und Typen sind frei erfunden. Komplett auf Deu
 - Echter Funk mit Sprachausgabe und Sprechtaste (Chrome/Edge)
 - Wetter, Tag und Nacht, Jahreszeiten, Winterdienst
 - 3D-Turmblick, Kino-Kamerafahrten, Mitfliegen, Fotomodus und Spotterbuch
-- Kampagne (10 Kapitel), 10 Herausforderungen, Tagesherausforderung, Erfolge, Karriere-Rang
+- Kampagne (10 Kapitel), 11 Herausforderungen inkl. Endlos-Modus, Tagesherausforderung, Erfolge, Karriere-Rang
 - Drei Speicherplätze, automatisches Speichern
 - Deutsch und Englisch
 
@@ -94,7 +94,7 @@ hill, a livestream with chat, a local newspaper – plus a 3D view with tower vi
 the cockpit.
 
 **For beginners and pros.** Interactive tutorial for each station, a glossary for every abbreviation, three difficulty
-levels, an AI autopilot to watch and take over from, ten star-rated challenges, a ten-chapter campaign and a new daily
+levels, an AI autopilot to watch and take over from, eleven star-rated challenges (one of them endless), a ten-chapter campaign and a new daily
 challenge every day.
 
 All airlines, aircraft manufacturers and types are fictional. Fully playable in English and German.
@@ -105,7 +105,7 @@ All airlines, aircraft manufacturers and types are fictional. Fully playable in 
 - Real voice radio and push-to-talk (Chrome/Edge)
 - Weather, day and night, seasons, winter operations
 - 3D tower view, cinematic camera, ride-along, photo mode and spotter's log
-- Campaign (10 chapters), 10 challenges, daily challenge, achievements, career rank
+- Campaign (10 chapters), 11 challenges incl. an endless mode, daily challenge, achievements, career rank
 - Three save slots, autosave
 - English and German
 

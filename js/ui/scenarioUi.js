@@ -14,7 +14,7 @@ const hm = (sec) => {
   const m = Math.round(sec / 60);
   return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} h` : `${m} min`;
 };
-const durText = (def) => (def.dur >= 86400 ? T`${Math.round(def.dur / 86400)} Spieltage` : T`${hm(def.dur)} Spielzeit`);
+const durText = (def) => (def.endless ? T`endlos · bis ${hm(def.dur)}` : def.dur >= 86400 ? T`${Math.round(def.dur / 86400)} Spieltage` : T`${hm(def.dur)} Spielzeit`);
 // echte Minuten bei Standardtempo
 const realMin = (def) => Math.round(def.dur / TIME_SCALE / (def.role === 'manager' ? 10 : 1) / 60);
 
@@ -64,7 +64,7 @@ export function scenarioSide(id) {
     <div class="ms-sec">Ziele</div>
     <table class="scn-goals">${def.goals.map((g) => `<tr><td>${esc(g.text)}</td>${[0, 1, 2].map((i) => `<td><span class="st">${'★'.repeat(i + 1)}</span> ${goalNeed(g, i)}</td>`).join('')}</tr>`).join('')}</table>
     ${def.daily ? `<div class="ms-sec">${T('Serie')}</div><div class="scn-streak">${(() => { const di = dailyInfo(); const days = []; for (let i = 6; i >= 0; i--) { const k = dailyKey(new Date(Date.now() - i * 864e5)); const st = (di.days || {})[k] || 0; days.push(`<i class="${st ? 'on' : ''}" title="${dailyLabel(k)}: ${st}★">${st ? '★' : '·'}</i>`); } return days.join('') + T` <small>🔥 ${di.last === dailyKey() || di.last === dailyKey(new Date(Date.now() - 864e5)) ? di.streak || 0 : 0} Tage in Folge · Rekord ${di.best || 0}</small>`; })()}</div>` : ''}
-    <div class="ms-auto">${b ? T`🏆 Bestwert: <b class="scn-gold">${starStr(b.stars)}</b>${b.pts ? T` · ⭐ ${b.pts.toLocaleString(LOCALE)} Punkte` : ''}` : open ? T('▶ Klicken zum Starten') : (IS_DEMO && !DEMO.scenarios.includes(def.id) ? T('🔒 In der Vollversion – die Demo enthält „Morgenwelle“ und „Ferienstart“') : T('🔒 Gesperrt – hol erst einen Stern in der vorigen Herausforderung dieser Station'))}</div></div></div>`;
+    <div class="ms-auto">${b ? T`🏆 Bestwert: <b class="scn-gold">${starStr(b.stars)}</b>${b.mins ? T` · ⏱️ ${hm(b.mins * 60)} gehalten` : ''}${b.pts ? T` · ⭐ ${b.pts.toLocaleString(LOCALE)} Punkte` : ''}` : open ? T('▶ Klicken zum Starten') : (IS_DEMO && !DEMO.scenarios.includes(def.id) ? T('🔒 In der Vollversion – die Demo enthält „Morgenwelle“ und „Ferienstart“') : T('🔒 Gesperrt – hol erst einen Stern in der vorigen Herausforderung dieser Station'))}</div></div></div>`;
 }
 
 function storyBox(ch, text, kick) {
@@ -153,7 +153,8 @@ export class ScenarioUi {
     this.bar.classList.toggle('hidden', !L || !!(this.game.cinema && this.game.cinema.on));
     document.getElementById('game').classList.toggle('scn-on', !!L);
     if (!L) return;
-    const html = T`<div class="sb-t"><b>${L.def.icon} ${esc(L.def.title)}</b><span class="sb-left">noch ${L.left >= 86400 ? T`${(L.left / 86400).toFixed(1).replace('.', DEC)} Tage` : hm(L.left)}</span><i class="sb-p"><i style="width:${Math.round(L.frac * 100)}%"></i></i></div>
+    const left = L.def.endless ? T`Welle ${Math.min(L.def.script.length, Math.floor(L.m.mins / 15)) + 1} · ⚠️ ${L.m.incidents}/3 Vorfälle` : null;
+    const html = T`<div class="sb-t"><b>${L.def.icon} ${esc(L.def.title)}</b><span class="sb-left">${left || T`noch ${L.left >= 86400 ? T`${(L.left / 86400).toFixed(1).replace('.', DEC)} Tage` : hm(L.left)}`}</span><i class="sb-p"><i style="width:${Math.round(L.frac * 100)}%"></i></i></div>
       <div class="sb-g">${L.rows.map((r) => `<span class="sb-c s${r.stars}" title="${esc(r.g.text)}: 1★ ${goalNeed(r.g, 0)} · 2★ ${goalNeed(r.g, 1)} · 3★ ${goalNeed(r.g, 2)}"><small>${esc(r.g.text)}</small><b>${goalValue(r.g, r.v == null ? null : Math.round(r.v))}</b><em>${starStr(r.stars)}</em></span>`).join('')}</div>`;
     if (this.bar._h !== html) {
       this.bar.innerHTML = html;
@@ -173,10 +174,10 @@ export class ScenarioUi {
       story = res.stars ? storyBox(ch, CHAPTERS[ch].outro, last ? T('🏆 Kampagne abgeschlossen') : null) : storyBox(ch, T('Das war noch nicht genug. Atmen Sie durch und versuchen Sie es noch einmal – ein Stern reicht mir.'));
       nextBtn = res.stars && !last ? T`<button class="btn btn-primary" data-so="next" data-id="camp-${ch + 1}">Kapitel ${ch + 2}: ${esc(CHAPTERS[ch + 1].title)} ▶</button>` : '';
     }
-    const title = res.failed ? T('Abgebrochen') : res.stars === 3 ? T('Perfekt!') : res.stars === 2 ? T('Sehr gut!') : res.stars === 1 ? T('Geschafft') : T('Nicht geschafft');
+    const title = def.endless ? (res.failed ? T('Abgelöst') : T('Feierabend!')) : res.failed ? T('Abgebrochen') : res.stars === 3 ? T('Perfekt!') : res.stars === 2 ? T('Sehr gut!') : res.stars === 1 ? T('Geschafft') : T('Nicht geschafft');
     this.ov.innerHTML = T`<div class="scn-box res ${res.stars ? 'win' : 'lose'}"><div class="scn-hero sm" style="background-image:url(${def.img})"><div class="scn-k">${def.icon} ${esc(def.title)}</div><h2>${title}</h2>
       <div class="scn-big">${[0, 1, 2].map((i) => `<span class="${i < res.stars ? 'on' : ''}" style="animation-delay:${0.25 + i * 0.35}s">★</span>`).join('')}</div></div>
-      <div class="scn-in">${story}${res.failed ? `<p class="scn-fail">⚠️ ${esc(res.failed)}</p>` : ''}
+      <div class="scn-in">${story}${def.endless ? `<p class="scn-pts">⏱️ ${res.failed ? T`${hm(res.m.mins * 60)} gehalten · ${res.waves} Wellen überstanden` : T('Alle Wellen überstanden – die Schicht ist geschafft.')}${res.best && res.best.minsNew && res.best.prev ? T(' · <b>neuer Zeit-Rekord!</b>') : res.best && res.best.prev && res.best.prev.mins ? T` · Rekordzeit ${hm(res.best.prev.mins * 60)}` : ''}</p>` : ''}${res.failed ? `<p class="scn-fail">⚠️ ${esc(res.failed)}</p>` : ''}
       <table class="scn-res">${def.goals.map((g, i) => {
         const r = res.rows[i];
         return `<tr class="s${r.stars}"><td>${esc(g.text)}</td><td class="v">${goalValue(g, r.v == null ? null : Math.round(r.v))}</td><td class="st">${starStr(r.stars)}</td><td class="nx">${r.stars < 3 ? T`nächster Stern ${goalNeed(g, r.stars)}` : T('✓ Bestwert')}</td></tr>`;
