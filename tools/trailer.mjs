@@ -60,15 +60,19 @@ async function start(page, role, kind = 'regional') {
   await page.click('[data-mm=new]');
   await page.waitForTimeout(300);
   await page.selectOption('#inp-start', kind);
-  if (role === 'observer') await page.click('#mm-new [data-role-start=observer], [data-role-start=observer]');
+  if (role === 'observer') await page.click('#mm-new [data-role-start=observer]');
   else await page.click(`.role-card[data-role=${role}]`);
   await page.waitForTimeout(1200);
-  for (let k = 0; k < 3; k++) {
-    if (await page.evaluate(() => !document.getElementById('modal').classList.contains('hidden'))) {
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(250);
-    }
+  await closeModals(page);
+}
+// offene Fenster schließen; Erfolgs-Popups und Meldungen im Trailer ausblenden
+async function closeModals(page) {
+  for (let k = 0; k < 4; k++) {
+    if (!(await page.evaluate(() => !document.getElementById('modal').classList.contains('hidden')))) break;
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
   }
+  await page.addStyleTag({ content: '.ach-pop, #toasts { display: none !important; }' });
 }
 async function sim(page, sec, { hour, weather } = {}) {
   await page.evaluate(
@@ -85,6 +89,8 @@ async function sim(page, sec, { hour, weather } = {}) {
     },
     [sec, hour ?? null, weather ?? null],
   );
+  await page.waitForTimeout(800);
+  await closeModals(page);
 }
 const photo = (page) => page.evaluate(() => document.getElementById('game').classList.add('photo'));
 // 3D-Kino mit einer bestimmten Szenenart (Landung, Start …)

@@ -32,16 +32,20 @@ async function start(page, role, startKind = 'regional') {
   await page.click('[data-mm=new]');
   await page.waitForTimeout(300);
   await page.selectOption('#inp-start', startKind);
-  if (role === 'observer') await page.click('[data-role-start=observer]');
+  if (role === 'observer') await page.click('#mm-new [data-role-start=observer]');
   else await page.click(`.role-card[data-role=${role}]`);
   await page.waitForTimeout(1200);
-  for (let k = 0; k < 3; k++) {
+  await closeModals(page);
+}
+// offene Fenster (Tagesbericht, Entscheidungen) schließen; Erfolgs-Popups und Meldungen fürs Foto ausblenden
+async function closeModals(page) {
+  for (let k = 0; k < 4; k++) {
     const m = await page.evaluate(() => !document.getElementById('modal').classList.contains('hidden'));
-    if (m) {
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(250);
-    }
+    if (!m) break;
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
   }
+  await page.addStyleTag({ content: '.ach-pop, #toasts { display: none !important; }' });
 }
 // Simulation vorspulen (KI übernimmt alle Stationen), dann Tageszeit/Wetter setzen
 async function sim(page, sec, { hour, weather, auto = true } = {}) {
@@ -61,6 +65,7 @@ async function sim(page, sec, { hour, weather, auto = true } = {}) {
     [sec, hour ?? null, weather ?? null, auto],
   );
   await page.waitForTimeout(1500);
+  await closeModals(page);
 }
 const cam = (page, x, y, zoom) => page.evaluate(([x, y, zoom]) => { const c = window.planez.cam; if (x != null) c.focus(x, y); if (zoom) c.zoom = zoom; }, [x, y, zoom]);
 
