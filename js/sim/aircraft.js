@@ -44,7 +44,7 @@ export function getRot(state, ac) {
 }
 
 // ---------------- Erzeugen ----------------
-export function spawnArrival(state, rot) {
+export function spawnArrival(state, rot, force = false) {
   const t = AC_TYPES[rot.type];
   const brg = CITIES[rot.city].brg + randRange(state, -10, 10);
   const pos = AS.spawnPoint(brg);
@@ -53,8 +53,10 @@ export function spawnArrival(state, rot) {
   // Einflug-Staffelung: nicht in der Nähe anderer Flugzeuge erzeugen
   const near = (al) => state.acs.some((o) => o.mode === 'air' && Math.hypot(o.pos.x - pos.x, o.pos.y - pos.y) < 12 && Math.abs(o.alt - al) < 2500);
   if (near(alt)) {
-    const alt2 = alt >= 15000 ? alt - 4000 : alt + 4000;
-    if (near(alt2)) return null;
+    // Sonderflüge (Notfall, VIP, A380, Umleitung) kommen immer – notfalls auf einer freien höheren/tieferen Fläche
+    const alts = [alt >= 15000 ? alt - 4000 : alt + 4000].concat(force ? [20000, 9000] : []);
+    const alt2 = alts.find((a) => !near(a)) ?? (force ? 22000 : null);
+    if (alt2 === null) return null;
     alt = alt2;
   }
   const ac = makeAircraft(state, rot, { pos, alt, crs: degNorm(brg + 180), route: AS.inboundRoute(pos, rwy) });
@@ -151,7 +153,7 @@ export function spawnSpecial(state, opts) {
     feeMult: opts.feeMult || 1,
   };
   state.rots[rot.id] = rot;
-  const ac = spawnArrival(state, rot);
+  const ac = spawnArrival(state, rot, true);
   if (opts.emergency) {
     ac.emergency = true;
     ac.squawk = '7700';

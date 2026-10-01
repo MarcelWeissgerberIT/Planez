@@ -98,6 +98,7 @@ const SIDE = {
       <li>📅 <b>Tagesherausforderung</b> mit Zusatzregeln und 🔥 Serie · 🎖️ <b>Karriere</b> über alle Spielstände</li>
       <li>👂 <b>Readback-Fehler</b> hören und mit <kbd>Q</kbd> korrigieren · 📻✖ <b>Funkausfall</b> mit Lichtsignalen</li>
       <li>📻 <b>Betriebsfunk</b> der Bodencrews auf Deutsch · 📋 <b>Schichtbriefing</b> zum Tagesbeginn</li>
+      <li>✈️ <b>Neue Typen</b> A220, CRJ900, Dash 8-400, A330 · <b>Lumen Air</b> und <b>Fjordwing</b></li>
       <li>🏢 <b>Wettbewerb</b> gegen Nordhafen mit Marktanteil · 📒 <b>Spotterbuch</b> mit Sonderlackierungen</li>
     </ul><div class="ms-sec">Spielen</div><ul>
       <li>⭐ <b>Herausforderungen</b>: 9 Szenarien mit Sternen und Punkte-Rekorden</li>

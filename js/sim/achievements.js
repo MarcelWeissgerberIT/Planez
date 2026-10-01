@@ -37,7 +37,7 @@ export const ACHIEVEMENTS = [
   { id: 'market65', icon: '🥇', name: 'Platzhirsch', desc: '65 % Marktanteil gegen Nordhafen erreicht.', xp: 100, check: (s) => !!s.rival && s.rival.share >= 65 },
   { id: 'readback5', icon: '👂', name: 'Gutes Gehör', desc: 'Fünf falsche Readbacks rechtzeitig korrigiert.', xp: 70, check: (s) => L(s, 'rbFixed') >= 5 },
   { id: 'spot10', icon: '📷', name: 'Spotter', desc: '10 Fotos fürs Spotterbuch geschossen.', xp: 40, check: (s) => L(s, 'spotShots') >= 10 },
-  { id: 'spotTypes', icon: '📒', name: 'Typenkenner', desc: 'Alle 12 Flugzeugtypen im Spotterbuch.', xp: 120, check: (s) => L(s, 'spotTypes') >= 12 },
+  { id: 'spotTypes', icon: '📒', name: 'Typenkenner', desc: 'Alle 16 Flugzeugtypen im Spotterbuch.', xp: 120, check: (s) => L(s, 'spotTypes') >= 16 },
   { id: 'spotSpecial', icon: '🌈', name: 'Sonderlack-Jäger', desc: 'Drei verschiedene Sonderlackierungen fotografiert.', xp: 90, check: (s) => L(s, 'spotSpecials') >= 3 },
   { id: 'emergency', icon: '🚑', name: 'Retter', desc: 'Einen Notfall sicher gelandet.', xp: 60, check: (s) => L(s, 'emgLanded') >= 1 },
 ];

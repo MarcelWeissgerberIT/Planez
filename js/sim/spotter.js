@@ -18,7 +18,7 @@ export const SPECIAL_KEYS = Object.keys(SPECIALS);
 // Seltenheit je Typ (Punkte)
 export const RARITY = {
   A320: 1, B738: 1, E190: 1, A321: 1,
-  AT76: 2, B789: 2, A359: 2,
+  AT76: 2, B789: 2, A359: 2, A223: 2, CRJ9: 2, DH8D: 2, A333: 2,
   B77W: 3, B748F: 3, B77F: 3, C68A: 3,
   A388: 4,
 };
@@ -42,7 +42,7 @@ export const MOMENTS = {
 };
 
 // Länderkennung je Airline
-const PREFIX = { AUR: ['D-A', 3], RHJ: ['D-A', 3], ALP: ['HB-J', 2], NST: ['SE-R', 2], SKB: ['EI-F', 2], OPL: ['B-L', 3], TGC: ['N', 0], BWG: ['YL-', 3], VIP: ['D-C', 3] };
+const PREFIX = { AUR: ['D-A', 3], RHJ: ['D-A', 3], ALP: ['HB-J', 2], NST: ['SE-R', 2], SKB: ['EI-F', 2], OPL: ['B-L', 3], TGC: ['N', 0], BWG: ['YL-', 3], VIP: ['D-C', 3], LUM: ['9H-L', 2], FJW: ['LN-F', 2] };
 const hashStr = (s) => {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);

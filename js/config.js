@@ -23,6 +23,10 @@ export const AC_TYPES = {
   A388: { id: 'A388', name: 'Airbus A380-800', sprite: 'plane_super', size: 'L', wake: 'H', len: 5.0, mtow: 575, pax: 520, vapp: 140, turn: 110, fuel: 120000, scale: 2.4, finH: 0.95 },
   B748F: { id: 'B748F', name: 'Boeing 747-8F', sprite: 'plane_cargo', size: 'L', wake: 'H', len: 4.94, mtow: 448, pax: 0, cargo: 130, vapp: 155, turn: 100, fuel: 110000, scale: 2.2, finH: 0.9 },
   B77F: { id: 'B77F', name: 'Boeing 777F', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.16, mtow: 348, pax: 0, cargo: 100, vapp: 150, turn: 90, fuel: 85000, scale: 2, finH: 0.78 },
+  A223: { id: 'A223', name: 'Airbus A220-300', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.35, mtow: 70, pax: 140, vapp: 130, turn: 35, fuel: 9000, scale: 0.9, finH: 0.42 },
+  CRJ9: { id: 'CRJ9', name: 'Bombardier CRJ900', sprite: 'plane_narrow', size: 'S', wake: 'M', len: 2.1, mtow: 38, pax: 90, vapp: 135, turn: 30, fuel: 4500, scale: 0.68, finH: 0.38 },
+  DH8D: { id: 'DH8D', name: 'Dash 8-400', sprite: 'plane_prop', size: 'S', wake: 'M', len: 1.98, mtow: 30, pax: 78, vapp: 130, turn: 28, fuel: 3000, scale: 0.6, finH: 0.34 },
+  A333: { id: 'A333', name: 'Airbus A330-300', sprite: 'plane_wide', size: 'L', wake: 'H', len: 3.9, mtow: 242, pax: 300, vapp: 140, turn: 70, fuel: 55000, scale: 1.75, finH: 0.7 },
   C68A: { id: 'C68A', name: 'Citation Latitude', sprite: 'plane_bizjet', size: 'S', wake: 'L', len: 1.3, mtow: 14, pax: 8, vapp: 120, turn: 30, fuel: 3000, scale: 0.4, finH: 0.25 },
 };
 export const SIZE_RANK = { S: 0, M: 1, L: 2 };
@@ -30,13 +34,15 @@ export const SIZE_RANK = { S: 0, M: 1, L: 2 };
 // Fiktive Airlines
 export const AIRLINES = {
   AUR: { code: 'AUR', name: 'Aurora Airways', tel: 'Aurora', color: '#e63946', color2: '#ffffff', types: ['A320', 'A321', 'B789'] },
-  RHJ: { code: 'RHJ', name: 'Rheinjet', tel: 'Rheinjet', color: '#1d4ed8', color2: '#fbbf24', types: ['A320', 'E190', 'A321'] },
+  RHJ: { code: 'RHJ', name: 'Rheinjet', tel: 'Rheinjet', color: '#1d4ed8', color2: '#fbbf24', types: ['A320', 'E190', 'A321', 'CRJ9'] },
   ALP: { code: 'ALP', name: 'Alpina Air', tel: 'Alpina', color: '#059669', color2: '#ffffff', types: ['E190', 'AT76', 'A320'] },
   NST: { code: 'NST', name: 'Nordstern', tel: 'Nordstern', color: '#7c3aed', color2: '#fde047', types: ['B738', 'A320'] },
   SKB: { code: 'SKB', name: 'SkyBridge', tel: 'Skybridge', color: '#f59e0b', color2: '#1f2937', types: ['B738', 'A321'] },
-  OPL: { code: 'OPL', name: 'Orient Pearl', tel: 'Pearl', color: '#db2777', color2: '#fde68a', types: ['A359', 'B77W', 'B789'] },
+  OPL: { code: 'OPL', name: 'Orient Pearl', tel: 'Pearl', color: '#db2777', color2: '#fde68a', types: ['A359', 'B77W', 'B789', 'A333'] },
   TGC: { code: 'TGC', name: 'Transglobal Cargo', tel: 'Transglobal', color: '#92400e', color2: '#fbbf24', types: ['B748F', 'B77F'], cargo: true },
-  BWG: { code: 'BWG', name: 'Balticwings', tel: 'Baltic', color: '#0891b2', color2: '#ffffff', types: ['AT76', 'E190'] },
+  BWG: { code: 'BWG', name: 'Balticwings', tel: 'Baltic', color: '#0891b2', color2: '#ffffff', types: ['AT76', 'E190', 'DH8D'] },
+  LUM: { code: 'LUM', name: 'Lumen Air', tel: 'Lumen', color: '#84cc16', color2: '#312e81', types: ['A223', 'A320', 'B738'] },
+  FJW: { code: 'FJW', name: 'Fjordwing', tel: 'Fjordwing', color: '#0f766e', color2: '#f8fafc', types: ['DH8D', 'CRJ9', 'E190'] },
   VIP: { code: 'VIP', name: 'Executive Charter', tel: 'Exec', color: '#111827', color2: '#d4af37', types: ['C68A'] },
 };
 
