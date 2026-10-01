@@ -32,7 +32,7 @@ export class Ride {
       <div class="rd-cockpit"><canvas class="rd-rain"></canvas><div class="rd-pillar l"></div><div class="rd-pillar r"></div><div class="rd-pillar c"></div>
         <div class="rd-glare"><div class="rd-pfd"><div class="rd-tape spd"><small>KT</small><b data-r="spd">0</b></div><div class="rd-ai"><div class="rd-hor"></div><i></i><span data-r="fma">TAXI</span></div><div class="rd-tape alt"><small>FT</small><b data-r="alt">0</b><em data-r="vs"></em></div></div>
         <div class="rd-nd"><div class="rd-rose" data-r="rose"></div><b data-r="hdg">000</b><small data-r="nd"></small></div></div></div>
-      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-photo" data-rd="photo" title="Foto fürs Spotterbuch (F) – fotografiert das Flugzeug in der Bildmitte">${icon('photo')}</button><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-labels"></div><div class="rd-cap"></div>`;
+      <div class="rd-bar"><span class="rd-belt" title="Anschnallzeichen">${icon('vest')}</span><span class="rd-t"></span><span class="rd-modes"><button data-rd="cockpit">${icon('plane')} Cockpit</button><button data-rd="window">${icon('eye')} Fenster</button><button data-rd="chase">${icon('follow')} 3D außen</button></span><span class="rd-tw"><button data-rd="track" title="Kamera folgt dem ausgewählten Flugzeug (Fernglas zoomt mit)">${icon('follow')} Verfolgen</button><button data-rd="cine" title="Kino 3D: automatische Kamerafahrten – Landungen, Starts, Überflüge, Rollverkehr">${icon('cinema')} Kino</button></span><span class="rd-cn"><button data-rd="nextshot" title="Nächste Szene (Leertaste)">${icon('cinema')} Nächste Szene</button><button data-rd="tower" title="Zurück in den Turmblick">${icon('tower')} Turmblick</button></span><button class="rd-photo" data-rd="photo" title="Foto fürs Spotterbuch (F) – fotografiert das Flugzeug in der Bildmitte">${icon('photo')}</button><button class="rd-x" data-rd="x" title="Beenden (Esc)">✕</button></div><div class="rd-help">Ziehen = drehen und neigen · Mausrad = Abstand · Doppelklick = zurücksetzen</div><div class="rd-labels"></div><div class="rd-cap"></div><div class="rd-marshal"><div class="rd-wand l"></div><div class="rd-wand r"></div><div class="rd-mres"></div><button class="rd-stop" data-rd="mstop">STOPP <small>Leertaste</small></button></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
     this.tEl = el.querySelector('.rd-t');
@@ -46,6 +46,7 @@ export class Ride {
       else if (b.dataset.rd === 'tower') this.startTower();
       else if (b.dataset.rd === 'nextshot') this.shot = null;
       else if (b.dataset.rd === 'photo') this.photo();
+      else if (b.dataset.rd === 'mstop') this.marshalStop();
       else this.setMode(b.dataset.rd);
     });
     // frei drehbare Kamera: Ziehen dreht (Gier) und neigt, Mausrad ändert den Abstand
@@ -112,6 +113,12 @@ export class Ride {
         e.preventDefault();
         e.stopImmediatePropagation();
         this.photo();
+        return;
+      }
+      if (this.on && this.mode === 'marshal' && e.key === ' ') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this.marshalStop();
         return;
       }
       if (this.on && this.mode === 'cine3d' && (e.key === ' ' || e.key === 'ArrowRight')) {
@@ -333,6 +340,13 @@ export class Ride {
       Object.assign(this.game.cam, this.cam0);
       this.cam0 = null;
     }
+    if (this.mode === 'marshal') {
+      this.el.classList.remove('marshal');
+      this.el.querySelector('.rd-mres').innerHTML = '';
+      if (this.spd0 !== undefined && this.game.state) this.game.state.speed = this.spd0;
+      this.spd0 = undefined;
+      this.mode = null;
+    }
     if (this.mode === 'cine3d') {
       this.el.classList.remove('cine3d');
       this.el.querySelector('.rd-cap').innerHTML = '';
@@ -411,6 +425,7 @@ export class Ride {
     const g = this.game, s = g.state, cam = g.cam;
     if (g.cinema && g.cinema.on) return this.stop();
     if (this.ga) return this.updateGA(dt);
+    if (this.mode === 'marshal') return this.updateMarshal(dt);
     if (this.mode === 'tower') return this.updateTower(dt);
     if (this.mode === 'cine3d') return this.updateCine3d(dt);
     const ac = s && s.acs.find((a) => a.id === this.id);
@@ -909,4 +924,99 @@ Ride.prototype.photo = function () {
     return toast('📷 Kein Flugzeug in der Bildmitte – Fernglas drauf und nochmal', 'info', 2400);
   }
   g.spot.shoot(ac);
+};
+
+// ---------- Einwinken: als Einwinker an der Parkposition das Flugzeug auf die Haltemarke bringen ----------
+// Man steht seitlich vor der Position und gibt mit den Kellen „Geradeaus“; STOPP (Leertaste) genau dann, wenn die
+// Bugnase die gelbe Haltemarke erreicht. Bewertet wird der Abstand zur Marke im Moment des Signals. Nur Darstellung:
+// die Simulation stellt das Flugzeug ohnehin auf die Position – das Spiel bringt Punkte und einen Erfolg.
+function remainingPath(ac) {
+  const p = ac.path;
+  if (!p || !p.length) return 0;
+  let i = ac.pi || 0;
+  if (i >= p.length - 1) return Math.hypot(p[p.length - 1].x - ac.x, p[p.length - 1].y - ac.y);
+  let L = Math.hypot(p[i + 1].x - ac.x, p[i + 1].y - ac.y);
+  for (let k = i + 1; k < p.length - 1; k++) L += Math.hypot(p[k + 1].x - p[k].x, p[k + 1].y - p[k].y);
+  return L;
+}
+
+Ride.prototype.startMarshal = function (acId) {
+  const s = this.game.state;
+  const ac = s.acs.find((a) => a.id === acId);
+  if (!ac || ac.phase !== PH.TAXI_IN || !ac.stand) return toast('Einwinken geht, wenn ein Flugzeug zur Position rollt', 'info', 2400);
+  if (this.on) this.stop();
+  const st = s.stands.find((x) => x.id === ac.stand);
+  if (!st) return;
+  this.on = true;
+  this.mode = 'marshal';
+  this.id = ac.id;
+  this.mst = { st, judged: null, endT: 0, side: st.x > 40 ? -1 : 1 };
+  this.cam0 = { x: this.game.cam.x, y: this.game.cam.y, zoom: this.game.cam.zoom };
+  this.spd0 = s.speed;
+  this.labels = this.game.ui.labels;
+  this.el.classList.remove('hidden', 'cockpit', 'window', 'chase', 'tower', 'cine3d');
+  this.el.classList.add('marshal');
+  this.el.querySelector('.rd-mres').innerHTML = '';
+  document.getElementById('game').classList.add('riding');
+  this.tEl.textContent = `Einwinken · ${ac.cs} · Position ${st.id}`;
+  this.load3d(() => {
+    toast('Einwinken braucht WebGL', 'warn', 2400);
+    this.stop();
+  });
+  toast(`🦺 ${ac.cs} rollt zu Position ${st.id} – STOPP, wenn die Bugnase die gelbe Haltemarke erreicht`, 'info', 4200);
+};
+
+Ride.prototype.marshalStop = function () {
+  const m = this.mst, s = this.game.state;
+  if (!m || m.judged) return;
+  const ac = s.acs.find((a) => a.id === this.id);
+  if (!ac) return;
+  const meters = remainingPath(ac) * 20;
+  const [label, pts, perfect] = meters <= 1.5 ? ['Punktgenau!', 60, true] : meters <= 4 ? ['Gut eingewunken', 30, false] : meters <= 10 ? ['Etwas zu früh', 10, false] : ['Viel zu früh – der Pilot rollt bis zur Marke weiter', 0, false];
+  this.marshalResult(label, pts, perfect, meters);
+};
+
+Ride.prototype.marshalResult = function (label, pts, perfect, meters) {
+  const m = this.mst, s = this.game.state;
+  m.judged = { label, pts };
+  const L = s.life || (s.life = {});
+  L.marshals = (L.marshals || 0) + 1;
+  if (perfect) L.marshalPerfect = (L.marshalPerfect || 0) + 1;
+  L.marshalPts = (L.marshalPts || 0) + pts;
+  this.el.querySelector('.rd-mres').innerHTML = `<b class="${perfect ? 'ok' : pts ? 'mid' : 'bad'}">${esc(label)}</b><span>${meters === null ? 'Bugnase über der Haltemarke' : `${meters.toFixed(1)} m vor der Marke`} · +${pts} Punkte</span>`;
+  this.el.classList.add('mstop');
+  if (s.settings.sound !== false) (perfect ? sfx.fanfare : sfx.click) && (perfect ? sfx.fanfare() : sfx.click());
+};
+
+Ride.prototype.updateMarshal = function (dt) {
+  const s = this.game.state, m = this.mst;
+  const ac = s.acs.find((a) => a.id === this.id);
+  if (!ac || (ac.phase !== PH.TAXI_IN && ac.phase !== PH.STAND)) return this.stop();
+  if (ac.phase === PH.STAND) {
+    if (!m.judged) this.marshalResult('Zu spät – die Nase steht schon über der Marke', 0, false, null);
+    m.endT += dt;
+    if (m.endT > 3.5) {
+      this.stop();
+      return;
+    }
+  }
+  if (!m.judged) this.el.classList.remove('mstop');
+  // Zeitlupe: halbe Geschwindigkeit beim Heranrollen, auf den letzten 30 m fünffach langsamer
+  if (!m.judged && ac.phase === PH.TAXI_IN && s.speed > 0) {
+    const rem = remainingPath(ac);
+    s.speed = rem < 1.5 ? 0.2 : rem < 4 ? 0.5 : Math.min(5, Math.max(1, this.spd0 || 1));
+  } else if (m.judged && s.speed > 0 && s.speed < 1) s.speed = 1;
+  if (!this.use3d) return;
+  // Kamera: seitlich vor der Haltemarke in Augenhöhe, Blick auf die Bugnase
+  const st = m.st;
+  this.camPos = { x: st.x + m.side * 2.4, y: 0.11, z: LY.STAND_NOSE - 0.9 };
+  const h = ac.hdg || 0, nose = { x: ac.x + Math.cos(h) * ac.len * 0.5, z: ac.y + Math.sin(h) * ac.len * 0.5 };
+  const target = { x: (nose.x + st.x) / 2, y: 0.18, z: Math.max(LY.STAND_NOSE, nose.z - 0.4) };
+  const k = 1 - Math.exp(-dt * 4);
+  if (!this.camLook) this.camLook = { ...target };
+  for (const c of ['x', 'y', 'z']) this.camLook[c] += (target[c] - this.camLook[c]) * k;
+  this.fov = 52;
+  this.cineChase = false;
+  this.v3d.render(s, this, null);
+  this.hearAt(1.6);
 };

@@ -1069,6 +1069,15 @@ function wireGame() {
   const info = $('#info');
   // Mitfliegen schon beim Drücken auslösen: im Anflug wird die Karte laufend neu gezeichnet, ein Klick ginge sonst verloren
   info.addEventListener('pointerdown', (e) => {
+    const mr = e.target.closest('[data-marshal]');
+    if (mr && game.state) {
+      e.preventDefault();
+      if (!game.ride) game.ride = new Ride(game);
+      if (game.cinema && game.cinema.on) game.cinema.stop();
+      game.ride.startMarshal(mr.dataset.marshal);
+      info._html = null;
+      return;
+    }
     const rd = e.target.closest('[data-ride]');
     if (!rd || !game.state) return;
     e.preventDefault();
@@ -1095,7 +1104,7 @@ function wireGame() {
       info._html = null;
       return;
     }
-    if (e.target.closest('[data-ride]')) return; // schon bei pointerdown erledigt
+    if (e.target.closest('[data-ride]') || e.target.closest('[data-marshal]')) return; // schon bei pointerdown erledigt
     const sp = e.target.closest('[data-spot]');
     if (sp) {
       spotter().shoot(s.acs.find((a) => a.id === sp.dataset.spot));
@@ -1606,6 +1615,7 @@ function helpGuide(first) {
     <p>Jede Landung zeigt ihre Sinkrate beim Aufsetzen (ft/min): unter 110 ist 🧈 Butter, ab 600 eine harte Landung. Seitenwind, Böen, Regen, Schnee, Gewitter und Wirbelschleppen machen Landungen fester – und eine <b>späte Landefreigabe</b>: Kommt sie weniger als eine Minute vor dem Aufsetzen, ist der Endanflug unruhig. Nach einer harten Landung prüft die Technik das Fahrwerk an der Position (Abfertigung ruht 20 Minuten).</p>
     <h3>🗼 Turmblick 3D</h3>
     <p>Der Tower-Knopf rechts an der Karte schaltet in die echte 3D-Sicht aus der Tower-Kanzel – in jeder Rolle, das Spiel läuft weiter und Panel, Funk, Radar und Flugstreifen bleiben bedienbar. <b>Ziehen</b> schaut dich um, das <b>Mausrad</b> ist das Fernglas, Doppelklick blickt wieder auf die Bahnmitte. Über jedem Flugzeug hängt ein Schild mit Rufzeichen, Typ und Höhe; ein Klick auf Flugzeug oder Schild wählt es aus. Mit <b>Verfolgen</b> schwenkt der Blick auf das ausgewählte Flugzeug und das Fernglas zoomt automatisch mit – so siehst du den Start vom Aufrollen bis zum Abheben. Flugzeuge im nahen Anflug erscheinen schon in der Luft, Rettungshubschrauber und Cessna in der Platzrunde ebenfalls mit Schild – ein Klick auf deren Schild startet einen <b>Rundflug</b>: im Cockpit, am Fenster oder von außen mitfliegen, bis gelandet ist. Nochmal auf den Tower-Knopf, ✕ oder <kbd>Esc</kbd> zurück zur Karte.</p>
+    <p>🦺 <b>Einwinken</b>: Rollt ein Flugzeug zu seiner Position, steht in der Info-Karte „Einwinken“. Du stehst als Einwinker vor der Position, auf den letzten Metern läuft die Zeit in Zeitlupe – drück <b>STOPP</b> (<kbd>Leertaste</kbd>) genau dann, wenn die Bugnase die gelbe Haltemarke erreicht. Punktgenau (höchstens 1,5 m) gibt die meisten Punkte; fünfmal punktgenau bringt den Erfolg „Einwinker“.</p>
     <p>📷 <b>Fotos in 3D</b>: In jeder 3D-Ansicht fotografiert der Kamera-Knopf oben (oder <kbd>F</kbd>) fürs Spotterbuch – im Turmblick und am Fenster das Flugzeug in der Bildmitte, außen das eigene, im Kino das Motiv. Mit dem Fernglas herangezoomt gibt es die schönsten Bilder – formatfüllend und mittig bringt es Bonuspunkte.</p>
     <p>🎬 <b>Kino 3D</b>: Im Turmblick startet „Kino“ automatische Kamerafahrten durch die 3D-Welt – Landungen von der Bahnseite, Starts und Überflüge am Bahnende, Anflüge von hinten, Rollverkehr, Pushback, Rettungshubschrauber, Cessna, Kranfahrten über das Vorfeld und den Blick vom Tower, mit Breitbild-Balken und Einblendung. <kbd>Leertaste</kbd> oder → springt zur nächsten Szene, „Turmblick“ zurück, <kbd>Esc</kbd> beendet.</p>
     <h3>🪟 Mitfliegen in 3D</h3>

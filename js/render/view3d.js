@@ -1472,7 +1472,7 @@ export class View3D {
     const cam = this.camera;
     // in der Kanzel: Dach und Mast nicht von innen zeichnen
     if (this.towerRoof) for (const m of this.towerRoof) m.visible = ride.mode !== 'tower';
-    if (ride.mode === 'cine3d' && !ride.cineChase && ride.camPos) {
+    if ((ride.mode === 'cine3d' || ride.mode === 'marshal') && !ride.cineChase && ride.camPos) {
       const c = ride.camPos, l = ride.camLook || { x: 40, y: 0, z: 30 };
       cam.position.set(c.x, c.y, c.z);
       cam.up.set(0, 1, 0);
