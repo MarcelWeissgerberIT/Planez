@@ -942,7 +942,9 @@ export class MapRenderer {
 
   // schwebende Rückmeldungen (Weltposition, steigen auf und blenden aus)
   addFx(f) {
-    this.fxList.push({ ...f, age: 0 });
+    // gleichzeitige Meldungen am selben Ort übereinander stapeln statt überlagern
+    const near = this.fxList.filter((o) => o.age < 1.4 && Math.abs(o.x - f.x) < 1.2 && Math.abs(o.y - f.y) < 1.2).length;
+    this.fxList.push({ ...f, age: 0, row: Math.min(4, near) });
     if (this.fxList.length > 40) this.fxList.shift();
   }
   drawFx(dt) {
@@ -966,7 +968,7 @@ export class MapRenderer {
       const u = f.age / dur;
       if (u >= 1) continue;
       const p = cam.toScreen(f.x, f.y, 0.6);
-      const y = p.y - 18 * cam.zoom - u * 34;
+      const y = p.y - 18 * cam.zoom - u * 34 - (f.row || 0) * (fs + 4);
       const a = u < 0.12 ? u / 0.12 : u > 0.7 ? (1 - u) / 0.3 : 1;
       ctx.globalAlpha = a;
       ctx.lineWidth = 4;
