@@ -2,6 +2,7 @@
 import { setHTML } from './dom.js';
 import { rivalState } from '../sim/rival.js';
 import { boardBadge } from './board.js';
+import { motifOf, motifDone } from '../sim/spotter.js';
 import { esc, fmtMoney, fmtClock } from '../util.js';
 import { projects, remainingHours } from '../sim/construction.js';
 import { fuelState, FUEL } from '../sim/fuel.js';
@@ -20,7 +21,7 @@ export class ManagerDock {
       <div class="p-head"><div class="p-title">${observer ? '👁️ Beobachter' : '💼 Leitstand'} <small id="mp-sub"></small></div></div>
       <div class="p-body dock-body">
         <button class="dock-open" data-open="over"><span>💼</span><b>Management-Zentrale</b><kbd>O</kbd></button>
-        ${observer ? '<button class="dock-open cine" data-cine><span>🎬</span><b>Kino-Modus</b><kbd>K</kbd></button><button class="dock-open spot" data-spotbook><span>📒</span><b>Spotterbuch</b><kbd>J</kbd></button><div class="dock-spot-tip">Flugzeug anklicken, dann <kbd>F</kbd> oder 📷 Spotten: seltene Typen, Sonderlackierungen und besondere Momente sammeln.</div>' : ''}
+        ${observer ? '<button class="dock-open cine" data-cine><span>🎬</span><b>Kino-Modus</b><kbd>K</kbd></button><button class="dock-open spot" data-spotbook><span>📒</span><b>Spotterbuch</b><kbd>J</kbd></button><div class="dock-spot-tip">Flugzeug anklicken, dann <kbd>F</kbd> oder 📷 Spotten: seltene Typen, Sonderlackierungen und besondere Momente sammeln.</div><div class="dock-motif" id="dk-motif"></div>' : ''}
         <div id="dk-kpi"></div>
         <div class="p-sec"><span>Jetzt wichtig</span></div>
         <div id="dk-todo"></div>
@@ -41,6 +42,8 @@ export class ManagerDock {
   }
 
   update(s) {
+    const mt = this.root.querySelector('#dk-motif');
+    if (mt) setHTML(mt, `🎯 Motiv des Tages: <b>${esc(motifOf(s).t)}</b>${motifDone(s) ? ' <span class="ok">✓</span>' : ' · +150'}`);
     const t = s.stats.today;
     const L = s.ledger;
     const rev = Object.values(L.rev).reduce((a, b) => a + b, 0);

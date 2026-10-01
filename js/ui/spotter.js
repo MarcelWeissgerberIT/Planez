@@ -2,7 +2,7 @@
 // Sammlung mit Album, Typen, Airlines/Lackierungen und Momenten. Hinweise auf seltene Fotomotive.
 import { AC_TYPES, AIRLINES } from '../config.js';
 import { HALF_W } from '../render/camera.js';
-import { spotAircraft, spotBook, spotStats, spotWorth, momentsOf, SPECIALS, SPECIAL_KEYS, MOMENTS, RARITY, RARITY_DE, assignLook } from '../sim/spotter.js';
+import { spotAircraft, spotBook, spotStats, spotWorth, momentsOf, SPECIALS, SPECIAL_KEYS, MOMENTS, RARITY, RARITY_DE, assignLook, motifOf, motifDone, MOTIF_PTS } from '../sim/spotter.js';
 import { fmtClock, esc, clamp } from '../util.js';
 import { toast } from './dom.js';
 import { sfx } from '../audio.js';
@@ -147,6 +147,14 @@ export class SpotterUi {
   // Hinweis auf lohnende Motive (Beobachter: alle, sonst nur Sonderlackierungen und Superjumbos)
   update(state) {
     if (!state || state.scenario) return;
+    // Motiv des Tages ankündigen (Beobachter)
+    const mo = motifOf(state);
+    if (state.role === 'observer' && this.motifDay !== mo.day && (state.time / 3600) % 24 > 6) {
+      this.motifDay = mo.day;
+      if (!motifDone(state)) toast(`🎯 Motiv des Tages: ${mo.t} fotografieren (+${MOTIF_PTS} Punkte)`, 'info', 5000);
+    }
+    // höchstens ein Hinweis alle 15 Sekunden (sonst stapeln sich bei leerem Spotterbuch die Meldungen)
+    if (performance.now() - (this.lastHint || 0) < 15000) return;
     for (const ac of state.acs) {
       if (ac.mode !== 'map' || this.hinted.has(ac.id)) continue;
       const w = spotWorth(ac);
@@ -155,6 +163,8 @@ export class SpotterUi {
       const big = ac.special || ac.type === 'A388';
       if (state.role !== 'observer' && !big) continue;
       toast(`📷 Fotomotiv: ${w} – ${esc(ac.cs)} anklicken und „Spotten“`, 'info', 4200);
+      this.lastHint = performance.now();
+      break;
     }
   }
 
@@ -202,7 +212,7 @@ export class SpotterUi {
         })
         .join('')}</div>`;
     }
-    this.el.innerHTML = `<div class="sb-box"><div class="sb-head"><div class="sb-title">📷 Spotterbuch <small>gilt für alle Spielstände</small></div><button class="icon-btn" data-sb-close aria-label="Schließen">✕</button></div>
+    this.el.innerHTML = `<div class="sb-box"><div class="sb-head"><div class="sb-title">📷 Spotterbuch <small>gilt für alle Spielstände</small></div>${this.game.state ? `<div class="sb-motif ${motifDone(this.game.state) ? 'done' : ''}">🎯 Motiv des Tages: <b>${esc(motifOf(this.game.state).t)}</b> ${motifDone(this.game.state) ? '✓ erledigt' : `+${MOTIF_PTS}`}</div>` : ''}<button class="icon-btn" data-sb-close aria-label="Schließen">✕</button></div>
       <div class="sb-stats">${chip('⭐', st.pts.toLocaleString('de-DE'), 0, 'Spotterpunkte')}${chip('🖼️', st.shots, 0, 'Fotos')}${chip('✈️', st.types, st.typesAll, 'Typen')}${chip('🏷️', st.airlines, st.airlinesAll, 'Airlines')}${chip('🎨', st.specials, st.specialsAll, 'Sonderlack.')}${chip('✨', st.moments, st.momentsAll, 'Momente')}</div>
       <div class="sb-tabs">${TABS.map(([k, n]) => `<button data-sbt="${k}" class="${this.tab === k ? 'on' : ''}">${n}</button>`).join('')}</div>
       <div class="sb-body">${body}</div></div>`;

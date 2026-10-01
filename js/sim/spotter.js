@@ -25,6 +25,28 @@ export const RARITY = {
 export const RARITY_DE = ['', 'häufig', 'gelegentlich', 'selten', 'legendär'];
 const RARITY_PTS = [0, 10, 20, 40, 100];
 
+// Motiv des Tages: je Spieltag eine Fotoaufgabe (aus dem Tag abgeleitet, ohne Spielzufall), +150 Punkte
+export const MOTIF_PTS = 150;
+const MOTIFS = [
+  { type: 'DH8D', t: 'eine Dash 8-400' }, { type: 'A223', t: 'einen Airbus A220-300' }, { type: 'AT76', t: 'eine ATR 72' }, { type: 'CRJ9', t: 'einen CRJ900' },
+  { type: 'B789', t: 'eine Boeing 787-9' }, { type: 'A359', t: 'einen Airbus A350' }, { type: 'B77W', t: 'eine Boeing 777' }, { type: 'A333', t: 'einen Airbus A330' },
+  { airline: 'FJW', t: 'eine Maschine von Fjordwing' }, { airline: 'LUM', t: 'eine Maschine von Lumen Air' }, { airline: 'OPL', t: 'eine Maschine von Orient Pearl' }, { airline: 'BWG', t: 'eine Maschine von Balticwings' }, { airline: 'ALP', t: 'eine Maschine von Alpina Air' },
+  { moment: 'landing', t: 'eine Landung' }, { moment: 'takeoff', t: 'einen Start' }, { moment: 'push', t: 'einen Pushback' }, { moment: 'night', t: 'eine Nachtaufnahme' }, { moment: 'golden', t: 'ein Flugzeug in der goldenen Stunde' },
+  { size: 'L', moment: 'landing', t: 'einen Großraumjet bei der Landung' }, { size: 'L', moment: 'takeoff', t: 'einen Großraumjet beim Start' }, { size: 'S', moment: 'takeoff', t: 'einen Turboprop oder Regionaljet beim Start' },
+];
+export function motifOf(state) {
+  const day = Math.floor(state.time / 86400);
+  return { ...MOTIFS[hashStr('motif' + day) % MOTIFS.length], day };
+}
+function motifHit(m, ac, moments) {
+  if (m.type && ac.type !== m.type) return false;
+  if (m.airline && ac.airline !== m.airline) return false;
+  if (m.size && AC_TYPES[ac.type].size !== m.size) return false;
+  if (m.moment && !moments.includes(m.moment)) return false;
+  return true;
+}
+export const motifDone = (state) => state.motifDone === Math.floor(state.time / 86400);
+
 // Momente: Bedingungen im Bild
 export const MOMENTS = {
   landing: { icon: '🛬', name: 'Landung' },
@@ -164,6 +186,15 @@ export function spotAircraft(state, ac, img) {
     pts += nw ? 50 : 15;
     lines.push([`${MOMENTS[k].icon} ${MOMENTS[k].name}${nw ? ' – neu!' : ''}`, nw ? 50 : 15]);
     b.moments[k] = (b.moments[k] || 0) + 1;
+  }
+  // Motiv des Tages
+  const mo = motifOf(state);
+  if (!motifDone(state) && motifHit(mo, ac, moments)) {
+    state.motifDone = mo.day;
+    pts += MOTIF_PTS;
+    lines.push([`🎯 Motiv des Tages: ${mo.t}`, MOTIF_PTS]);
+    const L0 = state.life || (state.life = {});
+    L0.motifs = (L0.motifs || 0) + 1;
   }
   b.pts += pts;
   b.shots++;
