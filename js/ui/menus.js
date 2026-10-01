@@ -108,16 +108,15 @@ const SIDE = {
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
       <li>🛩️ <b>Platzrunden</b> mit Touch and Go · 🚁 <b>Rettungshubschrauber</b> quert die Bahnen</li>
-      <li>💦 <b>Wassertaufe</b> für jeden Erstflug · 🛬 <b>Aufsetzrate</b> jeder Landung – von 🧈 Butter bis hart</li>
-      <li>🎖️ <b>Staatsbesuch</b> mit Protokoll, rotem Teppich und Kolonne · 📡 <b>Livestream</b> mit Live-Chat (<kbd>L</kbd>)</li>
-      <li>📖 <b>Kampagne</b>: 9 Kapitel mit Story · 🎞️ <b>Kino-Intro</b> · 📰 <b>Planezer Kurier</b> im Tagesbericht</li>
-      <li>🏛️ <b>Aufsichtsrat</b> mit Wochenzielen und Strategie · 🌐 <b>Basis-Angebote</b> von Airlines</li>
-      <li>⛈️ <b>Wetterumflüge</b> mit <kbd>Y</kbd> genehmigen · 🚙 <b>Pistenkontrolle</b> in Verkehrslücken</li>
-      <li>🎵 <b>Musik im Spiel</b>, die auf die Lage reagiert · ♿ <b>Barrierefreiheit</b>: große Schrift, Farbsehschwäche, ruhige Bewegung</li>
-      <li>✈️ <b>Neue Typen</b> A220, CRJ900, Dash 8-400, A330 · <b>Lumen Air</b> und <b>Fjordwing</b></li>
-      <li>📅 <b>Tagesherausforderung</b> mit Zusatzregeln und 🔥 Serie · 🎖️ <b>Karriere</b> über alle Spielstände</li>
-      <li>👂 <b>Readback-Fehler</b> hören und mit <kbd>Q</kbd> korrigieren · 📻✖ <b>Funkausfall</b> mit Lichtsignalen</li>
-      <li>🏢 <b>Wettbewerb</b> gegen Nordhafen · 📒 <b>Spotterbuch</b> · 📻 <b>Betriebsfunk</b> · 📋 <b>Schichtbriefing</b></li>
+      <li>💦 <b>Wassertaufe</b> für jeden Erstflug · 🛬 <b>Aufsetzrate</b> von 🧈 Butter bis hart · ✨ <b>Highlights</b> im Tagesbericht</li>
+      <li>🎖️ <b>Staatsbesuch</b> mit rotem Teppich und Kolonne · 📡 <b>Livestream</b> mit Live-Chat (<kbd>L</kbd>)</li>
+      <li>🎞️ <b>Kino-Look</b> mit Tilt-Shift und Regen auf der Linse · 🔍 <b>Miniatur-Fotos</b> · 🔔 <b>Terminal-Durchsagen</b></li>
+      <li>🎤 <b>Pressekonferenz</b> · 📋 <b>Loadsheet</b> und 🌡️ <b>Hitze</b> im Vorfeld · 📻 Crews melden Ereignisse per Funk</li>
+      <li>📖 <b>Kampagne</b>: 9 Kapitel mit Story · 🏛️ <b>Aufsichtsrat</b> · ⛈️ <b>Wetterumflüge</b> · 🚙 <b>Pistenkontrolle</b></li>
+    </ul><div class="ms-sec">Davor</div><ul>
+      <li>🎵 Musik im Spiel · ♿ Barrierefreiheit · 🎞️ Kino-Intro · 📰 Planezer Kurier · 🌐 Basis-Angebote</li>
+      <li>✈️ A220, CRJ900, Dash 8-400, A330 · Lumen Air, Fjordwing · 📅 Tagesherausforderung · 🎖️ Karriere</li>
+      <li>👂 Readback-Fehler · 📻✖ Funkausfall · 🏢 Nordhafen · 📒 Spotterbuch · 📋 Schichtbriefing</li>
     </ul><div class="ms-sec">Spielen</div><ul>
       <li>⭐ <b>Herausforderungen</b>: 9 Szenarien mit Sternen und Punkte-Rekorden</li>
       <li>⭐ <b>Schichtpunkte</b> mit Kombo für Tower und Vorfeld</li>
