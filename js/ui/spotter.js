@@ -2,7 +2,7 @@
 // Sammlung mit Album, Typen, Airlines/Lackierungen und Momenten. Hinweise auf seltene Fotomotive.
 import { AC_TYPES, AIRLINES } from '../config.js';
 import { HALF_W } from '../render/camera.js';
-import { spotAircraft, spotBook, spotStats, spotWorth, momentsOf, SPECIALS, SPECIAL_KEYS, MOMENTS, RARITY, RARITY_DE, assignLook, motifOf, motifDone, MOTIF_PTS } from '../sim/spotter.js';
+import { spotAircraft, spotBonus, spotBook, spotStats, spotWorth, momentsOf, SPECIALS, SPECIAL_KEYS, MOMENTS, RARITY, RARITY_DE, assignLook, motifOf, motifDone, MOTIF_PTS } from '../sim/spotter.js';
 import { fmtClock, esc, clamp } from '../util.js';
 import { toast } from './dom.js';
 import { sfx } from '../audio.js';
@@ -127,6 +127,14 @@ export class SpotterUi {
     if (pre.includes('_') && !fresh.length) return toast(`📷 ${ac.reg || ac.cs} ist schon im Kasten – warte auf einen neuen Moment (Start, Landung, Wetter …)`, 'info', 3000);
     const img = this.capture(ac);
     const res = spotAircraft(s, ac, img);
+    // 3D-Foto: Bonus für ein formatfüllendes, mittiges Bild
+    const q = this.game.ride && this.game.ride.v3d && this.game.ride.v3d.lastShotQ;
+    if (q && performance.now() - q.t < 1000 && q.pts >= 10 && !res.dup) {
+      const label = q.size > 0.75 && q.center > 0.75 ? '🖼️ Formatfüllend und mittig' : q.size > 0.75 ? '🔭 Schön nah dran' : '🎯 Gut getroffen';
+      res.lines.push([label, q.pts]);
+      res.pts += q.pts;
+      spotBonus(s, q.pts);
+    }
     if (s.settings.sound !== false) sfx.shutter();
     this.flash.classList.remove('go');
     void this.flash.offsetWidth;

@@ -241,3 +241,10 @@ export function spotWorth(ac) {
   if (ac.special) return `${SPECIALS[ac.special].icon} Sonderlackierung „${SPECIALS[ac.special].name}“`;
   return null;
 }
+
+// Zusatzpunkte (z. B. für ein gut getroffenes 3D-Foto)
+export function spotBonus(state, pts) {
+  const b = spotBook();
+  b.pts += pts;
+  persist();
+}

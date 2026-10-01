@@ -1053,6 +1053,111 @@ export class View3D {
     void lightsOn;
   }
 
+  // Lichtsignal vom Tower (Funkausfall): farbiger Strahl aus der Kanzel zum Flugzeug, sechs Sekunden lang
+  lightGun(state, now) {
+    const B = state.lightBeam;
+    if (!this.beam) {
+      const geo = new THREE.CylinderGeometry(0.05, 0.6, 1, 12, 1, true).translate(0, 0.5, 0).rotateX(Math.PI / 2);
+      this.beam = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+      this.beamSrc = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0x22c55e, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false }));
+      this.beamSrc.scale.setScalar(1.6);
+      // Lichtfleck am Flugzeug (im Turmblick hält man die Lampe selbst – dann nur der Fleck)
+      this.beamHit = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0x22c55e, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false }));
+      this.scene.add(this.beam, this.beamSrc, this.beamHit);
+    }
+    this.beam.visible = this.beamSrc.visible = this.beamHit.visible = false;
+    if (!B) return;
+    if (this.beamN !== B.n) (this.beamN = B.n), (this.beamT = now);
+    const age = now - this.beamT;
+    if (age > 6) return;
+    const ac = state.acs.find((a) => a.id === B.ac);
+    if (!ac) return;
+    const g = this.acs.get(ac.id);
+    const src = this.towerEye();
+    let dst;
+    if (g) dst = g.position.clone();
+    else {
+      const east = (ac.rwy || state.rwy) === '27';
+      dst = new THREE.Vector3(east ? LY.W + 30 : -30, 6, LY.RWY.y);
+    }
+    if (B.blink && Math.floor(age * 3) % 2) return;
+    const fade = Math.min(1, age * 4) * Math.min(1, (6 - age) / 1.5);
+    this.beam.material.color.set(B.col);
+    this.beamSrc.material.color.set(B.col);
+    this.beam.material.opacity = 0.35 * fade;
+    this.beam.position.copy(src);
+    this.beam.lookAt(dst);
+    this.beam.scale.set(1, 1, src.distanceTo(dst));
+    this.beamSrc.position.copy(src);
+    this.beamHit.material.color.set(B.col);
+    this.beamHit.material.opacity = fade;
+    this.beamHit.position.copy(dst);
+    this.beamHit.scale.setScalar(g ? g.userData.L * 1.4 : 6);
+    const inTower = this.camera.position.distanceTo(src) < 1;
+    this.beam.visible = this.beamSrc.visible = !inTower;
+    this.beamHit.visible = true;
+  }
+
+  // Wirbelschleppen-Kondensation an den Flügelspitzen bei feuchtem Wetter (Landung, Start)
+  vortices(state, dt, wx) {
+    const humid = wx === 'rain' || wx === 'fog' || wx === 'clouds' || wx === 'storm' || wx === 'snow';
+    this.vtx = this.vtx || new Map();
+    this.vtxT = (this.vtxT || 0) + dt;
+    const sample = this.vtxT > 0.05;
+    if (sample) this.vtxT = 0;
+    const seen = new Set();
+    for (const ac of state.acs) {
+      const g = this.acs.get(ac.id);
+      const v = this.vis.get(ac.id);
+      if (!g || !v) continue;
+      const on = humid && ac.mode === 'map' && ((ac.phase === PH.FINAL && v.y < 2.5) || (ac.phase === PH.TAKEOFF && v.y > 0.02 && v.y < 4) || ac.phase === PH.MISSED);
+      let T = this.vtx.get(ac.id);
+      if (!on && !T) continue;
+      if (!T) {
+        const mk = () => {
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(30 * 3), 3));
+          geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(30 * 4), 4));
+          const l = new THREE.Line(geo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }));
+          l.frustumCulled = false;
+          this.scene.add(l);
+          return l;
+        };
+        T = { pts: [[], []], lines: [mk(), mk()] };
+        this.vtx.set(ac.id, T);
+      }
+      seen.add(ac.id);
+      if (sample) {
+        g.updateMatrixWorld();
+        const u = g.userData;
+        for (let i = 0; i < 2; i++) {
+          const arr = T.pts[i];
+          if (on) arr.unshift(new THREE.Vector3(u.gearX - u.L * 0.05, u.wy + 0.02, (i ? 1 : -1) * u.span / 2).applyMatrix4(g.matrixWorld));
+          else arr.pop();
+          if (arr.length > 30) arr.length = 30;
+        }
+      }
+      for (let i = 0; i < 2; i++) {
+        const arr = T.pts[i], l = T.lines[i];
+        const P = l.geometry.attributes.position, C = l.geometry.attributes.color;
+        for (let k = 0; k < 30; k++) {
+          const p = arr[Math.min(k, arr.length - 1)];
+          if (p) P.setXYZ(k, p.x, p.y, p.z);
+          const a = arr.length ? Math.max(0, 0.55 * (1 - k / Math.max(1, arr.length))) : 0;
+          C.setXYZ(k, 1, 1, 1);
+          C.setW(k, a);
+        }
+        P.needsUpdate = C.needsUpdate = true;
+        l.visible = arr.length > 1;
+      }
+      if (!on && !T.pts[0].length) {
+        for (const l of T.lines) (this.scene.remove(l), l.geometry.dispose());
+        this.vtx.delete(ac.id);
+      }
+    }
+    for (const [id, T] of this.vtx) if (!seen.has(id)) (T.lines.forEach((l) => (this.scene.remove(l), l.geometry.dispose())), this.vtx.delete(id));
+  }
+
   // Querlage aus der Kursänderung (Kleinverkehr)
   gaBank(k, hdg, dt, air) {
     this.gaB = this.gaB || {};
@@ -1225,6 +1330,8 @@ export class View3D {
     }
     for (const [id, m] of this.vehs) if (!vs.has(id)) (this.scene.remove(m), this.vehs.delete(id));
     this.updateGA(state, dt, now, lightsOn);
+    this.lightGun(state, now);
+    this.vortices(state, dt, wx);
     // Schneedecke auf Gras und Feldern (Bahnen und Vorfeld sind geräumt)
     const snow = state.snow || 0;
     this.snowMat.opacity = snow * 0.85;
@@ -1306,6 +1413,9 @@ export class View3D {
           cy = ((1 - v.y) / 2) * H;
           const r = Math.max(Math.hypot(a.x - v.x, a.y - v.y), Math.hypot(b.x - v.x, b.y - v.y)) * (W / 2);
           w = clamp(r * 3.4, W * 0.18, W);
+          // Bildbewertung: wie groß (Teleobjektiv) und wie mittig das Flugzeug im Bild ist
+          const size = clamp((r * 2) / (W * 0.3), 0, 1), center = clamp(1 - Math.hypot(v.x, v.y), 0, 1);
+          this.lastShotQ = { t: performance.now(), size, center, pts: Math.round(30 * size + 15 * center) };
         }
       }
       const h = w * 0.625;
