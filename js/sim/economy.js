@@ -15,7 +15,7 @@ import { onNightMovement, takeLoan, repayLoan, loanLimit, loans } from './financ
 import { rwyCond } from './runway.js';
 import { bump } from './goals.js';
 import { careerReserve } from './career.js';
-import { isCareer, careerFixedCosts, gaTakeoffRevenue, hourlyCareer, autoCareer, stageOf, standBuildable, upgradeAllowed, rwyWorkCost, airlineRotations, rotCap, smallField, vehicleAllowed } from './career.js';
+import { isCareer, careerFixedCosts, gaTakeoffRevenue, hourlyCareer, autoCareer, stageOf, standBuildable, upgradeAllowed, rwyWorkCost, airlineRotations, rotCap, smallField, vehicleAllowed, hasPerk } from './career.js';
 import * as LY from '../layout.js';
 import { T, DEC, EN } from '../i18n.js';
 
@@ -174,7 +174,7 @@ export function penalize(state, kind, ac) {
   const p = PEN[kind];
   if (!p) return;
   const f = diff(state).penalty;
-  rep(state, p.rep * f);
+  rep(state, p.rep * f * (p.rep < 0 && hasPerk(state, 'safety') ? 0.75 : 1)); // Ausbau-Bonus Sicherheitskultur
   // Karriere: Bußgelder und Schäden passen zur Größe des Platzes
   const mf = isCareer(state) ? [0.04, 0.15, 0.5, 1, 1][Math.min(4, stageOf(state))] : 1;
   spend(state, p.cat, p.cost * f * mf);

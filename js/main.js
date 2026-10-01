@@ -71,7 +71,8 @@ import { SpotterUi } from './ui/spotter.js';
 import { briefingHtml } from './ui/briefing.js';
 import { careerDayEnd, careerAch, careerTick, careerRank } from './career.js';
 import { RankUp } from './ui/rankUp.js';
-import { isCareer, stageOf, STAGES, stageUpStatus, applyStage } from './sim/career.js';
+import { isCareer, stageOf, STAGES, stageUpStatus, applyStage, choosePerk } from './sim/career.js';
+import { perkHtml } from './ui/careerUi.js';
 import { VERSION } from './version.js';
 import { IS_DEMO, DEMO } from './edition.js';
 import { showDemoEnd, demoFreeOver } from './ui/demo.js';
@@ -476,6 +477,26 @@ function labelFn(role) {
   };
 }
 
+// Ausbau-Bonus wählen (Aufbau-Modus, Spieler leitet die Zentrale selbst); Esc verschiebt die Wahl um 30 s
+function maybeShowPerks(s) {
+  const ch = s.career && s.career.perkChoice;
+  if (!ch || s.role !== 'manager' || (s.auto && s.auto.manager) || modalOpen() || performance.now() < (game.perkNext || 0)) return;
+  game.perkNext = performance.now() + 30000;
+  const prev = s.speed || 1;
+  s.speed = 0;
+  openModal(perkHtml(s, ch), (box) => {
+    box.querySelectorAll('[data-perk]').forEach((b) =>
+      b.addEventListener('click', () => {
+        choosePerk(s, b.dataset.perk);
+        closeModal();
+        s.speed = prev;
+        sfx.cash && sfx.cash();
+        game.refreshUi();
+      })
+    );
+  });
+}
+
 // ---------------- Schleife ----------------
 function loop(ts) {
   requestAnimationFrame(loop);
@@ -488,6 +509,7 @@ function loop(ts) {
     if (!modalOpen()) showDemoEnd('free', { onMenu: quitToMenu });
   }
   if (!modalOpen() || s.speed === 0) run(s, dt);
+  maybeShowPerks(s);
   // Leistung prüfen: nach dem Start 8 s messen, bei unter ~22 fps einmalig den Leistungsmodus einschalten
   const fp = game.fpsProbe;
   if (fp && !fp.done && !document.hidden) {
@@ -1775,7 +1797,7 @@ function helpGuide(first) {
     <p><b>🎥 Folgen:</b> Auf der Info-Karte eines Flugzeugs oder Fahrzeugs lässt „Folgen“ die Kamera mitfahren – vom Endanflug über die Abfertigung bis zum Start. Karte ziehen beendet das Folgen.</p>
     <p><b>🎬 Kino-Modus</b> (<kbd>K</kbd> oder 🎬): Die Kamera fährt selbst zu Landungen, Starts, Durchstarts, Rundgängen um Tower, Feuerwache, Terminal und Co., Abfertigungen, Baustellen und zur Landseite – mit Letterbox und Bildunterschrift. ← → nächste Szene, <kbd>K</kbd>/<kbd>Esc</kbd> beendet.</p>
     <p><b>Entscheidungen:</b> Ab und zu kommt eine Ereigniskarte (links) – Gepäckband kaputt, fehlender Passagier, technischer Defekt, Koffer im falschen Flugzeug, keine freie Position, medizinischer Notfall, Vogelschwarm, Drohne im Anflugsektor, Laserblendung, Airline will Rabatt, Gewerkschaft, Festival-Charter, Tag der offenen Tür (Besucher, Wimpel und Ballons auf der Terminal-Terrasse) … Jede Option hat echte Folgen. Ohne Antwort gilt nach Ablauf die erste Option. Auf der Karte zeigen aufsteigende Texte, was gerade passiert (✓ pünktlich, +Erlös, Verspätung).</p>
-    <p>Karte ziehen = verschieben · Mausrad/Pinch = Zoom · Klick = auswählen · <kbd>Leertaste</kbd> Pause · <kbd>1</kbd>–<kbd>5</kbd> Tempo (1×, 2×, 5×, 10×, 20× – bei <b>10×</b> dauert ein Tag etwa <b>10 Minuten</b>; Manager und Beobachter starten mit 10×) · <kbd>B</kbd> Beschriftungen · Pfeiltasten scrollen.</p>` + T('<h3>💾 Spielstände</h3><ul><li>Drei Speicherplätze, automatisch alle 45 Sekunden gespeichert. Zusätzlich hält das Spiel je Platz eine <b>Sicherungskopie</b> (höchstens 10 Minuten alt) – ist ein Stand einmal beschädigt, wird sie automatisch geladen. Unter Hauptmenü › Spielstände sichert ⬇ einen Platz als Datei, „Spielstand importieren“ lädt sie wieder – so bleibt der Flughafen auch erhalten, wenn die Browserdaten gelöscht werden, und lässt sich auf einen anderen Rechner mitnehmen.</li></ul>') + T('<h3>🌐 Sprache · Language</h3><ul><li>Deutsch oder Englisch unter Einstellungen › <b>Sprache</b> (das Spiel lädt kurz neu, Spielstände bleiben erhalten). Ohne Wahl richtet sich die Sprache nach dem Browser; <code>?lang=en</code> in der Adresse erzwingt Englisch. Der Lotsenfunk ist in beiden Sprachen englisch wie im echten Flugfunk, Bodencrews, Durchsagen und Kommentator sprechen die gewählte Sprache.</li></ul>');
+    <p>Karte ziehen = verschieben · Mausrad/Pinch = Zoom · Klick = auswählen · <kbd>Leertaste</kbd> Pause · <kbd>1</kbd>–<kbd>5</kbd> Tempo (1×, 2×, 5×, 10×, 20× – bei <b>10×</b> dauert ein Tag etwa <b>10 Minuten</b>; Manager und Beobachter starten mit 10×) · <kbd>B</kbd> Beschriftungen · Pfeiltasten scrollen.</p>` + T('<h3>🎁 Ausbau-Bonus</h3><ul><li>Im Aufbau-Modus bieten dir Land, Partner und Team nach jeder neuen Ausbaustufe <b>drei Vorteile</b> an – du wählst einen: Fördermittel, Pressetag, Werbepartner, Engagierte Crew, Pistenpflege-Vertrag, Stammkunden, Sicherheitskultur oder Tankvertrag. Dauerhafte Boni gibt es je einmal, sie stehen in der Management-Zentrale auf der Seite „Aufbau“. Esc verschiebt die Wahl kurz.</li></ul>') + T('<h3>💾 Spielstände</h3><ul><li>Drei Speicherplätze, automatisch alle 45 Sekunden gespeichert. Zusätzlich hält das Spiel je Platz eine <b>Sicherungskopie</b> (höchstens 10 Minuten alt) – ist ein Stand einmal beschädigt, wird sie automatisch geladen. Unter Hauptmenü › Spielstände sichert ⬇ einen Platz als Datei, „Spielstand importieren“ lädt sie wieder – so bleibt der Flughafen auch erhalten, wenn die Browserdaten gelöscht werden, und lässt sich auf einen anderen Rechner mitnehmen.</li></ul>') + T('<h3>🌐 Sprache · Language</h3><ul><li>Deutsch oder Englisch unter Einstellungen › <b>Sprache</b> (das Spiel lädt kurz neu, Spielstände bleiben erhalten). Ohne Wahl richtet sich die Sprache nach dem Browser; <code>?lang=en</code> in der Adresse erzwingt Englisch. Der Lotsenfunk ist in beiden Sprachen englisch wie im echten Flugfunk, Bodencrews, Durchsagen und Kommentator sprechen die gewählte Sprache.</li></ul>');
 }
 
 function showHelp(first, tab = 'guide') {

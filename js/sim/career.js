@@ -146,7 +146,8 @@ export const LOAN_CAP = [60000, 600000, 6000000, 14000000, 22000000];
 export const RWY_WORK_F = [0.02, 0.12, 0.6, 1, 1];
 export function rwyWorkCost(state, w) {
   const st = stageOf(state);
-  return st >= 9 ? w.cost : Math.round((w.cost * RWY_WORK_F[st]) / 500) * 500;
+  const f = hasPerk(state, 'rwy') ? 0.7 : 1;
+  return st >= 9 ? w.cost : Math.round((w.cost * RWY_WORK_F[st] * f) / 500) * 500;
 }
 export const staffBase = (state) => (isCareer(state) ? [2, 4, 10, 10, 10][stageOf(state)] : 10);
 
@@ -322,7 +323,7 @@ export const ACTIONS = {
 };
 export function actionCost(state, k) {
   const a = ACTIONS[k];
-  return a.cost[Math.min(stageOf(state), a.cost.length - 1)];
+  return Math.round(a.cost[Math.min(stageOf(state), a.cost.length - 1)] * (hasPerk(state, 'marketing') ? 0.6 : 1));
 }
 export function actionReady(state, k) {
   const a = ACTIONS[k];
@@ -449,6 +450,54 @@ export function completeStage(state, to) {
   pushNews(state, T`Eröffnung: ${state.name} ist jetzt ${STAGES[to].name}. ${STAGES[to].desc}`, 'good', STAGES[to].icon);
   fx(state, 40, 26, `${STAGES[to].icon} ${STAGES[to].name}`, 'good');
   state.stageUpT = state.time; // für das Eröffnungs-Banner
+  offerPerks(state, to);
+}
+
+// ---------- Ausbau-Boni: bei jeder neuen Stufe einen von drei Vorteilen wählen ----------
+const GRANT = [0, 20000, 220000, 1200000, 2500000];
+export const PERKS = {
+  grant: { icon: '💶', name: () => T('Fördermittel'), desc: (st) => T`Land und Kreis legen ${fmtMoney(GRANT[st] || 0)} drauf – sofort in der Kasse.`, again: true },
+  press: { icon: '📣', name: () => T('Pressetag'), desc: () => T('Reporter, Fotografen, Rundgang: Bekanntheit +15 und Ansehen +3.'), again: true },
+  marketing: { icon: '📰', name: () => T('Werbepartner'), desc: () => T('Ein Sponsor zahlt mit: Feste, Anzeigen und Fly-Ins kosten dauerhaft 40 % weniger.') },
+  crew: { icon: '👷', name: () => T('Engagierte Crew'), desc: () => T('Ein eingespieltes Team: Personalkosten dauerhaft −15 %.') },
+  rwy: { icon: '🛠️', name: () => T('Pistenpflege-Vertrag'), desc: () => T('Fester Vertrag mit einer Baufirma: Arbeiten an der Bahn dauerhaft 30 % günstiger.') },
+  loyal: { icon: '🤝', name: () => T('Stammkunden'), desc: () => T('Piloten und Partner kommen gern wieder: Gast- und Partnerflüge bringen dauerhaft 15 % mehr.'), maxStage: 3 },
+  safety: { icon: '🦺', name: () => T('Sicherheitskultur'), desc: () => T('Schulungen und klare Abläufe: Zwischenfälle kosten dauerhaft 25 % weniger Ansehen.') },
+  fuel: { icon: '⛽', name: () => T('Tankvertrag'), desc: () => T('Besserer Einkauf an der Zapfsäule: Spritmarge bei Gast- und Partnerflügen dauerhaft +25 %.'), maxStage: 2 },
+};
+export const hasPerk = (state, k) => !!(state && state.career && state.career.perks && state.career.perks[k]);
+function offerPerks(state, to) {
+  const C = careerState(state);
+  C.perks = C.perks || {};
+  const pool = Object.keys(PERKS).filter((k) => (PERKS[k].again || !C.perks[k]) && (PERKS[k].maxStage === undefined || to <= PERKS[k].maxStage));
+  const opts = [];
+  while (opts.length < 3 && pool.length) opts.push(pool.splice(randInt(state, 0, pool.length - 1), 1)[0]);
+  C.perkChoice = { stage: to, opts, t: state.time };
+}
+export function choosePerk(state, k) {
+  const C = careerState(state);
+  const ch = C.perkChoice;
+  if (!ch || !ch.opts.includes(k)) return false;
+  C.perks = C.perks || {};
+  C.perks[k] = (C.perks[k] || 0) + 1;
+  if (k === 'grant') earn(state, 'other', GRANT[ch.stage] || 0);
+  if (k === 'press') {
+    C.fame = clamp(C.fame + 15, 0, 100);
+    state.reputation = clamp(state.reputation + 3, 0, 100);
+  }
+  C.perkChoice = null;
+  log(state, 'mgr', T`${PERKS[k].icon} Ausbau-Bonus gewählt: ${PERKS[k].name()} – ${PERKS[k].desc(ch.stage)}`);
+  notify(state, T`${PERKS[k].icon} Bonus: ${PERKS[k].name()}`, 'good');
+  return true;
+}
+// spielt die KI die Zentrale (oder der Spieler eine andere Station), wählt sie selbst
+const PERK_AI = ['safety', 'loyal', 'marketing', 'crew', 'grant', 'rwy', 'fuel', 'press'];
+function autoPerk(state) {
+  const C = careerState(state);
+  const ch = C.perkChoice;
+  if (!ch || state.time - ch.t < 1.5 * H) return;
+  if (state.role === 'manager' && !(state.auto && state.auto.manager)) return;
+  choosePerk(state, PERK_AI.find((k) => ch.opts.includes(k)) || ch.opts[0]);
 }
 
 // ---------- laufende Kosten und Erlöse ----------
@@ -461,6 +510,7 @@ const FIX = [
 ];
 export function careerFixedCosts(state, fc) {
   const st = stageOf(state);
+  if (hasPerk(state, 'crew') && fc.staff) fc.staff *= 0.85;
   const k = FIX[st];
   if (!k) return fc;
   for (const key of ['atc', 'infra', 'admin', 'utilities']) {
@@ -471,9 +521,12 @@ export function careerFixedCosts(state, fc) {
   return fc;
 }
 // Erlöse eines Kleinflugzeugs/Partnerflugs beim Start
-export function gaTakeoffRevenue(state, ac, rot, earnF) {
+export function gaTakeoffRevenue(state, ac, rot, earnF0) {
   const t = AC_TYPES[ac.type];
   const C = careerState(state);
+  // Ausbau-Boni: Stammkunden (+15 % auf alles), Tankvertrag (+25 % Spritmarge)
+  const loyal = hasPerk(state, 'loyal') ? 1.15 : 1, fuelF = hasPerk(state, 'fuel') ? 1.25 : 1;
+  const earnF = (cat, v) => earnF0(cat, v * loyal * (cat === 'fuel' ? fuelF : 1));
   // Sprit an der Zapfsäule (AvGas) bzw. Jet A-1 für Turboprops: Marge je Liter
   const litres = t.light ? randRange(state, 35, 110) : randRange(state, 250, 700);
   earnF('fuel', litres * (t.light ? 0.85 : 0.45));
@@ -494,6 +547,7 @@ export function gaTakeoffRevenue(state, ac, rot, earnF) {
 export function hourlyCareer(state) {
   if (!isCareer(state)) return;
   const C = careerState(state);
+  autoPerk(state);
   // Pacht der Partner
   for (const c of partnerContracts(state)) earn(state, 'other', (PARTNERS[partnerOf(c)].rent || 0) / 24);
   // Flugplatzfest: Besucher zahlen Eintritt, essen, trinken

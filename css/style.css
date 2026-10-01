@@ -2289,3 +2289,18 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .de-feat small { color: var(--muted); font-size: 12px; }
 @media (max-width: 640px) { .de-feat { grid-template-columns: 1fr; } }
 .mm-demo { display: inline-block; margin: 10px 0 4px; align-self: flex-start; font: 800 13px var(--mm-title, sans-serif); letter-spacing: .3em; color: #0b1220; background: #fbbf24; border-radius: 6px; padding: 4px 10px; box-shadow: 0 4px 14px rgba(251,191,36,.35); }
+
+/* Ausbau-Bonus: einer von drei Vorteilen nach einer neuen Stufe */
+.pk-k { font-family: var(--mm-font, inherit); color: var(--mm-amber, #f5a623); letter-spacing: .2em; font-weight: 700; font-size: 12px; text-transform: uppercase; }
+.pk h2 { margin: 4px 0 6px; }
+.pk-sub { color: var(--muted); margin: 0 0 14px; }
+.pk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.pk-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; padding: 16px 14px; border-radius: 12px; border: 1px solid rgba(56,214,245,.25); background: linear-gradient(160deg, rgba(56,214,245,.10), rgba(15,23,42,.6)); color: inherit; cursor: pointer; transition: transform .15s, border-color .15s, box-shadow .15s; }
+.pk-card:hover { transform: translateY(-3px); border-color: rgba(56,214,245,.7); box-shadow: 0 10px 28px rgba(56,214,245,.15); }
+.pk-card b { font-size: 16px; }
+.pk-card small { color: var(--muted); line-height: 1.4; }
+.pk-ic { font-size: 30px; }
+.pk-own { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 4px; font-size: 12px; }
+.pk-own span { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-right: 4px; }
+.pk-own em { font-style: normal; padding: 3px 9px; border-radius: 999px; background: rgba(56,214,245,.12); border: 1px solid rgba(56,214,245,.3); }
+@media (max-width: 760px) { .pk-grid { grid-template-columns: 1fr; } }

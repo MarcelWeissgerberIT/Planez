@@ -1,7 +1,7 @@
 // Aufbau-Modus in der Oberfläche: Bildkarten in der rechten Leiste (Leitstand) und die Seite „Aufbau“ in der
 // Management-Zentrale – aktuelle Ausbaustufe als großes, langsam bewegtes Luftbild, die nächste Stufe mit Bedingungen
 // und Bau-Knopf, Marketing-Aktionen (Fest, Anzeige, Fly-In) und Partner als Bildkacheln.
-import { demoLocked, STAGES, STAGE_UP, MAX_STAGE, stageOf, stageUpStatus, ACTIONS, actionCost, actionReady, runAction, startStageUp, PARTNERS, partnerContracts, partnerOf, careerState, rotCap, airlineRotations } from '../sim/career.js';
+import { demoLocked, STAGES, STAGE_UP, MAX_STAGE, stageOf, stageUpStatus, ACTIONS, actionCost, actionReady, runAction, startStageUp, PARTNERS, partnerContracts, partnerOf, careerState, rotCap, airlineRotations, PERKS } from '../sim/career.js';
 import { AIRLINES } from '../config.js';
 import { fmtMoney, esc, fmtClock, dayOf } from '../util.js';
 import { remainingHours } from '../sim/construction.js';
@@ -83,6 +83,7 @@ export function careerPageHtml(s) {
   const last = (s.history || []).slice(-1)[0];
   h += T`<div class="cr-now"><div class="cr-now-pic kb0" style="background-image:url(${stagePic(st)})"></div><div class="cr-now-b"><small>Jetzt</small><h3>${STAGES[st].icon} ${esc(STAGES[st].name)}</h3><p>${esc(STAGES[st].desc)}</p>
     <div class="kpis"><div class="k"><span>Bekanntheit</span><b>${Math.round(C.fame)}/100</b></div><div class="k"><span>Bewegungen gestern</span><b>${last ? last.mov : '—'}</b></div><div class="k"><span>Partner</span><b>${partnerContracts(s).length}</b></div>${cap > 0 && cap < Infinity ? T`<div class="k"><span>Linienflüge/Tag</span><b>${airlineRotations(s)} / ${cap}</b></div>` : ''}</div></div></div>`;
+  h += perksOwnedHtml(s);
   // nächste Stufe
   if (S) {
     const D = S.def;
@@ -128,4 +129,16 @@ export function careerClick(game, e) {
     return true;
   }
   return false;
+}
+
+// Ausbau-Bonus: Auswahlfenster nach einer neuen Stufe (einer von drei Vorteilen)
+export function perkHtml(s, ch) {
+  return T`<div class="pk"><div class="pk-k">🎉 ${esc(STAGES[ch.stage].name)}</div><h2>Wähle deinen Ausbau-Bonus</h2><p class="pk-sub">Zur Eröffnung bieten Land, Partner und Team drei Vorteile an – einer davon gehört dir.</p><div class="pk-grid">${ch.opts.map((k) => `<button class="pk-card" data-perk="${k}"><span class="pk-ic">${PERKS[k].icon}</span><b>${esc(PERKS[k].name())}</b><small>${esc(PERKS[k].desc(ch.stage))}</small></button>`).join('')}</div></div>`;
+}
+// gewählte Boni (für die Seite „Aufbau“)
+export function perksOwnedHtml(s) {
+  const P = (s.career && s.career.perks) || {};
+  const ks = Object.keys(P).filter((k) => PERKS[k] && !PERKS[k].again);
+  if (!ks.length) return '';
+  return T`<div class="pk-own"><span>Ausbau-Boni</span>${ks.map((k) => `<em title="${esc(PERKS[k].desc(stageOf(s)))}">${PERKS[k].icon} ${esc(PERKS[k].name())}</em>`).join('')}</div>`;
 }
