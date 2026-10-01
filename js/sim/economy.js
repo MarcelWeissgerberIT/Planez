@@ -247,6 +247,7 @@ export function closeDay(state) {
     fuelBuy: Math.round(L.fuelBuy || 0),
     repay: Math.round(L.repay || 0),
     slotOk: s.slotOk || 0,
+    td: s.tdN ? { n: s.tdN, avg: Math.round(s.tdSum / s.tdN), best: s.tdBest || null, hard: s.hardLand || 0 } : null,
     slotMiss: s.slotMiss || 0,
     slotMissGnd: s.slotMissGnd || 0,
     taxiWait: Math.round((s.taxiWait || 0) / 60),

@@ -47,6 +47,7 @@ export function touchdown(state, ac) {
   T.tdN = (T.tdN || 0) + 1;
   T.tdSum = (T.tdSum || 0) + fpm;
   if (fpm < 110) L.butter = (L.butter || 0) + 1;
+  if (!T.tdBest || fpm < T.tdBest.fpm) T.tdBest = { cs: ac.cs, fpm, type: ac.type };
   if (fpm >= HARD) {
     ac.hardLanding = true;
     L.hardLand = (L.hardLand || 0) + 1;

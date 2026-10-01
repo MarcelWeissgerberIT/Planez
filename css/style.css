@@ -1600,3 +1600,12 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 @keyframes st-in { from { opacity: 0; transform: translateY(6px); } }
 .dock-open.stream { margin-top: 6px; background: linear-gradient(135deg, rgba(220,38,38,.18), rgba(12,20,34,.7)); border-color: rgba(220,38,38,.4); }
 @media (max-width: 700px) { #stream { width: min(260px, 70vw); bottom: 44px; } }
+
+/* Tageshighlights im Tagesbericht */
+.hl { margin: 10px 0 4px; padding: 8px 10px; border: 1px solid rgba(250,204,21,.28); border-radius: 10px; background: linear-gradient(135deg, rgba(250,204,21,.07), rgba(12,20,34,.4)); }
+.hl-h { font: 700 11px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: #fde68a; margin-bottom: 6px; }
+.hl-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.hl-c { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: rgba(148,163,184,.14); border: 1px solid rgba(148,163,184,.25); color: #e2e8f0; white-space: nowrap; }
+.hl-c.warn { border-color: rgba(251,146,60,.5); color: #fed7aa; }
+.hl-best { display: block; margin-top: 6px; font-size: 12px; color: #cbd5e1; }
+.hl-best b { color: #fff; }

@@ -51,6 +51,8 @@ export function approveHeli(state) {
   const c = heliConflict(state);
   H.st = 'cross';
   H.clrT = state.time;
+  const L = state.life || (state.life = {});
+  L.heliX = (L.heliX || 0) + 1;
   radio(state, 'TWR', `Rescue 7, cross runways at midfield, no delay, report clear north.`, 'atc');
   radio(state, HELI, `Crossing midfield, no delay, Rescue 7.`, 'pilot');
   if (c && c.hard) {

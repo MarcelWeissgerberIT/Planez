@@ -128,6 +128,9 @@ export class Cinema {
       if (recent.includes(ac.id)) w *= 0.15;
       out.push({ kind, id: ac.id, w });
     }
+    // Nebenverkehr: Rettungshubschrauber und Cessna der Platzrunden
+    if (s.heli && s.heli.h && s.heli.h.y < 52) out.push({ kind: 'heli', id: 'heli' + s.heli.n, w: recent.includes('heli' + s.heli.n) ? 0.3 : 4 });
+    if (s.vfr && s.vfr.p && s.vfr.p.mode !== 'leave') out.push({ kind: 'vfr', id: 'vfr' + s.vfr.n, w: recent.includes('vfr' + s.vfr.n) ? 0.3 : s.vfr.p.i === 1 || s.vfr.p.i === 2 ? 5 : 1.8 });
     const turns = s.acs.filter((a) => a.phase === PH.STAND && a.ta);
     if (turns.length) {
       const a = turns[Math.floor(Math.random() * turns.length)];
@@ -156,7 +159,7 @@ export class Cinema {
       }
     }
     this.recent = [pick.id, ...(this.recent || [])].slice(0, 4);
-    this.shot = { ...pick, t: 0, dur: { land: 16, dep: 14, goaround: 16, push: 12, taxi: 10, turn: 12, site: 10, 'land-side': 10, wide: 12, night: 12, tour: 11 }[pick.kind] || 12, drift: Math.random() * Math.PI * 2 };
+    this.shot = { ...pick, t: 0, dur: { land: 16, dep: 14, goaround: 16, push: 12, taxi: 10, turn: 12, site: 10, 'land-side': 10, wide: 12, night: 12, tour: 11, heli: 12, vfr: 12 }[pick.kind] || 12, drift: Math.random() * Math.PI * 2 };
     const cam = this.game.cam;
     if (force || pick.kind === 'wide') cam.tx = null;
     this.caption(s);
@@ -196,6 +199,8 @@ export class Cinema {
       const sp = tourSpots(s).find((q) => q.id === sh.id);
       if (sp) return set(sp.k, sp.title, sp.sub);
     }
+    if (sh.kind === 'heli') return set('RETTUNGSFLUG', 'Rescue 7', s.heli.h && s.heli.h.st === 'req' ? 'wartet auf die Querung der Bahnen' : 'quert die Bahnen zur Klinik');
+    if (sh.kind === 'vfr' && s.vfr.p) return set('PLATZRUNDE', s.vfr.p.cs, `Cessna 172 · Runde ${Math.min(s.vfr.p.laps + 1, s.vfr.p.lapsMax)} von ${s.vfr.p.lapsMax}`);
     if (sh.kind === 'land-side') return set('LANDSEITE', 'Terminal-Vorfahrt', 'Taxis, Busse und Reisende');
     if (sh.kind === 'night') return set('NACHT', s.name, 'Befeuerung und Nachtbetrieb');
     return set('ÜBERBLICK', s.name, `${s.acs.filter((a) => a.mode === 'map').length} Flugzeuge am Platz`);
@@ -221,6 +226,12 @@ export class Cinema {
         tx += Math.cos(sh.drift + sh.t * 0.05) * 1.2;
         ty += Math.sin(sh.drift + sh.t * 0.05) * 1.2;
       }
+    } else if (sh.kind === 'heli' || sh.kind === 'vfr') {
+      const o = sh.kind === 'heli' ? s.heli && s.heli.h : s.vfr && s.vfr.p;
+      if (!o) return this.next();
+      tx = o.x + Math.cos(o.hdg) * 1.5;
+      ty = o.y + Math.sin(o.hdg) * 1.5 - o.z * 0.4;
+      tz = 1.9;
     } else if (sh.kind === 'site') {
       const g = (this.game.map.sites || []).find((q) => q.p.id === sh.id);
       if (!g) return this.next();
@@ -317,6 +328,8 @@ function commentary(s, sh, ac) {
     const sp = tourSpots(s).find((q) => q.id === sh.id);
     if (sp) return pickC(sp.lines);
   }
+  if (sh.kind === 'heli') return pickC(['Der Rettungshubschrauber: Rescue 7 bringt einen Patienten in die Klinik – der Tower lässt ihn über die Bahnen.', 'Jede Minute zählt – Rescue 7 im Tiefflug über dem Flughafen.']);
+  if (sh.kind === 'vfr' && s.vfr.p) return pickC([`Zwischen den Großen übt eine kleine Cessna: ${s.vfr.p.cs} dreht Platzrunden mit Touch and Go.`, 'Aufsetzen, Gas geben, wieder hoch – Platzrunden sind das Brot der Flugschüler.', `${s.vfr.p.cs} im Gegenanflug – der Tower sucht eine Lücke zwischen den Linienflügen.`]);
   if (sh.kind === 'land-side') return pickC([`Vor dem Terminal ist Betrieb – heute schon ${s.stats.today.pax.toLocaleString('de-DE')} Reisende.`, 'Taxis, Busse, Koffer – die Landseite erwacht.']);
   if (sh.kind === 'night') return pickC([`Nachtbetrieb in ${s.name} – die Befeuerung weist den Weg.`, 'Ruhige Stunden am Flughafen, nur die Lichter blinken.']);
   const t = s.stats.today;

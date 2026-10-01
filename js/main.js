@@ -28,6 +28,7 @@ import { initPTT } from './ui/ptt.js';
 import { DecisionCard } from './ui/decision.js';
 import { NewsTicker } from './ui/ticker.js';
 import { Cinema } from './ui/cinema.js';
+import { highlightsHtml } from './ui/highlights.js';
 import { Stream } from './ui/stream.js';
 import { PhotoMode } from './ui/photo.js';
 import { Tutorial } from './ui/tutorial.js';
@@ -751,6 +752,7 @@ function showReport(rec) {
       ${reportExtras(rec)}
     </div>
     ${dayChart(rec)}
+    ${highlightsHtml(game.state, rec)}
     ${newspaperHtml(game.state, rec)}
     ${momentsHtml()}
     ${rec.score && (game.state.role === 'tower' || game.state.role === 'ground') ? `<p class="rep-score">⭐ Schichtpunkte heute: <b>${rec.score.toLocaleString('de-DE')}</b>${rec.score >= rec.scoreBest ? ' · <span>neuer Tagesbestwert!</span>' : ` · Bestwert ${rec.scoreBest.toLocaleString('de-DE')}`}</p>` : ''}
