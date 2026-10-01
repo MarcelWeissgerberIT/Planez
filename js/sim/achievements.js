@@ -43,6 +43,7 @@ export const ACHIEVEMENTS = [
   { id: 'salute5', icon: '💦', name: 'Wassertaufe', desc: 'Fünf Erstflüge neuer Strecken mit dem Wasserbogen der Feuerwehr begrüßt.', xp: 50, check: (s) => L(s, 'salutes') >= 5 },
   { id: 'butter50', icon: '🧈', name: 'Butterweich', desc: '50 Landungen mit weniger als 110 ft/min Sinkrate beim Aufsetzen.', xp: 50, check: (s) => L(s, 'butter') >= 50 },
   { id: 'stream', icon: '📡', name: 'Quotenhit', desc: 'Im Spotter-Livestream schauen 2.500 Menschen gleichzeitig zu.', xp: 60, check: (s) => L(s, 'streamPeak') >= 2500 },
+  { id: 'quiz10', icon: '🔎', name: 'Typenkenner', desc: 'Im Livestream-Quiz zehn Flugzeugtypen richtig erkannt.', xp: 50, check: (s) => L(s, 'quizOk') >= 10 },
   { id: 'wish10', icon: '💬', name: 'Wunschkonzert', desc: 'Zehn Zuschauerwünsche im Livestream rechtzeitig erfüllt.', xp: 50, check: (s) => L(s, 'streamWishes') >= 10 },
   { id: 'state1', icon: '🎖️', name: 'Protokollchef', desc: 'Ein Staatsbesuch ohne Makel: Landung ohne Warteschleife, Abflug pünktlich.', xp: 80, check: (s) => L(s, 'svPerfect') >= 1 },
   { id: 'readback5', icon: '👂', name: 'Gutes Gehör', desc: 'Fünf falsche Readbacks rechtzeitig korrigiert.', xp: 70, check: (s) => L(s, 'rbFixed') >= 5 },

@@ -429,7 +429,8 @@ function labelFn(role) {
       if (ac.arr && !ac.stand) return 'keine Position';
       return ac.stand ? `→ P${ac.stand}` : '';
     }
-    return ac.type;
+    // während des Spotter-Quiz im Livestream den Typ nicht verraten
+    return game.stream && game.stream.quiz && game.stream.quiz.id === ac.id ? '???' : ac.type;
   };
 }
 
@@ -1574,7 +1575,7 @@ function helpGuide(first) {
     <h3>🛬 Aufsetzrate</h3>
     <p>Jede Landung zeigt ihre Sinkrate beim Aufsetzen (ft/min): unter 110 ist 🧈 Butter, ab 600 eine harte Landung. Seitenwind, Böen, Regen, Schnee, Gewitter und Wirbelschleppen machen Landungen fester – und eine <b>späte Landefreigabe</b>: Kommt sie weniger als eine Minute vor dem Aufsetzen, ist der Endanflug unruhig. Nach einer harten Landung prüft die Technik das Fahrwerk an der Position (Abfertigung ruht 20 Minuten).</p>
     <h3>📡 Spotter-Livestream</h3>
-    <p>Mit <kbd>L</kbd> (oder 📡 Livestream im Leitstand des Beobachters) geht deine Kamera auf Sendung. Die <b>Zuschauerzahl</b> folgt dem, was im Bild ist: Landungen, Starts und Durchstarter ziehen, ein A380, die Regierungsmaschine, ein Notfall oder eine Sonderlackierung erst recht; Gewitter, Schnee und Nachtlichter helfen. Ein leeres Bild lässt die Zahl fallen – der Balken unter der Anzeige zeigt, wie spannend die Szene gerade ist. Der <b>Live-Chat</b> kommentiert alles – und äußert <b>Wünsche</b> (eine Landung, ein bestimmtes Flugzeug, den Tower von nah …): Holst du das binnen 60 Sekunden ins Bild, springt die Zuschauerzahl hoch. Im Kino-Modus läuft der Stream als TV-Übertragung weiter.</p>
+    <p>Mit <kbd>L</kbd> (oder 📡 Livestream im Leitstand des Beobachters) geht deine Kamera auf Sendung. Die <b>Zuschauerzahl</b> folgt dem, was im Bild ist: Landungen, Starts und Durchstarter ziehen, ein A380, die Regierungsmaschine, ein Notfall oder eine Sonderlackierung erst recht; Gewitter, Schnee und Nachtlichter helfen. Ein leeres Bild lässt die Zahl fallen – der Balken unter der Anzeige zeigt, wie spannend die Szene gerade ist. Der <b>Live-Chat</b> kommentiert alles – und äußert <b>Wünsche</b> (eine Landung, ein bestimmtes Flugzeug, den Tower von nah …): Holst du das binnen 60 Sekunden ins Bild, springt die Zuschauerzahl hoch. Im Kino-Modus läuft der Stream als TV-Übertragung weiter. <b>Spotter-Quiz:</b> Ab und zu fragt der Chat nach dem Typ eines Flugzeugs nahe der Bildmitte (das Kartenlabel zeigt dann „???“) – wähle aus drei Antworten; richtig gibt einen Zuschauerschub, zehn richtige den Erfolg „Typenkenner“.</p>
     <h3>🎖️ Staatsbesuch</h3>
     <p>Ab und zu (ab Tag 2) kündigt sich die <b>Regierungsmaschine</b> an (Rufzeichen „State“, Datenblock <b>STATE</b>, Flugstreifen 🎖️). Protokoll im <b>Tower</b>: landen lassen, ohne dass sie länger als vier Minuten kreist oder durchstarten muss. Im <b>Vorfeld</b>: eine Großraum-Kontaktposition bereithalten und die Maschine pünktlich (höchstens 5 min nach Plan) off-block bringen. Am Boden warten roter Teppich, Ehrenformation, Fahnen und eine Kolonne. Gelingt beides, gibt es Ansehen, Schichtpunkte und eine Protokollgebühr von 60.000 €.</p>
     <h3>📸 Momente des Tages</h3>

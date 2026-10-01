@@ -50,7 +50,7 @@ export class Stream {
     el.id = 'stream';
     el.className = 'hidden';
     el.innerHTML = `<div class="st-head"><span class="st-live">LIVE</span><b class="st-v">0</b><small>Zuschauer</small><span class="st-pk"></span><button class="st-x" title="Livestream beenden (L)">✕</button></div>
-      <div class="st-meter"><i></i></div><div class="st-wish"></div><div class="st-hint"></div><div class="st-chat"></div>`;
+      <div class="st-meter"><i></i></div><div class="st-wish"></div><div class="st-quiz"></div><div class="st-hint"></div><div class="st-chat"></div>`;
     document.getElementById('game').appendChild(el);
     this.el = el;
     this.vEl = el.querySelector('.st-v');
@@ -59,6 +59,12 @@ export class Stream {
     this.hEl = el.querySelector('.st-hint');
     this.wEl = el.querySelector('.st-wish');
     this.wishT = 25;
+    this.qEl = el.querySelector('.st-quiz');
+    this.quizT = 70;
+    this.qEl.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-q]');
+      if (b) this.answer(b.dataset.q);
+    });
     this.chatEl = el.querySelector('.st-chat');
     el.querySelector('.st-x').addEventListener('click', () => this.stop());
     // Ereignisse aus dem Funk/Log, die nicht im Bild sein müssen
@@ -170,6 +176,67 @@ export class Stream {
     this.wEl.innerHTML = `<b>💬 Zuschauerwunsch</b> ${esc(w.t)}<i style="width:${Math.round((w.left / 60) * 100)}%"></i>`;
   }
 
+  // Spotter-Quiz: Der Chat fragt nach dem Typ eines Flugzeugs nahe der Bildmitte; drei Antworten zur Wahl.
+  // Richtig = Zuschauerschub, falsch = der Chat korrigiert. Zählt für den Erfolg „Typenkenner“.
+  updateQuiz(s, dt, inView) {
+    if (this.quiz) {
+      const q = this.quiz;
+      q.left -= dt;
+      if (q.left <= 0) {
+        this.say(`Das ist ${q.cs}, ein ${AC_TYPES[q.type].name} – zu spät 😄`, 3);
+        this.endQuiz();
+        return;
+      }
+      const bar = this.qEl.querySelector('i');
+      if (bar) bar.style.width = `${Math.round((q.left / 25) * 100)}%`;
+      return;
+    }
+    if (this.wish) return;
+    this.quizT -= dt;
+    if (this.quizT > 0) return;
+    const cam = this.game.cam;
+    if (cam.zoom < 1) return;
+    const cands = inView.filter((a) => {
+      const p = cam.toScreen(a.x, a.y, a.z || 0);
+      return Math.abs(p.x - cam.w / 2) < cam.w * 0.3 && Math.abs(p.y - cam.h / 2) < cam.h * 0.3 && AC_TYPES[a.type];
+    });
+    if (!cands.length) return;
+    const a = r(cands);
+    const others = Object.keys(AC_TYPES).filter((k) => k !== a.type && !['C172'].includes(k));
+    const same = others.filter((k) => AC_TYPES[k].size === AC_TYPES[a.type].size);
+    const pool = same.length >= 2 ? same : others;
+    const opts = [a.type];
+    while (opts.length < 3 && pool.length) {
+      const k = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+      if (!opts.includes(k)) opts.push(k);
+    }
+    opts.sort(() => Math.random() - 0.5);
+    this.quiz = { id: a.id, cs: a.cs, type: a.type, opts, left: 25, user: r(USERS) };
+    this.say(`Welcher Typ ist ${a.cs}? 🤔`, 3, this.quiz.user);
+    this.qEl.innerHTML = `<b>🔎 Spotter-Quiz</b> Welcher Typ ist <b>${esc(a.cs)}</b>?<div class="st-qo">${opts.map((k) => `<button data-q="${k}">${esc(AC_TYPES[k].name)}</button>`).join('')}</div><i></i>`;
+  }
+  answer(k) {
+    const q = this.quiz;
+    const s = this.game.state;
+    if (!q || !s) return;
+    if (k === q.type) {
+      this.viewers *= 1.12;
+      const L = s.life || (s.life = {});
+      L.quizOk = (L.quizOk || 0) + 1;
+      this.post({ sub: true, text: `✅ Richtig: ${AC_TYPES[q.type].name} – der Chat ist beeindruckt` });
+      this.say(r(['Profi! 👏', 'Woher weißt du das so schnell?', 'Spotter-Level: Experte', 'Stimmt, sieht man an den Triebwerken']), 3);
+    } else {
+      this.viewers *= 0.97;
+      this.say(`Nee, das ist ein ${AC_TYPES[q.type].name} 😅`, 3);
+    }
+    this.endQuiz();
+  }
+  endQuiz() {
+    this.quiz = null;
+    this.quizT = 80 + Math.random() * 60;
+    this.qEl.innerHTML = '';
+  }
+
   // Wie spannend ist das Bild gerade? Flugzeuge im Bild nach Phase, Seltenheit und Nähe zur Bildmitte
   interest(s) {
     const cam = this.game.cam;
@@ -258,6 +325,7 @@ export class Stream {
     this.pkEl.textContent = `Rekord ${this.peak.toLocaleString('de-DE')}`;
     if (paused) return;
     this.updateWish(s, dt);
+    this.updateQuiz(s, dt, inView);
     // neue Szenen im Bild
     for (const ac of inView) {
       if (ac.emgKind === 'smoke' && ac.fireStop && !ac.fireDone && this.evacSeen !== ac.id) {
