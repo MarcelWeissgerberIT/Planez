@@ -1687,3 +1687,37 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .i-head .mini .ico { width: 13px; height: 13px; vertical-align: -2px; }
 .task .ti .ico { width: 16px; height: 16px; vertical-align: -3px; }
 #gp-all .ico .a { fill: #fde047; stroke: #fde047; }
+/* Mitfliegen: Fensterplatz und Cockpit */
+#game.riding #panel, #game.riding #panel-toggle, #game.riding #log-wrap, #game.riding #radar-wrap, #game.riding #rail, #game.riding #map-ctrls, #game.riding #info, #game.riding #ticker, #game.riding #hint, #game.riding #stream, #game.riding #fids { display: none !important; }
+#ride { position: absolute; inset: 0; z-index: 45; pointer-events: none; }
+#ride.hidden { display: none; }
+#ride .rd-win, #ride .rd-cockpit { display: none; }
+#ride.window .rd-win { display: block; position: absolute; left: 50%; top: 47%; width: min(46vmin, 62vw); height: min(62vmin, 66vh); transform: translate(-50%, -50%); border-radius: 46% / 40%; box-shadow: 0 0 0 14px #cfc8bc, 0 0 0 22px #b9b1a3, 0 0 0 200vmax #e4dfd6, inset 0 0 40px rgba(0,0,0,.45), inset 0 0 0 3px rgba(255,255,255,.35); overflow: hidden; }
+#ride .rd-shade { position: absolute; left: 0; right: 0; top: 0; height: 9%; background: linear-gradient(#d7d1c6, #c4bcae); border-bottom: 2px solid #a69d8d; }
+#ride.cockpit .rd-cockpit { display: block; position: absolute; inset: 0; }
+#ride .rd-pillar { position: absolute; top: 0; bottom: 26%; background: linear-gradient(90deg, #1b1f26, #2b313b); }
+#ride .rd-pillar.l { left: 0; width: 9%; clip-path: polygon(0 0, 100% 0, 40% 100%, 0 100%); }
+#ride .rd-pillar.r { right: 0; width: 9%; clip-path: polygon(0 0, 100% 0, 100% 100%, 60% 100%); }
+#ride .rd-pillar.c { left: 49.4%; width: 1.2%; }
+#ride .rd-glare { position: absolute; left: 0; right: 0; bottom: 0; height: 27%; background: linear-gradient(#1a1d23, #0d0f13); border-top: 3px solid #2f3540; display: flex; justify-content: center; align-items: center; gap: 3vw; }
+#ride .rd-pfd, #ride .rd-nd { height: 78%; aspect-ratio: 1.15; background: #05070a; border: 2px solid #3a414d; border-radius: 6px; position: relative; overflow: hidden; font: 700 13px ui-monospace, monospace; color: #e5e7eb; }
+#ride .rd-pfd { display: flex; align-items: stretch; }
+#ride .rd-tape { width: 24%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #1f2937; gap: 2px; }
+#ride .rd-tape b { font-size: 17px; color: #fff; background: #000; padding: 1px 4px; border: 1px solid #fde047; }
+#ride .rd-tape small { color: #9ca3af; font-size: 10px; }
+#ride .rd-tape em { color: #67e8f9; font-style: normal; font-size: 11px; min-height: 13px; }
+#ride .rd-ai { flex: 1; position: relative; overflow: hidden; }
+#ride .rd-hor { position: absolute; left: -20%; right: -20%; top: -50%; bottom: -50%; background: linear-gradient(#2563eb 50%, #92400e 50%); transition: transform .4s; }
+#ride .rd-ai i { position: absolute; left: 30%; right: 30%; top: 50%; height: 3px; background: #fde047; transform: translateY(-50%); box-shadow: 0 0 0 1px #000; }
+#ride .rd-ai span { position: absolute; top: 4px; left: 0; right: 0; text-align: center; color: #4ade80; font-size: 11px; text-shadow: 0 1px 2px #000; }
+#ride .rd-nd { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+#ride .rd-rose { position: absolute; width: 150%; aspect-ratio: 1; border-radius: 50%; border: 2px solid #475569; top: 30%; background: repeating-conic-gradient(from -1deg, #64748b 0 2deg, transparent 2deg 30deg); -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%); mask: radial-gradient(circle, transparent 62%, #000 63%); transition: transform .3s; }
+#ride .rd-nd b { position: relative; font-size: 20px; color: #fff; z-index: 1; }
+#ride .rd-nd small { position: relative; color: #c084fc; z-index: 1; margin-top: 4px; }
+#ride .rd-bar { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 12px; background: rgba(6,12,22,.85); border: 1px solid rgba(148,163,184,.3); pointer-events: auto; color: #e2e8f0; font-size: 13px; max-width: calc(100vw - 24px); }
+#ride .rd-belt { opacity: .35; color: #fde047; display: inline-flex; }
+#ride .rd-belt.on { opacity: 1; filter: drop-shadow(0 0 4px #fde047); }
+#ride .rd-sw, #ride .rd-x { border: 1px solid var(--line-2, #475569); background: rgba(255,255,255,.06); color: #e2e8f0; border-radius: 8px; padding: 4px 9px; font-size: 12px; white-space: nowrap; }
+#ride .rd-sw .ico { width: 14px; height: 14px; vertical-align: -2px; }
+@media (max-width: 700px) { #ride .rd-bar { top: auto; bottom: 10px; flex-wrap: wrap; justify-content: center; } #ride .rd-t { font-size: 11.5px; text-align: center; } #ride .rd-pfd, #ride .rd-nd { font-size: 10px; } }
+@media (max-width: 700px) { #ride.cockpit .rd-bar { top: 70px; bottom: auto; } #ride .rd-glare { gap: 2vw; } #ride .rd-pfd, #ride .rd-nd { height: 70%; } }

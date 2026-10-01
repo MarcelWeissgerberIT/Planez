@@ -1,4 +1,5 @@
 // Planez – Airport Simulator: Start, Spielschleife, Eingabe
+import { Ride } from './ui/ride.js';
 import { icon, hydrateIcons } from './ui/icons.js';
 import { loadAssets } from './assets.js';
 import { Camera } from './render/camera.js';
@@ -471,7 +472,8 @@ function loop(ts) {
     }
   }
   if (game.stream && game.stream.on) game.stream.update(dt);
-  if (game.cinema && game.cinema.on) game.cinema.update(dt);
+  if (game.ride && game.ride.on) game.ride.update(dt);
+  else if (game.cinema && game.cinema.on) game.cinema.update(dt);
   else {
     followCam(s, dt);
     game.cam.update(dt);
@@ -1074,6 +1076,15 @@ function wireGame() {
       info._html = null;
       return;
     }
+    const rd = e.target.closest('[data-ride]');
+    if (rd) {
+      const [mode, id] = rd.dataset.ride.split(':');
+      if (!game.ride) game.ride = new Ride(game);
+      if (game.cinema && game.cinema.on) game.cinema.stop();
+      game.ride.start(id, mode);
+      info._html = null;
+      return;
+    }
     const sp = e.target.closest('[data-spot]');
     if (sp) {
       spotter().shoot(s.acs.find((a) => a.id === sp.dataset.spot));
@@ -1582,6 +1593,8 @@ function helpGuide(first) {
     <p>Das Spiel schneidet die letzten Sekunden am Platz mit. Nach einem besonderen Moment – Durchstarten, Notlandung, harte oder butterweiche Landung, A380 oder Regierungsmaschine – erscheint unten ein Knopf <b>Wiederholung</b>; <kbd>Umschalt</kbd>+<kbd>R</kbd> spielt sie jederzeit ab. In Zeitlupe, ohne Oberfläche, die Kamera folgt dem Flugzeug; die Simulation wartet so lange. Esc oder ein Klick beendet die Wiederholung.</p>
     <h3>🛬 Aufsetzrate</h3>
     <p>Jede Landung zeigt ihre Sinkrate beim Aufsetzen (ft/min): unter 110 ist 🧈 Butter, ab 600 eine harte Landung. Seitenwind, Böen, Regen, Schnee, Gewitter und Wirbelschleppen machen Landungen fester – und eine <b>späte Landefreigabe</b>: Kommt sie weniger als eine Minute vor dem Aufsetzen, ist der Endanflug unruhig. Nach einer harten Landung prüft die Technik das Fahrwerk an der Position (Abfertigung ruht 20 Minuten).</p>
+    <h3>🪟 Mitfliegen</h3>
+    <p>Flugzeug anklicken und in der Info-Karte <b>Fenster</b> oder <b>Cockpit</b> wählen. Am <b>Fensterplatz</b> schaust du durchs Kabinenfenster auf Tragfläche und Boden (Anschnallzeichen, mit Echter Funk eine Kapitänsdurchsage). Im <b>Cockpit</b> blickst du voraus und hast die Instrumente vor dir: Geschwindigkeit, Höhe, Steigrate, künstlicher Horizont, Flugmodus und Kurs; im Endanflug kommen die Höhenansagen. Oben lässt sich umschalten, <kbd>Esc</kbd> steigt aus.</p>
     <h3>📡 Spotter-Livestream</h3>
     <p>Mit <kbd>L</kbd> (oder 📡 Livestream im Leitstand des Beobachters) geht deine Kamera auf Sendung. Die <b>Zuschauerzahl</b> folgt dem, was im Bild ist: Landungen, Starts und Durchstarter ziehen, ein A380, die Regierungsmaschine, ein Notfall oder eine Sonderlackierung erst recht; Gewitter, Schnee und Nachtlichter helfen. Ein leeres Bild lässt die Zahl fallen – der Balken unter der Anzeige zeigt, wie spannend die Szene gerade ist. Der <b>Live-Chat</b> kommentiert alles – und äußert <b>Wünsche</b> (eine Landung, ein bestimmtes Flugzeug, den Tower von nah …): Holst du das binnen 60 Sekunden ins Bild, springt die Zuschauerzahl hoch. Im Kino-Modus läuft der Stream als TV-Übertragung weiter. <b>Spotter-Quiz:</b> Ab und zu fragt der Chat nach dem Typ eines Flugzeugs nahe der Bildmitte (das Kartenlabel zeigt dann „???“) – wähle aus drei Antworten; richtig gibt einen Zuschauerschub, zehn richtige den Erfolg „Typenkenner“.</p>
     <h3>🎖️ Staatsbesuch</h3>

@@ -1217,6 +1217,7 @@ export class MapRenderer {
   }
 
   drawAircraft(state, ac, lights, night, ui) {
+    if (this.hideAc === ac.id) return; // Mitfliegen im Cockpit
     const crab = this.crabOf(state, ac);
     if (crab) ac = { ...ac, hdg: ac.hdg + crab };
     const ctx = this.ctx, cam = this.cam;
