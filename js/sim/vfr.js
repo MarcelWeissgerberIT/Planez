@@ -120,9 +120,10 @@ export function updateVfr(state, dt) {
   if (!p) {
     state.vfrOcc = null;
     if (state.time < S.next || state.time < 2 * 3600 || state.rwyPending) return;
-    if (hr < 8 || hr > 18.5 || !wxOk) {
+    const early = state.scenario ? 6 : 8; // in Herausforderungen fliegt die Flugschule schon ab 6 Uhr
+    if (hr < early || hr > 18.5 || !wxOk) {
       // erst wieder am nächsten Vormittag bzw. bei besserem Wetter
-      S.next = hr < 8 ? state.time + (8 - hr) * 3600 + hash01(state.time) * 3 * 3600 : state.time + 3600;
+      S.next = hr < early ? state.time + (early - hr) * 3600 + (state.scenario ? 0 : hash01(state.time) * 3 * 3600) : state.time + 3600;
       return;
     }
     S.n++;

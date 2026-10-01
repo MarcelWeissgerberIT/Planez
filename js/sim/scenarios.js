@@ -285,6 +285,8 @@ export const MUTATORS = {
       if (s.auto.atc) requestRunwayChange(s, s.rwy === '27' ? '09' : '27');
     },
   },
+  flightschool: { icon: '🛩️', name: 'Flugschule', text: 'Eine Cessna übt Platzrunden – Touch and Go in die Lücken setzen', roles: ['tower'], not: ['fog', 'storm'], at: 5 * 60, run: (s) => { s.scenario.side = true; vfrState(s).next = s.time; } },
+  airrescue: { icon: '🚁', name: 'Luftrettung', text: 'Der Rettungshubschrauber will über die Bahnen – rechtzeitig queren lassen', roles: ['tower'], at: 25 * 60, run: (s) => { s.scenario.side = true; heliState(s).next = s.time; } },
   tanker: { icon: '⛽', name: 'Tankwagen-Panne', text: 'Ein Tankwagen fällt für zwei Stunden aus', roles: ['ground'], at: 10 * 60, run: (s) => triggerEvent(s, 'breakdown', { type: 'fuel', hours: 2 }) },
   tugs: { icon: '🚜', name: 'Schlepper knapp', text: 'Ein Pushback-Schlepper ist den ganzen Tag in der Werkstatt', roles: ['ground'], at: 60, run: (s) => triggerEvent(s, 'breakdown', { type: 'tug', hours: 4 }) },
 };
@@ -304,7 +306,7 @@ export function dailyDef(key = dailyKey()) {
   };
   const baseId = DAILY_BASES[Math.floor(rnd() * DAILY_BASES.length)];
   const base = SCENARIOS.find((x) => x.id === baseId);
-  const cands = Object.keys(MUTATORS).filter((k) => MUTATORS[k].roles.includes(base.role));
+  const cands = Object.keys(MUTATORS).filter((k) => MUTATORS[k].roles.includes(base.role) && !(MUTATORS[k].not || []).includes(baseId));
   const muts = [];
   while (muts.length < 2 && cands.length) muts.push(cands.splice(Math.floor(rnd() * cands.length), 1)[0]);
   const dense = muts.includes('dense');
