@@ -91,6 +91,16 @@ export function updateHeli(state, dt) {
   // Flug: Anflug bis zum Wartepunkt südlich der Bahnen, dort schweben; nach Freigabe zügig nach Norden
   const hy = holdY(state);
   const v = H.st === 'cross' ? 0.16 : 0.09;
+  if (H.st === 'around') {
+    H.x += 0.14 * dt;
+    H.y += (hy + 2 - H.y) * Math.min(1, dt * 0.02);
+    H.hdg = 0;
+    if (H.x > 100) {
+      S.h = null;
+      S.next = state.time + EVERY * (0.8 + 0.5 * hash01(state.time + 5));
+    }
+    return;
+  }
   if (H.st === 'cross' || H.y > hy) {
     H.y -= Math.min(v * dt, H.st === 'cross' ? 99 : H.y - hy);
     H.x += (X - H.x) * Math.min(1, dt * 0.02);
@@ -115,7 +125,7 @@ export function updateHeli(state, dt) {
     if (H.y <= hy + 1 && (!c || (waited > 6 * 60 && !c.hard))) approveHeli(state);
     return;
   }
-  if (waited > 3 * 60 && !H.remind) {
+  if (waited > 3 * 60 && H.y <= hy + 0.5 && !H.remind) {
     H.remind = true;
     radio(state, HELI, `Tower, Rescue 7, holding south, request crossing, we have a critical patient on board.`, 'pilot');
   }
@@ -123,5 +133,12 @@ export function updateHeli(state, dt) {
     H.late = true;
     state.reputation = clamp(state.reputation - 0.5, 0, 100);
     log(state, 'sys', '🚁 Rescue 7 wartet seit sieben Minuten auf die Querung – der Patiententransport verzögert sich.');
+  }
+  // nach 15 Minuten ohne Antwort: Umweg um die Kontrollzone
+  if (waited > 15 * 60) {
+    H.st = 'around';
+    radio(state, HELI, 'Tower, Rescue 7, unable to wait any longer, routing around your control zone to the east.', 'pilot');
+    state.reputation = clamp(state.reputation - 1, 0, 100);
+    log(state, 'sys', '🚁 Rescue 7 hat keine Querung bekommen und fliegt um die Kontrollzone herum – der Patient kommt deutlich später an.');
   }
 }

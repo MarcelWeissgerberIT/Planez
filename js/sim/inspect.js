@@ -120,6 +120,12 @@ export function updateInspection(state, dt) {
       const c = inspConflict(state);
       const quiet = !c && !state.acs.some((a) => a.mode === 'air' && a.arr && a.phase === PH.APPROACH && (a.strip || 'N') === 'N' && AS.routeDistance(a.pos, a.route.length ? a.route : [AS.THR[a.rwy]]) < 13) && !state.acs.some((a) => a.phase === PH.LINEUP || a.phase === PH.LINED);
       if (quiet || (state.time - I.req.t > 40 * 60 && (!c || !c.hard))) approveInspection(state);
+    } else if (state.time - I.req.t > 60 * 60) {
+      // eine Stunde ohne Antwort: Kontrolle abbrechen, später erneut versuchen (das FOD-Risiko wächst weiter)
+      radio(state, CHECK, `Tower, Check 1, returning to base, we'll try again later.`, 'pilot');
+      I.req = null;
+      I.next = state.time + 3600;
+      I.skipped = (I.skipped || 0) + 1;
     } else if (state.time - (I.req.remind || I.req.t) > 20 * 60) {
       I.req.remind = state.time;
       radio(state, CHECK, `Tower, Check 1, still holding short runway ${rq(state)}, request inspection.`, 'pilot');
