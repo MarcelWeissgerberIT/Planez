@@ -363,6 +363,12 @@ export class Stream {
       else if (ac.phase === PH.FINAL && AC_TYPES[ac.type].size === 'L' && Math.random() < 0.5) this.say(r(L.big), 1);
     }
     if (this.seen.size > 300) this.seen.clear();
+    // Regenbogen nach dem Schauer
+    const mp = this.game.map;
+    if (mp && mp.rainbowOn && this.rainbowSeen !== mp.rainbowT) {
+      this.rainbowSeen = mp.rainbowT;
+      this.say(r(['REGENBOGEN 🌈', 'Wie schön ist das denn 🌈😍', 'Screenshot!! 🌈', 'Nach dem Regen kommt der Regenbogen 🌈']), 3);
+    }
     // Wassertaufe im Bild
     const sal = s.salute;
     if (sal && sal.p && !sal.chat) {

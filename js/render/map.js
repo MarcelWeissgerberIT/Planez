@@ -497,9 +497,54 @@ export class MapRenderer {
       }
     }
 
+    this.drawRainbow(ctx, state, wx);
+
     // Overlays: Positionen, Auswahl, Labels
     this.drawOverlays(state, ui);
     this.drawFx(dtReal);
+  }
+
+  // Regenbogen: Klart es nach Regen oder Gewitter bei tiefstehender Sonne auf (morgens oder am späten Nachmittag),
+  // steht für eine Weile ein Regenbogen gegenüber der Sonne – morgens im Westen, nachmittags im Osten.
+  drawRainbow(ctx, state, wx) {
+    const cam = this.cam;
+    if (wx !== this.prevWx) {
+      if ((this.prevWx === 'rain' || this.prevWx === 'storm') && (wx === 'clear' || wx === 'clouds')) this.rainbowT = state.time;
+      this.prevWx = wx;
+    }
+    this.rainbowOn = false;
+    if (this.rainbowT == null) return;
+    const DUR = 25 * 60;
+    const age = state.time - this.rainbowT;
+    if (age < 0 || age > DUR) {
+      this.rainbowT = null;
+      return;
+    }
+    const h = hourOf(state.time);
+    if (!((h > 6.5 && h < 10.5) || (h > 15 && h < 19.5))) return;
+    const a = Math.min(1, age / 120) * Math.min(1, (DUR - age) / 300) * (wx === 'clouds' ? 0.7 : 1);
+    if (a <= 0.01) return;
+    this.rainbowOn = true;
+    const cx = cam.w * (h < 12 ? 0.3 : 0.7), cy = cam.h * 1.08, R = Math.min(cam.h * 0.86, cam.w * 0.75);
+    const cols = ['255,40,40', '255,150,30', '255,236,60', '60,210,90', '40,150,255', '90,60,220', '170,70,230'];
+    const bw = R * 0.016;
+    ctx.save();
+    ctx.lineWidth = bw * 1.5;
+    cols.forEach((c, i) => {
+      ctx.strokeStyle = `rgba(${c},${0.17 * a})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R - i * bw, Math.PI, 2 * Math.PI);
+      ctx.stroke();
+    });
+    // heller Schimmer innerhalb des Bogens
+    const g = ctx.createRadialGradient(cx, cy, R * 0.6, cx, cy, R - 7 * bw);
+    g.addColorStop(0, 'rgba(255,255,255,0)');
+    g.addColorStop(1, `rgba(255,255,255,${0.05 * a})`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R - 7 * bw, Math.PI, 2 * Math.PI);
+    ctx.fill();
+    ctx.restore();
   }
 
   // Pistenarbeiten / FOD-Kontrolle: Sperrkreuze, frische Deckschicht, Fahrzeuge auf der Piste
