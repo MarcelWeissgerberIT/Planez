@@ -260,6 +260,10 @@ export class Stream {
     this.updateWish(s, dt);
     // neue Szenen im Bild
     for (const ac of inView) {
+      if (ac.emgKind === 'smoke' && ac.fireStop && !ac.fireDone && this.evacSeen !== ac.id) {
+        this.evacSeen = ac.id;
+        this.say(r(['NOTRUTSCHEN!! 😱', 'Evakuierung, alle raus 🛟', 'Hoffentlich sind alle okay 🙏', 'Die Feuerwehr ist schon da 🚒']), 3);
+      }
       const prev = this.seen.get(ac.id);
       if (prev === ac.phase) continue;
       this.seen.set(ac.id, ac.phase);
