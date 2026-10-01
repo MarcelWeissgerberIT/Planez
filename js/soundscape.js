@@ -182,6 +182,38 @@ function thunder(strength = 1) {
   src.start(t);
 }
 
+// Reifen beim Aufsetzen: kurzes Quietschen (zwei, drei Hauptfahrwerksräder nacheinander), je härter, desto lauter
+let squealBuf = null;
+function squeal(strength, pan) {
+  if (!squealBuf) squealBuf = noiseBuf(A, 0.6);
+  const out = A.createStereoPanner ? A.createStereoPanner() : null;
+  if (out) {
+    out.pan.value = pan;
+    out.connect(bus);
+  }
+  const n = strength > 0.7 ? 3 : 2;
+  let t = A.currentTime + 0.02;
+  for (let i = 0; i < n; i++) {
+    const src = A.createBufferSource();
+    src.buffer = squealBuf;
+    const bp = A.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1500 + Math.random() * 500;
+    bp.Q.value = 7;
+    const g = A.createGain();
+    const v = 0.05 + 0.2 * strength;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(v, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(v * 0.35, t + 0.09);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28 + strength * 0.15);
+    src.connect(bp).connect(g).connect(out || bus);
+    src.start(t, Math.random() * 0.2);
+    src.stop(t + 0.5);
+    t += 0.06 + Math.random() * 0.05;
+  }
+}
+const prevPhase = new Map();
+
 export const soundscape = {
   on: true,
   vol: 0.7,
@@ -225,6 +257,17 @@ export const soundscape = {
         wsum += near;
       }
     }
+    // Aufsetzen: Reifenquietschen für Landungen in Bildnähe (Lautstärke nach Sinkrate)
+    for (const ac of state.acs) {
+      if (ac.mode !== 'map') continue;
+      const p = prevPhase.get(ac.id);
+      prevPhase.set(ac.id, ac.phase);
+      if (p !== PH.FINAL || ac.phase !== PH.ROLLOUT || paused) continue;
+      const d = Math.hypot(ac.x - cam.x, ac.y - cam.y);
+      const nr = clamp(1 - d / (16 / Math.max(0.4, cam.zoom)), 0, 1) * zoomF;
+      if (nr > 0.05) squeal(clamp(nr * (0.35 + (ac.tdFpm || 200) / 700), 0.1, 1), clamp((ac.x - ac.y - (cam.x - cam.y)) * 0.06, -0.8, 0.8));
+    }
+    if (prevPhase.size > 300) prevPhase.clear();
     // Cessna der Platzrunden und Rettungshubschrauber
     const near = (x, y) => clamp(1 - Math.hypot(x - cam.x, y - cam.y) / (16 / Math.max(0.4, cam.zoom)), 0, 1);
     const vp = state.vfr && state.vfr.p;
