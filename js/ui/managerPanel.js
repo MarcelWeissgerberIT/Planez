@@ -39,6 +39,29 @@ const C2 = '#d95926'; // Kosten (Kategorie 2)
 const PICS = new Set(['retail', 'security', 'lounge', 'parking', 'hotel', 'rwy2', 'ils3', 'rapidExit', 'apronLights', 'marketing', 'stand_contact', 'stand_remote', 'stand_heavy', 'veh_tug', 'veh_baggage', 'veh_fuel', 'veh_catering', 'veh_cleaning', 'veh_bus', 'veh_deice', 'staff', 'fuel_farm', 'rwy_maint', 'solar', 'rail']);
 const pic = (k, tag = '') => (PICS.has(k) ? `<div class="card-pic" style="background-image:url(assets/menu/${k}.webp)">${tag ? `<span class="pic-tag">${tag}</span>` : ''}</div>` : '');
 
+// Fluggast-Zufriedenheit: was Reisende heute am Flughafen erleben – aus Pünktlichkeit, Wartezeit an der
+// Sicherheitskontrolle, Shopping/Lounge, Anreise (Parkhaus, Bahnhof) und Vorfällen; mit Tipp zur schwächsten Stelle
+function satisfactionHtml(s) {
+  const t = s.stats.today, u = s.upgrades;
+  const deps = t.onTime + t.delayed;
+  const wait = secState(s).wait || 0;
+  const rows = [
+    ['⏱️', 'Pünktlichkeit', deps ? Math.round((t.onTime / deps) * 100) : 90, 'Abfertigung beschleunigen, mehr Fahrzeuge oder Personal'],
+    ['🛂', 'Sicherheitskontrolle', clamp(Math.round(70 + (u.security || 0) * 10 - wait * 3), 0, 100), 'weitere Sicherheitsspuren bauen'],
+    ['🛍️', 'Shopping & Lounge', clamp(45 + (u.retail || 0) * 15 + (u.lounge ? 10 : 0), 0, 100), 'Shopping & Gastronomie ausbauen'],
+    ['🚆', 'Anreise', clamp(50 + (u.parking || 0) * 10 + (u.rail ? 25 : 0) + (u.hotel ? 5 : 0), 0, 100), 'Parkhaus ausbauen oder einen Bahnhof bauen'],
+    ['🛡️', 'Sicherheitsgefühl', clamp(100 - (t.incidents || 0) * 20, 0, 100), 'Zwischenfälle vermeiden'],
+  ];
+  const avg = rows.reduce((a, r) => a + r[2], 0) / rows.length;
+  const stars = Math.round(avg / 10) / 2;
+  const starStr = '★'.repeat(Math.floor(stars)) + (stars % 1 ? '⯪' : '') + '☆'.repeat(5 - Math.ceil(stars));
+  const low = rows.slice().sort((a, b) => a[2] - b[2])[0];
+  const bar = (v) => `<div class="bar"><i style="width:${v}%;background:${v < 45 ? 'var(--bad)' : v < 70 ? 'var(--warn)' : 'var(--good)'}"></i></div>`;
+  return `<div class="card sat"><div class="row"><span class="t">😊 Fluggast-Zufriedenheit</span><span class="sat-st" title="${Math.round(avg)} von 100">${starStr}</span></div>
+    ${rows.map(([i, n, v]) => `<div class="sat-r"><span>${i} ${n}</span><b>${v}</b></div>${bar(v)}`).join('')}
+    ${low[2] < 70 ? `<div class="s">💡 Schwächste Stelle: ${low[1]} – ${low[3]}.</div>` : ''}</div>`;
+}
+
 export class ManagerPanel {
   constructor(root, game, opts = {}) {
     this.root = root;
@@ -246,6 +269,7 @@ export class ManagerPanel {
       <div class="k"><span>Kerosin</span><b>${Math.round(fu.price)} €/t</b></div>
       <div class="k" title="Nachtbewegungen / Lärmbeschwerden heute"><span>Nacht · Beschwerden</span><b>${t.nightMov || 0} · ${t.complaints || 0}</b></div>
     </div>`;
+    h += satisfactionHtml(s);
     const G = goalsState(s);
     const gl = activeGoals(s);
     h += `<div class="card goalcard"><div class="row"><span class="t">🏅 ${RANKS[G.rank].name} · ${G.xp} XP</span><button class="btn" data-act="goals">Ziele</button></div>${gl.map((g) => {

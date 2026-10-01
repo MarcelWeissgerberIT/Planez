@@ -1650,3 +1650,8 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 #game.cinema #replay-offer, #game.photo #replay-offer { display: none; }
 #game.replaying #hud, #game.replaying #panel, #game.replaying #panel-toggle, #game.replaying #log-wrap, #game.replaying #radar-wrap, #game.replaying #rail, #game.replaying #map-ctrls, #game.replaying #info, #game.replaying #ticker, #game.replaying #hint, #game.replaying #decision, #game.replaying #toasts, #game.replaying #scn-bar, #game.replaying .ach-pop, #game.replaying #stream, #game.replaying #fids { display: none !important; }
 @media (max-width: 700px) { #replay-offer { bottom: auto; top: calc(var(--hud-h) + 70px); max-width: 92vw; font-size: 12px; } .rp-badge b { font-size: 15px; } }
+/* Fluggast-Zufriedenheit (Management-Zentrale) */
+.card.sat .sat-st { color: #fbbf24; letter-spacing: 1px; font-size: 14px; }
+.card.sat .sat-r { display: flex; justify-content: space-between; font-size: 12px; margin-top: 7px; }
+.card.sat .sat-r b { font-variant-numeric: tabular-nums; }
+.card.sat .s { margin-top: 8px; }
