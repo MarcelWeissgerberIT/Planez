@@ -1493,8 +1493,23 @@ function updateAiBox(s) {
   if (!s.aiPlay) return;
   const feed = (s.aiFeed || []).slice(-5).reverse();
   const own = s.acs.filter((a) => a.manualUntil > s.time);
+  // worauf die KI gerade achtet
+  let watch = '';
+  if (s.role === 'tower') {
+    const arr = s.acs.filter((a) => a.arr && (a.mode === 'air' || a.phase === 'FINAL')).length;
+    const dep = s.acs.filter((a) => a.mode === 'map' && !a.arr && a.phase !== 'AT_STAND').length;
+    watch = `Im Anflug ${arr} · Abflüge unterwegs ${dep} · Piste ${s.rwy}${s.weather.kind === 'storm' ? ' · Gewitter' : ''}`;
+  } else if (s.role === 'ground') {
+    const at = s.acs.filter((a) => a.phase === 'AT_STAND').length;
+    const idle = s.vehicles.filter((v) => v.st === 'idle' && !(v.brokenUntil > s.time)).length;
+    watch = `Abfertigungen ${at} · Fahrzeuge frei ${idle}/${s.vehicles.length}`;
+  } else if (s.role === 'manager') {
+    const min = 60 - Math.floor((s.time / 60) % 60);
+    watch = `Kasse ${fmtMoney(s.cash)} · ${(s.contracts || []).length} Verträge · nächste Planung in ${min} min`;
+  }
   setHTML(box, `<div class="ai-h">${icon('robot')}<b>KI spielt ${ROLE_NAME[s.role]}</b><button class="mini" data-ai-off title="Selbst übernehmen (Z)">Selbst übernehmen</button></div>
     <div class="ai-sub">${s.role === 'tower' ? 'Eigene Befehle haben Vorrang – das Flugzeug gehört dann ' + Math.round(MANUAL_HOLD / 60) + ' min dir.' : s.role === 'ground' ? 'Du kannst jederzeit selbst Fahrzeuge schicken oder Positionen ändern.' : 'Offene Entscheidungen trifft die KI nach kurzer Bedenkzeit – entscheide gern vorher selbst.'}${own.length ? `<br><span class="ai-own">Du führst: ${own.map((a) => esc(a.cs)).join(', ')}</span>` : ''}</div>
+    <div class="ai-watch">${icon('eye')}<span>${esc(watch)}</span></div>
     <div class="ai-feed">${feed.length ? feed.map((f) => `<div class="ai-l ${f.kind}"${f.ac ? ` data-ai-ac="${f.ac}"` : ''}><span>${fmtClock(f.t)}</span>${esc(f.text)}</div>`).join('') : '<div class="ai-l idle">Die KI beobachtet die Lage …</div>'}</div>`);
 }
 

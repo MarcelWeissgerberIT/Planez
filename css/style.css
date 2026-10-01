@@ -2104,3 +2104,6 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 @keyframes aiIn { from { opacity: 0; transform: translateX(-6px); } }
 #game.cinema #ai-box, #game.photo #ai-box, #game.riding #ai-box, #game.replaying #ai-box { display: none !important; }
 @media (max-width: 1000px) { .ai-btn span { display: none; } #ai-box { bottom: 52px; } }
+.ai-watch { display: flex; align-items: center; gap: 6px; font: 600 11px var(--mono); color: #c4b5fd; background: rgba(139,92,246,.12); border-radius: 7px; padding: 4px 7px; margin-bottom: 5px; }
+.ai-watch .ico { width: 14px; height: 14px; flex-shrink: 0; }
+.ai-watch > span { flex: 1; min-width: 0; line-height: 1.35; }
