@@ -1474,3 +1474,40 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .insp-rq.act { border-color: rgba(250,204,21,.3); background: rgba(250,204,21,.06); animation: insp-blink 1.2s ease-in-out infinite; }
 @keyframes insp-blink { 50% { border-color: rgba(250,204,21,.7); } }
 .insp-b { display: flex; flex-direction: column; gap: 4px; }
+
+/* ---------- Barrierefreiheit ---------- */
+/* Große Schrift: textlastige Fenster werden gezoomt, die Seitenleiste behält ihren Platz (Abstände ausgeglichen) */
+/* --panel-w ist die gerenderte Breite: je Rolle um den Zoom vergrößert, das Panel selbst behält seine Innenbreite */
+@media (min-width: 761px) {
+  :root.a11y-big #game { --panel-w: 452px; }
+  :root.a11y-big #game.role-manager, :root.a11y-big #game.role-observer { --panel-w: 339px; }
+  :root.a11y-big #game.tw-layout { --panel-w: 475px; }
+  .a11y-big #panel { zoom: 1.13; width: calc(var(--panel-w) / 1.13); top: calc((var(--hud-h) + 8px) / 1.13); right: calc(8px / 1.13); bottom: calc(8px / 1.13); }
+  .a11y-big #log-wrap { zoom: 1.13; top: calc((var(--hud-h) + 8px) / 1.13); left: calc(8px / 1.13); }
+}
+@media (min-width: 761px) and (max-width: 1280px) {
+  :root.a11y-big #game { --panel-w: 407px; }
+  :root.a11y-big #game.tw-layout { --panel-w: 407px; }
+}
+.a11y-big #info { zoom: 1.13; max-width: calc(min(560px, 100vw - var(--panel-w) - 420px) / 1.13); bottom: calc(12px / 1.13); }
+.a11y-big #game.tw-layout #info { max-width: calc(min(520px, 100vw - var(--panel-w) - 120px) / 1.13); bottom: calc((var(--rail-h) + 16px) / 1.13); }
+.a11y-big #modal-box, .a11y-big .mg-main, .a11y-big #decision, .a11y-big #toasts { zoom: 1.12; }
+.a11y-big .ms-panel, .a11y-big .mm-list { zoom: 1.08; }
+/* Farbsehschwäche: Blau = gut/frei, Orange = schlecht/Konflikt (statt Grün/Rot) */
+:root.a11y-cb { --good: #60a5fa; --bad: #fb923c; --tower: #60a5fa; }
+.a11y-cb .ms-tile.neg b, .a11y-cb .c-t .bad, .a11y-cb .rv-tab td.l, .a11y-cb .insp-rq.hard small { color: #fdba74; }
+.a11y-cb .strip.conf, .a11y-cb .fcard.conf { border-color: #f97316; }
+.a11y-cb .strip.arr .s-bar, .a11y-cb .fcard.k-gnd .c-bar { background: #60a5fa; }
+.a11y-cb .sr-slack.good, .a11y-cb .tr-h b.up, .a11y-cb .fd-c.go, .a11y-cb .insp-rq.ok small, .a11y-cb .sid-WELDA { color: #93c5fd; }
+.a11y-cb .sr-slack.bad, .a11y-cb .tr-h b.down, .a11y-cb .fd-c.bad { color: #fdba74; }
+.a11y-cb .sr-bar b.bad { border-top-color: #fb923c; }
+.a11y-cb .fcard.rberr { box-shadow: 0 0 0 2px #fb923c, 0 0 18px rgba(251,146,60,.35) !important; }
+.a11y-cb .cmd.big.rbfix, .a11y-cb .btn-warn { border-color: #fb923c; background: rgba(249,115,22,.22); }
+.a11y-cb .bd-bar i { background: linear-gradient(90deg, #fb923c, #fbbf24 40%, #60a5fa 80%); }
+.a11y-cb .bd-conf.lo .bd-bar i { background: #fb923c; } .a11y-cb .bd-conf.hi .bd-bar i { background: #60a5fa; }
+.a11y-cb .fcard.emg { border-color: #f97316; background: rgba(249,115,22,.12); }
+/* Bewegung reduzieren */
+.a11y-calm *, .a11y-calm *::before, .a11y-calm *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; transition-duration: 0.001s !important; scroll-behavior: auto !important; }
+.a11y-calm #menu-video { display: none; }
+.lane-h { min-width: 0; overflow: hidden; }
+.lane-h small { overflow: hidden; text-overflow: ellipsis; min-width: 0; }

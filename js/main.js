@@ -43,7 +43,7 @@ import { siteGeom } from './render/sites.js';
 import { initGlossary, setGlossaryEnabled, glossify, glossaryHtml } from './ui/glossary.js';
 import { goalsState, activeGoals, goalProgress, goalText, goalFraction, RANKS, GOAL_DEFS } from './sim/goals.js';
 import { fuelState } from './sim/fuel.js';
-import { initMainMenu, refreshMainMenu, showPauseMenu, loadPrefs, savePrefs } from './ui/menus.js';
+import { initMainMenu, refreshMainMenu, showPauseMenu, loadPrefs, savePrefs, applyA11y } from './ui/menus.js';
 import { ManagementPage } from './ui/mgmtPage.js';
 import { ManagerDock } from './ui/managerDock.js';
 import { projects, cancelProject } from './sim/construction.js';
@@ -139,6 +139,7 @@ const LOAD_TIPS = [
 ];
 
 async function boot() {
+  applyA11y();
   const tip = $('#load-tip');
   if (tip) tip.innerHTML = LOAD_TIPS[Math.floor(Math.random() * LOAD_TIPS.length)];
   const fill = $('#load-fill');
@@ -1372,7 +1373,7 @@ function showGameMenu() {
   const s = game.state;
   const prefsSync = () => savePrefs({ sound: !!s.settings.sound, ambience: s.settings.ambience !== false, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false });
   showPauseMenu(game, {
-    settings: () => ({ perf: Q.perf, gameMusic: loadPrefs().gameMusic !== false, sound: !!s.settings.sound, ambience: s.settings.ambience !== false, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false, labels: game.ui.labels }),
+    settings: () => ({ perf: Q.perf, gameMusic: loadPrefs().gameMusic !== false, bigText: !!loadPrefs().bigText, cbMode: !!loadPrefs().cbMode, calm: !!loadPrefs().calm, sound: !!s.settings.sound, ambience: s.settings.ambience !== false, tts: !!s.settings.tts, glossary: s.settings.glossary !== false, hints: s.settings.hints !== false, labels: game.ui.labels }),
     toggle: (k) => {
       if (k === 'perf') {
         Q.perf = !Q.perf;
@@ -1383,6 +1384,12 @@ function showGameMenu() {
       if (k === 'gameMusic') {
         savePrefs({ gameMusic: loadPrefs().gameMusic === false });
         syncGameMusic();
+        return;
+      }
+      if (k === 'bigText' || k === 'cbMode' || k === 'calm') {
+        savePrefs({ [k]: !loadPrefs()[k] });
+        applyA11y();
+        resize();
         return;
       }
       if (k === 'labels') {
@@ -1478,6 +1485,8 @@ function helpGuide(first) {
     <p>Besondere Szenen – ein A380, eine Notlandung, eine Landung per Lichtsignal, eine Sonderlackierung, ein Start im Gewitter oder in der goldenen Stunde – fotografiert das Spiel automatisch. Die drei besten zeigt der Tagesbericht als Fotostreifen.</p>
     <h3>📋 Schichtbriefing</h3>
     <p>Zu Beginn jedes Tages (Tower, Vorfeld, Manager) fasst ein Briefing die Schicht zusammen: Wetter und Vorhersage, geplanter Verkehr je Stunde mit Spitzenstunde, besondere Flüge (A380, VIP), die Lage deiner Station (Betriebsrichtung und Heavys, Positionen und Tanklager, Kasse, auslaufende Verträge und Marktanteil) und die Ziele der Schicht. <kbd>Enter</kbd> beginnt die Schicht; abschaltbar im Briefing oder unter Einstellungen.</p>
+    <h3>♿ Barrierefreiheit</h3>
+    <p>Unter Einstellungen (Hauptmenü oder Pause): <b>Große Schrift</b> vergrößert Seitenleiste, Info-Karte, Funk, Fenster und Meldungen, ohne dass die Karte schrumpft. Der <b>Farbsehschwäche-Modus</b> nutzt Blau für gut/frei und Orange für schlecht/Konflikt statt Grün/Rot – in Leisten, Karten, Effekten und im Radar. <b>Bewegung reduzieren</b> schaltet pulsierende Hinweise, Übergänge und das Menü-Video ab.</p>
     <h3>🎵 Musik im Spiel</h3>
     <p>Leise Klangflächen unter Funk und Klangkulisse, die sich der Lage anpassen: hell am Tag, dunkel und langsam in der Nacht, mit leisem Arpeggio im Hochbetrieb, mit hohen Glocken bei Schnee – und mit tiefem Puls und Reibung im Akkord bei Notfällen, Treibstoffnot, Gewitter oder Windscherung. Bei Pause und offenen Fenstern wird sie leiser. Ein- und ausschalten unter Einstellungen › Musik im Spiel.</p>
     <h3>📒 Spotterbuch</h3>

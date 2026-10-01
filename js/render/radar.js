@@ -91,6 +91,7 @@ export class Radar {
   }
 
   render(state, dt, ui) {
+    this.cb = document.documentElement.classList.contains('a11y-cb');
     const ctx = this.ctx;
     const { w, h } = this;
     const R = this.R;
@@ -349,7 +350,7 @@ export class Radar {
       const sp = seqPos.get(ac.id);
       if (sp) col = seqRgb(ac);
       if (ac.predConflict) col = [255, 200, 60];
-      if (ac.conflict) col = blink ? [255, 70, 70] : [255, 160, 160];
+      if (ac.conflict) col = this.cb ? (blink ? [255, 140, 30] : [255, 200, 140]) : blink ? [255, 70, 70] : [255, 160, 160];
       if (ac.emergency) col = blink ? [255, 80, 220] : [255, 200, 240];
       if (ac.nordo) col = blink ? [255, 150, 40] : [255, 215, 150];
       if (ac.wxReq && !ac.emergency && !ac.conflict) col = blink ? [251, 191, 36] : [254, 240, 138];

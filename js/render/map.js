@@ -784,7 +784,8 @@ export class MapRenderer {
       return;
     }
     cam.setScreen(ctx);
-    const COL = { good: '#4ade80', bad: '#f87171', warn: '#fbbf24', cash: '#fde047', info: '#e2e8f0', score: '#fcd34d' };
+    const cb = document.documentElement.classList.contains('a11y-cb'); // Farbsehschwäche: Blau/Orange
+    const COL = { good: cb ? '#60a5fa' : '#4ade80', bad: cb ? '#fb923c' : '#f87171', warn: '#fbbf24', cash: '#fde047', info: '#e2e8f0', score: '#fcd34d' };
     const fs = Math.round(clamp(13 * Math.sqrt(cam.zoom / 0.8), 11, 20));
     ctx.font = `800 ${fs}px Inter, system-ui, sans-serif`;
     ctx.textAlign = 'center';
