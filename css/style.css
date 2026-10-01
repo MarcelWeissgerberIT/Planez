@@ -2016,3 +2016,33 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 #ride .rd-pad [data-k=rise] { grid-column: 3; grid-row: 1; font-size: 15px; }
 #ride .rd-pad [data-k=sink] { grid-column: 1; grid-row: 1; font-size: 15px; }
 @media (hover: hover) and (pointer: fine) { #ride.drone .rd-pad { opacity: .55; } #ride.drone .rd-pad:hover { opacity: 1; } }
+
+/* ---------- Karten in den Panels: einheitlich mit Glas-Verlauf und Lichtkante ---------- */
+.card, .stand-row, .rwy-box, .kpis .k, .strip, .fcard { border: 0; background: linear-gradient(180deg, rgba(148, 178, 214, 0.085), rgba(148, 178, 214, 0.025)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(148, 178, 214, 0.15); }
+.card:hover, .stand-row:hover, .strip:hover, .fcard:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 0 1px rgba(148, 178, 214, 0.32); }
+.stand-row { border-radius: 12px; padding: 8px 10px 9px; }
+.stand-row.sel, .strip.sel { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 0 1px var(--accent), 0 0 16px rgba(56, 189, 248, 0.18); }
+.stand-row.late { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(248, 113, 113, 0.6), 0 0 14px rgba(248, 113, 113, 0.12); }
+.sr-id { background: color-mix(in srgb, var(--role) 18%, rgba(255, 255, 255, 0.04)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--role) 45%, transparent); color: #f8fafc; }
+.task { border: 0; box-shadow: inset 0 0 0 1px rgba(148, 178, 214, 0.18); background: rgba(4, 8, 16, 0.35); border-radius: 8px; transition: box-shadow 0.15s, background 0.15s; }
+.task .pb { height: 3px; border-radius: 0 2px 0 0; box-shadow: 0 0 8px var(--good); }
+.kpis .k { border-radius: 11px; padding: 8px 10px; }
+.kpis .k span { font-family: var(--ui-font); font-size: 9.5px; letter-spacing: 0.14em; color: #8ea3bd; }
+.kpis .k b { font-size: 15.5px; color: #f1f5f9; }
+.kpis .k b.pos { color: var(--good); }
+.kpis .k b.neg { color: var(--bad); }
+.rwy-box { border-radius: 12px; }
+.strip.req, .fcard.req { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(251, 191, 36, 0.75), 0 0 14px rgba(251, 191, 36, 0.15); }
+.strip.emg, .fcard.emg { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px #f43f5e, 0 0 16px rgba(244, 63, 94, 0.25); background: linear-gradient(180deg, rgba(244, 63, 94, 0.16), rgba(244, 63, 94, 0.06)); }
+.strip.conf, .fcard.conf { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px #ef4444; }
+.fcard { border-radius: 12px; }
+.fcard.active { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px var(--accent), 0 0 18px rgba(56, 189, 248, 0.22); background: linear-gradient(180deg, rgba(56, 189, 248, 0.14), rgba(56, 189, 248, 0.04)); }
+.fcard.k-depclr { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(232, 121, 249, 0.55); }
+.fcard.drop-before { box-shadow: -4px 0 0 0 var(--accent); }
+.fcard.drop-after { box-shadow: 4px 0 0 0 var(--accent); }
+.c-cs, .sr-ac { letter-spacing: 0.02em; }
+/* Tipp-Box oben im Panel */
+#hint.hint { border: 0; border-radius: 12px; background: linear-gradient(180deg, color-mix(in srgb, var(--role) 16%, transparent), color-mix(in srgb, var(--role) 6%, transparent)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 0 1px color-mix(in srgb, var(--role) 40%, transparent); padding: 9px 9px 9px 11px; }
+/* Fortschrittsbalken */
+.bar { background: rgba(4, 8, 16, 0.5); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4); border-radius: 4px; overflow: hidden; }
+.bar i { box-shadow: 0 0 8px currentColor; }
