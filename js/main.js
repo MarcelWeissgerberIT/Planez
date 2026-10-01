@@ -1059,6 +1059,17 @@ function wireGame() {
 
   // Info-Karte
   const info = $('#info');
+  // Mitfliegen schon beim Drücken auslösen: im Anflug wird die Karte laufend neu gezeichnet, ein Klick ginge sonst verloren
+  info.addEventListener('pointerdown', (e) => {
+    const rd = e.target.closest('[data-ride]');
+    if (!rd || !game.state) return;
+    e.preventDefault();
+    const [mode, id] = rd.dataset.ride.split(':');
+    if (!game.ride) game.ride = new Ride(game);
+    if (game.cinema && game.cinema.on) game.cinema.stop();
+    game.ride.start(id, mode);
+    info._html = null;
+  });
   info.addEventListener('click', (e) => {
     const s = game.state;
     if (e.target.closest('[data-close]')) return game.select(null);
@@ -1076,15 +1087,7 @@ function wireGame() {
       info._html = null;
       return;
     }
-    const rd = e.target.closest('[data-ride]');
-    if (rd) {
-      const [mode, id] = rd.dataset.ride.split(':');
-      if (!game.ride) game.ride = new Ride(game);
-      if (game.cinema && game.cinema.on) game.cinema.stop();
-      game.ride.start(id, mode);
-      info._html = null;
-      return;
-    }
+    if (e.target.closest('[data-ride]')) return; // schon bei pointerdown erledigt
     const sp = e.target.closest('[data-spot]');
     if (sp) {
       spotter().shoot(s.acs.find((a) => a.id === sp.dataset.spot));
