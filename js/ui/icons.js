@@ -52,6 +52,10 @@ const P = {
   tug: '<path d="M3 16.5V12l2-4h7l2 4h6.5v4.5z"/><path d="M7 8V5.5h3V8"/><circle cx="7" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/><path class="a" d="M20.5 13.5H23"/>',
   planChart: '<rect x="3.5" y="4" width="17" height="16" rx="1.5"/><path d="M3.5 9h17M8 4v16"/><path class="a" d="M10 12h6M11.5 15.5h7"/>',
   bolt: '<path class="a" d="M13.5 2.5L5 13.5h6l-1.5 8L18 10.5h-6z"/>',
+  land: '<path d="M3 20.5h18"/><path d="M4 9.5l2.5 1 1.5-3 1.3.4-.5 3.4 5 2 2.3-1.3c.8-.4 1.8 0 2 .8.1.6-.2 1.1-.7 1.4L6.5 15.8 3.8 14z"/><path class="a" d="M14 18.5h5"/>',
+  takeoff: '<path d="M3 20.5h18"/><path d="M4.5 14.5l2-1 2 2 3.5-2.2-3.4-4.7 1.6-.9 5.3 3.4 3.3-2c.8-.5 1.8-.2 2.1.6.2.6-.1 1.2-.6 1.5L7.3 17.6z"/><path class="a" d="M5 18.5h5"/>',
+  moon: '<path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/><circle class="a" cx="17" cy="6" r="1"/>',
+  hourglass: '<path d="M6.5 3.5h11M6.5 20.5h11M7.5 3.5c0 5 9 6 9 8.5s-9 3.5-9 8.5M16.5 3.5c0 5-9 6-9 8.5s9 3.5 9 8.5"/><path class="a" d="M10 18.5h4l-2-2.2z"/>',
   medal: '<path d="M8 3.5l2.5 6M16 3.5l-2.5 6"/><circle cx="12" cy="15" r="5.5"/><path class="a" d="M12 12.2l.9 1.9 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/>',
 };
 

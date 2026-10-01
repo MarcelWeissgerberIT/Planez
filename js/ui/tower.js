@@ -91,7 +91,7 @@ export function runwayStatusHtml(state) {
   // Assistenz: Wetterumwege und Pistenkontrollen dem Kollegen überlassen
   if (!state.auto.atc) h += `<div class="rwy-assist"><span>Assistenz</span><button class="rl-tg" data-assist="wxAuto" title="Umweg-Anfragen bei Gewitter automatisch genehmigen (ohne Punkte)"><span class="switch ${state.settings.wxAuto ? 'on' : ''}"></span>Umwege auto</button><button class="rl-tg" data-assist="inspAuto" title="Pistenkontrollen, Hubschrauber-Querungen und Touch-and-Go der Platzrunden in ruhigen Phasen automatisch freigeben (ohne Punkte)"><span class="switch ${state.settings.inspAuto ? 'on' : ''}"></span>Nebenverkehr auto</button></div>`;
   if (hasRwy2(state)) h += `<div class="rwy-cond">Betriebsart: <b>${segregated(state) ? 'getrennt (Landungen Süd, Starts Nord)' : 'eine Bahn (alles auf der Nordbahn)'}</b></div><button class="cmd" data-rwymode="${segregated(state) ? 'single' : 'seg'}">${segregated(state) ? '→ eine Bahn' : '→ getrennt'}</button>`;
-  h += `<div class="rwy-cond">${temperature(state).toFixed(0)} °C · ${state.weather.kind === 'fog' ? `RVR <b>${state.weather.rvr ?? '—'} m</b> · LVP · ` : ''}${isNight(state) ? `🌙 Nacht${state.settings.curfew ? 'flugverbot' : ''}` : '☀️ Tagbetrieb'}</div>${qm('rwy')}`;
+  h += `<div class="rwy-cond">${temperature(state).toFixed(0)} °C · ${state.weather.kind === 'fog' ? `RVR <b>${state.weather.rvr ?? '—'} m</b> · LVP · ` : ''}${isNight(state) ? `${icon('moon')} Nacht${state.settings.curfew ? 'flugverbot' : ''}` : `${icon('sun')} Tagbetrieb`}</div>${qm('rwy')}`;
   return h;
 }
 
@@ -237,7 +237,7 @@ export class TowerPanel {
     rail.innerHTML = `
       <div class="rail-head">
         <div class="rail-title">${icon('plane')} Flugstreifen${qm('seq')}</div>
-        <div class="seg" id="rl-filter" title="Filter: nur Landungen, beide oder nur Starts"><button data-f="arr">🛬 An</button><button data-f="both">Beide</button><button data-f="dep">🛫 Ab</button></div>
+        <div class="seg" id="rl-filter" title="Filter: nur Landungen, beide oder nur Starts"><button data-f="arr">${icon('land')} An</button><button data-f="both">Beide</button><button data-f="dep">${icon('takeoff')} Ab</button></div>
         <button class="rl-tg" id="rl-spacing" title="Reihenfolge per Drag &amp; Drop – Anflugfreigaben, Geschwindigkeit und Lücken für Starts passen sich automatisch an"><span class="switch"></span>Auto-Staffelung</button>
         <button class="rl-tg" id="rl-gauto" title="Rollverkehr (Pushback, Rollen, Kreuzen) automatisch – du kümmerst dich nur um Luftraum und Piste"><span class="switch"></span>Rollverkehr auto</button>
         <span id="rl-sort"></span>
@@ -245,8 +245,8 @@ export class TowerPanel {
         <button class="mini" id="rl-min" title="Leiste verkleinern">▾</button>
       </div>
       <div class="rail-lanes" id="rl-lanes">
-        <div class="lane" data-lane="arr"><div class="lane-h"><span>🛬 Landungen</span><span class="cnt" id="rl-c-arr">0</span><small>links = zuerst · ziehen zum Umsortieren</small></div><div class="lane-cards" id="rl-arr"></div></div>
-        <div class="lane" data-lane="dep"><div class="lane-h"><span>🛫 Starts</span><span class="cnt" id="rl-c-dep">0</span><small>links = zuerst</small></div><div class="lane-cards" id="rl-dep"></div></div>
+        <div class="lane" data-lane="arr"><div class="lane-h"><span>${icon('land')} Landungen</span><span class="cnt" id="rl-c-arr">0</span><small>links = zuerst · ziehen zum Umsortieren</small></div><div class="lane-cards" id="rl-arr"></div></div>
+        <div class="lane" data-lane="dep"><div class="lane-h"><span>${icon('takeoff')} Starts</span><span class="cnt" id="rl-c-dep">0</span><small>links = zuerst</small></div><div class="lane-cards" id="rl-dep"></div></div>
       </div>`;
     $('#game').appendChild(rail);
     this.rail = rail;
@@ -508,7 +508,11 @@ export class TowerPanel {
     const mid = `${esc(acRoute(state, ac))} · ${esc(where)}`;
     // Status + Staffelung
     let st = '';
-    if (inSeq) st = land ? (ac.clr.land ? '🛬 Landung frei' : '🛬 Landung') : ac.clr.takeoff ? '🛫 Start frei' : ac.clr.lineup ? '🛫 Line up' : '🛫 Start';
+    let stIco = '';
+    if (inSeq) {
+      st = land ? (ac.clr.land ? 'Landung frei' : 'Landung') : ac.clr.takeoff ? 'Start frei' : ac.clr.lineup ? 'Line up' : 'Start';
+      stIco = icon(land ? 'land' : 'takeoff') + ' ';
+    }
     else st = PHASE_DE[ac.phase] || '';
     if (ac.holdPos) st += ' · HALT';
     const rq = ac.wxReq ? `<span class="rq wx">⛈️ bittet um Umweg ${ac.wxReq.deg}° ${ac.wxReq.side === 'left' ? 'links' : 'rechts'} (Gewitter)</span>` : ac.nordo ? `<span class="rq nordo">📻✖ Funkausfall – ${ac.clr.land ? 'Landung per Licht frei' : ac.mode === 'air' ? 'grünes Licht zum Landen' : 'Lichtsignal zum Rollen'}</span>` : ac.req ? `<span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
@@ -519,7 +523,7 @@ export class TowerPanel {
       else if (!land && [PH.HOLDING, PH.LINED, PH.LINEUP].includes(ac.phase)) sp = '<span class="spc ok">Startfenster offen</span>';
     }
     if (ac.spacingHold && ac.phase === PH.HOLD) sp = '<span class="spc">Schleife für die Reihenfolge</span>';
-    const state2 = `<b style="color:${inSeq ? col : '#cbd5e1'}">${esc(st)}</b>${sidTag}${rq}${sp}${fuelChip(ac)}`;
+    const state2 = `<b style="color:${inSeq ? col : '#cbd5e1'}">${stIco}${esc(st)}</b>${sidTag}${rq}${sp}${fuelChip(ac)}`;
     // Befehle: aktive Karte alle, sonst nur der passende Hauptbefehl
     let btns = '';
     if (sel) {
@@ -528,11 +532,11 @@ export class TowerPanel {
     } else if (ac.req) {
       const k = primaryCommand(state, ac);
       if (k) btns = `<button class="cmd big" data-cmd="${k}" data-ac="${ac.id}">${CMDS[k].label}${CMDS[k].key ? ` <kbd>${CMDS[k].key}</kbd>` : ''}</button>`;
-      else if ((ac.req === 'taxi_in' || ac.req === 'cross') && !ac.stand) btns = `<span class="cmd big wait" title="Das Vorfeld hat noch keine Parkposition zugewiesen">⏳ wartet auf Parkposition</span>`;
+      else if ((ac.req === 'taxi_in' || ac.req === 'cross') && !ac.stand) btns = `<span class="cmd big wait" title="Das Vorfeld hat noch keine Parkposition zugewiesen">${icon('hourglass')} wartet auf Parkposition</span>`;
       else if (ac.req === 'approach') btns = `<span class="cmd big wait" title="Die Auto-Staffelung gibt Anflüge in der Reihenfolge der Warteliste frei. Vorziehen: Karte in die Pistenfolge ziehen.">🕒 Auto-Staffelung gibt frei</span>`;
       else if (ac.req === 'takeoff') {
         const w = departureWait(state, ac);
-        btns = `<span class="cmd big wait" title="Startfreigabe erst, wenn die Piste sicher frei bleibt – über die aktive Karte oder T geht es trotzdem">⏳ ${esc(w.why)} · ~${mmss(w.sec)}</span>`;
+        btns = `<span class="cmd big wait" title="Startfreigabe erst, wenn die Piste sicher frei bleibt – über die aktive Karte oder T geht es trotzdem">${icon('hourglass')} ${esc(w.why)} · ~${mmss(w.sec)}</span>`;
       }
     }
     // Wetter-Umweg: genehmigen (Y) oder wegen Verkehr ablehnen – ohne Antwort weicht der Pilot selbst aus
