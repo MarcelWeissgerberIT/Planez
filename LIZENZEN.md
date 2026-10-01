@@ -18,7 +18,7 @@ Inter, JetBrains Mono, Chakra Petch und Orbitron – SIL Open Font License 1.1, 
 Grafiken, Fotos und Hintergrundvideos wurden mit Higgsfield AI (GPT Image, Kling) erzeugt, die Musik mit OpenArt. Die Nutzungsrechte richten sich nach den Bedingungen des jeweiligen Dienstes zum Zeitpunkt der Erzeugung.
 
 ## Fiktive Inhalte
-Alle Airlines, Rufzeichen, Flughäfen in der Umgebung, Personen und Flüge sind frei erfunden.
+Alle Airlines, Flugzeughersteller und -typen (Aviora, Halvard, Ventis, Borealis, Corvin, Selva, Vireo, Alcedo, Pember, Merle, Alpenwerk, Regent), Rufzeichen, Flughäfen in der Umgebung, Personen und Flüge sind frei erfunden. Ähnlichkeiten mit realen Flugzeugen sind gewollt allgemein (Bauart, Größe), Namen und Kürzel sind eigene.
 
 ## Sprachausgabe
 Funk und Durchsagen nutzen die Sprachausgabe des Browsers bzw. Betriebssystems (Web Speech API). Je nach Browser kann diese Stimmen eines Online-Dienstes verwenden; sie lässt sich in den Einstellungen abschalten.

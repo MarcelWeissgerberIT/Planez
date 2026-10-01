@@ -1,5 +1,5 @@
 // Management: Verträge, Ausbau, Fuhrpark, Gebühren, Finanzen
-import { AC_TYPES, AIRLINES, CITIES, VEH_TYPES, UPGRADES, FEE_LIMITS, DEFAULT_FEES, MARKETING, STAND_COSTS } from '../config.js';
+import { AC_TYPES, AIRLINES, CITIES, VEH_TYPES, UPGRADES, FEE_LIMITS, DEFAULT_FEES, MARKETING, STAND_COSTS, typeCode } from '../config.js';
 import { rivalState, shareTarget, ourScore, rivalScore, offerFactor, renewBonus, RIVAL_NAME } from '../sim/rival.js';
 import { fmtMoney, fmtInt, esc, clamp, fmtClock, dayOf } from '../util.js';
 import { setHTML, toast } from './dom.js';
@@ -414,7 +414,7 @@ export class ManagerPanel {
     const ga = gaSlots(s);
     const who = (x) => {
       const a = x.occ ? s.acs.find((q) => q.id === x.occ) : null;
-      return a ? `${esc(a.cs)} · ${a.type}` : x.resv ? 'reserviert' : 'frei';
+      return a ? `${esc(a.cs)} · ${typeCode(a.type)}` : x.resv ? 'reserviert' : 'frei';
     };
     const used = ga.filter((x) => x.occ || x.resv).length;
     let h = `<div class="p-sec"><span>🌾 Abstellplätze auf der Wiese</span><span class="cnt">${ga.length - used} frei / ${ga.length}</span></div>`;
@@ -449,7 +449,7 @@ export class ManagerPanel {
       } else {
         const up = pj ? projectInline(pj) : st.size !== 'L' && st.kind !== 'cargo' ? `<button class="mini" data-act="standL" data-v="${st.id}" ${s.cash < STAND_COSTS.upgradeL ? 'disabled' : ''}>→ Klasse L (${fmtMoney(STAND_COSTS.upgradeL)} · ${STAND_HOURS.upgradeL} h, Position gesperrt)</button>` : '';
         const rot = occ ? s.rots[occ.rot] : null;
-        const detail = occ ? `${esc(occ.cs)} · ${occ.type}${rot ? ` · STD ${fmtClock(rot.std)}` : ''}` : st.resv ? 'reserviert' : 'frei';
+        const detail = occ ? `${esc(occ.cs)} · ${typeCode(occ.type)}${rot ? ` · STD ${fmtClock(rot.std)}` : ''}` : st.resv ? 'reserviert' : 'frei';
         h += `<div class="card${pj ? ' site' : ''}"><div class="row"><span class="t">P${st.id} · ${KIND_DE[st.kind]} · ${st.size}</span><span style="font-size:12px;color:var(--muted)">${st.closed ? 'gesperrt (Bau)' : detail}</span></div>${up ? `<div class="acts">${up}</div>` : ''}</div>`;
       }
     }

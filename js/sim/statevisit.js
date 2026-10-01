@@ -45,7 +45,7 @@ export function startStateVisit(state) {
   notify(state, `🎖️ Staatsbesuch: ${guest} im Anflug (${ac.cs}) – Protokoll: Landung ohne Warteschleife, Abflug pünktlich`, 'good');
   if (state.role === 'ground') notify(state, '🎖️ Vorfeld: eine freie Großraum-Kontaktposition (3 oder 5) für die Regierungsmaschine bereithalten', 'info');
   pushNews(state, `Staatsbesuch: ${guest} landet heute in ${state.name} – die Polizei sperrt die Zufahrt zum Vorfeld.`, 'info', '🎖️');
-  log(state, 'sys', `🎖️ Staatsbesuch angekündigt: ${guest} mit der Regierungsmaschine ${ac.cs} (A330). Roter Teppich und Kolonne stehen bereit.`);
+  log(state, 'sys', `🎖️ Staatsbesuch angekündigt: ${guest} mit der Regierungsmaschine ${ac.cs} (AV-33). Roter Teppich und Kolonne stehen bereit.`);
   return ac;
 }
 

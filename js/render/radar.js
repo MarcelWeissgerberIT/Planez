@@ -2,7 +2,7 @@
 import * as AS from '../sim/airspace.js';
 import * as LY from '../layout.js';
 import { PH } from '../sim/aircraft.js';
-import { AC_TYPES } from '../config.js';
+import { AC_TYPES, typeCode } from '../config.js';
 import { clamp, esc } from '../util.js';
 import { isSeqArrival } from '../sim/sequence.js';
 import { markHex } from '../ui/marks.js';
@@ -492,7 +492,7 @@ export class Radar {
       const t = AC_TYPES[ac.type];
       const l1 = (ac.mode === 'map' && sp ? '#' + sp + ' ' : '') + ac.cs + (ac.req ? ' ●' : '');
       const l2 = `${fl}${trend} ${spd}`;
-      const l3 = ac.fuelEmergency ? '7700 FUEL' : ac.emergency ? '7700 EMERG' : ac.nordo ? `7600 NORDO${ac.clr.land ? ' LND' : ''}` : `${sp ? '#' + sp + ' ' : ''}${ac.type}/${t.wake}${ac.wxReq ? ' WX?' : ac.route && ac.route[0] && ac.route[0].wx ? ' WX' : ac.protocol && !ac.clr.land && ac.phase !== PH.HOLD ? ' STATE' : ac.minFuel ? ' MINFUEL' : ac.wakeWarn ? ' WAKE!' : ac.clr.land ? ' LND' : ac.phase === PH.APPROACH ? ' APP' : ac.phase === PH.HOLD ? ' HLD' : ''}`;
+      const l3 = ac.fuelEmergency ? '7700 FUEL' : ac.emergency ? '7700 EMERG' : ac.nordo ? `7600 NORDO${ac.clr.land ? ' LND' : ''}` : `${sp ? '#' + sp + ' ' : ''}${typeCode(ac.type)}/${t.wake}${ac.wxReq ? ' WX?' : ac.route && ac.route[0] && ac.route[0].wx ? ' WX' : ac.protocol && !ac.clr.land && ac.phase !== PH.HOLD ? ' STATE' : ac.minFuel ? ' MINFUEL' : ac.wakeWarn ? ' WAKE!' : ac.clr.land ? ' LND' : ac.phase === PH.APPROACH ? ' APP' : ac.phase === PH.HOLD ? ' HLD' : ''}`;
       // Datenblock-Position: freie Ecke suchen (Überlappungen vermeiden)
       const compact = ac.mode === 'map';
       const noteTxt = mk && ac.mark.note ? `⚑ ${ac.mark.note}` : '';

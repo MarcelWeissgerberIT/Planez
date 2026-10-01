@@ -8,7 +8,7 @@ import { heliConflict, approveHeli, holdHeli } from '../sim/heli.js';
 import { vfrConflict, clearVfr, extendVfr } from '../sim/vfr.js';
 import { PH, PHASE_DE, runwayOccupants, fmtAlt } from '../sim/aircraft.js';
 import * as AS from '../sim/airspace.js';
-import { AC_TYPES, CITIES, AIRPORT } from '../config.js';
+import { AC_TYPES, CITIES, AIRPORT, typeCode } from '../config.js';
 import { fmtClock, esc } from '../util.js';
 import { syncList, setHTML, toast, $ } from './dom.js';
 import { sfx } from '../audio.js';
@@ -86,7 +86,7 @@ export function runwayStatusHtml(state) {
   const VP = state.vfr && state.vfr.p;
   if (VP && VP.req && !VP.clr && !state.auto.atc && !state.settings.inspAuto) {
     const c = vfrConflict(state);
-    h += `<div class="insp-rq vfr${c ? (c.hard ? ' hard' : ' soft') : ' ok'}">🛩️ <b>${esc(VP.cs)}</b> (Cessna, Platzrunde) bittet um Touch and Go${VP.mode === 'orbit' ? ' · fliegt Vollkreis' : ''}<small>${c ? `⚠ ${esc(c.ac.cs)} ${esc(c.why)}` : '✓ Lücke – jetzt freigeben'}</small></div><div class="insp-b"><button class="cmd ${c && c.hard ? '' : 'big'}" data-vfr="ok" title="Taste Y">Touch & Go</button>${VP.told || VP.mode === 'orbit' ? '' : '<button class="cmd" data-vfr="ext">Vollkreis</button>'}</div>`;
+    h += `<div class="insp-rq vfr${c ? (c.hard ? ' hard' : ' soft') : ' ok'}">🛩️ <b>${esc(VP.cs)}</b> (Alcedo, Platzrunde) bittet um Touch and Go${VP.mode === 'orbit' ? ' · fliegt Vollkreis' : ''}<small>${c ? `⚠ ${esc(c.ac.cs)} ${esc(c.why)}` : '✓ Lücke – jetzt freigeben'}</small></div><div class="insp-b"><button class="cmd ${c && c.hard ? '' : 'big'}" data-vfr="ok" title="Taste Y">Touch & Go</button>${VP.told || VP.mode === 'orbit' ? '' : '<button class="cmd" data-vfr="ext">Vollkreis</button>'}</div>`;
   }
   // Assistenz: Wetterumwege und Pistenkontrollen dem Kollegen überlassen
   if (!state.auto.atc) h += `<div class="rwy-assist"><span>Assistenz</span><button class="rl-tg" data-assist="wxAuto" title="Umweg-Anfragen bei Gewitter automatisch genehmigen (ohne Punkte)"><span class="switch ${state.settings.wxAuto ? 'on' : ''}"></span>Umwege auto</button><button class="rl-tg" data-assist="inspAuto" title="Pistenkontrollen, Hubschrauber-Querungen und Touch-and-Go der Platzrunden in ruhigen Phasen automatisch freigeben (ohne Punkte)"><span class="switch ${state.settings.inspAuto ? 'on' : ''}"></span>Nebenverkehr auto</button></div>`;
@@ -499,7 +499,7 @@ export class TowerPanel {
     else if (ac.stand) eta = `P${ac.stand}`;
     const numB = num ? `<span class="c-num" style="background:${col}">${num}</span>` : `<span class="c-num off">${g === 'q' ? '·' : g === 'gnd' || g === 'apron' ? '⌂' : '↗'}</span>`;
     const sidTag = lane === 'dep' && ac.sid ? ` <span class="sid sid-${ac.sid}" title="Abflugroute ${ac.sid} (${SIDS[ac.sid]}) – gleiche Route braucht 100 s Abstand statt 75 s">↗${ac.sid}</span>` : '';
-    const top = `${numB}<span class="c-cs">${flagButton(ac)}${esc(ac.cs)}</span><small class="c-t">${ac.type}/${wakeTag(t.wake)}${ac.emergency ? ' · <b class="bad">7700</b>' : ''}${ac.nordo ? ' · <b class="bad" title="Funkausfall – nur Lichtsignale">7600</b>' : ''}${ac.protocol ? ' · <b class="proto" title="Staatsbesuch – Protokoll: ohne Warteschleife landen, pünktlich abfliegen">🎖️ STATE</b>' : ''}</small><span class="c-eta">${eta}</span>`;
+    const top = `${numB}<span class="c-cs">${flagButton(ac)}${esc(ac.cs)}</span><small class="c-t">${typeCode(ac.type)}/${wakeTag(t.wake)}${ac.emergency ? ' · <b class="bad">7700</b>' : ''}${ac.nordo ? ' · <b class="bad" title="Funkausfall – nur Lichtsignale">7600</b>' : ''}${ac.protocol ? ' · <b class="proto" title="Staatsbesuch – Protokoll: ohne Warteschleife landen, pünktlich abfliegen">🎖️ STATE</b>' : ''}</small><span class="c-eta">${eta}</span>`;
     // Lage
     let where = '';
     if (ac.mode === 'air') where = `${String(Math.round(ac.alt / 100)).padStart(3, '0')}${ac.tAlt > ac.alt + 150 ? '↑' : ac.tAlt < ac.alt - 150 ? '↓' : ''} · ${Math.round(ac.spd)} kt`;

@@ -199,8 +199,8 @@ export function triggerEvent(state, kind, opt = {}) {
     if (!state.stands.some((st) => st.built && st.size === 'L' && st.kind !== 'cargo')) return null;
     const n = randInt(state, 380, 389) * 2;
     const ac = spawnSpecial(state, { airline: 'OPL', type: 'A388', arrNo: `OPL${n}`, depNo: `OPL${n + 1}`, city: pick(state, ['DXB', 'SIN', 'HKG', 'PVG']), special: 'a380', feeMult: 1.6 });
-    notify(state, '🛬 Sonderbesuch: Ein Airbus A380 – der größte Passagierjet der Welt – ist im Anflug!', 'good');
-    log(state, 'sys', `Superjumbo ${ac.cs} (A380) angekündigt – Spotter strömen an den Zaun.`);
+    notify(state, '🛬 Sonderbesuch: Eine Aviora AV-38 – der größte Passagierjet der Welt – ist im Anflug!', 'good');
+    log(state, 'sys', `Superjumbo ${ac.cs} (AV-38) angekündigt – Spotter strömen an den Zaun.`);
     state.life = state.life || {};
     state.life.a380 = (state.life.a380 || 0) + 1;
     return ac;

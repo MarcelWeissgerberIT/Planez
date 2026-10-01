@@ -8,7 +8,7 @@ import { clamp, esc, hourOf } from '../util.js';
 import { listeners } from '../sim/messages.js';
 import * as LY from '../layout.js';
 
-const USERS = ['spotter_kai', 'A380fan', 'ILS_Ina', 'Rollweg_Rudi', 'flugfeldfoto', 'PlaneSpotterHH', 'reverse_thrust', 'Maike_fliegt', 'TowerTom', 'jetlag_jonas',
+const USERS = ['spotter_kai', 'AV38fan', 'ILS_Ina', 'Rollweg_Rudi', 'flugfeldfoto', 'PlaneSpotterHH', 'reverse_thrust', 'Maike_fliegt', 'TowerTom', 'jetlag_jonas',
   'Nordhafenhasser', 'kerosinkeks', 'MetarMia', 'butterlandung', 'Fensterplatz_Fred', 'Squawk7000', 'gate_gabi', 'propeller_paul', 'Heavy_Hanna', 'Taxiway_Tim'];
 const COLORS = ['#38bdf8', '#a3e635', '#fbbf24', '#c084fc', '#fb7185', '#34d399', '#f97316', '#60a5fa', '#2dd4bf', '#f472b6'];
 const r = (a) => a[Math.floor(Math.random() * a.length)];
@@ -21,14 +21,14 @@ const L = {
   ga: ['DURCHSTARTEN 😱', 'Go-around! Spannend', 'Nochmal ne Ehrenrunde', 'Puh, gute Entscheidung vom Piloten', 'Clip das!! 🎬'],
   push: ['Pushback läuft', 'Schlepper-Fahrer heute in Topform', 'Gleich geht\'s los', 'Beacon an, Triebwerke kommen'],
   taxi: ['Rollt schön', 'Follow the greens', 'Wohin geht\'s?'],
-  a380: ['A380!!! 🐋', 'DER WAL IST DA 🐋🐋', 'Clip das!!', 'Vier Triebwerke, Gänsehaut', 'Endlich mal ein A380'],
+  a380: ['AV-38!!! 🐋', 'DER WAL IST DA 🐋🐋', 'Clip das!!', 'Vier Triebwerke, Gänsehaut', 'Endlich mal eine AV-38'],
   state: ['Staatsbesuch 🎖️ roter Teppich!', 'Wer ist da drin??', 'Polizeikolonne 🚓🚓', 'Ehrenformation, wie im Fernsehen', 'Protokoll on point'],
   emg: ['Feuerwehr steht bereit 🚒', 'Daumen drücken 🙏', 'Hoffentlich geht alles gut', 'Notfall, alle ruhig bleiben'],
   emgDone: ['Alle sicher unten ❤️', 'Puh. Respekt an die Crew 👏', 'Applaus für den Tower 👏👏'],
   special: ['Die Sonderlackierung 😍', 'Was für ein Lack!', 'Muss ich fürs Spotterbuch haben'],
   big: ['Großraumjet, schön', 'Heavy im Anflug', 'So ein Brummer'],
   bored: ['Langweilig hier 😴', 'Kamera auf die Bahn bitte', 'Zeig mal was', 'Wann kommt der nächste?', 'Leeres Vorfeld… 🦗', 'Schwenk mal zur Bahn!'],
-  chat: ['Grüße aus Leipzig 👋', 'Erster!', 'Bester Stream', 'Läuft heute', 'Wer ist auch am Zaun?', 'Das Wetter heute 👌', 'Wie heißt das Kennzeichen?', 'Tower macht heute einen guten Job', 'Mehr A380 bitte', 'Nordhafen könnte das nicht'],
+  chat: ['Grüße aus Leipzig 👋', 'Erster!', 'Bester Stream', 'Läuft heute', 'Wer ist auch am Zaun?', 'Das Wetter heute 👌', 'Wie heißt das Kennzeichen?', 'Tower macht heute einen guten Job', 'Mehr AV-38 bitte', 'Nordhafen könnte das nicht'],
   night: ['Die Lichter nachts 😍', 'Anflugbefeuerung 🔥', 'Nachtschicht-Gang hier?', 'Blaue Rollwegbefeuerung ist so schön'],
   storm: ['Blitz!! ⚡', 'Gewitterlandung, mutig', 'Lieber nicht am Zaun stehen jetzt'],
   snow: ['Enteisung ist so satisfying', 'Schneepflüge im Konvoi ❄️', 'Winter-Spotting ❄️'],
@@ -72,7 +72,7 @@ export class Stream {
       if (!this.on) return;
       if (/Staatsbesuch angekündigt/.test(m.text)) this.say(r(['Staatsbesuch angekündigt!! 🎖️', 'Gleich kommt die Regierungsmaschine', 'Kamera zum Vorfeld, schnell']), 3);
       else if (/MAYDAY/.test(m.text)) this.say(r(['MAYDAY gehört?! 😳', 'Notfall im Anflug!', 'Kamera auf die Bahn!!']), 3);
-      else if (/Superjumbo .* angekündigt/.test(m.text)) this.say(r(['A380 kommt!!! 🐋', 'Leute, der Wal ist angekündigt']), 3);
+      else if (/Superjumbo .* angekündigt/.test(m.text)) this.say(r(['AV-38 kommt!!! 🐋', 'Leute, der Wal ist angekündigt']), 3);
     });
   }
 
@@ -120,10 +120,10 @@ export class Stream {
     if (s.acs.some((a) => [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(a.phase))) W.push({ k: 'dep', t: 'Ich will einen Start sehen! 🛫', ok: (a) => a.phase === PH.TAKEOFF });
     if (map.some((a) => a.phase === PH.STAND && a.ta && a.ta.tasks.push)) W.push({ k: 'push', t: 'Zeigt mal einen Pushback', ok: (a) => a.phase === PH.PUSH });
     const big = map.find((a) => a.type === 'A388' || a.protocol || a.special || AC_TYPES[a.type].size === 'L');
-    if (big) W.push({ k: 'ac', id: big.id, t: big.type === 'A388' ? 'Wo ist der A380?? Zeig her! 🐋' : big.protocol ? 'Kamera auf die Regierungsmaschine!' : `Zoom mal auf ${big.cs}, den ${AC_TYPES[big.type].name}!`, ok: (a) => a.id === big.id, zoom: 1.1 });
+    if (big) W.push({ k: 'ac', id: big.id, t: big.type === 'A388' ? 'Wo ist die AV-38?? Zeig her! 🐋' : big.protocol ? 'Kamera auf die Regierungsmaschine!' : `Zoom mal auf ${big.cs}, den ${AC_TYPES[big.type].name}!`, ok: (a) => a.id === big.id, zoom: 1.1 });
     W.push({ k: 'tower', t: 'Zeig mal den Tower von nah', pt: (() => { const b = LY.BUILDINGS.find((x) => x.id === 'tower'); return { x: b.fx - b.w / 2, y: b.fy - b.d / 2 }; })(), zoom: 1.4 });
     if (s.heli && s.heli.h) W.push({ k: 'heli', t: 'Wo ist der Heli? 🚁', obj: () => s.heli.h, zoom: 1 });
-    if (s.vfr && s.vfr.p) W.push({ k: 'vfr', t: 'Zeig die kleine Cessna! 🛩️', obj: () => s.vfr.p, zoom: 1 });
+    if (s.vfr && s.vfr.p) W.push({ k: 'vfr', t: 'Zeig die kleine Alcedo! 🛩️', obj: () => s.vfr.p, zoom: 1 });
     if (!W.length) return null;
     const w = W[Math.floor(Math.random() * W.length)];
     return { ...w, left: 60, user: r(USERS), hold: 0 };
@@ -275,7 +275,7 @@ export class Stream {
         I += vv.z < 0.5 ? 1.6 : 0.7;
         if (this.vfrSeen !== vv.cs) {
           this.vfrSeen = vv.cs;
-          this.say(r(['Kleine Cessna 😍', 'Flugschüler unterwegs, viel Erfolg!', 'Touch and Go, love it', 'Die kleine zwischen den Großen 😄']), 1);
+          this.say(r(['Kleine Alcedo 😍', 'Flugschüler unterwegs, viel Erfolg!', 'Touch and Go, love it', 'Die kleine zwischen den Großen 😄']), 1);
         }
       }
     }

@@ -1,6 +1,6 @@
 // Positionsplan (Gantt) für das Vorfeld: je Parkposition ein Zeitstrahl über die nächsten Stunden –
 // Belegung bis TOBT, reservierte Ankünfte, Überschneidungen; Ankünfte per Ziehen auf eine Position legen
-import { AC_TYPES, AIRLINES } from '../config.js';
+import { AC_TYPES, AIRLINES, typeCode } from '../config.js';
 import { PH } from '../sim/aircraft.js';
 import { standFits, standFree, assignStand, releaseReservation } from '../sim/ground.js';
 import { fmtClock, esc, clamp } from '../util.js';
@@ -101,7 +101,7 @@ export class StandPlan {
       for (const b of list) {
         const l = x(b.start), r = x(b.end);
         if (r <= 0 || l >= 100) continue;
-        h += `<div class="sp-bar ${b.kind}${b.late ? ' late' : ''}" data-spsel="${b.ac.id}" ${b.kind === 'res' && b.ac.phase !== PH.TAXI_IN ? `data-spdrag="${b.ac.id}"` : ''} style="left:${l}%;width:${Math.max(2.5, r - l)}%;--c:${b.col}" title="${esc(b.ac.cs)} · ${AC_TYPES[b.ac.type].name} · ${fmtClock(b.start)}–${fmtClock(b.end)}${b.late ? ` · ${b.late} min Überschneidung – muss warten` : ''}"><span>${esc(b.ac.cs)}</span><small>${b.ac.type}</small>${b.late ? '<b>!</b>' : ''}</div>`;
+        h += `<div class="sp-bar ${b.kind}${b.late ? ' late' : ''}" data-spsel="${b.ac.id}" ${b.kind === 'res' && b.ac.phase !== PH.TAXI_IN ? `data-spdrag="${b.ac.id}"` : ''} style="left:${l}%;width:${Math.max(2.5, r - l)}%;--c:${b.col}" title="${esc(b.ac.cs)} · ${AC_TYPES[b.ac.type].name} · ${fmtClock(b.start)}–${fmtClock(b.end)}${b.late ? ` · ${b.late} min Überschneidung – muss warten` : ''}"><span>${esc(b.ac.cs)}</span><small>${typeCode(b.ac.type)}</small>${b.late ? '<b>!</b>' : ''}</div>`;
       }
       h += `</div></div>`;
     }
@@ -122,7 +122,7 @@ export class StandPlan {
     }
     const q = state.acs.filter((a) => a.arr && !a.stand && INB.has(a.phase)).sort((a, b) => etaStand(state, a) - etaStand(state, b));
     const qh = q.length
-      ? q.map((a) => `<div class="sp-chip ${a.phase === PH.TAXI_WAIT || a.phase === PH.VACATED ? 'wait' : ''}" data-spdrag="${a.id}" data-spsel="${a.id}"><i style="background:${(AIRLINES[a.airline] || AIRLINES.AUR).color}"></i><b>${esc(a.cs)}${a.protocol ? ' 🎖️' : ''}</b><small>${a.type} · ${AC_TYPES[a.type].size}${AC_TYPES[a.type].cargo ? ' · Fracht' : ''} · ${a.phase === PH.TAXI_WAIT || a.phase === PH.VACATED ? 'wartet!' : `~${fmtClock(etaStand(state, a))}`}</small></div>`).join('')
+      ? q.map((a) => `<div class="sp-chip ${a.phase === PH.TAXI_WAIT || a.phase === PH.VACATED ? 'wait' : ''}" data-spdrag="${a.id}" data-spsel="${a.id}"><i style="background:${(AIRLINES[a.airline] || AIRLINES.AUR).color}"></i><b>${esc(a.cs)}${a.protocol ? ' 🎖️' : ''}</b><small>${typeCode(a.type)} · ${AC_TYPES[a.type].size}${AC_TYPES[a.type].cargo ? ' · Fracht' : ''} · ${a.phase === PH.TAXI_WAIT || a.phase === PH.VACATED ? 'wartet!' : `~${fmtClock(etaStand(state, a))}`}</small></div>`).join('')
       : '<div class="sp-empty">Alle Ankünfte haben eine Position.</div>';
     if (this.queue._h !== qh) {
       this.queue.innerHTML = qh;
@@ -132,7 +132,7 @@ export class StandPlan {
       .filter((r) => r.status === 'planned' && r.sta > state.time && r.sta < state.time + SPAN)
       .sort((a, b) => a.sta - b.sta)
       .slice(0, 14);
-    const lh = later.length ? later.map((r) => `<div class="sp-chip ghost"><i style="background:${(AIRLINES[r.airline] || AIRLINES.AUR).color}"></i><b>${esc(r.arrNo)}</b><small>${r.type} · ${AC_TYPES[r.type].size} · STA ${fmtClock(r.sta)}</small></div>`).join('') : '<div class="sp-empty">Keine weiteren Ankünfte.</div>';
+    const lh = later.length ? later.map((r) => `<div class="sp-chip ghost"><i style="background:${(AIRLINES[r.airline] || AIRLINES.AUR).color}"></i><b>${esc(r.arrNo)}</b><small>${typeCode(r.type)} · ${AC_TYPES[r.type].size} · STA ${fmtClock(r.sta)}</small></div>`).join('') : '<div class="sp-empty">Keine weiteren Ankünfte.</div>';
     if (this.later._h !== lh) {
       this.later.innerHTML = lh;
       this.later._h = lh;
@@ -159,7 +159,7 @@ export class StandPlan {
       dr.moved = true;
       dr.ghost = document.createElement('div');
       dr.ghost.className = 'sp-ghost';
-      dr.ghost.textContent = `${ac.cs} · ${ac.type}`;
+      dr.ghost.textContent = `${ac.cs} · ${typeCode(ac.type)}`;
       document.body.appendChild(dr.ghost);
       // passende Zeilen hervorheben
       for (const row of this.grid.querySelectorAll('[data-sprow]')) {

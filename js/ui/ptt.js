@@ -93,7 +93,7 @@ export function initPTT(game) {
     if (!said) return hide(600);
     handled = said;
     const s = game.state;
-    // Nebenverkehr: Rettungshubschrauber, Cessna in der Platzrunde, Pistenkontrolle
+    // Nebenverkehr: Rettungshubschrauber, Alcedo in der Platzrunde, Pistenkontrolle
     const sd = parseSide(s, said);
     if (sd) return sideCmd(s, sd, said);
     const r = parseVoice(s, said);
@@ -161,10 +161,10 @@ export function initPTT(game) {
   }
 
   function sideCmd(s, sd, said) {
-    const name = { heli: 'Rescue 7', vfr: s.vfr && s.vfr.p ? s.vfr.p.cs : 'Cessna', insp: 'Check 1' }[sd.side];
+    const name = { heli: 'Rescue 7', vfr: s.vfr && s.vfr.p ? s.vfr.p.cs : 'Alcedo', insp: 'Check 1' }[sd.side];
     if (!sd.cmd) {
       show(`„${said}“ – ${name}: Freigabe nicht erkannt`, 'bad');
-      const who = { heli: 'Rescue 7', vfr: s.vfr && s.vfr.p ? vfrTel(s.vfr.p.cs) : 'Cessna', insp: 'Check 1' }[sd.side];
+      const who = { heli: 'Rescue 7', vfr: s.vfr && s.vfr.p ? vfrTel(s.vfr.p.cs) : 'Alcedo', insp: 'Check 1' }[sd.side];
       radio(s, sd.side === 'heli' ? 'RESCUE7' : sd.side === 'insp' ? 'CHECK1' : s.vfr.p.cs, `Say again, ${who}.`, 'pilot');
       return hide(2600);
     }

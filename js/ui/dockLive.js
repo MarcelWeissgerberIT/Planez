@@ -1,7 +1,7 @@
 // Lebendige rechte Leiste: Mini-Radar „Luftlage“ (Ringe, Bahn, umlaufender Strahl, nachleuchtende Echos), Spotlight-
 // Karte mit Fotos zum Verkehr am Platz (nächste Landung, Abfertigung, Start – weich überblendet, langsam bewegt),
 // Verlaufslinien für die Kennzahlen und Bilder zu Aufgaben und Baustellen.
-import { AC_TYPES, AIRLINES, CITIES, NM_PER_TILE } from '../config.js';
+import { AC_TYPES, AIRLINES, CITIES, NM_PER_TILE, typeName } from '../config.js';
 import * as LY from '../layout.js';
 import * as AS from '../sim/airspace.js';
 import { PH } from '../sim/aircraft.js';
@@ -45,7 +45,7 @@ function slideFor(s, ac) {
   if (ARR.has(ac.phase)) {
     const m = etaMin(ac);
     const kick = ac.phase === PH.ROLLOUT ? 'Gelandet' : ac.phase === PH.FINAL ? 'Im Endanflug' : ac.phase === PH.HOLD ? 'In der Warteschleife' : 'Im Anflug';
-    return { key: 'a' + ac.id, kind: 'arr', pic: PIC.arr[CAT(ac.type)], kick, title: ac.cs, tag, sub: `${t.name || ac.type}${city ? ' · aus ' + city : ''}`, live: ac.phase === PH.ROLLOUT ? 'rollt aus' : ac.phase === PH.FINAL ? 'gleich am Boden' : `Landung in ~${m} min`, ac: ac.id };
+    return { key: 'a' + ac.id, kind: 'arr', pic: PIC.arr[CAT(ac.type)], kick, title: ac.cs, tag, sub: `${typeName(ac.type)}${city ? ' · aus ' + city : ''}`, live: ac.phase === PH.ROLLOUT ? 'rollt aus' : ac.phase === PH.FINAL ? 'gleich am Boden' : `Landung in ~${m} min`, ac: ac.id };
   }
   if (ac.phase === PH.STAND || ac.phase === PH.PUSH || ac.phase === PH.STARTUP || ac.phase === PH.TAXI_IN) {
     const ta = ac.ta && ac.ta.tasks ? Object.values(ac.ta.tasks) : [];
@@ -54,11 +54,11 @@ function slideFor(s, ac) {
     const pos = st ? (st.ga ? `Wiese W${s.stands.filter((x) => x.ga).indexOf(st) + 1}` : `Position P${st.id}`) : '';
     const kick = ac.phase === PH.TAXI_IN ? 'Rollt zur Position' : ac.phase === PH.PUSH ? 'Pushback' : ac.phase === PH.STARTUP ? 'Triebwerke an' : 'Abfertigung';
     const live = ac.phase === PH.STAND && ta.length ? `${done}/${ta.length} Schritte${r.std ? ' · Abflug ' + fmtClock(r.std) : ''}` : r.std ? 'Abflug ' + fmtClock(r.std) : '';
-    return { key: 's' + ac.id, kind: 'stand', pic: night(s) && !AC_TYPES[ac.type]?.light ? 'apron_night' : PIC.stand[CAT(ac.type)], kick, title: ac.cs, tag, sub: `${t.name || ac.type}${pos ? ' · ' + pos : ''}`, live, prog: ta.length ? done / ta.length : null, ac: ac.id };
+    return { key: 's' + ac.id, kind: 'stand', pic: night(s) && !AC_TYPES[ac.type]?.light ? 'apron_night' : PIC.stand[CAT(ac.type)], kick, title: ac.cs, tag, sub: `${typeName(ac.type)}${pos ? ' · ' + pos : ''}`, live, prog: ta.length ? done / ta.length : null, ac: ac.id };
   }
   if (DEP.has(ac.phase)) {
     const kick = ac.phase === PH.TAKEOFF ? 'Startlauf' : ac.phase === PH.DEPART ? 'Im Steigflug' : ac.phase === PH.LINEUP || ac.phase === PH.LINED ? 'Auf der Piste' : 'Rollt zum Start';
-    return { key: 'd' + ac.id, kind: 'dep', pic: PIC.dep[CAT(ac.type)], kick, title: ac.cs, tag, sub: `${t.name || ac.type}${city ? ' · nach ' + city : ''}`, live: `Bahn ${ac.rwy || s.rwy}`, ac: ac.id };
+    return { key: 'd' + ac.id, kind: 'dep', pic: PIC.dep[CAT(ac.type)], kick, title: ac.cs, tag, sub: `${typeName(ac.type)}${city ? ' · nach ' + city : ''}`, live: `Bahn ${ac.rwy || s.rwy}`, ac: ac.id };
   }
   return null;
 }

@@ -162,7 +162,7 @@ export const SCENARIOS = [
   {
     id: 'flytag', role: 'tower', icon: '🛩️', diff: 3, title: 'Großer Flugtag', img: 'assets/scn/flytag.webp', side: true,
     brief: 'Sonnenschein und ein voller Himmel: Die Flugschule übt Platzrunden, der Rettungshubschrauber will mehrmals über die Bahnen, und am Vormittag landet ein Staatsgast. Dazwischen läuft der Linienverkehr ganz normal weiter.',
-    tips: ['Touch and Go nur in echte Lücken – sonst kreist die Cessna', 'Rescue 7 schwebt südlich: Querung frei, wenn niemand im Endanflug ist', 'Die Regierungsmaschine 🎖️ ohne Warteschleife hereinholen'],
+    tips: ['Touch and Go nur in echte Lücken – sonst kreist die Alcedo', 'Rescue 7 schwebt südlich: Querung frei, wenn niemand im Endanflug ist', 'Die Regierungsmaschine 🎖️ ohne Warteschleife hereinholen'],
     hour: 9.5, dur: 2 * H, density: 1,
     setup: (s) => {
       setWeather(s, 'clear', 4);
@@ -273,7 +273,7 @@ const retry = (s, kind) => {
 export const MUTATORS = {
   dense: { icon: '📈', name: 'Hochbetrieb', text: '25 % mehr Verkehr – die Zielwerte liegen höher', roles: ['tower', 'ground'] },
   nordo: { icon: '📻', name: 'Funkausfall', text: 'Ein anfliegendes Flugzeug verliert den Funk – Lichtsignale geben', roles: ['tower'], at: 35 * 60, run: (s) => retry(s, 'nordo') },
-  a380: { icon: '🐋', name: 'Superjumbo', text: 'Ein A380 kommt zu Besuch', roles: ['tower', 'ground'], at: 25 * 60, run: (s) => retry(s, 'a380') },
+  a380: { icon: '🐋', name: 'Superjumbo', text: 'Eine AV-38 kommt zu Besuch', roles: ['tower', 'ground'], at: 25 * 60, run: (s) => retry(s, 'a380') },
   vip: { icon: '🎖️', name: 'Staatsbesuch', text: 'Eine Regierungsmaschine kommt – Landung ohne Warteschleife, Abflug pünktlich', roles: ['tower', 'ground'], at: 15 * 60, run: (s) => retry(s, 'state') },
   birds: { icon: '🐦', name: 'Vogelzug', text: 'Ein Vogelschlag mitten in der Schicht', roles: ['tower'], at: 70 * 60, run: (s) => retry(s, 'birdstrike') },
   emergency: { icon: '🚨', name: 'Notfall', text: 'Ein MAYDAY mitten in der Schicht', roles: ['tower'], at: 50 * 60, run: (s) => triggerEvent(s, 'emergency') },
@@ -285,7 +285,7 @@ export const MUTATORS = {
       if (s.auto.atc) requestRunwayChange(s, s.rwy === '27' ? '09' : '27');
     },
   },
-  flightschool: { icon: '🛩️', name: 'Flugschule', text: 'Eine Cessna übt Platzrunden – Touch and Go in die Lücken setzen', roles: ['tower'], not: ['fog', 'storm'], at: 5 * 60, run: (s) => { s.scenario.side = true; vfrState(s).next = s.time; } },
+  flightschool: { icon: '🛩️', name: 'Flugschule', text: 'Eine Alcedo übt Platzrunden – Touch and Go in die Lücken setzen', roles: ['tower'], not: ['fog', 'storm'], at: 5 * 60, run: (s) => { s.scenario.side = true; vfrState(s).next = s.time; } },
   airrescue: { icon: '🚁', name: 'Luftrettung', text: 'Der Rettungshubschrauber will über die Bahnen – rechtzeitig queren lassen', roles: ['tower'], at: 25 * 60, run: (s) => { s.scenario.side = true; heliState(s).next = s.time; } },
   tanker: { icon: '⛽', name: 'Tankwagen-Panne', text: 'Ein Tankwagen fällt für zwei Stunden aus', roles: ['ground'], at: 10 * 60, run: (s) => triggerEvent(s, 'breakdown', { type: 'fuel', hours: 2 }) },
   tugs: { icon: '🚜', name: 'Schlepper knapp', text: 'Ein Pushback-Schlepper ist den ganzen Tag in der Werkstatt', roles: ['ground'], at: 60, run: (s) => triggerEvent(s, 'breakdown', { type: 'tug', hours: 4 }) },

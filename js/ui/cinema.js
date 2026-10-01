@@ -1,6 +1,6 @@
 // Kino-Modus: automatische Kamerafahrten zu Landungen, Starts, Abfertigung, Baustellen und Landseite.
 // Oberfläche ausgeblendet, Letterbox-Balken und Bildunterschrift. Taste K oder Esc beendet.
-import { AC_TYPES, AIRLINES, CITIES, AIRPORT } from '../config.js';
+import { AC_TYPES, AIRLINES, CITIES, AIRPORT, typeCode } from '../config.js';
 import { PH } from '../sim/aircraft.js';
 import { clamp, hourOf, esc } from '../util.js';
 import * as LY from '../layout.js';
@@ -178,7 +178,7 @@ export class Cinema {
       if (recent.includes(ac.id)) w *= 0.15;
       out.push({ kind, id: ac.id, w });
     }
-    // Nebenverkehr: Rettungshubschrauber und Cessna der Platzrunden
+    // Nebenverkehr: Rettungshubschrauber und Alcedo der Platzrunden
     if (s.heli && s.heli.h && s.heli.h.y < 52) out.push({ kind: 'heli', id: 'heli' + s.heli.n, w: recent.includes('heli' + s.heli.n) ? 0.3 : 4 });
     if (s.vfr && s.vfr.p && s.vfr.p.mode !== 'leave') out.push({ kind: 'vfr', id: 'vfr' + s.vfr.n, w: recent.includes('vfr' + s.vfr.n) ? 0.3 : s.vfr.p.i === 1 || s.vfr.p.i === 2 ? 5 : 1.8 });
     // Rettungswagen am Gate, Tag der offenen Tür, Regenbogen
@@ -260,7 +260,7 @@ export class Cinema {
       if (sp) return set(sp.k, sp.title, sp.sub);
     }
     if (sh.kind === 'heli') return set('RETTUNGSFLUG', 'Rescue 7', s.heli.h && s.heli.h.st === 'req' ? 'wartet auf die Querung der Bahnen' : 'quert die Bahnen zur Klinik');
-    if (sh.kind === 'vfr' && s.vfr.p) return set('PLATZRUNDE', s.vfr.p.cs, `Cessna 172 · Runde ${Math.min(s.vfr.p.laps + 1, s.vfr.p.lapsMax)} von ${s.vfr.p.lapsMax}`);
+    if (sh.kind === 'vfr' && s.vfr.p) return set('PLATZRUNDE', s.vfr.p.cs, `Alcedo AL-4 · Runde ${Math.min(s.vfr.p.laps + 1, s.vfr.p.lapsMax)} von ${s.vfr.p.lapsMax}`);
     if (sh.kind === 'land-side') return set('LANDSEITE', 'Terminal-Vorfahrt', 'Taxis, Busse und Reisende');
     if (sh.kind === 'night') return set('NACHT', s.name, 'Befeuerung und Nachtbetrieb');
     return set('ÜBERBLICK', s.name, `${s.acs.filter((a) => a.mode === 'map').length} Flugzeuge am Platz`);
@@ -354,7 +354,7 @@ export class Cinema {
       if (ac && ac.mode === 'map') {
         const kt = Math.round((ac.v || 0) * 323); // Kacheln je Spielsekunde -> Knoten (Endanflug 0,42 ≈ 135 kt)
         const alt = Math.round(((ac.z || 0) * 500) / 10) * 10;
-        data = `<b>${esc(ac.cs)}</b> ${ac.type} · GS ${kt} kt${alt > 0 ? ` · ALT ${alt} ft` : ''} · HDG ${String(Math.round(((ac.hdg * 180) / Math.PI + 90 + 360) % 360)).padStart(3, '0')}°`;
+        data = `<b>${esc(ac.cs)}</b> ${typeCode(ac.type)} · GS ${kt} kt${alt > 0 ? ` · ALT ${alt} ft` : ''} · HDG ${String(Math.round(((ac.hdg * 180) / Math.PI + 90 + 360) % 360)).padStart(3, '0')}°`;
       }
       if (this.dataEl._h !== data) {
         this.dataEl.innerHTML = data;
@@ -383,7 +383,7 @@ function commentary(s, sh, ac) {
     if (s.salute && s.salute.ac === ac.id && s.salute.p) return pickC([`Ein Erstflug! ${who} kommt zum ersten Mal aus ${cn} – und die Feuerwehr schießt den Wasserbogen.`, `Wassertaufe für ${who}: So begrüßt ein Flughafen eine neue Strecke.`]);
     if (ac.protocol && s.sv) return pickC([`Staatsbesuch! ${s.sv.guest} an Bord der Regierungsmaschine – ${sh.kind === 'land' ? 'unten wartet schon der rote Teppich' : sh.kind === 'dep' ? 'die Delegation verabschiedet sich' : 'die Kolonne steht bereit'}.`, `Protokoll auf die Minute: ${who} mit ${s.sv.guest} – heute schaut das ganze Land auf ${s.name}.`]);
     if (ac.nordo) return `Ohne Funk unterwegs: ${who} bekommt vom Tower nur Lichtsignale.`;
-    if (ac.type === 'A388' && (sh.kind === 'land' || sh.kind === 'dep')) return pickC([`Der Superjumbo! Die A380 von ${al.name} – über 500 Tonnen ${sh.kind === 'land' ? 'auf dem Weg zur Bahn' : 'heben gleich ab'}.`, `Das größte Passagierflugzeug der Welt – ${who} mit ${pax || 'über 500'} Menschen an Bord.`]);
+    if (ac.type === 'A388' && (sh.kind === 'land' || sh.kind === 'dep')) return pickC([`Der Superjumbo! Die AV-38 von ${al.name} – über 500 Tonnen ${sh.kind === 'land' ? 'auf dem Weg zur Bahn' : 'heben gleich ab'}.`, `Das größte Passagierflugzeug der Welt – ${who} mit ${pax || 'über 500'} Menschen an Bord.`]);
     if (ac.special && SPECIALS[ac.special]) return pickC([`Ein echter Hingucker: ${al.name} in der Sonderlackierung „${SPECIALS[ac.special].name}“!`, `Spotter aufgepasst – ${who} trägt heute „${SPECIALS[ac.special].name}“.`]);
     if (sh.kind === 'land') return pickC([`Und da kommt ${who} rein – eine ${t.name} aus ${cn}.`, `${t.name} von ${al.name} im kurzen Endanflug${pax ? `, an Bord ${pax} Passagiere` : ''} aus ${cn}.`, wet ? `Bei diesem Wetter keine leichte Landung für ${who} – die Bahn ist nass.` : `Bilderbuchanflug: ${who} setzt gleich auf.`]);
     if (sh.kind === 'dep') return pickC([`Startlauf für ${who} – ${city ? CAT[city.cat] + ' nach ' + cn : 'auf dem Weg'}.`, `Volle Schubkraft: die ${t.name} von ${al.name} hebt gleich ab Richtung ${cn}.`, `${who} rollt an – ${pax ? pax + ' Reisende' : 'die Crew'} auf dem Weg nach ${cn}.`]);
@@ -409,7 +409,7 @@ function commentary(s, sh, ac) {
   if (sh.kind === 'openday') return pickC([`Tag der offenen Tür in ${s.name}: Familien und Spotter winken von der Terrasse.`, 'Luftballons, Wimpel und Flugzeuge zum Anfassen – heute gehört der Flughafen den Besuchern.']);
   if (sh.kind === 'rainbow') return pickC(['Der Schauer ist durch – und über dem Flughafen steht ein Regenbogen.', 'Nach dem Regen: Ein Regenbogen spannt sich über die Bahnen.']);
   if (sh.kind === 'heli') return pickC(['Der Rettungshubschrauber: Rescue 7 bringt einen Patienten in die Klinik – der Tower lässt ihn über die Bahnen.', 'Jede Minute zählt – Rescue 7 im Tiefflug über dem Flughafen.']);
-  if (sh.kind === 'vfr' && s.vfr.p) return pickC([`Zwischen den Großen übt eine kleine Cessna: ${s.vfr.p.cs} dreht Platzrunden mit Touch and Go.`, 'Aufsetzen, Gas geben, wieder hoch – Platzrunden sind das Brot der Flugschüler.', `${s.vfr.p.cs} im Gegenanflug – der Tower sucht eine Lücke zwischen den Linienflügen.`]);
+  if (sh.kind === 'vfr' && s.vfr.p) return pickC([`Zwischen den Großen übt eine kleine Alcedo: ${s.vfr.p.cs} dreht Platzrunden mit Touch and Go.`, 'Aufsetzen, Gas geben, wieder hoch – Platzrunden sind das Brot der Flugschüler.', `${s.vfr.p.cs} im Gegenanflug – der Tower sucht eine Lücke zwischen den Linienflügen.`]);
   if (sh.kind === 'land-side') return pickC([`Vor dem Terminal ist Betrieb – heute schon ${s.stats.today.pax.toLocaleString('de-DE')} Reisende.`, 'Taxis, Busse, Koffer – die Landseite erwacht.']);
   if (sh.kind === 'night') return pickC([`Nachtbetrieb in ${s.name} – die Befeuerung weist den Weg.`, 'Ruhige Stunden am Flughafen, nur die Lichter blinken.']);
   const t = s.stats.today;

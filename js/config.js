@@ -11,30 +11,32 @@ export const ZS = 32; // Pixel pro Kachel Höhe (bei Zoom 1)
 export const AIRPORT = { name: 'Planez International', code: 'PLZ', tower: 'Planez Tower', freq: '118.705' };
 
 // size: S < M < L  (Parkpositions-Klasse)
+// Flugzeugtypen: Hersteller und Modelle sind frei erfunden (Aviora, Halvard, Ventis …); `code` ist das Typkürzel für
+// Karte, Radar und Streifen, der Schlüssel (id) bleibt intern gleich, damit Spielstände kompatibel bleiben
 export const AC_TYPES = {
-  AT76: { id: 'AT76', name: 'ATR 72-600', sprite: 'plane_prop', size: 'S', wake: 'M', len: 1.82, mtow: 23, pax: 70, vapp: 115, turn: 30, fuel: 2500, scale: 0.55, finH: 0.32 },
-  E190: { id: 'E190', name: 'Embraer E190', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.27, mtow: 51, pax: 100, vapp: 130, turn: 35, fuel: 6000, scale: 0.7, finH: 0.4 },
-  A320: { id: 'A320', name: 'Airbus A320neo', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.47, mtow: 79, pax: 180, vapp: 135, turn: 40, fuel: 11000, scale: 1, finH: 0.45 },
-  B738: { id: 'B738', name: 'Boeing 737-800', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.6, mtow: 79, pax: 186, vapp: 142, turn: 40, fuel: 11000, scale: 1, finH: 0.47 },
-  A321: { id: 'A321', name: 'Airbus A321neo', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.93, mtow: 97, pax: 220, vapp: 140, turn: 45, fuel: 14000, scale: 1.15, finH: 0.47 },
-  B789: { id: 'B789', name: 'Boeing 787-9', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.03, mtow: 254, pax: 290, vapp: 145, turn: 75, fuel: 60000, scale: 1.7, finH: 0.7 },
-  A359: { id: 'A359', name: 'Airbus A350-900', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.29, mtow: 280, pax: 325, vapp: 142, turn: 80, fuel: 70000, scale: 1.85, finH: 0.75 },
-  B77W: { id: 'B77W', name: 'Boeing 777-300ER', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.81, mtow: 351, pax: 396, vapp: 150, turn: 90, fuel: 90000, scale: 2.1, finH: 0.8 },
-  A388: { id: 'A388', name: 'Airbus A380-800', sprite: 'plane_super', size: 'L', wake: 'H', len: 5.0, mtow: 575, pax: 520, vapp: 140, turn: 110, fuel: 120000, scale: 2.4, finH: 0.95 },
-  B748F: { id: 'B748F', name: 'Boeing 747-8F', sprite: 'plane_cargo', size: 'L', wake: 'H', len: 4.94, mtow: 448, pax: 0, cargo: 130, vapp: 155, turn: 100, fuel: 110000, scale: 2.2, finH: 0.9 },
-  B77F: { id: 'B77F', name: 'Boeing 777F', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.16, mtow: 348, pax: 0, cargo: 100, vapp: 150, turn: 90, fuel: 85000, scale: 2, finH: 0.78 },
-  A223: { id: 'A223', name: 'Airbus A220-300', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.35, mtow: 70, pax: 140, vapp: 130, turn: 35, fuel: 9000, scale: 0.9, finH: 0.42 },
-  CRJ9: { id: 'CRJ9', name: 'Bombardier CRJ900', sprite: 'plane_narrow', size: 'S', wake: 'M', len: 2.1, mtow: 38, pax: 90, vapp: 135, turn: 30, fuel: 4500, scale: 0.68, finH: 0.38 },
-  DH8D: { id: 'DH8D', name: 'Dash 8-400', sprite: 'plane_prop', size: 'S', wake: 'M', len: 1.98, mtow: 30, pax: 78, vapp: 130, turn: 28, fuel: 3000, scale: 0.6, finH: 0.34 },
-  A333: { id: 'A333', name: 'Airbus A330-300', sprite: 'plane_wide', size: 'L', wake: 'H', len: 3.9, mtow: 242, pax: 300, vapp: 140, turn: 70, fuel: 55000, scale: 1.75, finH: 0.7 },
-  C68A: { id: 'C68A', name: 'Citation Latitude', sprite: 'plane_bizjet', size: 'S', wake: 'L', len: 1.3, mtow: 14, pax: 8, vapp: 120, turn: 30, fuel: 3000, scale: 0.4, finH: 0.25 },
+  AT76: { id: 'AT76', name: 'Ventis VT-70', code: 'VT70', sprite: 'plane_prop', size: 'S', wake: 'M', len: 1.82, mtow: 23, pax: 70, vapp: 115, turn: 30, fuel: 2500, scale: 0.55, finH: 0.32 },
+  E190: { id: 'E190', name: 'Selva S-19', code: 'SL19', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.27, mtow: 51, pax: 100, vapp: 130, turn: 35, fuel: 6000, scale: 0.7, finH: 0.4 },
+  A320: { id: 'A320', name: 'Aviora AV-32', code: 'AV32', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.47, mtow: 79, pax: 180, vapp: 135, turn: 40, fuel: 11000, scale: 1, finH: 0.45 },
+  B738: { id: 'B738', name: 'Halvard H-38', code: 'HV38', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.6, mtow: 79, pax: 186, vapp: 142, turn: 40, fuel: 11000, scale: 1, finH: 0.47 },
+  A321: { id: 'A321', name: 'Aviora AV-32L', code: 'AV3L', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.93, mtow: 97, pax: 220, vapp: 140, turn: 45, fuel: 14000, scale: 1.15, finH: 0.47 },
+  B789: { id: 'B789', name: 'Halvard H-89', code: 'HV89', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.03, mtow: 254, pax: 290, vapp: 145, turn: 75, fuel: 60000, scale: 1.7, finH: 0.7 },
+  A359: { id: 'A359', name: 'Aviora AV-35', code: 'AV35', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.29, mtow: 280, pax: 325, vapp: 142, turn: 80, fuel: 70000, scale: 1.85, finH: 0.75 },
+  B77W: { id: 'B77W', name: 'Halvard H-77X', code: 'HV7X', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.81, mtow: 351, pax: 396, vapp: 150, turn: 90, fuel: 90000, scale: 2.1, finH: 0.8 },
+  A388: { id: 'A388', name: 'Aviora AV-38', code: 'AV38', sprite: 'plane_super', size: 'L', wake: 'H', len: 5.0, mtow: 575, pax: 520, vapp: 140, turn: 110, fuel: 120000, scale: 2.4, finH: 0.95 },
+  B748F: { id: 'B748F', name: 'Halvard H-48F Frachter', code: 'HV48', sprite: 'plane_cargo', size: 'L', wake: 'H', len: 4.94, mtow: 448, pax: 0, cargo: 130, vapp: 155, turn: 100, fuel: 110000, scale: 2.2, finH: 0.9 },
+  B77F: { id: 'B77F', name: 'Halvard H-77F Frachter', code: 'HV7F', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.16, mtow: 348, pax: 0, cargo: 100, vapp: 150, turn: 90, fuel: 85000, scale: 2, finH: 0.78 },
+  A223: { id: 'A223', name: 'Aviora AV-23', code: 'AV23', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.35, mtow: 70, pax: 140, vapp: 130, turn: 35, fuel: 9000, scale: 0.9, finH: 0.42 },
+  CRJ9: { id: 'CRJ9', name: 'Corvin KR-90', code: 'KR90', sprite: 'plane_narrow', size: 'S', wake: 'M', len: 2.1, mtow: 38, pax: 90, vapp: 135, turn: 30, fuel: 4500, scale: 0.68, finH: 0.38 },
+  DH8D: { id: 'DH8D', name: 'Borealis BR-40', code: 'BR40', sprite: 'plane_prop', size: 'S', wake: 'M', len: 1.98, mtow: 30, pax: 78, vapp: 130, turn: 28, fuel: 3000, scale: 0.6, finH: 0.34 },
+  A333: { id: 'A333', name: 'Aviora AV-33', code: 'AV33', sprite: 'plane_wide', size: 'L', wake: 'H', len: 3.9, mtow: 242, pax: 300, vapp: 140, turn: 70, fuel: 55000, scale: 1.75, finH: 0.7 },
+  C68A: { id: 'C68A', name: 'Vireo VX-7', code: 'VX7', sprite: 'plane_bizjet', size: 'S', wake: 'L', len: 1.3, mtow: 14, pax: 8, vapp: 120, turn: 30, fuel: 3000, scale: 0.4, finH: 0.25 },
   // Karriere (Grasplatz/Verkehrslandeplatz): Sportflugzeuge und Lufttaxis. light = rollt selbst, tankt an der
   // Zapfsäule, Gäste gehen zu Fuß; selfTaxi = kein Pushback (rollt aus eigener Kraft vom Abstellplatz)
-  C172: { id: 'C172', name: 'Cessna 172 Skyhawk', sprite: 'plane_ga', size: 'S', wake: 'L', len: 0.42, mtow: 1.1, pax: 3, vapp: 65, turn: 25, fuel: 120, scale: 0.2, finH: 0.12, light: true, selfTaxi: true, vmax: 115, cruise: 3500 },
-  PA28: { id: 'PA28', name: 'Piper PA-28 Archer', sprite: 'plane_ga2', size: 'S', wake: 'L', len: 0.37, mtow: 1.2, pax: 3, vapp: 66, turn: 25, fuel: 130, scale: 0.19, finH: 0.11, light: true, selfTaxi: true, vmax: 120, cruise: 4500 },
-  DR40: { id: 'DR40', name: 'Robin DR400', sprite: 'plane_ga2', size: 'S', wake: 'L', len: 0.35, mtow: 1.0, pax: 3, vapp: 62, turn: 25, fuel: 110, scale: 0.18, finH: 0.1, light: true, selfTaxi: true, vmax: 115, cruise: 3500 },
-  PC12: { id: 'PC12', name: 'Pilatus PC-12', sprite: 'plane_tp', size: 'S', wake: 'L', len: 0.72, mtow: 4.7, pax: 8, vapp: 85, turn: 25, fuel: 900, scale: 0.32, finH: 0.2, selfTaxi: true, walk: true, vmax: 210, cruise: 9000 },
-  BE20: { id: 'BE20', name: 'King Air 260', sprite: 'plane_prop', size: 'S', wake: 'L', len: 0.67, mtow: 5.7, pax: 9, vapp: 100, turn: 25, fuel: 1000, scale: 0.3, finH: 0.2, selfTaxi: true, walk: true, vmax: 240, cruise: 11000 },
+  C172: { id: 'C172', name: 'Alcedo AL-4', code: 'AL4', sprite: 'plane_ga', size: 'S', wake: 'L', len: 0.42, mtow: 1.1, pax: 3, vapp: 65, turn: 25, fuel: 120, scale: 0.2, finH: 0.12, light: true, selfTaxi: true, vmax: 115, cruise: 3500 },
+  PA28: { id: 'PA28', name: 'Pember PB-3', code: 'PB3', sprite: 'plane_ga2', size: 'S', wake: 'L', len: 0.37, mtow: 1.2, pax: 3, vapp: 66, turn: 25, fuel: 130, scale: 0.19, finH: 0.11, light: true, selfTaxi: true, vmax: 120, cruise: 4500 },
+  DR40: { id: 'DR40', name: 'Merle ME-4', code: 'ME4', sprite: 'plane_ga2', size: 'S', wake: 'L', len: 0.35, mtow: 1.0, pax: 3, vapp: 62, turn: 25, fuel: 110, scale: 0.18, finH: 0.1, light: true, selfTaxi: true, vmax: 115, cruise: 3500 },
+  PC12: { id: 'PC12', name: 'Alpenwerk AW-10', code: 'AW10', sprite: 'plane_tp', size: 'S', wake: 'L', len: 0.72, mtow: 4.7, pax: 8, vapp: 85, turn: 25, fuel: 900, scale: 0.32, finH: 0.2, selfTaxi: true, walk: true, vmax: 210, cruise: 9000 },
+  BE20: { id: 'BE20', name: 'Regent RG-26', code: 'RG26', sprite: 'plane_prop', size: 'S', wake: 'L', len: 0.67, mtow: 5.7, pax: 9, vapp: 100, turn: 25, fuel: 1000, scale: 0.3, finH: 0.2, selfTaxi: true, walk: true, vmax: 240, cruise: 11000 },
 };
 export const SIZE_RANK = { S: 0, M: 1, L: 2 };
 
@@ -138,3 +140,7 @@ export const UPGRADES = {
 
 export const STAND_COSTS = { contactM: 1800000, contactL: 2600000, remote: 700000, upgradeL: 900000 };
 export const MARKETING = { cost: 350000, days: 5 };
+
+// Anzeige: Typkürzel und Typname (fiktiv)
+export const typeCode = (t) => (AC_TYPES[t] && AC_TYPES[t].code) || t;
+export const typeName = (t) => (AC_TYPES[t] && AC_TYPES[t].name) || t;

@@ -33,7 +33,7 @@ function trafficOf(state, day0) {
     const t = AC_TYPES[r.type];
     if (t && t.wake === 'H') heavy++;
     if (t && t.cargo) cargo++;
-    if (r.type === 'A388') specials.push(`🐋 A380 ${esc(r.arrNo)} aus ${esc(CITIES[r.city]?.name || r.city)} · ${fmtClock(r.sta)}`);
+    if (r.type === 'A388') specials.push(`🐋 AV-38 ${esc(r.arrNo)} aus ${esc(CITIES[r.city]?.name || r.city)} · ${fmtClock(r.sta)}`);
     else if (r.special === 'vip') specials.push(`🕴️ VIP-Flug ${esc(r.arrNo)} · ${fmtClock(r.sta)}`);
   }
   return { arrH, depH, heavy, cargo, specials };

@@ -109,6 +109,7 @@ const SIDE = {
   whatsnew: () => `<div class="ms-card wn"><div class="ms-body"><div class="ms-h">Neu</div><div class="ms-subt">Die wichtigsten Neuerungen – Details unter „So funktioniert es“.</div>
     <div class="ms-sec">Ganz frisch</div><ul>
       <li>🌾 <b>Aufbau-Modus: vom Grasplatz zum Drehkreuz</b> – neues Spiel mit 560-m-Graspiste, Vereinsheim, ein paar Sportfliegern und 40.000 € in der Kasse. Partner (Flugschule, Rundflüge, Fallschirmclub, Lufttaxi), Flugplatzfest, Anzeigen und Fly-Ins machen den Platz bekannt; erfüllst du die Bedingungen, bauen Land und Investoren aus: Verkehrslandeplatz → Regionalflughafen → International → Drehkreuz</li>
+      <li>✈️ <b>Eigene Flugzeugwelt</b>: alle Hersteller und Typen sind jetzt frei erfunden – Aviora AV-32 bis zum Superjumbo AV-38, Halvard H-38 bis H-48F, Ventis VT-70, Borealis BR-40, Alcedo AL-4 und mehr – mit eigenen Typkürzeln auf Karte, Radar und Streifen</li>
       <li>🔒 <b>Datenschutz & offline</b>: Schriften sind jetzt lokal eingebunden – keine Verbindung zu Google Fonts mehr; Versionsnummer und Lizenzhinweise unter „Über das Spiel“; Esc schließt Fenster auch aus dem Suchfeld</li>
       <li>🔴 <b>Live am Platz</b> im Leitstand: Fotokarte zum aktuellen Verkehr (nächste Landung mit Countdown, Abfertigung mit Fortschritt, Start – weich überblendet, anklickbar), Mini-Radar „Luftlage“ mit umlaufendem Strahl und Spuren, Kennzahlen mit Verlaufslinie, Aufgaben und Baustellen mit Bildern</li>
       <li>🌾 <b>Zentrale passend zum Platz</b>: am Grasplatz Abstellwiese statt Fluggastbrücken, Graspflege statt Gummiabrieb, Platzwart statt Fuhrpark, Kredite in passender Größe; Gesperrtes zeigt, ab welcher Stufe es kommt – mit neuen Bildern</li>
@@ -116,11 +117,11 @@ const SIDE = {
       <li>🛬 <b>Flüssigerer Verkehr am kleinen Platz</b>: „Landung hinter rollendem Verkehr“, kürzere Staffelung zwischen Sportfliegern, wer lange wartet, kommt zuerst – und ein Fehler behoben, bei dem nach einem Pistenwechsel keine Starts mehr freigegeben wurden</li>
       <li>🌻 <b>Schöneres Umland</b>: Felder im Flickenteppich (je Jahreszeit Raps, Weizen, Mais, Acker) mit Furchen und Hecken, ein Dorf mit Kirche, Bauernhöfe, ein Teich und Laubbäume – auf der Karte und in 3D, dazu Hügelketten am Horizont und eine ruhigere Kleinstadt</li>
       <li>🖼️ <b>Leitstand mit Bildern</b>: bewegtes Luftbild der Ausbaustufe, nächste Stufe mit Bedingungen, Aktionen und Partner als Bildkarten – und die neue Seite „Aufbau“ in der Management-Zentrale</li>
-      <li>🛩️ <b>Sportflugzeuge</b> (Cessna 172, PA-28, DR400) und Lufttaxis (PC-12, King Air) – mit eigenen Grafiken, 3D-Modellen und Kennzeichen-Funk („Delta Lima Mike“)</li>
+      <li>🛩️ <b>Sportflugzeuge</b> (Alcedo AL-4, Pember PB-3, Merle ME-4) und Lufttaxis (Alpenwerk AW-10, Regent RG-26) – mit eigenen Grafiken, 3D-Modellen und Kennzeichen-Funk („Delta Lima Mike“)</li>
       <li>🤖 <b>KI-Pilot</b> für Tower, Vorfeld und Management: zusehen, was sie tut – und jederzeit selbst eingreifen (Taste Z)</li>
       <li>⛈️ <b>Gewittertürme in 3D</b>: die Zellen der Wettersimulation ziehen sichtbar heran, mit Blitzen und Donner</li>
       <li>✨ <b>Neue Oberfläche im Spiel</b>: aufgeräumte Kopfleiste, einheitliche Glas-Panels, Kartensteuerung als Dock, Meldungen ohne Überlappung, übersichtlichere Info-Karte</li>
-      <li>🗼 <b>Turmblick 3D</b>: echte Sicht aus der Tower-Kanzel mit Fernglas, Rufzeichen-Schildern und Verfolgen – Funk, Radar und Streifen bleiben bedienbar · 🎬 <b>Kino 3D</b> mit automatischen Kamerafahrten · 🚁 <b>Drohne</b> zum freien Fliegen · 🛩️ <b>Rundflug</b> in Cessna oder Rettungshubschrauber · 📷 <b>Fotos in 3D</b> fürs Spotterbuch · 🦺 <b>Einwink-Minispiel</b></li>
+      <li>🗼 <b>Turmblick 3D</b>: echte Sicht aus der Tower-Kanzel mit Fernglas, Rufzeichen-Schildern und Verfolgen – Funk, Radar und Streifen bleiben bedienbar · 🎬 <b>Kino 3D</b> mit automatischen Kamerafahrten · 🚁 <b>Drohne</b> zum freien Fliegen · 🛩️ <b>Rundflug</b> in der Alcedo oder Rettungshubschrauber · 📷 <b>Fotos in 3D</b> fürs Spotterbuch · 🦺 <b>Einwink-Minispiel</b></li>
       <li>✈️ <b>3D in neuer Qualität</b>: detaillierte Flugzeuge mit Airline-Lackierung, Schatten, Himmel mit Sonnenstand und Sternen, Pisten- und Anflugbefeuerung mit <b>PAPI</b>, Landelichter, Regen, Schnee, Gewitterblitze, Reifenrauch</li>
       <li>🎵 <b>Neue Musik</b>: Menü-Thema sowie Tag- und Nachtmusik als echte Musikstücke, nahtlos geloopt und weich überblendet</li>
       <li>🧊 <b>Mitfliegen in echtem 3D</b> (WebGL): Cockpit, Fenster oder Außenkamera, frei drehbar – mit Instrumenten und Höhenansagen</li>
@@ -129,14 +130,14 @@ const SIDE = {
       <li>🌌 <b>Lichtspuren</b> im Fotomodus · 📸 <b>Spotterhügel</b> · 🔎 <b>Spotter-Quiz</b> · 🎈 <b>Tag der offenen Tür</b></li>
       <li>🌬️ <b>Seitenwind-Anflüge</b> · 💨 Kondensfahnen · 🌈 Regenbogen · 🛞 Reifenquietschen · 😊 <b>Fluggast-Zufriedenheit</b></li>
     </ul><div class="ms-sec">Davor</div><ul>
-      <li>🎙️ <b>Sprechtaste</b> auch für Heli, Cessna und Pistenkontrolle · 🎤 <b>Pressekonferenz</b> · 📋 <b>Loadsheet</b> und 🌡️ <b>Hitze</b> im Vorfeld · 📻 Crews melden Ereignisse per Funk</li>
+      <li>🎙️ <b>Sprechtaste</b> auch für Heli, Alcedo und Pistenkontrolle · 🎤 <b>Pressekonferenz</b> · 📋 <b>Loadsheet</b> und 🌡️ <b>Hitze</b> im Vorfeld · 📻 Crews melden Ereignisse per Funk</li>
       <li>⏪ <b>Wiederholung</b> in Zeitlupe (<kbd>⇧R</kbd>) · 🛩️ <b>Platzrunden</b> · 🚁 <b>Rettungshubschrauber</b> · 🛩️ <b>Großer Flugtag</b></li>
       <li>💦 <b>Wassertaufe</b> für jeden Erstflug · 🛬 <b>Aufsetzrate</b> von 🧈 Butter bis hart · ✨ <b>Highlights</b> im Tagesbericht</li>
       <li>🎖️ <b>Staatsbesuch</b> mit rotem Teppich und Kolonne · 📡 <b>Livestream</b> mit Live-Chat (<kbd>L</kbd>)</li>
       <li>🎞️ <b>Kino-Look</b> mit Tilt-Shift und Regen auf der Linse · 🔍 <b>Miniatur-Fotos</b> · 🔔 <b>Terminal-Durchsagen</b></li>
       <li>📖 <b>Kampagne</b>: 10 Kapitel mit Story · 🏛️ <b>Aufsichtsrat</b> · ⛈️ <b>Wetterumflüge</b> · 🚙 <b>Pistenkontrolle</b></li>
       <li>🎵 Musik im Spiel · ♿ Barrierefreiheit · 🎞️ Kino-Intro · 📰 Planezer Kurier · 🌐 Basis-Angebote</li>
-      <li>✈️ A220, CRJ900, Dash 8-400, A330 · Lumen Air, Fjordwing · 📅 Tagesherausforderung · 🎖️ Karriere</li>
+      <li>✈️ AV-23, KR-90, BR-40, AV-33 · Lumen Air, Fjordwing · 📅 Tagesherausforderung · 🎖️ Karriere</li>
       <li>👂 Readback-Fehler · 📻✖ Funkausfall · 🏢 Nordhafen · 📒 Spotterbuch · 📋 Schichtbriefing</li>
     </ul><div class="ms-sec">Spielen</div><ul>
       <li>⭐ <b>Herausforderungen</b>: 10 Szenarien mit Sternen und Punkte-Rekorden – neu: 🛩️ Großer Flugtag</li>
@@ -145,7 +146,7 @@ const SIDE = {
       <li>🦺 <b>Positionsplan</b> (G) mit Drag &amp; Drop im Vorfeld</li>
       <li>🤝 <b>Verhandeln</b> bei Airline-Angeboten · 🌍 <b>Streckennetz-Karte</b></li>
       <li>🚶 <b>Sicherheitskontrolle</b> mit Schlangen · 🌦️ <b>Wettervorhersage</b> (TAF)</li>
-      <li>🌪️ <b>Windscherung</b> · 🚒 <b>Feuerwehreinsatz</b> auf der Piste · 🐋 <b>A380-Besuch</b></li>
+      <li>🌪️ <b>Windscherung</b> · 🚒 <b>Feuerwehreinsatz</b> auf der Piste · 🐋 <b>AV-38-Besuch</b></li>
     </ul><div class="ms-sec">Sehen &amp; Hören</div><ul>
       <li>🌅 Goldene Stunde, 🍂 Jahreszeiten, 🌧️ nasser Asphalt mit Spiegelungen</li>
       <li>🐦 Vogelschwärme, 🚁 Rettungshubschrauber, 🚨 Martinshorn</li>
@@ -173,7 +174,7 @@ const SIDE = {
       <table class="cr-tab"><tr><th></th><th>Tage</th><th>Bestwert ⭐</th><th>Pünktl.</th><th>Perfekt</th></tr>${['tower', 'ground', 'manager', 'observer'].map(role).join('')}</table>
       <div class="ms-auto">Punkte gibt es für gespielte Tage, Verkehr, Sterne, Erfolge, Tagesherausforderungen, perfekte Tage und das Spotterbuch.</div></div></div>`;
   },
-  about: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Über Planez</div><div class="ms-subt">Version ${VERSION}</div><ul><li>Airport-Simulation mit isometrischer Karte, 3D-Ansicht, Radar, Funk und Wirtschaft – vom Grasplatz zum Drehkreuz</li><li>Grafiken, Fotos und Hintergrundvideos: Higgsfield AI (GPT Image, Kling) · Musik: OpenArt</li><li>3D: three.js (MIT-Lizenz) · Schriften: Inter, JetBrains Mono, Chakra Petch, Orbitron (SIL Open Font License, lokal eingebunden)</li><li>Alle Airlines, Rufzeichen, Personen und Flüge sind frei erfunden</li><li>Spielstände bleiben auf diesem Gerät (Browser-Speicher); es werden keine Daten an Server gesendet</li><li>Lizenztexte: <a href="LIZENZEN.md" target="_blank" rel="noopener">LIZENZEN.md</a></li></ul></div></div>`,
+  about: () => `<div class="ms-card"><div class="ms-body"><div class="ms-h">Über Planez</div><div class="ms-subt">Version ${VERSION}</div><ul><li>Airport-Simulation mit isometrischer Karte, 3D-Ansicht, Radar, Funk und Wirtschaft – vom Grasplatz zum Drehkreuz</li><li>Grafiken, Fotos und Hintergrundvideos: Higgsfield AI (GPT Image, Kling) · Musik: OpenArt</li><li>3D: three.js (MIT-Lizenz) · Schriften: Inter, JetBrains Mono, Chakra Petch, Orbitron (SIL Open Font License, lokal eingebunden)</li><li>Alle Airlines, Flugzeughersteller und -typen, Rufzeichen, Personen und Flüge sind frei erfunden</li><li>Spielstände bleiben auf diesem Gerät (Browser-Speicher); es werden keine Daten an Server gesendet</li><li>Lizenztexte: <a href="LIZENZEN.md" target="_blank" rel="noopener">LIZENZEN.md</a></li></ul></div></div>`,
 };
 
 // ---------- Speicherplätze ----------

@@ -1,5 +1,5 @@
 // Flugpläne: Verträge -> tägliche Umläufe (Ankunft + Abflug), Angebote
-import { AC_TYPES, AIRLINES, CITIES } from '../config.js';
+import { AC_TYPES, AIRLINES, CITIES, typeCode } from '../config.js';
 import { rand, randRange, randInt, pick, pickWeighted, clamp } from '../util.js';
 import { log, notify } from './messages.js';
 import { isCareer, stageOf, typeAllowed, careerOffer, partnerOf, generateCareerDay, generatePartnerDay, PARTNERS, makeReg } from './career.js';
@@ -138,7 +138,7 @@ export function dailyContracts(state) {
       const p = clamp(c.sat / 100 + (state.reputation - 60) / 200 + ((state.rival && state.rival.renew) || 0), 0.1, 0.97);
       if (rand(state) < p) {
         c.days = randInt(state, 20, 45);
-        log(state, 'mgr', `${al.name} verlängert den Vertrag ${c.city} (${c.type}) um ${c.days} Tage.`);
+        log(state, 'mgr', `${al.name} verlängert den Vertrag ${c.city} (${typeCode(c.type)}) um ${c.days} Tage.`);
         notify(state, `✍️ ${al.name} verlängert: ${CITIES[c.city].name}`, 'good');
       } else {
         log(state, 'mgr', `${al.name} beendet die Verbindung nach ${CITIES[c.city].name}.`);

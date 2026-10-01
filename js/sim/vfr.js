@@ -147,7 +147,7 @@ export function updateVfr(state, dt) {
     const sx = state.rwy === '27' ? 34 : 46;
     S.p = p = { cs, rwy: state.rwy, x: sx, y: -6, z: 3.4, hdg: Math.PI / 2, i: 5, mode: 'join', laps: 0, lapsMax: 3 + Math.floor(h * 3), clr: false, req: false, orbits: 0 };
     p.C = C;
-    radio(state, cs, `Planez Tower, ${vfrTel(cs, true)}, Cessna 172, five miles north, request circuits with touch and go.`, 'pilot');
+    radio(state, cs, `Planez Tower, ${vfrTel(cs, true)}, Alcedo AL-4, five miles north, request circuits with touch and go.`, 'pilot');
     radio(state, 'TWR', `${vfrTel(cs, true)}, join downwind runway ${state.rwy}, report downwind.`, 'atc');
     if (humanTower(state)) notify(state, `🛩️ ${cs} übt Platzrunden – im Gegenanflug um „Touch and Go“ bitten lassen und in eine Lücke setzen`, 'info');
     return;

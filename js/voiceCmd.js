@@ -86,7 +86,7 @@ export function parseVoice(state, transcript) {
   return { ac: best ? best.ac : null, cmd, text: raw, sure: !!best && best.score >= 1.5 };
 }
 
-// Nebenverkehr per Sprechtaste: Rettungshubschrauber („Rescue seven, cross runways“ / „hold south“), Cessna in der
+// Nebenverkehr per Sprechtaste: Rettungshubschrauber („Rescue seven, cross runways“ / „hold south“), Alcedo in der
 // Platzrunde („Delta Lima Mike, cleared touch and go“ / „extend downwind“) und Pistenkontrolle („Check one, enter
 // runway“ / „hold short“). Liefert { side, cmd: 'ok' | 'hold' | null } oder null, wenn niemand davon gemeint ist.
 export function parseSide(state, transcript) {
@@ -102,7 +102,7 @@ export function parseSide(state, transcript) {
   if (P && P.req && !P.clr) {
     const l = P.cs.replace('-', '');
     const tail = [PHON[l[3]], PHON[l[4]]].map((x) => x.toLowerCase());
-    let hit = has('cessna', 0.7);
+    let hit = has('alcedo', 0.7) || has('cessna', 0.7);
     for (let i = 0; i < words.length - 1 && !hit; i++) if (sim(words[i], tail[0]) >= 0.7 && sim(words[i + 1], tail[1]) >= 0.7) hit = true;
     if (hit) {
       const cmd = /\bextend\b|\borbit\b|\bhold\b/.test(raw) ? 'hold' : /\btouch\b|\bcleared\b|\bclear\b/.test(raw) ? 'ok' : null;

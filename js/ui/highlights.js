@@ -5,7 +5,7 @@ import { esc } from '../util.js';
 
 const ITEMS = [
   ['stateVisit', '🎖️', (n) => (n > 1 ? `${n} Staatsbesuche` : 'Staatsbesuch')],
-  ['a380landed', '🐋', (n) => `${n}× A380`],
+  ['a380landed', '🐋', (n) => `${n}× AV-38`],
   ['salutes', '💦', (n) => `${n} Wassertaufe${n > 1 ? 'n' : ''}`],
   ['emgLanded', '🚨', (n) => `${n} Notlandung${n > 1 ? 'en' : ''} sicher`],
   ['butter', '🧈', (n) => `${n} Butterlandung${n > 1 ? 'en' : ''}`],

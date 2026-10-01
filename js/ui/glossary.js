@@ -1,5 +1,5 @@
 // Glossar: Abkürzungen & Fachbegriffe, automatische Tooltips, Erklär-Popups
-import { AC_TYPES, AIRLINES, CITIES, AIRPORT } from '../config.js';
+import { AC_TYPES, AIRLINES, CITIES, AIRPORT, typeCode } from '../config.js';
 import { esc } from '../util.js';
 
 // cat: Kategorie für die Glossar-Liste; auto: im Text automatisch erklären
@@ -36,7 +36,7 @@ export const GLOSSARY = [
   E('GS', 'Ground Speed', 'Geschwindigkeit über Grund in Knoten.', 'Flugsicherung'),
   E('HDG', 'Heading', 'Steuerkurs in Grad (360 = Norden, 090 = Osten).', 'Flugsicherung'),
   E('ALT', 'Altitude', 'Flughöhe in Fuß über dem Meeresspiegel.', 'Flugsicherung'),
-  E('A380', 'Airbus A380', 'Größtes Passagierflugzeug der Welt: zwei Decks, vier Triebwerke, rund 500 Sitze. Braucht eine Großraumposition (L).', 'Flugzeuge'),
+  E('AV-38', 'Aviora AV-38 (Superjumbo)', 'Größtes Passagierflugzeug im Spiel: zwei Decks, vier Triebwerke, rund 500 Sitze. Braucht eine Großraumposition (L).', 'Flugzeuge'),
   E('Freigabe', 'Clearance', 'Erlaubnis des Lotsen für eine Handlung (Anflug, Landung, Rollen, Start). Ohne Freigabe darf der Pilot nicht handeln.', 'Flugsicherung', false),
   E('Pistenfolge', 'Runway Sequence', 'Gemeinsame Reihenfolge aller Landungen und Starts auf der Piste, mit geplanten Pistenzeiten. Der Tower kann sie umsortieren.', 'Flugsicherung', false),
   // Anflug & Landung
@@ -55,8 +55,8 @@ export const GLOSSARY = [
   E('Durchstarten', 'Go-around', 'Abgebrochene Landung: das Flugzeug steigt wieder und fliegt eine neue Runde – z. B. wenn die Piste belegt ist oder keine Landefreigabe vorliegt.', 'Anflug & Landung', false),
   E('Wirbelschleppe', 'Wake Turbulence', 'Luftwirbel hinter jedem Flugzeug, besonders stark hinter schweren (H). Folgende Flugzeuge brauchen mehr Abstand: H→H 4 NM, H→M 5 NM, H→L 6 NM, M→L 5 NM; bei Starts bis 2 Minuten.', 'Anflug & Landung', false),
   E('WTC', 'Wake Turbulence Category', 'Wirbelschleppen-Kategorie: L = Light (leicht, < 7 t), M = Medium (mittel), H = Heavy (schwer, > 136 t).', 'Anflug & Landung'),
-  E('Heavy', 'Wirbelschleppen-Kategorie H', 'Schweres Flugzeug über 136 t Höchstabfluggewicht (z. B. B787, A350, B777, B747). Erzeugt starke Wirbelschleppen.', 'Anflug & Landung'),
-  E('Medium', 'Wirbelschleppen-Kategorie M', 'Mittleres Flugzeug zwischen 7 und 136 t (z. B. A320, B737, E190, ATR 72).', 'Anflug & Landung'),
+  E('Heavy', 'Wirbelschleppen-Kategorie H', 'Schweres Flugzeug über 136 t Höchstabfluggewicht (z. B. H-89, AV-35, H-77X, H-48F). Erzeugt starke Wirbelschleppen.', 'Anflug & Landung'),
+  E('Medium', 'Wirbelschleppen-Kategorie M', 'Mittleres Flugzeug zwischen 7 und 136 t (z. B. AV-32, H-38, S-19, VT-70).', 'Anflug & Landung'),
   E('Light', 'Wirbelschleppen-Kategorie L', 'Leichtes Flugzeug unter 7 t bzw. kleine Businessjets – besonders empfindlich gegen Wirbelschleppen.', 'Anflug & Landung'),
   E('Bremswirkung', 'Braking Action', 'Wie gut Flugzeuge auf der Piste bremsen: gut / mittel / schlecht. Hängt vom Gummiabrieb und von Nässe ab; schlecht = längere Ausrollstrecke, spätere Abrollwege.', 'Anflug & Landung', false),
   // Abflug & Slots
@@ -75,8 +75,8 @@ export const GLOSSARY = [
   E('GSE', 'Ground Support Equipment', 'Bodenfahrzeuge: Schlepper, Gepäckzüge, Tankwagen, Catering-LKW, Reinigung, Vorfeldbusse.', 'Boden & Abfertigung'),
   E('Vorfeld', 'Apron', 'Abstellfläche für Flugzeuge mit Parkpositionen und Servicestraße.', 'Boden & Abfertigung', false),
   E('Pos', 'Parkposition', 'Abstellplatz eines Flugzeugs (P1–P10). Gebäudepositionen haben eine Fluggastbrücke, Vorfeldpositionen brauchen Busse.', 'Boden & Abfertigung'),
-  E('Klasse', 'Positionsklasse S/M/L', 'Größe einer Parkposition: M für Kurz-/Mittelstrecke (bis A321), L für Großraumflugzeuge (B787, A350, B777, B747).', 'Boden & Abfertigung', false),
-  E('Mindestbodenzeit', 'Minimum Turnaround Time', 'Kürzeste planbare Abfertigungszeit je Flugzeugtyp (z. B. A320 40 min, B777 90 min).', 'Boden & Abfertigung', false),
+  E('Klasse', 'Positionsklasse S/M/L', 'Größe einer Parkposition: M für Kurz-/Mittelstrecke (bis AV-32L), L für Großraumflugzeuge (H-89, AV-35, H-77X, H-48F).', 'Boden & Abfertigung', false),
+  E('Mindestbodenzeit', 'Minimum Turnaround Time', 'Kürzeste planbare Abfertigungszeit je Flugzeugtyp (z. B. AV-32 40 min, H-77X 90 min).', 'Boden & Abfertigung', false),
   E('Tankwagen', 'Fuel Truck', 'Fasst 36 t Kerosin. Große Flugzeuge brauchen mehrere Ladungen; leere Tankwagen fahren zum Tanklager nach.', 'Boden & Abfertigung', false),
   E('FOD', 'Foreign Object Debris', 'Fremdkörper auf der Piste (Metallteile, Steine). Gefahr für Reifen und Triebwerke – die Piste wird für eine Kontrolle kurz gesperrt.', 'Boden & Abfertigung'),
   E('Gummiabrieb', 'Rubber Deposits', 'Reifenabrieb im Aufsetzbereich macht die Piste glatt. Wird nachts per Hochdruck-Wasserstrahl entfernt.', 'Boden & Abfertigung', false),
@@ -91,7 +91,7 @@ export const GLOSSARY = [
   E('Kerosin', 'Jet A-1', 'Flugturbinenkraftstoff. Der Flughafen kauft am Markt ein, lagert im Tanklager und verkauft mit Aufschlag an die Airlines.', 'Wirtschaft', false),
   E('Annuität', 'Kreditrate', 'Gleichbleibende Tagesrate aus Zins und Tilgung.', 'Wirtschaft', false),
   E('Nachtflugverbot', 'Curfew', 'Zwischen 23 und 5 Uhr keine planmäßigen Flüge. Weniger Lärmbeschwerden, aber Frachtairlines verlieren Nachtslots.', 'Wirtschaft', false),
-  E('ICAO', 'International Civil Aviation Organization', 'UN-Organisation für die Zivilluftfahrt. ICAO-Codes: 4 Zeichen für Flugzeugtypen (A320), 3 Buchstaben für Airlines (AUR).', 'Wirtschaft'),
+  E('ICAO', 'International Civil Aviation Organization', 'UN-Organisation für die Zivilluftfahrt. ICAO-Codes: 4 Zeichen für Flugzeugtypen (im Spiel z. B. AV32), 3 Buchstaben für Airlines (AUR).', 'Wirtschaft'),
   E('IATA', 'International Air Transport Association', 'Airline-Dachverband. IATA-Codes: 3 Buchstaben für Flughäfen (z. B. LHR = London Heathrow).', 'Wirtschaft'),
   // Wetter
   E('RVR', 'Runway Visual Range', 'Pistensichtweite in Metern. Unter 550 m reicht ILS CAT I nicht mehr – dann nur mit CAT III landen.', 'Wetter'),
@@ -114,10 +114,10 @@ export const GLOSSARY = [
 
 // Dynamische Einträge: Flugzeugtypen, Airlines, Flughäfen
 for (const t of Object.values(AC_TYPES)) {
-  GLOSSARY.push(E(t.id, t.name, `ICAO-Typcode. ${t.cargo ? `Frachter, ${t.cargo} t Fracht` : `${t.pax} Sitze`}, Wirbelschleppe ${t.wake}, Positionsklasse ${t.size}, MTOW ${t.mtow} t, Mindestbodenzeit ${t.turn} min, Anfluggeschwindigkeit ${t.vapp} kt.`, 'Flugzeugtypen'));
+  GLOSSARY.push(E(t.code || t.id, t.name, `Typkürzel (fiktiver Hersteller). ${t.cargo ? `Frachter, ${t.cargo} t Fracht` : `${t.pax} Sitze`}, Wirbelschleppe ${t.wake}, Positionsklasse ${t.size}, MTOW ${t.mtow} t, Mindestbodenzeit ${t.turn} min, Anfluggeschwindigkeit ${t.vapp} kt.`, 'Flugzeugtypen'));
 }
 for (const a of Object.values(AIRLINES)) {
-  GLOSSARY.push(E(a.code, a.name, `ICAO-Airline-Code (fiktiv). Rufname im Funk: „${a.tel}“. Flotte: ${a.types.join(', ')}.`, 'Airlines'));
+  GLOSSARY.push(E(a.code, a.name, `ICAO-Airline-Code (fiktiv). Rufname im Funk: „${a.tel}“. Flotte: ${a.types.map((k) => typeCode(k)).join(', ')}.`, 'Airlines'));
 }
 for (const [code, c] of Object.entries(CITIES)) {
   GLOSSARY.push(E(code, c.name, `IATA-Flughafencode. ${{ short: 'Kurzstrecke', mid: 'Mittelstrecke', long: 'Langstrecke' }[c.cat]}.`, 'Flughäfen'));

@@ -28,8 +28,8 @@ const RARITY_PTS = [0, 10, 20, 40, 100];
 // Motiv des Tages: je Spieltag eine Fotoaufgabe (aus dem Tag abgeleitet, ohne Spielzufall), +150 Punkte
 export const MOTIF_PTS = 150;
 const MOTIFS = [
-  { type: 'DH8D', t: 'eine Dash 8-400' }, { type: 'A223', t: 'einen Airbus A220-300' }, { type: 'AT76', t: 'eine ATR 72' }, { type: 'CRJ9', t: 'einen CRJ900' },
-  { type: 'B789', t: 'eine Boeing 787-9' }, { type: 'A359', t: 'einen Airbus A350' }, { type: 'B77W', t: 'eine Boeing 777' }, { type: 'A333', t: 'einen Airbus A330' },
+  { type: 'DH8D', t: 'eine Borealis BR-40' }, { type: 'A223', t: 'eine Aviora AV-23' }, { type: 'AT76', t: 'eine Ventis VT-70' }, { type: 'CRJ9', t: 'eine Corvin KR-90' },
+  { type: 'B789', t: 'eine Halvard H-89' }, { type: 'A359', t: 'eine Aviora AV-35' }, { type: 'B77W', t: 'eine Halvard H-77X' }, { type: 'A333', t: 'eine Aviora AV-33' },
   { airline: 'FJW', t: 'eine Maschine von Fjordwing' }, { airline: 'LUM', t: 'eine Maschine von Lumen Air' }, { airline: 'OPL', t: 'eine Maschine von Orient Pearl' }, { airline: 'BWG', t: 'eine Maschine von Balticwings' }, { airline: 'ALP', t: 'eine Maschine von Alpina Air' },
   { moment: 'landing', t: 'eine Landung' }, { moment: 'takeoff', t: 'einen Start' }, { moment: 'push', t: 'einen Pushback' }, { moment: 'night', t: 'eine Nachtaufnahme' }, { moment: 'golden', t: 'ein Flugzeug in der goldenen Stunde' },
   { size: 'L', moment: 'landing', t: 'einen Großraumjet bei der Landung' }, { size: 'L', moment: 'takeoff', t: 'einen Großraumjet beim Start' }, { size: 'S', moment: 'takeoff', t: 'einen Turboprop oder Regionaljet beim Start' },

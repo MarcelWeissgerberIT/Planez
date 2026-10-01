@@ -3,7 +3,7 @@
 // Tragfläche und Boden, Anschnallzeichen, Kapitänsdurchsage) oder im Cockpit (Kamera schaut voraus, Instrumente
 // mit Geschwindigkeit, Höhe, Kurs, Steig-/Sinkrate und Höhenansagen im Endanflug). Die Kamera fährt mit, bis das
 // Flugzeug an der Position steht oder die Karte verlässt. Esc oder ✕ beendet. Nur Darstellung.
-import { AC_TYPES, AIRLINES, CITIES } from '../config.js';
+import { AC_TYPES, AIRLINES, CITIES, typeCode, typeName } from '../config.js';
 import { PH, PHASE_DE } from '../sim/aircraft.js';
 import { clamp, esc } from '../util.js';
 import { voice } from '../voice.js';
@@ -369,7 +369,7 @@ export class Ride {
         this.lbl.set(ac.id, d);
       }
       const alt = ac.mode === 'air' ? Math.round((ac.alt || 0) / 100) * 100 : Math.round((ac.z || 0) * 500 / 10) * 10;
-      const html = `<b>${esc(ac.cs)}</b><small>${esc(ac.type)}${alt > 0 ? ` · ${alt} ft` : ''}</small>`;
+      const html = `<b>${esc(ac.cs)}</b><small>${esc(typeCode(ac.type))}${alt > 0 ? ` · ${alt} ft` : ''}</small>`;
       if (d._h !== html) (d.innerHTML = html, (d._h = html));
       d.classList.toggle('sel', ac.id === sel);
       d.classList.toggle('emg', !!(ac.emergency || ac.fuelEmergency));
@@ -386,7 +386,7 @@ export class Ride {
       if (!d) {
         d = document.createElement('div');
         d.className = 'rl ga';
-        d.title = key === 'heli' ? 'Im Rettungshubschrauber mitfliegen' : 'Rundflug: in der Cessna mitfliegen';
+        d.title = key === 'heli' ? 'Im Rettungshubschrauber mitfliegen' : 'Rundflug: in der Alcedo mitfliegen';
         d.addEventListener('pointerdown', (e) => {
           e.stopPropagation();
           this.startGA(key === 'heli' ? 'heli' : 'vfr');
@@ -859,7 +859,7 @@ Ride.prototype.updateCine3d = function (dt) {
     const t = AC_TYPES[ac.type], al = AIRLINES[ac.airline];
     const rwy = ac.rwy || s.rwy;
     const sub = sh.kind === 'land' ? `Landung auf der ${rwy}` : sh.kind === 'takeoff' || sh.kind === 'climb' ? `Start von der ${rwy}` : CINE_SUB[sh.kind];
-    html = `<b>${esc(ac.cs)}</b><span>${esc(t ? t.name : ac.type)}${al ? ` · ${esc(al.name)}` : ''}</span><small>${esc(sub)} · ${esc(s.name)}</small>`;
+    html = `<b>${esc(ac.cs)}</b><span>${esc(typeName(ac.type))}${al ? ` · ${esc(al.name)}` : ''}</span><small>${esc(sub)} · ${esc(s.name)}</small>`;
   } else html = `<b>${esc(sh.kind === 'heli' ? 'Rescue 7' : sh.kind === 'vfr' ? (s.vfr.p && s.vfr.p.cs) || '' : s.name)}</b><small>${esc(CINE_SUB[sh.kind] || '')}</small>`;
   if (cap._h !== html) (cap.innerHTML = html, (cap._h = html), cap.classList.remove('in'), void cap.offsetWidth, cap.classList.add('in'));
   const txt = `Kino 3D · ${CINE_SUB[sh.kind] || ''}`;
@@ -994,7 +994,7 @@ Ride.prototype.updateGA = function (dt) {
   this.v3d.render(s, this, null);
   this.windshield(dt, s.weather.kind, kt);
   const hdg = Math.round((((o.hdg || 0) * 180) / Math.PI + 90 + 360) % 360);
-  const what = heli ? `Rescue 7 · Rettungshubschrauber${o.st === 'hold' ? ' · wartet auf Querungsfreigabe' : o.st === 'cross' ? ' · quert die Bahnen' : ''}` : `${esc(o.cs)} · Cessna 172 · ${{ join: 'Einflug in die Platzrunde', circuit: 'Platzrunde', ga: 'Durchstarten', orbit: 'Warteschleife', leave: 'Abflug aus der Kontrollzone' }[o.mode] || 'Platzrunde'}`;
+  const what = heli ? `Rescue 7 · Rettungshubschrauber${o.st === 'hold' ? ' · wartet auf Querungsfreigabe' : o.st === 'cross' ? ' · quert die Bahnen' : ''}` : `${esc(o.cs)} · Alcedo AL-4 · ${{ join: 'Einflug in die Platzrunde', circuit: 'Platzrunde', ga: 'Durchstarten', orbit: 'Warteschleife', leave: 'Abflug aus der Kontrollzone' }[o.mode] || 'Platzrunde'}`;
   const txt = `${this.mode === 'chase' ? 'Außenkamera' : heli ? 'Rettungsflug' : 'Rundflug'} · ${what}${alt > 0 ? ` · ${alt} ft` : ''}`;
   if (this.tEl.innerHTML !== txt) this.tEl.innerHTML = txt;
   this.el.querySelector('.rd-belt').classList.toggle('on', true);
