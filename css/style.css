@@ -1743,3 +1743,8 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 #view3d.hidden { display: none; }
 #ride.v3d .rd-haze { display: none; }
 #ride.v3d.window .rd-win { width: min(58vmin, 72vw); height: min(76vmin, 76vh); }
+/* beim Mitfliegen: Kopfleiste (Uhr, Tempo) über der 3D-Ansicht, Mitflug-Leiste darunter */
+#game.riding #hud { z-index: 46; }
+#ride .rd-bar { top: 64px; }
+#ride .rd-help { top: 110px; }
+@media (max-width: 700px) { #game.riding #hud { z-index: 46; } #ride.cockpit .rd-bar { top: 118px; } }
