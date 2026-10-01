@@ -189,7 +189,7 @@ export class GroundPanel {
       return {
         cls: `inb-row${need ? ' need' : ''}`,
         parts: {
-          'inb-t': `<span class="cs" data-sel="${a.id}">${esc(a.cs)}</span> <small style="color:var(--muted)">${a.type} · ${AC_TYPES[a.type].size}</small>${flagHtml(a)}`,
+          'inb-t': `<span class="cs" data-sel="${a.id}">${esc(a.cs)}${a.protocol ? ' 🎖️' : ''}</span> <small style="color:var(--muted)">${a.type} · ${AC_TYPES[a.type].size}</small>${flagHtml(a)}`,
           'inb-e': `<span class="eta">${need ? '⚠ wartet' : PHASE_DE[a.phase].split(' ')[0]} · ${eta}</span>`,
           'inb-s': locked ? `<b>P${a.stand}</b>` : `<select data-assign="${a.id}">${standOptions(state, a)}</select>`,
         },
@@ -217,7 +217,7 @@ export class GroundPanel {
       return {
         cls: `stand-row${sel ? ' sel' : ''}${left < 0 ? ' late' : ''}`,
         parts: {
-          'sr-head': `<span class="sr-id">P${st ? st.id : '?'}</span><span class="sr-ac" data-sel="${a.id}">${esc(a.cs)}${flagHtml(a)} <small>${a.type} → ${CITIES[rot?.city]?.name || ''} · <span class="sr-kind">${st ? KIND_DE[st.kind] : ''}</span></small></span><span class="sr-std ${cls}">STD ${rot ? fmtClock(rot.std) : ''} ${left >= 0 ? `(${left}′)` : `(+${-left}′)`}</span>${acdmLine(state, a)}`,
+          'sr-head': `<span class="sr-id">P${st ? st.id : '?'}</span><span class="sr-ac" data-sel="${a.id}">${esc(a.cs)}${a.protocol ? ' <span title="Staatsbesuch – pünktlich abfertigen">🎖️</span>' : ''}${flagHtml(a)} <small>${a.type} → ${CITIES[rot?.city]?.name || ''} · <span class="sr-kind">${st ? KIND_DE[st.kind] : ''}</span></small></span><span class="sr-std ${cls}">STD ${rot ? fmtClock(rot.std) : ''} ${left >= 0 ? `(${left}′)` : `(+${-left}′)`}</span>${acdmLine(state, a)}`,
           'sr-time': (() => {
             if (!rot) return '';
             const t0 = rot.onBlock || state.time, t1 = rot.tobt || rot.std;

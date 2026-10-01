@@ -122,7 +122,7 @@ export class StandPlan {
     }
     const q = state.acs.filter((a) => a.arr && !a.stand && INB.has(a.phase)).sort((a, b) => etaStand(state, a) - etaStand(state, b));
     const qh = q.length
-      ? q.map((a) => `<div class="sp-chip ${a.phase === PH.TAXI_WAIT || a.phase === PH.VACATED ? 'wait' : ''}" data-spdrag="${a.id}" data-spsel="${a.id}"><i style="background:${(AIRLINES[a.airline] || AIRLINES.AUR).color}"></i><b>${esc(a.cs)}</b><small>${a.type} · ${AC_TYPES[a.type].size}${AC_TYPES[a.type].cargo ? ' · Fracht' : ''} · ${a.phase === PH.TAXI_WAIT || a.phase === PH.VACATED ? 'wartet!' : `~${fmtClock(etaStand(state, a))}`}</small></div>`).join('')
+      ? q.map((a) => `<div class="sp-chip ${a.phase === PH.TAXI_WAIT || a.phase === PH.VACATED ? 'wait' : ''}" data-spdrag="${a.id}" data-spsel="${a.id}"><i style="background:${(AIRLINES[a.airline] || AIRLINES.AUR).color}"></i><b>${esc(a.cs)}${a.protocol ? ' 🎖️' : ''}</b><small>${a.type} · ${AC_TYPES[a.type].size}${AC_TYPES[a.type].cargo ? ' · Fracht' : ''} · ${a.phase === PH.TAXI_WAIT || a.phase === PH.VACATED ? 'wartet!' : `~${fmtClock(etaStand(state, a))}`}</small></div>`).join('')
       : '<div class="sp-empty">Alle Ankünfte haben eine Position.</div>';
     if (this.queue._h !== qh) {
       this.queue.innerHTML = qh;
