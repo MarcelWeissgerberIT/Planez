@@ -1,5 +1,5 @@
 // Shop-Screenshots (1920×1080) in Deutsch und Englisch: Menü, Grasplatz, Tower, Vorfeld, Management-Zentrale, Nacht, 3D-Kino.
-// Aufruf: lokalen Server starten (python3 -m http.server 8765) und dann  node tools/storeshots.mjs [de|en]
+// Aufruf: lokalen Server starten (python3 -m http.server 8765) und dann  node tools/storeshots.mjs [de|en|all] [02,06 …]
 // Ausgabe: store/screenshots/<sprache>/NN_name.jpg (nicht im Repository)
 import fs from 'fs';
 import path from 'path';
@@ -8,7 +8,8 @@ import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = process.env.PLANEZ_URL || 'http://localhost:8765/index.html';
-const LANGS = process.argv[2] ? [process.argv[2]] : ['de', 'en'];
+const LANGS = process.argv[2] && process.argv[2] !== 'all' ? [process.argv[2]] : ['de', 'en'];
+const ONLY = process.argv[3] ? process.argv[3].split(',') : null; // z. B. 02,06
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 
 const prep = () => {
@@ -67,22 +68,40 @@ async function sim(page, sec, { hour, weather, auto = true } = {}) {
   await page.waitForTimeout(1500);
   await closeModals(page);
 }
+// 3D-Kino mit einer bestimmten Szenenart (Landung, Start …)
+async function cine(page, want) {
+  await page.click('#t-tower3d');
+  await page.waitForTimeout(2000);
+  await page.click('#ride [data-rd=cine]');
+  await page.waitForTimeout(2500);
+  await page.evaluate(async (want) => {
+    const m = await import('./js/sim/sim.js');
+    const s = window.planez.state, r = window.planez.ride;
+    for (let k = 0; k < 200; k++) {
+      const c = r.cineShots(s).filter((x) => x.kind === want);
+      if (c.length) {
+        r.shot = r.pickShot.call(Object.assign(Object.create(Object.getPrototypeOf(r)), r, { cineShots: () => [c[0]], recent: [] }), s);
+        return;
+      }
+      for (let j = 0; j < 6; j++) m.step(s, 0.25);
+      await new Promise((res) => setTimeout(res, 30));
+    }
+  }, want);
+  await page.waitForTimeout(3500);
+}
 const cam = (page, x, y, zoom) => page.evaluate(([x, y, zoom]) => { const c = window.planez.cam; if (x != null) c.focus(x, y); if (zoom) c.zoom = zoom; }, [x, y, zoom]);
 
 const SHOTS = [
   ['01_menu', async (p) => { await p.waitForTimeout(1500); }],
-  ['02_grass_strip', async (p) => { await start(p, 'manager', 'grass'); await sim(p, 3 * 86400, { hour: 11 }); await cam(p, null, null, 1.15); }],
+  ['02_grass_strip', async (p) => { await start(p, 'manager', 'grass'); await sim(p, 3 * 86400, { hour: 11, weather: 'clear' }); await cam(p, 44, 16.5, 1.35); await p.waitForTimeout(1500); }],
   ['03_tower', async (p) => { await start(p, 'tower'); await sim(p, 3 * 3600, { hour: 9.2 }); }],
   ['04_apron', async (p) => { await start(p, 'ground'); await sim(p, 3 * 3600, { hour: 8.4 }); await cam(p, null, null, 0.85); }],
   ['05_management', async (p) => { await start(p, 'manager'); await sim(p, 2 * 86400, { hour: 13 }); await p.keyboard.press('o'); await p.waitForTimeout(900); }],
-  ['06_night_storm', async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 21.5, weather: 'storm' }); await p.evaluate(() => document.getElementById('game').classList.add('photo')); await cam(p, null, null, 0.9); }],
+  ['06_night', async (p) => { await start(p, 'observer'); await sim(p, 3 * 3600, { hour: 23, weather: 'clear' }); await p.evaluate(() => document.getElementById('game').classList.add('photo')); await cam(p, null, null, 0.9); await p.waitForTimeout(1500); }],
   ['07_cinema_3d', async (p) => {
     await start(p, 'observer');
-    await sim(p, 3 * 3600, { hour: 17.2, weather: 'clouds' });
-    await p.click('#t-tower3d');
-    await p.waitForTimeout(2000);
-    await p.click('#ride [data-rd=cine]');
-    await p.waitForTimeout(6000);
+    await sim(p, 3 * 3600, { hour: 17.3, weather: 'clouds' });
+    await cine(p, 'land');
   }],
   ['08_tower_view_3d', async (p) => { await start(p, 'tower'); await sim(p, 3 * 3600, { hour: 10 }); await p.click('#t-tower3d'); await p.waitForTimeout(5000); }],
 ];
@@ -91,6 +110,7 @@ for (const lang of LANGS) {
   const out = path.join(ROOT, 'store/screenshots', lang);
   fs.mkdirSync(out, { recursive: true });
   for (const [name, fn] of SHOTS) {
+    if (ONLY && !ONLY.some((o) => name.startsWith(o))) continue;
     const page = await open(lang);
     try {
       await fn(page);
