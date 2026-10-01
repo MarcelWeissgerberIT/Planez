@@ -234,8 +234,9 @@ export const voice = {
       u.lang = v.lang;
     } else u.lang = isCrew ? 'de-DE' : 'en-US';
     const h = hash(m.from || 'TWR');
-    u.rate = (isAtc ? 1.08 : 1.02 + (h % 7) * 0.03) * this.rate;
-    u.pitch = isAtc ? 0.95 : 0.8 + (h % 9) * 0.06;
+    // natürliche Stimmen klingen bei starker Tonhöhenverschiebung künstlich: nur leicht variieren
+    u.rate = (isCrew ? 1.02 : isAtc ? 1.08 : 1.03 + (h % 5) * 0.025) * this.rate;
+    u.pitch = isCrew ? 1 : isAtc ? 0.97 : 0.9 + (h % 5) * 0.05;
     u.volume = this.vol;
     this.current = m;
     const done = () => {
