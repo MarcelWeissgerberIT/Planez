@@ -557,12 +557,12 @@ export class MapRenderer {
     this.cam.setScreen(ctx);
   }
 
-  // „Follow me“: Superjumbo und VIP-Jets werden nach der Landung von einem gelben Lotsenfahrzeug zur Position geführt
+  // „Follow me“: Superjumbo, Regierungsmaschine und VIP-Jets werden nach der Landung von einem gelben Lotsenfahrzeug zur Position geführt
   followMeItems(state, items, lights) {
     for (const ac of state.acs) {
       if (ac.mode !== 'map' || ac.phase !== 'TAXI_IN' || !ac.path || ac.pi == null) continue;
       const sp = state.rots[ac.rot] && state.rots[ac.rot].special;
-      if (sp !== 'a380' && sp !== 'vip' && ac.type !== 'A388') continue;
+      if (sp !== 'a380' && sp !== 'vip' && sp !== 'state' && ac.type !== 'A388') continue;
       // Punkt ein Stück voraus auf dem Rollpfad
       let need = ac.len * 0.55 + 1.5, px = ac.x, py = ac.y, hdg = ac.hdg;
       for (let i = Math.max(1, ac.pi + 1); i < ac.path.length; i++) {
