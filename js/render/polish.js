@@ -1,18 +1,26 @@
-// Visueller Feinschliff: Reifenrauch beim Aufsetzen, Gischt auf nasser Piste, Wolken über den Wolkenschatten
+// Visueller Feinschliff: Reifenrauch beim Aufsetzen, Gischt auf nasser Piste, Wolken über den Wolkenschatten,
+// Kondensfahnen an den Flügelspitzen bei feuchter Luft (Endanflug, Abheben, Durchstarten)
 import { PH } from '../sim/aircraft.js';
 import { AC_TYPES } from '../config.js';
-import { clamp } from '../util.js';
+import { clamp, hourOf } from '../util.js';
 import { Q } from './quality.js';
+
+const TRAIL_S = 0.8; // Sekunden, die eine Kondensfahne sichtbar bleibt
 
 export class Polish {
   constructor() {
     this.prev = new Map(); // Phase je Flugzeug
     this.parts = [];
     this.cloudImg = null;
+    this.trails = new Map(); // Flugzeug -> Wirbelschleppen-Punkte (linke/rechte Flügelspitze)
+    this.t = 0;
   }
 
   // Ereignisse erkennen und Partikel erzeugen
   update(r, state, dt) {
+    this.t += dt;
+    const kind = state.weather.kind;
+    const humid = Q.agents > 0.3 && (kind === 'rain' || kind === 'storm' || kind === 'fog' || kind === 'snow' || (kind === 'clouds' && hourOf(state.time) < 10));
     const wet = state.weather.kind === 'rain' || state.weather.kind === 'storm' || state.weather.kind === 'snow';
     const seen = new Set();
     for (const ac of state.acs) {
@@ -45,7 +53,22 @@ export class Polish {
         const moving = ac.fireStop ? 0 : 1;
         this.parts.push({ x: ac.x + rx * side * 0.32 * big - fx * 0.1, y: ac.y + ry * side * 0.32 * big - fy * 0.1, z: Math.max(0.12, ac.z + 0.1), vx: -fx * moving * 0.8 + (Math.random() - 0.5) * 0.08, vy: -fy * moving * 0.8 + (Math.random() - 0.5) * 0.08, vz: 0.12 + Math.random() * 0.1, life: 0, dur: 2.2 + Math.random() * 1.5, r: 0.1 * big, grow: 0.8 * big, c: ac.emgKind === 'engine' ? '52,52,56' : '120,120,126', a: 0.55 * k });
       }
+      // Kondensfahnen: Die Flügelspitzen ziehen bei feuchter Luft dünne weiße Fäden hinter sich her
+      const vap = humid && ((ac.phase === PH.FINAL && ac.z > 0.12) || ((ac.phase === PH.TAKEOFF || ac.phase === PH.MISSED) && ac.z > 0.08 && ac.z < 3.5));
+      if (vap) {
+        let tr = this.trails.get(ac.id);
+        if (!tr) this.trails.set(ac.id, (tr = []));
+        const last = tr[tr.length - 1];
+        if (!last || this.t - last.t > 0.05) {
+          const half = ac.len * 0.47, zw = ac.z + 0.1 * big;
+          tr.push({ t: this.t, ax: ac.x + rx * half, ay: ac.y + ry * half, bx: ac.x - rx * half, by: ac.y - ry * half, z: zw });
+        }
+      }
       this.prev.set(ac.id, ac.phase);
+    }
+    for (const [id, tr] of this.trails) {
+      while (tr.length && this.t - tr[0].t > TRAIL_S) tr.shift();
+      if (!tr.length || !seen.has(id)) this.trails.delete(id);
     }
     for (const id of this.prev.keys()) if (!seen.has(id)) this.prev.delete(id);
     for (const q of this.parts) {
@@ -62,6 +85,7 @@ export class Polish {
 
   drawParticles(r) {
     const { ctx, cam } = r;
+    if (this.trails.size) this.drawTrails(r);
     if (!this.parts.length) return;
     cam.setScreen(ctx);
     for (const q of this.parts) {
@@ -75,6 +99,31 @@ export class Polish {
       ctx.fillStyle = g;
       ctx.fillRect(s.x - rad, s.y - rad, rad * 2, rad * 2);
     }
+  }
+
+  drawTrails(r) {
+    const { ctx, cam } = r;
+    cam.setScreen(ctx);
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(0.8, 1.3 * cam.zoom);
+    for (const tr of this.trails.values()) {
+      for (let i = 1; i < tr.length; i++) {
+        const p = tr[i - 1], q = tr[i];
+        const a = 0.42 * (1 - (this.t - q.t) / TRAIL_S) * clamp((this.t - q.t) * 10, 0, 1);
+        if (a <= 0.01) continue;
+        ctx.strokeStyle = `rgba(245,248,252,${a})`;
+        ctx.beginPath();
+        let s0 = cam.toScreen(p.ax, p.ay, p.z), s1 = cam.toScreen(q.ax, q.ay, q.z);
+        ctx.moveTo(s0.x, s0.y);
+        ctx.lineTo(s1.x, s1.y);
+        s0 = cam.toScreen(p.bx, p.by, p.z);
+        s1 = cam.toScreen(q.bx, q.by, q.z);
+        ctx.moveTo(s0.x, s0.y);
+        ctx.lineTo(s1.x, s1.y);
+        ctx.stroke();
+      }
+    }
+    ctx.lineCap = 'butt';
   }
 
   // Wolken in der Höhe, passend zu den Wolkenschatten (gleiche Bahn, Versatz durch Sonnenstand)
