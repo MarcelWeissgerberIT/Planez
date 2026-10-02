@@ -93,6 +93,7 @@ export class Polish {
       const s = cam.toScreen(q.x, q.y, q.z);
       const rad = (q.r + q.grow * u) * 32 * cam.zoom;
       const a = q.a * (1 - u) * clamp(u * 8, 0, 1);
+      if (!(rad > 0.3) || !(a > 0)) continue; // Canvas wirft bei negativem Radius
       const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, rad);
       g.addColorStop(0, `rgba(${q.c},${a})`);
       g.addColorStop(1, `rgba(${q.c},0)`);

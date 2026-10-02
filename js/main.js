@@ -520,7 +520,8 @@ function maybeShowShiftBonus(s) {
 // ---------------- Schleife ----------------
 function loop(ts) {
   requestAnimationFrame(loop);
-  const dt = Math.min(0.1, (ts - game.lastTs) / 1000 || 0.016);
+  // nie rückwärts: springt der Zeitstempel zurück (Uhrwechsel, Aufnahme-Werkzeuge), zählt das Bild als 0 s
+  const dt = Math.max(0, Math.min(0.1, (ts - game.lastTs) / 1000 || 0.016));
   game.lastTs = ts;
   if (!game.running || !game.state) return;
   const s = game.state;
