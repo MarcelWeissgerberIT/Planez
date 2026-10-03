@@ -1190,21 +1190,24 @@ export class MapRenderer {
       rect(-0.3, 0.1, 0.085, 0.03, 0.13, [120, 110, 100], [96, 88, 80], [70, 64, 58]);
       rect(-0.26, 0.06, 0.07, 0.13, 0.15, [150, 120, 80], [120, 96, 64], [96, 76, 50]);
     } else {
-      carBody(ctx, cam, p.x, p.y, p.h, c.col, cam.zoom < 0.7, 1, 0, false, c.body || BODY_OF[c.kind] || 'sedan');
+      const real = carBody(ctx, cam, p.x, p.y, p.h, c.col, cam.zoom < 0.7, 1, 0, false, c.body || BODY_OF[c.kind] || 'sedan');
       if (c.kind === 'taxi') rect(-0.02, 0.03, 0.02, 0.095, 0.11, [255, 255, 255], [220, 220, 220], [190, 190, 190]);
       if (c.kind === 'police') {
-        rect(-0.03, 0.05, 0.05, 0.095, 0.11, [30, 64, 175], [30, 58, 138], [23, 37, 84]);
-        rect(-0.16, 0.16, 0.081, 0.03, 0.05, [37, 99, 235], [29, 78, 216], [30, 64, 175]);
-        if (c.siren) {
+        // als 3D-Modell trägt der Streifenwagen Streifen und Blaulichtbalken selbst
+        if (!real) rect(-0.03, 0.05, 0.05, 0.095, 0.11, [30, 64, 175], [30, 58, 138], [23, 37, 84]);
+        if (!real) rect(-0.16, 0.16, 0.081, 0.03, 0.05, [37, 99, 235], [29, 78, 216], [30, 64, 175]);
+        if (c.siren || (c.patrolLights && !p.moving)) {
           const on = (this.ambient.vt * 3) % 1 < 0.5;
           lights.push({ x: p.x, y: p.y, z: 0.12, c: on ? '#3b82f6' : '#93c5fd', s: on ? 16 : 9, a: 0.95, day: true });
         }
       }
       if (c.kind === 'ambulance') {
-        // Kastenaufbau, rote Leuchtstreifen, Blaulicht auf dem Dach
-        rect(-0.2, 0.06, 0.088, 0.02, 0.07, [248, 250, 252], [226, 232, 240], [203, 213, 225]);
-        rect(-0.2, 0.06, 0.088, 0.07, 0.095, [220, 38, 38], [200, 30, 30], [170, 24, 24]);
-        rect(-0.2, 0.06, 0.088, 0.095, 0.15, [248, 250, 252], [226, 232, 240], [203, 213, 225]);
+        // ohne 3D-Modell: Kastenaufbau, rote Leuchtstreifen; Blaulicht auf dem Dach immer
+        if (!real) {
+          rect(-0.2, 0.06, 0.088, 0.02, 0.07, [248, 250, 252], [226, 232, 240], [203, 213, 225]);
+          rect(-0.2, 0.06, 0.088, 0.07, 0.095, [220, 38, 38], [200, 30, 30], [170, 24, 24]);
+          rect(-0.2, 0.06, 0.088, 0.095, 0.15, [248, 250, 252], [226, 232, 240], [203, 213, 225]);
+        }
         if (c.siren) {
           const on = (this.time * 3.2) % 1 < 0.5;
           lights.push({ x: p.x + fx * 0.04, y: p.y + fy * 0.04, z: 0.17, c: on ? '#2563eb' : '#93c5fd', s: on ? 18 : 9, a: 0.95, day: true });
@@ -2439,10 +2442,11 @@ function loadImp() {
 }
 // Pkw: als 3D-Modell (rund, mit Scheiben und Rädern), im Leistungsmodus, weit herausgezoomt oder vor dem Laden als Quader
 // Bauform für besondere Autos (Taxi, Polizei, Rettungswagen, Kolonne, Follow-me)
-const BODY_OF = { taxi: 'sedan', police: 'estate', ambulance: 'van', followme: 'suv', limo: 'sedan' };
+const BODY_OF = { taxi: 'sedan', police: 'police', ambulance: 'ambulance', followme: 'suv', limo: 'sedan' };
 function carBody(ctx, cam, x, y, h, color, simple, sc = 1, zb = 0, force = false, kind = 'sedan') {
-  if (IMP && !Q.perf && !simple && IMP.drawCar(ctx, cam, x, y, h, color, sc * 1.3, zb, force, kind)) return;
+  if (IMP && !Q.perf && !simple && IMP.drawCar(ctx, cam, x, y, h, color, sc * 1.3, zb, force, kind)) return true;
   drawCarBody(ctx, cam, x, y, h, color, prism, carShades, simple, sc, zb);
+  return false;
 }
 const VEH_H = { tug: 0.075, baggage: 0.07, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13, deice: 0.15 };
 // Lackfarbe -> Dach/Seiten + getönte Scheiben (gecacht)

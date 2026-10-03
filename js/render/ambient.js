@@ -100,6 +100,16 @@ export class Ambient {
       const wait = this.rnd() < 0.4 ? 4 + this.rnd() * 10 : 0;
       car.pts = [...inRoad(LX), { x: LX, y: 0.8 }, { x: LX, y: 3.2 }, { x: 58.4 + (xe - 58.4) * this.rnd(), y: 3.2, w: wait }, { x: xe, y: 3.2 }, { x: xe, y: 4.65 }, { x: LX, y: 4.65 }, { x: LX, y: 0.8 }, ...outRoad(LX, this.rnd() < 0.5)];
       car.v *= 0.75;
+    } else if (r < 0.7) {
+      // Flughafenpolizei auf Streife: fährt langsam die Zufahrtsstraße entlang und hält am Rand beim Parkplatz bzw.
+      // Parkhaus (Kontrolle, Präsenz), dann weiter
+      car.kind = 'police';
+      car.col = '#eef2f6';
+      car.body = 'police';
+      car.patrolLights = this.rnd() < 0.45; // bei manchen Kontrollen Blaulicht
+      car.v *= 0.7;
+      const x = 46 + this.rnd() * 18;
+      car.pts = [{ x: 88, y: WEST }, { x: x + 1, y: WEST }, { x, y: 0.95, w: 25 + this.rnd() * 35 }, { x: x - 1.2, y: WEST }, { x: -8, y: WEST }];
     } else if (r < 0.84) {
       // Vorfahrt am Terminal (Aussteigen)
       const x = 27.5 + this.rnd() * 8;
