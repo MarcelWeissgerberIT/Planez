@@ -170,6 +170,15 @@ function stack(ctx, F, zoom, part, dx, dy, w, l, z0, z1, round, maxN = 18) {
 }
 
 // Flugzeug mit Volumen: Fahrwerk, Flügel (mit Kante), Triebwerke, runder Rumpf
+// nur die Höhenmaße des Rumpfs (für Lichter), ohne zu zeichnen
+export function aircraftDims(ac, name, Wd) {
+  const v = acVol(name);
+  if (!v) return { top: ac.z + 0.2, mid: ac.z + 0.12, r: 0.1, wing: ac.z + 0.07 };
+  const r = ((v.band.bw / v.W) * Wd) / 2;
+  const zBot = ac.z + r * (v.wing === 'high' ? 0.55 : 0.85);
+  return { r, mid: zBot + r, top: zBot + 2 * r, wing: v.wing === 'high' ? zBot + 2 * r - r * 0.25 : zBot + r * 0.3 };
+}
+
 export function drawAircraftBody(ctx, cam, ac, img, name, L, Wd, rot, onGround, livery) {
   const v = acVol(name);
   const F = frame(ctx, cam, ac.x, ac.y, rot);

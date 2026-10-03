@@ -6,6 +6,7 @@
 // Kollisionswarn- und Landelichter, die die Ansicht je nach Phase und Tageszeit schaltet. 1 Einheit = 1 Kachel (20 m).
 import * as THREE from '../vendor/three.module.min.js';
 import { AC_TYPES, AIRLINES } from '../config.js';
+import { SPECIALS } from '../sim/spotter.js';
 
 const DEG = Math.PI / 180;
 
@@ -155,12 +156,13 @@ function livery(type, al, L, k) {
   g.fillStyle = '#cfd5dc';
   g.fillRect(0, 100, 1024, 56);
   // Zierstreifen unter den Fenstern (rechts und links), hinten breiter in Airline-Farbe
+  // kräftige Zierlinie, damit die Airline auch auf der Karte zu erkennen ist
   g.fillStyle = col;
-  g.fillRect(150, 66, 760, 7);
-  g.fillRect(150, 183, 760, 7);
+  g.fillRect(150, 64, 760, 12);
+  g.fillRect(150, 180, 760, 12);
   g.fillStyle = col2 === '#ffffff' || col2 === '#f8fafc' ? '#94a3b8' : col2;
-  g.fillRect(150, 75, 760, 3);
-  g.fillRect(150, 178, 760, 3);
+  g.fillRect(150, 77, 760, 4);
+  g.fillRect(150, 175, 760, 4);
   // Heck: Airline-Farbe zieht sich über den Rücken bis zum Leitwerk
   g.fillStyle = col;
   g.beginPath();
@@ -290,16 +292,19 @@ export function spriteMat(color) {
 const TEMPL = new Map();
 
 export function buildAircraft(ac) {
-  const key = `${ac.type}|${ac.airline}`;
+  const sp = ac.special && SPECIALS[ac.special] ? ac.special : '';
+  const key = `${ac.type}|${ac.airline}|${sp}`;
   const tt = AC_TYPES[ac.type];
-  if (!TEMPL.has(key)) TEMPL.set(key, tt && (tt.light || ac.type === 'PC12') ? lightTemplate(ac.type, ac.airline) : template(ac.type, ac.airline));
+  if (!TEMPL.has(key)) TEMPL.set(key, tt && (tt.light || ac.type === 'PC12') ? lightTemplate(ac.type, ac.airline) : template(ac.type, ac.airline, sp));
   const g = TEMPL.get(key).clone();
   return g;
 }
 
-function template(type, airline) {
+function template(type, airline, special = '') {
   const t = AC_TYPES[type] || AC_TYPES.A320;
-  const al = AIRLINES[airline] || {};
+  // Sonderlackierung (Spotterbuch): Leitwerk, Zierstreifen und Logo in ihren Farben
+  const SP = special && SPECIALS[special];
+  const al = SP ? { ...(AIRLINES[airline] || {}), color: SP.fin, color2: SP.accent || '#ffffff' } : AIRLINES[airline] || {};
   const k = specOf(type);
   const L = t.len;
   const rz = k.r * L, ry = rz * k.kh;

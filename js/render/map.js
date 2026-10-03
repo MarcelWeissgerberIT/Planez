@@ -1,7 +1,8 @@
 // Isometrische Flughafenansicht
 import { IMG, shadowOf, glowTinted } from '../assets.js';
 import { lookOf } from '../sim/spotter.js';
-import { drawAircraftBody, drawVehicleBody, drawCarBody } from './volume.js';
+import { drawAircraftBody, drawVehicleBody, drawCarBody, aircraftDims } from './volume.js';
+import { Q } from './quality.js';
 import { Ambient, drawPerson } from './ambient.js';
 import { gaLifeItems } from './galife.js';
 import { busPaxItems } from './buspax.js';
@@ -371,6 +372,17 @@ export class MapRenderer {
       if (ac.z > 0.35) flying.push(ac);
       else items.push({ d: ac.x + ac.y, f: () => this.drawAircraft(state, ac, lights, night, ui) });
     }
+    // Flugzeuge als 3D-Modelle vorab in den Atlas rendern (nicht im Leistungsmodus)
+    if (!Q.perf) loadImp();
+    if (IMP && !Q.perf) {
+      const list = [];
+      for (const ac of state.acs) {
+        if (ac.mode !== 'map' || this.hideAc === ac.id || !inView(view, ac.x, ac.y, 6 + ac.z * 2)) continue;
+        const crab = this.crabOf(state, ac);
+        list.push(crab ? { ...ac, hdg: ac.hdg + crab } : ac);
+      }
+      IMP.prepare(this, list);
+    } else if (IMP) IMP.prepare(this, []);
     // Fahrzeuge unter Flügel oder Heck eines stehenden Flugzeugs vor dem Flugzeug zeichnen (sonst liegen sie obendrauf)
     const parked = state.acs.filter((a) => a.mode === 'map' && a.z < 0.05);
     for (const v of state.vehicles) {
@@ -1248,10 +1260,13 @@ export class MapRenderer {
       ctx.setLineDash([]);
       ctx.lineDashOffset = 0;
     }
-    // Körper mit Volumen (Fahrwerk, Flügel, Triebwerke, runder Rumpf)
+    // echtes 3D-Modell aus dem Atlas (render/acimp.js); sonst gezeichneter Körper mit Volumen und Leitwerk
+    if (IMP && IMP.draw(this, ac)) {
+      this.acLights(state, ac, aircraftDims(ac, type.sprite, Wd), L, Wd, lights, night);
+      return;
+    }
     const lk = lookOf(ac);
     const body = drawAircraftBody(ctx, cam, ac, img, type.sprite, L, Wd, rot, onGround, lk.band);
-    const zb = body.wing;
     // Seitenleitwerk in Airline-Farbe, sitzt auf dem Rumpfrücken
     const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg);
     const fh = type.finH * 0.8;
@@ -1314,7 +1329,14 @@ export class MapRenderer {
     ctx.lineTo(c.x, c.y);
     ctx.stroke();
 
-    // Lichter
+    this.acLights(state, ac, body, L, Wd, lights, night);
+  }
+
+  // Positions-, Blitz-, Lande- und Rolllichter, nachts Kabinenfenster; Klickfläche
+  acLights(state, ac, body, L, Wd, lights, night) {
+    const cam = this.cam;
+    const zb = body.wing;
+    const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg);
     const t = this.time;
     const rx = -fy, ry = fx;
     const span = Wd * 0.48;
@@ -2336,6 +2358,12 @@ function stairsTop(state, v) {
   const ac = state.acs.find((a) => a.id === v.job.ac);
   const door = ac ? Math.max(0.1, 0.085 * ac.len) : 0.16;
   return 0.12 + (door - 0.12) * clamp((state.time - (v.dockT || 0)) / 25, 0, 1);
+}
+// Flugzeuge als 3D-Modelle (lädt three.js nach; bis dahin und im Leistungsmodus die gezeichneten Flugzeuge)
+let IMP = null;
+let impLoad = null;
+function loadImp() {
+  if (!impLoad) impLoad = import('./acimp.js').then((m) => (IMP = m.ready() ? m : null)).catch(() => (IMP = null));
 }
 const VEH_H = { tug: 0.075, baggage: 0.07, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13, deice: 0.15 };
 // Lackfarbe -> Dach/Seiten + getönte Scheiben (gecacht)
