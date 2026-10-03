@@ -207,9 +207,31 @@ function livery(type, al, L, k) {
       win(x, 222, ww, wh - 1);
     }
   }
-  // Cockpit nachts schwach beleuchtet
-  e.fillStyle = '#3b4a66';
-  for (const [v0, v1] of [[0, 21], [24, 44], [212, 232], [235, 256]]) e.fillRect(926, v0, 20, v1 - v0);
+  // Cockpitscheiben auf der Nase: Lage als (s, θ) – s = Anteil der Nasenlänge (0 Beginn, 1 Spitze), θ = Winkel von oben
+  // (Grad). Zwei Frontscheiben auf der abfallenden Nase mit Mittelsteg, dahinter je Seite Schiebefenster und kleineres
+  // hinteres Seitenfenster, Unterkante knapp über der Kabinenfensterreihe
+  const nf = k.prop ? 0.16 : 0.19;
+  const U = (sn) => (1024 * (0.8 + nf * sn)) / (0.8 + nf);
+  const COCKPIT = [
+    [[0.672, 3], [0.672, 32], [0.79, 42], [0.79, 3]],
+    [[0.565, 41], [0.565, 67], [0.655, 65], [0.655, 37]],
+    [[0.475, 51], [0.475, 67], [0.548, 68], [0.548, 43]],
+  ];
+  const cockpit = (cx, fill) => {
+    cx.fillStyle = fill;
+    for (const side of [1, -1])
+      for (const P of COCKPIT) {
+        cx.beginPath();
+        P.forEach(([sn, th], i) => {
+          const v = side > 0 ? (th / 360) * 256 : 256 - (th / 360) * 256;
+          i ? cx.lineTo(U(sn), v) : cx.moveTo(U(sn), v);
+        });
+        cx.closePath();
+        cx.fill();
+      }
+  };
+  // nachts schwach beleuchtet
+  cockpit(e, '#3b4a66');
   // Türen
   g.strokeStyle = '#94a3b8';
   g.lineWidth = 1.5;
@@ -221,10 +243,23 @@ function livery(type, al, L, k) {
   door(185);
   if (!cargo && L > 3) door(560);
   if (cargo) door(860), g.strokeRect(300, 36, 60, 34), g.strokeRect(300, 186, 60, 34);
-  // Cockpitscheiben
-  g.fillStyle = '#0b1220';
-  for (const [v0, v1] of [[0, 21], [24, 44], [212, 232], [235, 256]]) g.fillRect(926, v0, 20, v1 - v0);
-  g.fillRect(926, 0, 20, 3);
+  // Cockpitscheiben: dunkles Glas mit schwarzem Rahmen
+  g.save();
+  g.strokeStyle = '#05080e';
+  g.lineWidth = 1.2;
+  g.lineJoin = 'round';
+  for (const side of [1, -1])
+    for (const P of COCKPIT) {
+      g.beginPath();
+      P.forEach(([sn, th], i) => {
+        const v = side > 0 ? (th / 360) * 256 : 256 - (th / 360) * 256;
+        i ? g.lineTo(U(sn), v) : g.moveTo(U(sn), v);
+      });
+      g.closePath();
+      g.stroke();
+    }
+  g.restore();
+  cockpit(g, '#122033');
   // Schriftzug über den Fenstern
   const name = al.name || '';
   g.fillStyle = col;

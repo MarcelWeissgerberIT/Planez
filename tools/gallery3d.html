@@ -77,7 +77,8 @@ else if (one && acs) cam.position.set(0.9, 0.35, 2.0);
 else if (one) cam.position.set(0.25, 0.32, 1.05);
 else cam.position.set(0.2, 1.25, 2.9);
 if (q.get('cam')) cam.position.set(...q.get('cam').split(',').map(Number)); // eigene Kamera: cam=x,y,z
-cam.lookAt(0, one ? 0.06 : -0.05, 0);
+if (q.get('look')) cam.lookAt(...q.get('look').split(',').map(Number)); // Blickpunkt: look=x,y,z
+else cam.lookAt(0, one ? 0.06 : -0.05, 0);
 r.render(sc, cam);
 window.done = true;
 </script></body></html>
