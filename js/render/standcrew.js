@@ -6,7 +6,7 @@ import { IMG } from '../assets.js';
 import { AC_TYPES, ZS } from '../config.js';
 import { PH } from '../sim/aircraft.js';
 import * as LY from '../layout.js';
-import { drawPerson } from './ambient.js';
+import { drawPerson, gaPlane } from './ambient.js';
 
 const STOP_S = 4; // Sekunden „Halt“-Zeichen nach dem Anhalten
 const CONE_S = 3; // Pylonen erscheinen kurz nach dem Anhalten
@@ -23,6 +23,7 @@ export class StandCrew {
     const seen = new Set();
     for (const ac of state.acs) {
       if (ac.mode !== 'map') continue;
+      if (gaPlane(state, ac)) continue; // Grasplatz: Piloten machen das selbst (render/galife.js)
       // Pushback: Wing Walker läuft an der Flügelspitze mit; Triebwerksstart: Mitarbeiter zeigt den Bugrad-Bolzen
       // mit roter Fahne, beim Losrollen winkt er zum Abschied
       if (ac.phase === PH.PUSH || ac.phase === PH.STARTUP || (ac.phase === PH.TAXI_OUT && (this.wave.get(ac.id) ?? now) > now - 6)) {

@@ -4,7 +4,7 @@
 import { clamp, hourOf } from '../util.js';
 import * as LY from '../layout.js';
 import { PH } from '../sim/aircraft.js';
-import { ZS } from '../config.js';
+import { ZS, AC_TYPES } from '../config.js';
 import { trainPos } from './infra.js';
 import { Q } from './quality.js';
 import { season } from '../sim/winter.js';
@@ -192,6 +192,7 @@ export class Ambient {
     if (zoom >= 0.6) {
       for (const ac of state.acs) {
         if (ac.phase !== PH.STAND || !ac.ta || !vis(ac.x, ac.y)) continue;
+        if (gaPlane(state, ac)) continue; // Sportflieger an der Wiese: keine Vorfeldcrew (siehe galife.js)
         const busy = Object.values(ac.ta.tasks || {}).filter((t) => t.st === 'active' || t.st === 'assigned').length;
         const n = 2 + Math.min(3, busy);
         const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg), rx = -fy, ry = fx;
@@ -323,6 +324,14 @@ function agentPos(a) {
   if (p.fadeIn || (a.fadeIn && a.i === 0)) alpha = Math.min(alpha, clamp(u * 4, 0, 1));
   if (q.fade && a.i === a.pts.length - 2) alpha = Math.min(alpha, clamp((1 - u) * 4, 0, 1));
   return { x: p.x + (q.x - p.x) * u, y: p.y + (q.y - p.y) * u, h: Math.atan2(q.y - p.y, q.x - p.x), alpha, moving: !(a.wait > 0) };
+}
+
+// Sportflieger oder Wiesenplatz – dort gibt es keine Abfertigungscrew, Einwinker oder Pylonen
+export function gaPlane(state, ac) {
+  const t = AC_TYPES[ac.type];
+  if (t && t.light) return true;
+  const st = ac.stand != null && state.stands.find((s) => s.id === ac.stand);
+  return !!(st && st.ga);
 }
 
 function hash(str, k) {

@@ -3,6 +3,7 @@ import { IMG, shadowOf, glowTinted } from '../assets.js';
 import { lookOf } from '../sim/spotter.js';
 import { drawAircraftBody, drawVehicleBody, drawCarBody } from './volume.js';
 import { Ambient, drawPerson } from './ambient.js';
+import { gaLifeItems } from './galife.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { Polish } from './polish.js';
 import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowySprite } from './snow.js';
@@ -357,6 +358,7 @@ export class MapRenderer {
     this.ambient.update(state, dtReal);
     this.ambient.items(this, state, items, lights, night, sites, (x, y) => inView(view, x, y, 1.5));
     this.standCrew.items(this, state, items, lights, night, (x, y) => inView(view, x, y, 1.5));
+    gaLifeItems(this, state, items, lights, night, (x, y) => inView(view, x, y, 3));
     spotterHillItems(this, state, items, (x, y) => inView(view, x, y, 4), lights);
     const flying = [];
     for (const ac of state.acs) {
@@ -1510,6 +1512,7 @@ export class MapRenderer {
   openDayItems(state, items) {
     const O = state.openDay;
     if (!O || state.time < O.from || state.time > O.until) return;
+    if (LY.GEO.stage < 2) return; // am kleinen Platz: eigenes Flugplatzfest (render/galife.js)
     const T = LY.TERMINAL, zr = T.h;
     const n = O.big ? 120 : 40;
     const cols = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#a855f7', '#f97316', '#ec4899', '#14b8a6', '#f8fafc', '#1f2937'];
