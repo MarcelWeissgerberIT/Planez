@@ -14,6 +14,8 @@ const pick = (list, u) => {
   return list[list.length - 1][0];
 };
 export const carPaint = (u) => pick(CAR_PAINT, u);
+// Polizeiblau (Streifenwagen; Leuchtgelb und Schriftzug trägt das Modell)
+export const POLICE_BLUE = '#1f3f94';
 export const carKind = (u) => pick(CAR_KINDS, u);
 // feste Zufallszahl 0..1 aus einer Zahl (für Autos ohne eigenen Zufallsgenerator)
 export const hash01 = (n) => {

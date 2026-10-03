@@ -529,10 +529,12 @@ function driver(v) {
 }
 // freie Strecke bis zum Vordermann auf derselben Spur in Fahrtrichtung (hx, hy). Gegenverkehr und Fahrzeuge daneben
 // (andere Spur, Parkposition) zählen nicht
+const vlen = (o) => o.len ?? VEH_TYPES[o.type]?.len ?? 0.5;
 function headway(state, v, hx, hy) {
-  const half = (VEH_TYPES[v.type]?.len || 0.5) / 2;
+  const half = vlen(v) / 2;
   let free = Infinity;
-  for (const o of state.vehicles) {
+  const others = state.patrol ? [...state.vehicles, ...state.patrol.cars] : state.vehicles; // auch die Polizeistreife
+  for (const o of others) {
     if (o === v || o.st === 'attached') continue;
     const dx = o.x - v.x, dy = o.y - v.y;
     if (dx > 2.5 || dx < -2.5 || dy > 2.5 || dy < -2.5) continue;
@@ -541,13 +543,13 @@ function headway(state, v, hx, hy) {
     if (Math.abs(dy * hx - dx * hy) > 0.17) continue;
     const moving = o.st === 'drive' || o.st === 'return' || o.st === 'refill' || (o.sh && (o.sh.ph === 'toStop' || o.sh.ph === 'toAc'));
     if (moving && Math.cos((o.hdg || 0) - Math.atan2(hy, hx)) < -0.3) continue;
-    free = Math.min(free, ahead - half - (VEH_TYPES[o.type]?.len || 0.5) / 2 - 0.1);
+    free = Math.min(free, ahead - half - vlen(o) / 2 - 0.1);
   }
   return free;
 }
 // entlang des Wegs fahren: anfahren und bremsen, vor dem Ziel Schrittgeschwindigkeit, Abstand zum Vordermann halten.
 // true = angekommen
-function moveAlong(v, dt, speed, state) {
+export function moveAlong(v, dt, speed, state) {
   const path = v.path;
   if (v.pi >= path.length - 1) return true;
   let rem = 0;

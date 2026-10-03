@@ -219,20 +219,21 @@ function livery(type, al, L, k) {
   door(185);
   if (!cargo && L > 3) door(560);
   if (cargo) door(860), g.strokeRect(300, 36, 60, 34), g.strokeRect(300, 186, 60, 34);
-  // Cockpit: durchgehende Scheibenfront rund um die Nase
-  cockpitBand(g, e, k);
+  // Cockpit: durchgehende Scheibenfront rund um die Nase (beim Jumbo oben im Buckel, siehe humpTex)
+  if (!k.hump) cockpitBand(g, e, k);
   // Schriftzug über den Fenstern
   const name = al.name || '';
   g.fillStyle = col;
   g.font = `bold ${k.kh > 1.2 ? 22 : 19}px "Segoe UI", Arial, sans-serif`;
   g.textBaseline = 'middle';
+  const ny = k.hump ? 47 : 34; // beim Jumbo unter der Kante des Oberdecks
   g.save();
-  g.translate(520, 34);
+  g.translate(520, ny);
   g.scale(Math.min(2.2, ratio * 1.05), 1);
   g.fillText(name, 0, 0);
   g.restore();
   g.save();
-  g.translate(520 + g.measureText(name).width * Math.min(2.2, ratio * 1.05), 222);
+  g.translate(520 + g.measureText(name).width * Math.min(2.2, ratio * 1.05), 256 - ny);
   g.rotate(Math.PI);
   g.scale(Math.min(2.2, ratio * 1.05), 1);
   g.fillText(name, 0, 0);
@@ -316,6 +317,73 @@ function cockpitBand(g, e, k) {
   e.putImageData(glow, u0, 0);
 }
 
+// Oberdeck-Buckel: Ringe [x, Mitte, Höhe, Breite] in L bzw. Rumpfradien, von hinten nach vorn
+const HUMP = [[-0.03, 0.48, 0.4, 0.3], [0.0, 0.54, 0.44, 0.5], [0.05, 0.6, 0.5, 0.64], [0.1, 0.67, 0.61, 0.7], [0.16, 0.7, 0.66, 0.72], [0.34, 0.7, 0.66, 0.7], [0.375, 0.67, 0.62, 0.62], [0.4, 0.62, 0.52, 0.5], [0.42, 0.55, 0.33, 0.4], [0.435, 0.48, 0.17, 0.26], [0.448, 0.42, 0.04, 0.06]];
+const humpAt = (x) => {
+  let i = 0;
+  while (i < HUMP.length - 2 && HUMP[i + 1][0] < x) i++;
+  const A = HUMP[i], B = HUMP[i + 1], t = Math.min(1, Math.max(0, (x - A[0]) / (B[0] - A[0])));
+  return A.map((v, j) => v + (B[j] - v) * t);
+};
+// Textur des Buckels: Rumpfweiß, vorn die Cockpitscheiben – Unterkante waagerecht (von vorn gesehen), Oberkante nach
+// hinten abfallend, Mittelsteg, Eckrahmen und Seitenfenster; gemalt wie cockpitBand Texel für Texel auf der echten Form
+function humpTex(L) {
+  const W = 1024, Hh = 256, c = document.createElement('canvas'), ec = document.createElement('canvas');
+  c.width = ec.width = W;
+  c.height = ec.height = Hh;
+  const g = c.getContext('2d'), e = ec.getContext('2d');
+  g.fillStyle = '#f5f7f9';
+  g.fillRect(0, 0, W, Hh);
+  e.fillStyle = '#000';
+  e.fillRect(0, 0, W, Hh);
+  const x0 = HUMP[0][0], x1 = HUMP[HUMP.length - 1][0];
+  const YB = 0.7, XE = 0.39; // Unterkante (Rumpfradien über der Achse), hinteres Ende der Seitenfenster (L)
+  const glass = (x, a, m) => {
+    const [, yc, rv, rh] = humpAt(x);
+    const y = yc + rv * Math.cos(a), z = Math.abs(rh * Math.sin(a));
+    const yt = 0.93 - Math.max(0, 0.418 - x) * 3.2;
+    if (x < XE + m * 0.05 || y < YB + m || y > yt - m) return 0;
+    if (z < 0.022 + m) return 0; // Mittelsteg
+    if (Math.abs(z - 0.2) < 0.014 + m) return 0; // Eckrahmen
+    if (Math.abs(x - 0.404) < 0.0016 + m * 0.05) return 0; // Rahmen zum Seitenfenster
+    return 1;
+  };
+  const u0 = Math.floor(((XE - 0.004 - x0) / (x1 - x0)) * W), u1 = Math.ceil(((0.44 - x0) / (x1 - x0)) * W);
+  const img = g.getImageData(u0, 0, u1 - u0, Hh), glow = e.getImageData(u0, 0, u1 - u0, Hh);
+  const D = img.data, G = glow.data, N = 3;
+  for (let py = 0; py < Hh; py++)
+    for (let px = 0; px < u1 - u0; px++) {
+      let rim = 0, in_ = 0, ys = 0;
+      for (let a = 0; a < N; a++)
+        for (let b = 0; b < N; b++) {
+          const x = x0 + ((u0 + px + (a + 0.5) / N) / W) * (x1 - x0), th = ((py + (b + 0.5) / N) / Hh) * Math.PI * 2;
+          if (!glass(x, th, 0)) continue;
+          rim++;
+          if (glass(x, th, 0.012)) {
+            in_++;
+            const [, yc, rv] = humpAt(x);
+            ys += (yc + rv * Math.cos(th) - YB) / 0.2;
+          }
+        }
+      if (!rim) continue;
+      const i = (py * (u1 - u0) + px) * 4, cr = rim / (N * N), ci = in_ / (N * N), t = in_ ? Math.min(1, ys / in_) : 0;
+      for (let j = 0; j < 3; j++) {
+        D[i + j] += ([6, 9, 15][j] - D[i + j]) * cr;
+        D[i + j] += ([16 + 40 * t, 28 + 52 * t, 44 + 66 * t][j] - D[i + j]) * ci;
+        G[i + j] += ([59, 74, 102][j] - G[i + j]) * ci;
+      }
+    }
+  g.putImageData(img, u0, 0);
+  e.putImageData(glow, u0, 0);
+  const tex = (cv) => {
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  };
+  return { map: tex(c), emissiveMap: tex(ec) };
+}
+
 // Nachtbeleuchtung aller Modelle: Kabinenfenster und angestrahlte Leitwerke (0 = Tag, 1 = Nacht)
 const NIGHT = { fus: [], tail: [] };
 export function setNight(k) {
@@ -394,11 +462,14 @@ function template(type, airline, special = '') {
   fus.castShadow = true;
   fus.receiveShadow = true;
   root.add(fus);
-  // Buckel (747-Oberdeck)
+  // Buckel (Oberdeck wie beim Jumbo): steigt direkt hinter der Nase an, langes Oberdeck, läuft über der Flügelwurzel aus;
+  // vorn sitzt das Cockpit mit eigener Scheibenfront (die Nase darunter bleibt ohne Fenster)
   if (k.hump) {
-    const hr = [];
-    for (const [x, r] of [[0.02, 0.05], [0.08, 0.42], [0.16, 0.6], [0.26, 0.62], [0.33, 0.52], [0.38, 0.3], [0.41, 0.05]]) hr.push([x * L, ry * 0.55, r * ry, r * rz * 1.1]);
-    white.push([tube(hr, 16), M4()]);
+    const hm = new THREE.MeshPhongMaterial({ ...humpTex(L), emissive: 0xffffff, emissiveIntensity: 0, shininess: 55, specular: 0x666666 });
+    NIGHT.fus.push(hm);
+    const hump = new THREE.Mesh(tube(HUMP.map(([x, yc, rv, rh]) => [x * L, yc * ry, rv * ry, rh * rz]), 40), hm);
+    hump.castShadow = true;
+    root.add(hump);
   }
 
   // Tragflächen

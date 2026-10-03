@@ -1571,6 +1571,7 @@ export class View3D {
       });
     for (const p of plowFleet(state)) out.push(p);
     for (const c of followMeCars(state)) out.push({ ...c, type: 'followme' });
+    for (const c of state.patrol?.cars || []) out.push({ id: c.id, type: 'police', x: c.x, y: c.y, hdg: c.hdg, st: c.lights ? 'alarm' : 'idle' });
     return out;
   }
   // Rundumleuchte, Scheinwerfer, Catering-Hubkasten, Enteiser-Arm mit Sprühstrahl, Schneefahne der Pflüge
@@ -1578,7 +1579,8 @@ export class View3D {
     const P = vehParts(m);
     const fast = v.st === 'alarm' || v.type === 'followme';
     const blink = Math.floor(now * (fast ? 4.5 : 2.2) + (v.id.length || 0)) % 2 === 0;
-    P.bcn.forEach((b, i) => (b.visible = (lightsOn || v.st !== 'idle') && (i % 2 ? !blink : blink)));
+    const on = v.type === 'police' ? v.st === 'alarm' : lightsOn || v.st !== 'idle'; // Blaulicht nur im Einsatz
+    P.bcn.forEach((b, i) => (b.visible = on && (i % 2 ? !blink : blink)));
     if (P.hl) P.hl.visible = P.tl.visible = lightsOn;
     poseVehicle(state, v, m, dt, now);
     if (v.type === 'plow' && Math.random() < dt * 10) {

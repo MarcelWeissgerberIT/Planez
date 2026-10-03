@@ -6,7 +6,7 @@ import { Q } from './quality.js';
 import { Ambient, drawPerson } from './ambient.js';
 import { gaLifeItems } from './galife.js';
 import { busPaxItems } from './buspax.js';
-import { carPaint, carKind, hash01 } from './cars.js';
+import { carPaint, carKind, hash01, POLICE_BLUE } from './cars.js';
 import { stairsTop as doorTop } from '../acshape.js';
 import { vehVsAc } from './occlude.js';
 import { drawApronBus, drawStairsTruck, boxShadow, stairsSize } from './gse2d.js';
@@ -428,27 +428,20 @@ export class MapRenderer {
         list.push(crab ? { ...ac, hdg: ac.hdg + crab } : ac);
       }
       const vl = state.vehicles.filter((v) => inView(view, v.x, v.y, 2));
+      for (const t of fireTrucks(state)) if (inView(view, t.x, t.y, 2)) vl.push(t);
+      saluteView(state)?.trucks.forEach((t, i) => vl.push({ id: 'sal' + i, type: 'fire', x: t.x, y: t.y, hdg: t.hdg, st: 'alarm' }));
       IMP.prepare(this, state, list, vl, dtReal * (state.speed || 0) * TIME_SCALE);
     } else if (IMP) IMP.prepare(this, state, [], []);
     // Fahrzeuge unter Flügel oder Heck eines stehenden Flugzeugs vor dem Flugzeug zeichnen (sonst liegen sie obendrauf)
     const parked = state.acs.filter((a) => a.mode === 'map' && a.z < 0.05);
-    for (const v of state.vehicles) {
-      if (!inView(view, v.x, v.y, 2)) continue;
-      // vor oder hinter stehenden Flugzeugen einsortieren (Rumpf, Flügel und Leitwerk einzeln geprüft, siehe occlude.js);
-      // die kleine Verschiebung je Abstand erhält die Reihenfolge mehrerer Fahrzeuge am selben Flugzeug
-      let d = v.x + v.y, lo = Infinity, hi = -Infinity;
-      for (const a of parked) {
-        const dx = v.x - a.x, dy = v.y - a.y, r = a.len * 0.62 + 0.6;
-        if (dx * dx + dy * dy > r * r) continue;
-        const o = vehVsAc(v, a), ad = a.x + a.y, k = (d - ad) * 0.005;
-        if (o < 0) lo = Math.min(lo, ad - 0.04 + k);
-        else if (o > 0) hi = Math.max(hi, ad + 0.04 + k);
-      }
-      if (hi > d) d = hi;
-      if (lo < d) d = lo;
-      items.push({ d, f: () => this.drawVehicle(state, v, lights) });
+    for (const v of state.vehicles) if (inView(view, v.x, v.y, 2)) items.push({ d: vehDepth(v, parked), f: () => this.drawVehicle(state, v, lights) });
+    for (const t of fireTrucks(state)) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
+    // Polizeistreife auf dem Vorfeld (Streifenwagen als 3D-Modell, Blaulicht bei Einsatzfahrt oder Kontrolle)
+    for (const c of state.patrol?.cars || []) {
+      if (!inView(view, c.x, c.y, 1)) continue;
+      const car = { kind: 'police', col: POLICE_BLUE, body: 'police', siren: c.lights };
+      items.push({ d: vehDepth(c, parked), f: () => this.drawAmbientCar(car, { x: c.x, y: c.y, h: c.hdg, moving: c.st === 'drive' }, night, lights) });
     }
-    if (state.fire) for (const t of state.fire.trucks) if (t.st !== 'home' || LY.GEO.stage > 0) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
     items.push({ d: 66 + 35.6, f: () => this.drawWindsock(state) });
     this.runwayWorkItems(state, items, lights);
     this.followMeItems(state, items, lights);
@@ -458,7 +451,7 @@ export class MapRenderer {
     this.medicalItems(state, items, lights, night);
     this.openDayItems(state, items);
     const sal = saluteView(state);
-    if (sal) for (const t of sal.trucks) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
+    if (sal) sal.trucks.forEach((t, i) => items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights, 'sal' + i) }));
     plowItems(this, state, items, lights);
     infraItems(this, state, items, lights, night);
     deiceFx(this, state, items);
@@ -773,7 +766,7 @@ export class MapRenderer {
       const p = at(Math.min(s, Ltot - k * 0.55));
       if (M.leaving) p.h += Math.PI;
       const moving = M.leaving ? M.u < 1 : M.u < 1;
-      items.push({ d: p.x + p.y, f: () => this.drawAmbientCar({ kind, col: kind === 'police' ? '#e2e8f0' : '#0b0d12', siren: moving || kind === 'police' }, p, night, lights) });
+      items.push({ d: p.x + p.y, f: () => this.drawAmbientCar({ kind, col: kind === 'police' ? POLICE_BLUE : '#0b0d12', siren: moving || kind === 'police' }, p, night, lights) });
     });
     if (!M.carpet || !ac) return;
     // Treppe und Teppich an der hinteren linken Tür (hinter der Tragfläche)
@@ -1197,8 +1190,8 @@ export class MapRenderer {
       if (c.kind === 'taxi') rect(-0.02, 0.03, 0.02, 0.095, 0.11, [255, 255, 255], [220, 220, 220], [190, 190, 190]);
       if (c.kind === 'police') {
         // als 3D-Modell trägt der Streifenwagen Streifen und Blaulichtbalken selbst
-        if (!real) rect(-0.03, 0.05, 0.05, 0.095, 0.11, [30, 64, 175], [30, 58, 138], [23, 37, 84]);
-        if (!real) rect(-0.16, 0.16, 0.081, 0.03, 0.05, [37, 99, 235], [29, 78, 216], [30, 64, 175]);
+        if (!real) rect(-0.03, 0.05, 0.05, 0.095, 0.11, [59, 130, 246], [37, 99, 235], [30, 64, 175]);
+        if (!real) rect(-0.16, 0.16, 0.081, 0.03, 0.05, [212, 242, 30], [180, 206, 26], [150, 172, 22]);
         if (c.siren || (c.patrolLights && !p.moving)) {
           const on = (this.ambient.vt * 3) % 1 < 0.5;
           lights.push({ x: p.x, y: p.y, z: 0.12, c: on ? '#3b82f6' : '#93c5fd', s: on ? 16 : 9, a: 0.95, day: true });
@@ -2080,13 +2073,15 @@ export class MapRenderer {
     }
   }
 
-  drawFireTruck(t, lights) {
+  drawFireTruck(t, lights, id = t.id) {
     const ctx = this.ctx, cam = this.cam;
     const img = IMG.veh_fire;
-    const L = 0.75;
+    const real = IMP && !Q.perf && id && IMP.has(id); // 3D-Modell (Flughafen-Löschfahrzeug 6×6)
+    const L = real ? 0.64 : 0.75;
     const Wd = img ? (L * img.width) / img.height : 0.3;
-    this.vehShadow('veh_fire', t.x, t.y, t.hdg, L, Wd, 0.15);
-    if (img) drawVehicleBody(ctx, cam, 'veh_fire', t.x, t.y, t.hdg, L, Wd, 0.15);
+    this.vehShadow('veh_fire', t.x, t.y, t.hdg, L, Wd, 0.17);
+    if (real) IMP.draw(this, id, t.x, t.y, 0);
+    else if (img) drawVehicleBody(ctx, cam, 'veh_fire', t.x, t.y, t.hdg, L, Wd, 0.15);
     if (t.st !== 'home') {
       const on = (this.time * 3 + t.x) % 1 < 0.5;
       lights.push({ x: t.x, y: t.y, z: 0.22, c: on ? '#3060ff' : '#ff2020', s: 22, a: 1, day: true });
@@ -2438,6 +2433,37 @@ function stairsTop(state, v) {
   return 0.12 + (door - 0.12) * clamp((state.time - (v.dockT || 0)) / 25, 0, 1);
 }
 // Flugzeuge als 3D-Modelle (lädt three.js nach; bis dahin und im Leistungsmodus die gezeichneten Flugzeuge)
+// Zeichentiefe eines Fahrzeugs: vor oder hinter stehenden Flugzeugen einsortieren (Rumpf, Flügel und Leitwerk einzeln
+// geprüft, siehe occlude.js); die kleine Verschiebung je Abstand erhält die Reihenfolge mehrerer Fahrzeuge am selben Flugzeug
+function vehDepth(v, parked) {
+  let d = v.x + v.y, lo = Infinity, hi = -Infinity;
+  for (const a of parked) {
+    const dx = v.x - a.x, dy = v.y - a.y, r = a.len * 0.62 + 0.6;
+    if (dx * dx + dy * dy > r * r) continue;
+    const o = vehVsAc(v, a), ad = a.x + a.y, k = (d - ad) * 0.005;
+    if (o < 0) lo = Math.min(lo, ad - 0.04 + k);
+    else if (o > 0) hi = Math.max(hi, ad + 0.04 + k);
+  }
+  if (hi > d) d = hi;
+  if (lo < d) d = lo;
+  return d;
+}
+// Löschfahrzeuge als Fahrzeuge für die 3D-Bilder (feste Kennung je Fahrzeug; in der Wache nur ab dem Verkehrslandeplatz sichtbar)
+const FIRE_V = [];
+function fireTrucks(state) {
+  if (!state.fire) return [];
+  const out = [];
+  state.fire.trucks.forEach((t, i) => {
+    if (t.st === 'home' && LY.GEO.stage === 0) return;
+    const v = (FIRE_V[i] ||= { id: 'fire' + i, type: 'fire' });
+    v.x = t.x;
+    v.y = t.y;
+    v.hdg = t.hdg;
+    v.st = t.st;
+    out.push(v);
+  });
+  return out;
+}
 let IMP = null;
 let impLoad = null;
 function loadImp() {

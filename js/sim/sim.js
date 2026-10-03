@@ -3,6 +3,7 @@ import { TIME_SCALE } from '../config.js';
 import { dayOf, roundedPath } from '../util.js';
 import { spawnArrival, updateAircraft, PH } from './aircraft.js';
 import { updateGround } from './ground.js';
+import { updatePatrol } from './patrol.js';
 import { autoAtc, updateConflicts } from './atc.js';
 import { updateEconomy, closeDay } from './economy.js';
 import { generateDay, dailyContracts, maybeOffer } from './schedule.js';
@@ -73,6 +74,7 @@ export function step(state, dt) {
   updateHeli(state, dt);
   updateVfr(state, dt);
   updateGround(state, dt);
+  updatePatrol(state, dt);
   updateConflicts(state, dt);
   updateAcdm(state, dt);
   updateEconomy(state, dt);

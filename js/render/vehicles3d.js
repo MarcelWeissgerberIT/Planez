@@ -12,7 +12,7 @@ import { merge, spriteMat } from './model3d.js';
 import { T } from '../i18n.js';
 import { busLoad } from './buspax.js';
 import { toCreasedNormals, mergeGeometries } from '../vendor/BufferGeometryUtils.js';
-import { carKind, carPaint } from './cars.js';
+import { carKind, carPaint, POLICE_BLUE } from './cars.js';
 import { STAIRS, stairsTop, stairsGeom } from '../acshape.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -968,30 +968,91 @@ function deice(k, g, body) {
   g.add(tur);
 }
 
+// Flughafen-Löschfahrzeug (6×6, etwa 11,5 × 3 × 3,6 m): Fahrerhaus mit großer, um die Ecken gezogener Panoramascheibe
+// über schwarzer Front (Scheinwerfer, Frontwerfer), Spiegel an Bügeln, hoher Aufbau mit Rollläden und Reflexstreifen,
+// drei große Achsen, auf dem Dach ein Löscharm mit Durchstoßlanze, der über das Fahrerhaus nach vorn ragt
 function fire(k, g, body) {
-  const h = 0.3, w = 0.15;
-  k.bx(-h + 0.02, h - 0.02, 0.03, 0.05, 0.1, matte(DARK));
-  cab(k, h - 0.13, h, 0.04, 0.165, w, body, { win: 0.4, roof: paint(0xf8fafc) });
-  k.rbx(-h, h - 0.128, 0.04, 0.17, w, body, 0.014);
-  // Geräteräume mit Rollläden, Reflexstreifen, Dachgeländer, Dachwerfer und Frontwerfer
-  for (const [a, b] of [[-h + 0.012, -h + 0.1], [-h + 0.11, -0.03], [-0.02, h - 0.145]]) {
-    k.side([[a + 0.004, 0.07], [b, 0.07], [b, 0.155], [a + 0.004, 0.155]], w / 2 + 0.0009, metal(0xd1d5db));
-    for (let y = 0.074; y < 0.153; y += 0.012) k.side([[a + 0.004, y], [b, y], [b, y + 0.002], [a + 0.004, y + 0.002]], w / 2 + 0.0016, matte(0xa1a7ae));
+  const h = 0.29, w = 0.15, xc = 0.135, yr = 0.172, dark = matte(0x1b1d21);
+  // Rahmen und schwarze Schürze unten
+  k.bx(-h + 0.02, h - 0.03, 0.03, 0.056, w - 0.03, matte(DARK));
+  k.rbx(-h + 0.004, xc, 0.036, 0.062, w + 0.002, dark, 0.008);
+  // Fahrerhaus: Seitenprofil mit schwarzer Front unten, schräger Scheibe, Dach
+  const F0 = [h, 0.04], F1 = [h - 0.002, 0.09], S1 = [h - 0.05, yr];
+  k.prof([[xc - 0.004, 0.04], [F0[0], F0[1], 0.01], [F1[0], F1[1], 0.008], [S1[0], S1[1], 0.007], [xc - 0.004, yr, 0.01]], w, body, 0.016);
+  k.prof([[h - 0.03, 0.036], [h + 0.006, 0.036, 0.006], [h + 0.006, 0.088, 0.006], [h - 0.03, 0.088]], w + 0.004, dark, 0.014);
+  // Panoramascheibe: dünne Glasschale über Front und Ecken, seitlich bis zur Türsäule
+  const gx = h - 0.075;
+  k.prof([[gx, 0.094], [F1[0] + 0.0016, 0.094, 0.004], [S1[0] + 0.0012, yr - 0.003, 0.004], [gx, yr - 0.003]], w + 0.003, glass(), 0.017);
+  k.prof([[gx - 0.002, 0.089], [F1[0] + 0.0022, 0.089], [F1[0] + 0.0012, 0.095], [gx - 0.002, 0.095]], w + 0.0036, dark, 0.017);
+  // Türen mit Fenster, Trittstufen, Griff
+  k.side([[xc + 0.006, 0.104], [gx - 0.008, 0.104], [gx - 0.008, yr - 0.01], [xc + 0.006, yr - 0.01]], w / 2 + 0.0008, glass());
+  k.side([[gx - 0.006, 0.042], [gx - 0.003, 0.042], [gx - 0.003, yr - 0.004], [gx - 0.006, yr - 0.004]], w / 2 + 0.0009, dark);
+  for (const y of [0.046, 0.066]) k.side([[xc + 0.01, y], [xc + 0.05, y], [xc + 0.05, y + 0.004], [xc + 0.01, y + 0.004]], w / 2 + 0.006, metal(0xb8bec6), 0.006);
+  // Dach des Fahrerhauses mit Blaulichtbalken
+  k.rbox(xc + 0.006, S1[0] - 0.004, yr - 0.002, yr + 0.004, -w / 2 + 0.008, w / 2 - 0.008, body, 0.004);
+  k.rbx(S1[0] - 0.03, S1[0] - 0.012, yr + 0.003, yr + 0.011, w - 0.03, dark, 0.003);
+  // Front: Scheinwerfer, Blinker, Blaulichter unten, Nummernschild, Frontwerfer (orange) in der Mitte
+  for (const s of [-1, 1]) {
+    k.cyl(h + 0.006, 0.072, s * 0.05, 0.0075, 0.004, 'x', lamp(0xfff4d6), 12);
+    k.cyl(h + 0.006, 0.072, s * 0.064, 0.005, 0.004, 'x', lamp(0xff9d1a), 10);
+    k.cyl(h + 0.006, 0.052, s * 0.058, 0.004, 0.004, 'x', lamp(0x2563eb), 10);
   }
-  k.side([[-h + 0.014, 0.056], [h - 0.014, 0.056], [h - 0.014, 0.066], [-h + 0.014, 0.066]], w / 2 + 0.0012, redWhite());
-  for (const s of [-1, 1]) k.rod([-h + 0.02, 0.188, s * 0.06], [h - 0.15, 0.188, s * 0.06], 0.004, metal(0xcbd5e1));
-  for (let x = -h + 0.02; x <= h - 0.15; x += 0.07) for (const s of [-1, 1]) k.rod([x, 0.17, s * 0.06], [x, 0.188, s * 0.06], 0.004, metal(0xcbd5e1));
-  k.cyl(h - 0.055, 0.18, 0, 0.016, 0.018, 'y', metal(0xb8bec6), 12);
-  k.cyl(h - 0.02, 0.188, 0, 0.007, 0.07, 'x', metal(0xd1d5db), 10);
-  k.cyl(h + 0.022, 0.03, 0, 0.006, 0.03, 'x', metal(0xd1d5db), 8);
-  k.bx(h - 0.11, h - 0.09, 0.172, 0.18, 0.11, lamp(0x60a5fa));
-  for (const x of [h - 0.075, -h + 0.13, -h + 0.21]) {
-    k.well(x, 0.034, w + 0.002);
-    k.axle(x, 0.064, 0.034, 0.032);
+  k.box(h + 0.0065, h + 0.0075, 0.06, 0.068, -0.022, 0.022, plate('ffplate', 'FW 1', '#111111', '#f8fafc'));
+  k.rbx(h + 0.004, h + 0.03, 0.078, 0.09, 0.034, paint(0xf26b1d, 70), 0.005);
+  k.cyl(h + 0.034, 0.084, 0, 0.004, 0.012, 'x', metal(0x9aa3ad), 8);
+  k.cyl(h + 0.008, 0.062, 0, 0.007, 0.016, 'y', dark, 10);
+  // Spiegel an Bügeln (wie Hörner nach vorn)
+  for (const s of [-1, 1]) {
+    const z0 = s * (w / 2 - 0.004), z1 = s * (w / 2 + 0.016);
+    k.rod([S1[0] - 0.004, yr - 0.012, z0], [S1[0] + 0.022, yr + 0.004, z1], 0.004, dark);
+    k.rod([S1[0] + 0.022, yr + 0.004, z1], [S1[0] + 0.04, yr - 0.006, z1], 0.004, dark);
+    k.obox(S1[0] + 0.04, yr - 0.022, z1, 0.006, 0.03, 0.012, dark);
   }
-  tail(k, -h, 0.06, w);
-  beacon(g, k, h - 0.1, 0.18, 0, 0x3b82f6);
-  lights(g, h, -h, 0.068, w / 2 - 0.022);
+  // Aufbau: hoch, mit runden Oberkanten; Geräteräume mit Rollläden zwischen und hinter den Achsen
+  k.prof([[-h, 0.056], [xc, 0.056], [xc, yr - 0.004, 0.006], [-h + 0.006, yr - 0.004, 0.014], [-h, yr - 0.03, 0.008]], w, body, 0.018);
+  const AX = [h - 0.095, -0.1, -0.178], wr = 0.034;
+  for (const [a, b, y0] of [[-h + 0.012, -0.218, 0.07], [-0.06, 0.03, 0.074], [0.04, xc - 0.008, 0.074]]) {
+    k.side([[a, y0], [b, y0], [b, 0.146], [a, 0.146]], w / 2 + 0.0009, metal(0xd5d9de));
+    for (let y = y0 + 0.004; y < 0.144; y += 0.009) k.side([[a, y], [b, y], [b, y + 0.0018], [a, y + 0.0018]], w / 2 + 0.0016, matte(0x9ca3ab));
+    k.side([[a, y0 - 0.006], [b, y0 - 0.006], [b, y0 - 0.002], [a, y0 - 0.002]], w / 2 + 0.002, metal(0xb8bec6));
+  }
+  // Reflexstreifen: gelb unter dem Dach und über der Schürze, rot-weiß am Heck
+  k.side([[-h + 0.008, 0.151], [xc - 0.002, 0.151], [xc - 0.002, 0.158], [-h + 0.008, 0.158]], w / 2 + 0.0011, lamp(0xf5d90a));
+  k.side([[-h + 0.008, 0.063], [h - 0.004, 0.063], [h - 0.004, 0.068], [-h + 0.008, 0.068]], w / 2 + 0.0024, lamp(0xf5d90a));
+  k.bx(-h - 0.002, -h + 0.001, 0.07, 0.15, w - 0.02, redWhite());
+  // Aufschrift an der Tür
+  decal(g, 'ffw', xc + 0.034, 0.083, w / 2 + 0.0026, 0.07, 0.014, (c, W, H) => {
+    c.clearRect(0, 0, W, H);
+    c.fillStyle = '#ffffff';
+    c.font = `900 ${Math.round(H * 0.78)}px "Segoe UI", Arial, sans-serif`;
+    c.textBaseline = 'middle';
+    c.fillText('FEUERWEHR', 4, H * 0.54, W - 8);
+  });
+  // Dach: Laufsteg, Geländer, Blaulichter hinten
+  k.rbox(-h + 0.02, xc - 0.02, yr - 0.004, yr - 0.001, -0.035, 0.035, metal(0xb8bec6), 0.002);
+  for (const s of [-1, 1]) k.rod([-h + 0.02, yr + 0.012, s * 0.06], [xc - 0.05, yr + 0.012, s * 0.06], 0.003, metal(0xcbd5e1));
+  for (let x = -h + 0.02; x <= xc - 0.05; x += 0.07) for (const s of [-1, 1]) k.rod([x, yr - 0.004, s * 0.06], [x, yr + 0.012, s * 0.06], 0.003, metal(0xcbd5e1));
+  // Löscharm: Drehkranz hinter dem Fahrerhaus, zwei Rohre nach vorn bis über die Front, Lanze und Werfer an der Spitze
+  k.cyl(xc - 0.02, yr + 0.008, 0, 0.02, 0.016, 'y', dark, 14);
+  k.obox(xc - 0.02, yr + 0.022, 0, 0.03, 0.014, 0.024, body);
+  const B0 = [xc - 0.03, yr + 0.026], B1 = [h + 0.03, yr + 0.044];
+  k.rod([B0[0], B0[1], 0.006], [B1[0] - 0.08, B1[1] - 0.004, 0.006], 0.011, matte(0x2a2d33));
+  k.rod([B0[0] + 0.07, B0[1] + 0.008, -0.004], [B1[0], B1[1], -0.004], 0.009, matte(0x34373d));
+  k.rod([B0[0] + 0.07, B0[1] + 0.016, 0.008], [B1[0] - 0.01, B1[1] + 0.006, 0.008], 0.004, metal(0xcbd5e1));
+  k.obox(B1[0] + 0.008, B1[1], -0.004, 0.024, 0.016, 0.02, matte(0x1b1d21));
+  k.cyl(B1[0] + 0.03, B1[1] + 0.002, -0.004, 0.005, 0.03, 'x', metal(0x9aa3ad), 8);
+  k.cyl(B1[0] + 0.012, B1[1] - 0.012, -0.004, 0.0035, 0.03, 'y', paint(0xf26b1d, 70), 8);
+  // Räder: drei große Achsen mit Radkästen
+  for (const x of AX) {
+    k.well(x, wr, w + 0.004);
+    k.axle(x, w / 2 - 0.012, wr, 0.03);
+  }
+  tail(k, -h, 0.062, w);
+  for (const s of [-1, 1]) {
+    beacon(g, k, S1[0] - 0.02, yr + 0.004, s * 0.05, 0x3b82f6);
+    beacon(g, k, -h + 0.012, yr - 0.004, s * 0.055, 0x3b82f6);
+  }
+  lights(g, h + 0.004, -h, 0.072, 0.05);
 }
 
 function plow(k, g, body) {
@@ -1046,8 +1107,30 @@ function followMe(k, g) {
   lights(g, h, -h, 0.04, w / 2 - 0.014);
 }
 
-const BUILD = { tug, baggage, fuel, catering, bus, stairs: stairsTruck, deice, cleaning: van, fire, plow, followme: followMe };
-const BODY = { fire: 0xc81e1e, plow: 0xea6a0c, followme: 0xfacc15 };
+// Streifenwagen der Vorfeldstreife als Fahrzeug (3D-Ansicht, Karte): Pkw-Modell in Polizeilackierung mit Blaulichtern
+function policeCar(k, g) {
+  const G = carGeos('police');
+  const bm = cached('polbody', () => {
+    const m = G.mats[0].clone();
+    m.color.set(POLICE_BLUE);
+    return m;
+  });
+  for (const m of [new THREE.Mesh(G.body, bm), new THREE.Mesh(G.detail, G.mats[1]), new THREE.Mesh(G.decal, G.decalMat)]) {
+    m.castShadow = true;
+    g.add(m);
+  }
+  for (const s of [-1, 1]) {
+    const bc = new THREE.Sprite(spriteMat(0x3b82f6));
+    bc.name = 'bcn';
+    bc.position.set(0, G.hgt + 0.008, s * 0.022);
+    bc.scale.setScalar(0.08);
+    g.add(bc);
+  }
+  lights(g, G.len / 2, -G.len / 2, 0.03, 0.03);
+}
+
+const BUILD = { tug, baggage, fuel, catering, bus, stairs: stairsTruck, deice, cleaning: van, fire, plow, followme: followMe, police: policeCar };
+const BODY = { fire: 0xd11f1c, plow: 0xea6a0c, followme: 0xfacc15 };
 
 // große Nummer auf dem Dach (wie auf echten Vorfeldern, damit der Tower die Fahrzeuge erkennt): Buchstabe je Typ + Nummer
 const ROOF = { tug: [-0.12, 0.0952, 0.08], baggage: [0.36, 0.1302, 0.07], fuel: [0.312, 0.1642, 0.09], catering: [0.238, 0.1562, 0.09], cleaning: [-0.03, 0.1272, 0.08], bus: [-0.01, 0.1652, 0.12], stairs: [0.165, 0.1052, 0.05, -0.031], deice: [0.332, 0.1642, 0.09] };
@@ -1124,8 +1207,9 @@ const CAR_SPEC = {
   estate: { h: 0.118, w: 0.096, r: 0.016, wx: [0.075, -0.074], low: [[-0.118, 0.014, 0.008], [0.118, 0.014, 0.008], [0.12, 0.036, 0.014], [0.05, 0.047, 0.012], [-0.115, 0.048, 0.01]], cab: [[0.054, 0.045], [0.01, 0.074], [-0.106, 0.073], [-0.116, 0.046]], cr: [0.014, 0.01], pil: [-0.02, -0.074], rails: true },
   suv: { h: 0.115, w: 0.1, r: 0.019, base: 0.02, wx: [0.074, -0.074], low: [[-0.115, 0.02, 0.008], [0.115, 0.02, 0.008], [0.117, 0.048, 0.016], [0.05, 0.057, 0.012], [-0.112, 0.059, 0.012]], cab: [[0.054, 0.055], [0.016, 0.086], [-0.1, 0.086], [-0.112, 0.057]], cr: [0.014, 0.012], pil: [-0.02, -0.07], rails: true, clad: true },
   van: { h: 0.124, w: 0.1, r: 0.017, base: 0.016, wx: [0.082, -0.08], low: [[-0.124, 0.016, 0.008], [0.124, 0.016, 0.01], [0.127, 0.05, 0.016], [0.09, 0.06, 0.014], [-0.122, 0.06, 0.01]], cab: [[0.092, 0.058], [0.056, 0.098], [-0.12, 0.098], [-0.123, 0.058]], cr: [0.02, 0.014], pil: [0.02, -0.05] },
-  // Einsatzfahrzeuge: Streifenwagen (Kombi, blauer Streifen, Blaulichtbalken), Rettungswagen (Kleinbus, roter Streifen)
-  police: { h: 0.118, w: 0.096, r: 0.016, wx: [0.075, -0.074], low: [[-0.118, 0.014, 0.008], [0.118, 0.014, 0.008], [0.12, 0.036, 0.014], [0.05, 0.047, 0.012], [-0.115, 0.048, 0.01]], cab: [[0.054, 0.045], [0.01, 0.074], [-0.106, 0.073], [-0.116, 0.046]], cr: [0.014, 0.01], pil: [-0.02, -0.074], stripe: 0x1d4ed8, bar: true },
+  // Einsatzfahrzeuge: Streifenwagen (Kombi) und Polizei-Kleinbus in Blau mit Leuchtgelb, Rettungswagen (Kleinbus, roter Streifen)
+  police: { h: 0.118, w: 0.096, r: 0.016, wx: [0.075, -0.074], low: [[-0.118, 0.014, 0.008], [0.118, 0.014, 0.008], [0.12, 0.036, 0.014], [0.05, 0.047, 0.012], [-0.115, 0.048, 0.01]], cab: [[0.054, 0.045], [0.01, 0.074], [-0.106, 0.073], [-0.116, 0.046]], cr: [0.014, 0.01], pil: [-0.02, -0.074], livery: 'police', bar: true },
+  policevan: { h: 0.124, w: 0.1, r: 0.017, base: 0.016, wx: [0.082, -0.08], low: [[-0.124, 0.016, 0.008], [0.124, 0.016, 0.01], [0.127, 0.05, 0.016], [0.09, 0.06, 0.014], [-0.122, 0.06, 0.01]], cab: [[0.092, 0.058], [0.056, 0.098], [-0.12, 0.098], [-0.123, 0.058]], cr: [0.02, 0.014], pil: [0.02, -0.05], livery: 'police', bar: true },
   ambulance: { h: 0.124, w: 0.1, r: 0.017, base: 0.016, wx: [0.082, -0.08], low: [[-0.124, 0.016, 0.008], [0.124, 0.016, 0.01], [0.127, 0.05, 0.016], [0.09, 0.06, 0.014], [-0.122, 0.06, 0.01]], cab: [[0.092, 0.058], [0.056, 0.098], [-0.12, 0.098], [-0.123, 0.058]], cr: [0.02, 0.014], pil: [0.02, -0.05], stripe: 0xdc2626, bar: true },
   pickup: { h: 0.13, w: 0.1, r: 0.018, base: 0.02, wx: [0.086, -0.08], low: [[-0.13, 0.02, 0.006], [0.13, 0.02, 0.008], [0.132, 0.048, 0.016], [0.06, 0.056, 0.012], [-0.128, 0.058, 0.006]], cab: [[0.062, 0.054], [0.026, 0.086], [-0.03, 0.086], [-0.032, 0.056]], cr: [0.014, 0.008], pil: [-0.003], bed: true },
 };
@@ -1142,6 +1226,60 @@ function clipX(poly, a, b) {
   };
   return cut(cut(poly, (x) => x >= a, a), (x) => x <= b, b);
 }
+// Polizei-Lackierung (Grundfarbe Blau kommt als Wagenfarbe): Leuchtgelb unten an den Seiten (um die Radhäuser herum),
+// darüber eine Karoreihe Blau/Leuchtgelb, leuchtgelbe Haube vorn und Stoßfänger; gibt die Flächen für den Schriftzug zurück
+const NEON = 0xd4f21e, POL_BLUE = 0x1d3f94;
+function policeLivery(S, d, M, base, gw) {
+  const { h, w, r, low } = S, zs = w / 2 + 0.0009;
+  // Oberkante der Karosserie an der Stelle x (vorn über die Haube, hinten bis zum Heck)
+  const edge = low.slice(2);
+  const topAt = (x) => {
+    for (let i = 0; i < edge.length - 1; i++) {
+      const [x0, y0] = edge[i], [x1, y1] = edge[i + 1];
+      if ((x <= x0 && x >= x1) || (x >= x0 && x <= x1)) return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0 || 1);
+    }
+    return x > 0 ? edge[0][1] : edge[edge.length - 1][1];
+  };
+  const arch = r * 2.28 + 0.002, yb = base + 0.006, q = 0.0065;
+  const free = [[-h + 0.004, S.wx[1] - r * 1.34], [S.wx[1] + r * 1.34, S.wx[0] - r * 1.34], [S.wx[0] + r * 1.34, h - 0.004]];
+  for (const [a, b] of free) d(NEON).side([[a, yb], [b, yb], [b, Math.min(arch, topAt(b) - 0.002)], [a, Math.min(arch, topAt(a) - 0.002)]], zs, M);
+  // Karoreihe über den Radhäusern, so weit die Karosserie hoch genug ist
+  for (let x = -h + 0.006, i = 0; x + q < h; x += q, i++) {
+    if (topAt(x) < arch + q + 0.002 || topAt(x + q) < arch + q + 0.002) continue;
+    d(i % 2 ? POL_BLUE : NEON).side([[x, arch], [x + q, arch], [x + q, arch + q], [x, arch + q]], zs + 0.0002, M);
+  }
+  // Haube vorn und Stoßfänger leuchtgelb
+  const A = low[2], B = low[3], L = Math.hypot(B[0] - A[0], B[1] - A[1]), nx = (B[1] - A[1]) / L, ny = (A[0] - B[0]) / L;
+  const P = (f) => [A[0] + (B[0] - A[0]) * f + nx * 0.0012, A[1] + (B[1] - A[1]) * f + ny * 0.0012];
+  d(NEON).slab(...P(0.03), ...P(0.55), 0.0016, gw - 0.004, M);
+  d(NEON).rbx(h - 0.014, h + 0.0048, base - 0.002, base + 0.0072, w + 0.003, M, 0.004);
+  d(NEON).rbx(-h - 0.0048, -h + 0.014, base - 0.002, base + 0.0072, w + 0.003, M, 0.004);
+  // Schriftzug POLIZEI auf den Vordertüren (im gelben Feld zwischen den Radhäusern)
+  const [ma, mb] = free[1], tx = (ma + mb) / 2 + (mb - ma) * 0.08, tw = (mb - ma) * 0.78, th = Math.min(0.014, arch - yb - 0.003);
+  const g = [];
+  for (const sd of [1, -1]) {
+    const pl = new THREE.PlaneGeometry(tw, th);
+    if (sd < 0) pl.rotateY(Math.PI);
+    pl.translate(tx, yb + (arch - yb) / 2, sd * (zs + 0.0006));
+    g.push(pl);
+  }
+  return mergeGeometries(g);
+}
+const policeText = () => cached('poltext', () => {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 40;
+  const g = c.getContext('2d');
+  g.fillStyle = '#1d3f94';
+  g.font = '900 34px "Segoe UI", Arial, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('POLIZEI', 128, 22, 250);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return new THREE.MeshLambertMaterial({ map: t, transparent: true, alphaTest: 0.35, depthWrite: false });
+});
 const CARS = new Map();
 let CAR_MATS = null;
 export const CAR_BODIES = Object.keys(CAR_SPEC);
@@ -1198,15 +1336,19 @@ export function carGeos(kind = 'sedan') {
   // Dachreling (Kombi, SUV), dunkle Beplankung (SUV), offene Ladefläche (Pick-up)
   if (S.rails) d(0x2a2d33).pair(B1[0] + 0.01, F1[0] - 0.012, F1[1] - 0.001, F1[1] + 0.004, gw / 2 - 0.008, 0.004, M);
   if (S.clad) d(0x2a2d33).side([[-h + 0.012, base + 0.002], [h - 0.012, base + 0.002], [h - 0.012, base + 0.01], [-h + 0.012, base + 0.01]], w / 2 + 0.0008, M);
-  if (S.stripe) {
+  if (S.stripe || S.bar) {
     // Seitenstreifen (zwischen den Radhäusern) und Blaulichtbalken auf dem Dach
     const ys = base + 0.012, x0 = -h + 0.016, x1 = S.low[3][0] - 0.004;
-    d(S.stripe).side([[x0, ys], [x1, ys], [x1, ys + 0.012], [x0, ys + 0.012]], w / 2 + 0.0009, M);
-    const top = Math.min(F1[1], B1[1]);
-    d(0x1e293b).rbox(-0.011, 0.011, top - 0.001, top + 0.004, -0.028, 0.028, M, 0.002);
-    d(0x3b82f6).rbox(-0.009, 0.009, top + 0.003, top + 0.008, -0.026, -0.005, M, 0.0025);
-    d(0x3b82f6).rbox(-0.009, 0.009, top + 0.003, top + 0.008, 0.005, 0.026, M, 0.0025);
+    if (S.stripe) d(S.stripe).side([[x0, ys], [x1, ys], [x1, ys + 0.012], [x0, ys + 0.012]], w / 2 + 0.0009, M);
+    // Lichtbalken quer über das Dach: blaue Kuppeln außen, Mitte weiß
+    const top = Math.min(F1[1], B1[1]), bw = gw / 2 - 0.006;
+    d(0x1e293b).rbox(-0.012, 0.012, top - 0.001, top + 0.004, -bw, bw, M, 0.002);
+    d(0x3b82f6).rbox(-0.01, 0.01, top + 0.003, top + 0.009, -bw + 0.002, -0.009, M, 0.003);
+    d(0x3b82f6).rbox(-0.01, 0.01, top + 0.003, top + 0.009, 0.009, bw - 0.002, M, 0.003);
+    d(0xe5e7eb).rbox(-0.008, 0.008, top + 0.003, top + 0.007, -0.008, 0.008, M, 0.002);
   }
+  let decal = null;
+  if (S.livery === 'police') decal = policeLivery(S, d, M, base, gw);
   if (S.bed) d(0x2a2d33).rbox(-h + 0.008, B0[0] - 0.007, yT - 0.012, yT + 0.0004, -w / 2 + 0.007, w / 2 - 0.007, M, 0.002);
   const all = (k) => merge([...k.by.values()].flat());
   const parts = [...det].map(([hex, k]) => {
@@ -1216,20 +1358,21 @@ export function carGeos(kind = 'sedan') {
     return g;
   });
   if (!CAR_MATS) CAR_MATS = [new THREE.MeshPhongMaterial({ color: 0xffffff, map: wearTex(), shininess: 80, specular: 0x4a4a4a }), new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 90, specular: 0x47515c })];
-  const out = { body: all(body), detail: mergeGeometries(parts), mats: CAR_MATS, len: 2 * h, hgt: Math.max(F1[1], B1[1]) };
+  const out = { body: all(body), detail: mergeGeometries(parts), mats: CAR_MATS, len: 2 * h, hgt: Math.max(F1[1], B1[1]), decal, decalMat: decal && policeText() };
   CARS.set(kind, out);
   return out;
 }
 // viele Pkw als Instanzen, Bauform und Farbe je Auto aus rnd: set(i, Matrix), update() nach dem Setzen
 export function carInstances(n, rnd = Math.random, kinds = null) {
   const pick = [...Array(n)].map((_, i) => ({ k: kinds ? kinds[i % kinds.length] : carKind(rnd()), c: carPaint(rnd()) }));
+  for (const p of pick) if (CAR_SPEC[p.k]?.livery === 'police') p.c = POLICE_BLUE;
   const by = new Map(), slot = [], group = new THREE.Group();
   for (const p of pick) by.set(p.k, (by.get(p.k) || 0) + 1);
   const M = {};
   for (const [k, cnt] of by) {
     const G = carGeos(k);
-    M[k] = { body: new THREE.InstancedMesh(G.body, G.mats[0], cnt), det: new THREE.InstancedMesh(G.detail, G.mats[1], cnt), n: 0 };
-    for (const m of [M[k].body, M[k].det]) (m.frustumCulled = false), group.add(m);
+    M[k] = { body: new THREE.InstancedMesh(G.body, G.mats[0], cnt), det: new THREE.InstancedMesh(G.detail, G.mats[1], cnt), dec: G.decal ? new THREE.InstancedMesh(G.decal, G.decalMat, cnt) : null, n: 0 };
+    for (const m of [M[k].body, M[k].det, M[k].dec]) if (m) (m.frustumCulled = false), group.add(m);
   }
   const col = new THREE.Color();
   pick.forEach((p, i) => {
@@ -1243,10 +1386,12 @@ export function carInstances(n, rnd = Math.random, kinds = null) {
       const [X, j] = slot[i];
       X.body.setMatrixAt(j, mx);
       X.det.setMatrixAt(j, mx);
+      if (X.dec) X.dec.setMatrixAt(j, mx);
     },
     update() {
       for (const X of Object.values(M)) {
         X.body.instanceMatrix.needsUpdate = X.det.instanceMatrix.needsUpdate = true;
+        if (X.dec) X.dec.instanceMatrix.needsUpdate = true;
         if (X.body.instanceColor) X.body.instanceColor.needsUpdate = true;
       }
     },

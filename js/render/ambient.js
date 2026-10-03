@@ -8,7 +8,7 @@ import { ZS, AC_TYPES } from '../config.js';
 import { trainPos } from './infra.js';
 import { Q } from './quality.js';
 import { season } from '../sim/winter.js';
-import { carPaint, carKind } from './cars.js';
+import { carPaint, carKind, POLICE_BLUE } from './cars.js';
 
 const SHIRTS = ['#1d4ed8', '#b91c1c', '#f8fafc', '#111827', '#15803d', '#a855f7', '#f59e0b', '#0e7490', '#be185d', '#57534e'];
 const HIVIS = ['#facc15', '#f97316', '#fde047'];
@@ -104,8 +104,8 @@ export class Ambient {
       // Flughafenpolizei auf Streife: fährt langsam die Zufahrtsstraße entlang und hält am Rand beim Parkplatz bzw.
       // Parkhaus (Kontrolle, Präsenz), dann weiter
       car.kind = 'police';
-      car.col = '#eef2f6';
-      car.body = 'police';
+      car.col = POLICE_BLUE;
+      car.body = this.rnd() < 0.3 ? 'policevan' : 'police';
       car.patrolLights = this.rnd() < 0.45; // bei manchen Kontrollen Blaulicht
       car.v *= 0.7;
       const x = 46 + this.rnd() * 18;
