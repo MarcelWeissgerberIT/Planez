@@ -3461,4 +3461,5 @@ export default {
   "Sprache, Sound, Sprachausgabe, Tooltips, Tipps": "Language, sound, voice output, tooltips, tips",
   "Umschalten lädt neu – die Herausforderung beginnt von vorn": "Switching reloads – the challenge starts over",
   "Umschalten speichert und lädt das Spiel neu": "Switching saves and reloads the game",
+  "<li>🚦 <b>Ordentlicher Verkehr auf dem Vorfeld</b>: Die Servicestraße hat jetzt zwei Fahrspuren. Fahrzeuge halten Abstand, fahren an und bremsen, fahren am Flugzeug Schritt und nutzen Gassen statt durch andere hindurchzufahren. Jeder Fahrzeugtyp ist unterschiedlich schnell. Außerdem: weiter hineinzoomen bei voller Schärfe, dezentere Schilder, Cockpitscheiben wie beim echten Vorbild und die Treppe genau an der Tür</li>": "<li>🚦 <b>Orderly apron traffic</b>: the service road now has two lanes. Vehicles keep their distance, accelerate and brake, crawl near the aircraft and use aisles instead of driving through each other. Each vehicle type has its own speed. Also: zoom in further at full sharpness, subtler labels, cockpit windows like the real thing and stairs right at the door</li>",
 };

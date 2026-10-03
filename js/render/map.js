@@ -2668,6 +2668,9 @@ function drawGround(g, state, trees) {
     g.fillRect(x, LY.SERVICE - 0.42, 0.4, 0.04);
     g.fillRect(x, LY.SERVICE + 0.38, 0.4, 0.04);
   }
+  // Mittellinie: zwei Fahrspuren, Rechtsverkehr
+  g.fillStyle = 'rgba(250,204,21,0.7)';
+  for (let x = 10.6; x < 74; x += 0.7) g.fillRect(x, LY.SERVICE - 0.017, 0.3, 0.034);
   // Parkpositionen
   for (const st of state.stands) {
     const sx = st.x;

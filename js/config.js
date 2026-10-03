@@ -86,14 +86,14 @@ export const CITIES = {
 
 // Bodenfahrzeuge
 export const VEH_TYPES = {
-  tug: { id: 'tug', name: T('Pushback-Schlepper'), short: T('Schlepper'), sprite: 'veh_tug', len: 0.42, price: 180000, upkeep: 140, speed: 0.2, color: '#facc15' },
-  baggage: { id: 'baggage', name: T('Gepäckzug'), short: T('Gepäck'), sprite: 'veh_baggage', len: 0.95, price: 90000, upkeep: 90, speed: 0.2, color: '#f59e0b' },
-  fuel: { id: 'fuel', name: T('Tankwagen'), short: T('Tank'), sprite: 'veh_fuel', len: 0.78, price: 220000, upkeep: 160, speed: 0.18, color: '#ef4444' },
+  tug: { id: 'tug', name: T('Pushback-Schlepper'), short: T('Schlepper'), sprite: 'veh_tug', len: 0.42, price: 180000, upkeep: 140, speed: 0.24, color: '#facc15' },
+  baggage: { id: 'baggage', name: T('Gepäckzug'), short: T('Gepäck'), sprite: 'veh_baggage', len: 0.95, price: 90000, upkeep: 90, speed: 0.19, color: '#f59e0b' },
+  fuel: { id: 'fuel', name: T('Tankwagen'), short: T('Tank'), sprite: 'veh_fuel', len: 0.78, price: 220000, upkeep: 160, speed: 0.17, color: '#ef4444' },
   catering: { id: 'catering', name: T('Catering-LKW'), short: T('Catering'), sprite: 'veh_catering', len: 0.62, price: 160000, upkeep: 110, speed: 0.19, color: '#e5e7eb' },
-  cleaning: { id: 'cleaning', name: T('Reinigungsteam'), short: T('Reinigung'), sprite: 'veh_cleaning', len: 0.36, price: 60000, upkeep: 60, speed: 0.22, color: '#22c55e' },
-  bus: { id: 'bus', name: T('Vorfeldbus'), short: T('Bus'), sprite: 'veh_bus', len: 0.8, price: 300000, upkeep: 150, speed: 0.19, color: '#3b82f6' },
-  stairs: { id: 'stairs', name: T('Treppenfahrzeug'), short: T('Treppe'), sprite: 'veh_stairs', len: 0.42, price: 95000, upkeep: 45, speed: 0.17, color: '#f8fafc' },
-  deice: { id: 'deice', name: T('Enteisungsfahrzeug'), short: T('Enteiser'), sprite: 'veh_deice', len: 0.82, price: 380000, upkeep: 170, speed: 0.17, color: '#f97316' },
+  cleaning: { id: 'cleaning', name: T('Reinigungsteam'), short: T('Reinigung'), sprite: 'veh_cleaning', len: 0.36, price: 60000, upkeep: 60, speed: 0.25, color: '#22c55e' },
+  bus: { id: 'bus', name: T('Vorfeldbus'), short: T('Bus'), sprite: 'veh_bus', len: 0.8, price: 300000, upkeep: 150, speed: 0.23, color: '#3b82f6' },
+  stairs: { id: 'stairs', name: T('Treppenfahrzeug'), short: T('Treppe'), sprite: 'veh_stairs', len: 0.42, price: 95000, upkeep: 45, speed: 0.16, color: '#f8fafc' },
+  deice: { id: 'deice', name: T('Enteisungsfahrzeug'), short: T('Enteiser'), sprite: 'veh_deice', len: 0.82, price: 380000, upkeep: 170, speed: 0.15, color: '#f97316' },
 };
 
 // Abfertigungs-Aufgaben (Basisdauer in Minuten für A320)

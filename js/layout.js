@@ -355,12 +355,21 @@ export function alongPoly(pts, s) {
 }
 
 // Weg für ein Fahrzeug: über die Servicestraße
-export function vehPath(from, to) {
-  const pts = [P(from.x, from.y)];
+// Servicestraße mit zwei Fahrspuren, Rechtsverkehr: nach Osten (+x) südlich der Mitte, nach Westen nördlich
+// ax.from / ax.to: Gasse (x) zum Wegfahren bzw. Hinfahren – im Depot zwischen den Stellplatzreihen, an der Parkposition
+// außen neben dem Flugzeug, damit niemand durch geparkte oder arbeitende Fahrzeuge fährt
+export const SVC_LANE = 0.19;
+export function vehPath(from, to, ax = {}) {
   const y0 = serviceY(from.x);
-  const nearRoad = Math.abs(from.y - y0) < 0.3;
-  if (!nearRoad) pts.push(P(from.x, y0));
-  if (Math.abs(to.x - from.x) > 0.3 || !nearRoad) pts.push(...serviceRun(from.x, to.x).slice(1));
+  const nearRoad = Math.abs(from.y - y0) < 0.45;
+  const sx = ax.from != null && !nearRoad ? ax.from : from.x;
+  const tx = ax.to != null && Math.abs(to.y - serviceY(to.x)) > 0.6 ? ax.to : to.x;
+  const dy = (Math.sign(tx - sx) || 1) * SVC_LANE;
+  const pts = [P(from.x, from.y)];
+  if (sx !== from.x) pts.push(P(sx, from.y - 0.18 * Math.sign(from.y - y0)));
+  if (!nearRoad) pts.push(P(sx, y0 + dy));
+  if (Math.abs(tx - sx) > 0.3 || !nearRoad) pts.push(...serviceRun(sx, tx, dy).slice(1));
+  if (tx !== to.x) pts.push(P(tx, to.y + 0.2 * Math.sign(to.y - serviceY(to.x)))); // von hinten einbiegen, weg von den anderen
   pts.push(P(to.x, to.y));
   return roundedPath(dedupe(pts), 0.5, 0.15);
 }

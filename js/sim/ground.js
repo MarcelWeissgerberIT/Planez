@@ -390,10 +390,10 @@ export function dispatch(state, ac, k, vehId = null) {
   v.sh = null;
   if (v.type === 'bus' && k === 'board') {
     // Boarding an der Außenposition: erst an der Haltestelle am Terminal die Fluggäste abholen
-    const B = LY.busStop();
-    v.path = LY.vehPath({ x: v.x, y: v.y }, B);
+    const B = busStopFor(state, v);
+    routeTo(v, B);
     v.sh = { k, ph: 'toStop' };
-  } else v.path = LY.vehPath({ x: v.x, y: v.y }, sp);
+  } else routeTo(v, sp, standAisle(ac, sp));
   task.st = 'assigned';
   task.veh = v.id;
   crewDispatch(state, v, ac, k);
@@ -418,7 +418,7 @@ function releaseVehicle(state, v, returnNow) {
   v.dockT = 0;
   if (lastLoad) {
     v.st = 'busEnd';
-    if (v.sh.ph === 'ac') busLeg(v, LY.busStop(), 'toStop', state);
+    if (v.sh.ph === 'ac') busLeg(v, busStopFor(state, v), 'toStop', state);
     v.sh.last = true;
     return;
   }
@@ -432,9 +432,19 @@ function releaseVehicle(state, v, returnNow) {
 export const BUS_DWELL_AC = 80; // Sekunden an der Tür (Fluggäste steigen um)
 export const BUS_DWELL_STOP = 50; // Sekunden an der Haltestelle
 const BUS_PAX = 80; // Fluggäste je Busfahrt
+// Haltestelle am Terminal: mehrere Buchten hintereinander, jeder Bus nimmt die erste freie
+const STOP_SLOTS = [0, -0.95, 0.95, -1.9];
+function busStopFor(state, v) {
+  const S = LY.busStop();
+  const used = new Set();
+  for (const o of state.vehicles)
+    if (o !== v && o.type === 'bus' && o.sh && o.stopOff != null && (o.sh.ph === 'toStop' || o.sh.ph === 'stop' || (o.sh.ph === 'wait' && Math.abs(o.y - S.y) < 0.4))) used.add(o.stopOff);
+  v.stopOff = STOP_SLOTS.find((x) => !used.has(x)) ?? 0;
+  return { ...S, x: S.x + v.stopOff };
+}
 function busLeg(v, to, ph, state) {
-  v.path = LY.vehPath({ x: v.x, y: v.y }, to);
-  v.pi = 0;
+  const ac = ph === 'toAc' && v.job ? state.acs.find((a) => a.id === v.job.ac) : null;
+  routeTo(v, to, ac ? standAisle(ac, to) : null);
   v.sh = { ...v.sh, ph, t0: state.time };
 }
 // ein Schritt im Pendelverkehr; true, solange der Bus dabei ist (fährt oder wartet)
@@ -452,12 +462,12 @@ function busStep(state, v, dt, storm, ac = null) {
     if (B.last) return false; // letzte Fahrt: alle ausgestiegen
     // Boarding endet am Flugzeug, Aussteigen an der Haltestelle
     if ((B.k === 'board') === (B.ph === 'ac') && B.n >= B.need) v.sh = { ...B, ph: 'wait' };
-    else if (B.ph === 'ac') busLeg(v, LY.busStop(), 'toStop', state);
+    else if (B.ph === 'ac') busLeg(v, busStopFor(state, v), 'toStop', state);
     else busLeg(v, v.target, 'toAc', state);
     return true;
   }
   if (storm) return true;
-  if (moveAlong(v, dt, VEH_TYPES.bus.speed)) {
+  if (moveAlong(v, dt, VEH_TYPES.bus.speed, state)) {
     if (B.ph === 'toStop') {
       v.sh = { ...B, ph: 'stop', t0: state.time, n: B.n + (B.k === 'deboard' ? 1 : 0) };
       v.hdg = LY.busStop().hdg;
@@ -472,8 +482,7 @@ function busStep(state, v, dt, storm, ac = null) {
 // Tankwagen zur Füllstelle am Tanklager
 function sendRefill(state, v) {
   v.st = 'refill';
-  v.path = LY.vehPath({ x: v.x, y: v.y }, FUEL.fill);
-  v.pi = 0;
+  routeTo(v, FUEL.fill);
   v.target = { ...FUEL.fill, hdg: 0 };
 }
 
@@ -482,14 +491,81 @@ function sendHome(state, v) {
   v.sh = null;
   if (Math.hypot(v.x - bay.x, v.y - bay.y) < 0.1) return;
   v.st = 'return';
-  v.path = LY.vehPath({ x: v.x, y: v.y }, { x: bay.x, y: bay.y });
-  v.pi = 0;
+  routeTo(v, { x: bay.x, y: bay.y }, bay.x + BAY_AISLE);
   v.target = { x: bay.x, y: bay.y, hdg: -Math.PI / 2 };
 }
 
-function moveAlong(v, dt, speed) {
-  let s = speed * dt;
+// Gassen: im Depot zwischen den Stellplatzreihen, an der Parkposition außen neben dem Flugzeug (Nase nach Nord/Süd)
+const BAY_AISLE = 0.475;
+function standAisle(ac, sp) {
+  if (!ac || Math.abs(Math.cos(ac.hdg)) > 0.3) return null;
+  const side = Math.sign(sp.x - ac.x);
+  if (!side) return null;
+  // außerhalb aller Service-Punkte dieser Seite (rechts: Tankwagen ganz außen; links: Bus, Enteiser, Treppe)
+  const out = side > 0 ? 0.46 + 0.2 * ac.len : Math.max(1.05, 0.5 + 0.2 * ac.len);
+  return ac.x + side * (out + 0.3);
+}
+function exitAisle(v) {
+  if (v.aisle && Math.hypot(v.x - v.aisle.x, v.y - v.aisle.y) < 0.35) return v.aisle.ax;
+  const bay = LY.DEPOT_BAYS[v.bay % LY.DEPOT_BAYS.length];
+  if (bay && Math.hypot(v.x - bay.x, v.y - bay.y) < 0.35) return bay.x + BAY_AISLE;
+  return null;
+}
+// Weg zu einem Ziel; toAisle = Gasse für die Zufahrt (merkt sie sich fürs Wegfahren)
+function routeTo(v, to, toAisle = null) {
+  v.path = LY.vehPath({ x: v.x, y: v.y }, to, { from: exitAisle(v), to: toAisle });
+  v.pi = 0;
+  v.aisle = toAisle != null ? { ax: toAisle, x: to.x, y: to.y } : null;
+}
+
+// Fahrer: jeder fährt ein wenig anders (±7 %), fest je Fahrzeug
+function driver(v) {
+  if (v.drv == null) {
+    let h = 0;
+    for (const c of String(v.id)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    v.drv = 0.93 + ((h % 1000) / 1000) * 0.14;
+  }
+  return v.drv;
+}
+// freie Strecke bis zum Vordermann auf derselben Spur in Fahrtrichtung (hx, hy). Gegenverkehr und Fahrzeuge daneben
+// (andere Spur, Parkposition) zählen nicht
+function headway(state, v, hx, hy) {
+  const half = (VEH_TYPES[v.type]?.len || 0.5) / 2;
+  let free = Infinity;
+  for (const o of state.vehicles) {
+    if (o === v || o.st === 'attached') continue;
+    const dx = o.x - v.x, dy = o.y - v.y;
+    if (dx > 2.5 || dx < -2.5 || dy > 2.5 || dy < -2.5) continue;
+    const ahead = dx * hx + dy * hy;
+    if (ahead <= 0) continue;
+    if (Math.abs(dy * hx - dx * hy) > 0.17) continue;
+    const moving = o.st === 'drive' || o.st === 'return' || o.st === 'refill' || (o.sh && (o.sh.ph === 'toStop' || o.sh.ph === 'toAc'));
+    if (moving && Math.cos((o.hdg || 0) - Math.atan2(hy, hx)) < -0.3) continue;
+    free = Math.min(free, ahead - half - (VEH_TYPES[o.type]?.len || 0.5) / 2 - 0.1);
+  }
+  return free;
+}
+// entlang des Wegs fahren: anfahren und bremsen, vor dem Ziel Schrittgeschwindigkeit, Abstand zum Vordermann halten.
+// true = angekommen
+function moveAlong(v, dt, speed, state) {
   const path = v.path;
+  if (v.pi >= path.length - 1) return true;
+  let rem = 0;
+  for (let i = v.pi; i < path.length - 1; i++) {
+    const a = i === v.pi ? v : path[i], b = path[i + 1];
+    rem += Math.hypot(b.x - a.x, b.y - a.y);
+  }
+  let top = speed * driver(v) * clamp(0.35 + rem / 1.1, 0.35, 1);
+  const nb = path[v.pi + 1], hl = Math.hypot(nb.x - v.x, nb.y - v.y) || 1;
+  let free = state ? headway(state, v, (nb.x - v.x) / hl, (nb.y - v.y) / hl) : Infinity;
+  // nie dauerhaft verklemmen: nach längerem Warten ein Stück vorbeischieben
+  if ((v.wait || 0) > 10) v.squeeze = 0.8;
+  if (v.squeeze > 0) free = Infinity;
+  if (free < 0.7) top = Math.min(top, speed * clamp(free / 0.7, 0, 1));
+  v.spd = (v.spd || 0) + clamp(top - (v.spd || 0), -dt * 0.5, dt * 0.18);
+  let s = Math.max(0, Math.min(v.spd * dt, free));
+  v.wait = s < 1e-4 ? (v.wait || 0) + dt : 0;
+  if (v.squeeze > 0) v.squeeze -= s;
   while (s > 1e-6 && v.pi < path.length - 1) {
     const b = path[v.pi + 1];
     const seg = Math.hypot(b.x - v.x, b.y - v.y);
@@ -508,7 +584,12 @@ function moveAlong(v, dt, speed) {
       s = 0;
     }
   }
-  return v.pi >= path.length - 1;
+  if (v.pi >= path.length - 1) {
+    v.spd = 0;
+    v.wait = 0;
+    return true;
+  }
+  return false;
 }
 
 function updateVehicles(state, dt, storm) {
@@ -527,7 +608,7 @@ function updateVehicles(state, dt, storm) {
     }
     if (v.st === 'refill') {
       if (storm) continue;
-      if (moveAlong(v, dt, vt.speed)) {
+      if (moveAlong(v, dt, vt.speed, state)) {
         v.st = 'filling';
         v.hdg = 0;
       }
@@ -554,13 +635,13 @@ function updateVehicles(state, dt, storm) {
       if (v.st === 'drive' && v.sh && (v.sh.ph === 'toStop' || v.sh.ph === 'stop')) {
         // Boarding: erst an der Haltestelle die Fluggäste abholen, dann zum Flugzeug
         if (v.sh.ph === 'stop' && state.time - v.sh.t0 >= BUS_DWELL_STOP) busLeg(v, v.target, 'toAc', state);
-        else if (v.sh.ph === 'toStop' && moveAlong(v, dt, vt.speed)) {
+        else if (v.sh.ph === 'toStop' && moveAlong(v, dt, vt.speed, state)) {
           v.sh = { ...v.sh, ph: 'stop', t0: state.time };
           v.hdg = LY.busStop().hdg;
         }
         continue;
       }
-      const done = moveAlong(v, dt, vt.speed);
+      const done = moveAlong(v, dt, vt.speed, state);
       if (done) {
         if (v.st === 'drive') {
           const ac = acById.get(v.job.ac);
@@ -638,8 +719,7 @@ function stairsAhead(state, allAuto) {
     const v = free[0];
     v.pre = ac.id;
     v.st = 'return';
-    v.path = LY.vehPath({ x: v.x, y: v.y }, to);
-    v.pi = 0;
+    routeTo(v, to);
     v.target = { ...to, hdg: 0 };
   }
 }
