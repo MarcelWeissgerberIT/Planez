@@ -2584,7 +2584,6 @@ export default {
   "Jetzt speichern": "Save now",
   "Platz {0} · automatisch alle 45 Sekunden und zum Tagesende": "Slot {0} · automatically every 45 seconds and at the end of each day",
   "Einstellungen": "Settings",
-  "Sound, Sprachausgabe, Tooltips, Tipps": "Sound, voice output, tooltips, tips",
   "Station wechseln": "Switch station",
   "aktuell: {0}": "current: {0}",
   "Ziele & Rang": "Goals & rank",
@@ -3459,4 +3458,7 @@ export default {
   "KABINENSERVICE": "CABIN SERVICE",
   "Typ I / Typ IV": "Type I / Type IV",
   "<li>🚐 <b>Lebendigere Fahrzeuge</b>: Fahrzeuge und Autos sind jetzt rund statt kantig – abgerundete Karosserien, geneigte Frontscheiben, Radhäuser und echte Pkw mit Scheiben, Säulen und Kennzeichen. Sieben Bauformen (Kleinwagen, Kompakt, Limousine, Kombi, SUV, Kleinbus, Pick-up) in Farben wie auf echten Parkplätzen – viel Weiß, Schwarz, Grau und Silber, dazwischen Blau, Rot, Grün und Beige. Vorfeld- und Linienbusse tragen Werbung (Aurora Airways, Nordstern, Kranich Kaffee, Duty Free …), und man sieht, ob sie voll oder leer sind; dazu Lack mit Gebrauchsspuren, gebürstetes Metall, Firmenaufschriften und große Dachnummern wie auf echten Vorfeldern – auf der Karte und in 3D</li>": "<li>🚐 <b>Livelier vehicles</b>: vehicles and cars are now rounded instead of boxy – curved bodies, raked windscreens, wheel arches and real cars with windows, pillars and number plates. Seven body styles (city car, hatchback, saloon, estate, SUV, minibus, pickup) in colours like a real car park – lots of white, black, grey and silver, with some blue, red, green and beige in between. Apron and city buses carry adverts (Aurora Airways, Nordstern, Kranich Coffee, Duty Free …) and you can see whether they are full or empty; plus weathered paint, brushed metal, company lettering and large roof numbers like on real aprons – on the map and in 3D</li>",
+  "Sprache, Sound, Sprachausgabe, Tooltips, Tipps": "Language, sound, voice output, tooltips, tips",
+  "Umschalten lädt neu – die Herausforderung beginnt von vorn": "Switching reloads – the challenge starts over",
+  "Umschalten speichert und lädt das Spiel neu": "Switching saves and reloads the game",
 };

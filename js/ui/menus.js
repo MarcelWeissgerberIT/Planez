@@ -304,8 +304,7 @@ export function initMainMenu(api) {
   const renderPrefs = () => {
     const p = loadPrefs();
     // Sprache: Umschalten lädt die Seite neu (Wörterbuch wird beim Start geladen)
-    const langRow = `<div class="mm-toggle mm-lang"><span class="l"><b>Sprache · Language</b><small>${T('Umschalten lädt das Spiel neu')}</small></span><span class="mm-lseg">${[['de', 'Deutsch'], ['en', 'English']].map(([l, n]) => `<button data-lang="${l}" class="${LANG === l ? 'on' : ''}" aria-pressed="${LANG === l}">${n}</button>`).join('')}</span></div>`;
-    root.querySelector('#mm-prefs').innerHTML = langRow + [...PREF_ROWS.slice(0, 1), ['music', T('Menümusik'), T('das Planez-Thema im Hauptmenü')], ...PREF_ROWS.slice(1), ['briefing', T('Schichtbriefing'), T('zu Tagesbeginn: Wetter, Verkehrsspitzen, Lage und Ziele der Schicht')]].map(([k, n, sub]) => switchRow(k, n, sub, !!p[k])).join('');
+    root.querySelector('#mm-prefs').innerHTML = langRow(T('Umschalten lädt das Spiel neu')) + [...PREF_ROWS.slice(0, 1), ['music', T('Menümusik'), T('das Planez-Thema im Hauptmenü')], ...PREF_ROWS.slice(1), ['briefing', T('Schichtbriefing'), T('zu Tagesbeginn: Wetter, Verkehrsspitzen, Lage und Ziele der Schicht')]].map(([k, n, sub]) => switchRow(k, n, sub, !!p[k])).join('');
   };
 
   root.addEventListener('click', (e) => {
@@ -393,12 +392,7 @@ export function initMainMenu(api) {
     }
     const lg = e.target.closest('[data-lang]');
     if (lg) {
-      if (lg.dataset.lang !== LANG) {
-        setLang(lg.dataset.lang);
-        const u = new URL(location.href);
-        u.searchParams.delete('lang');
-        location.href = u.toString();
-      }
+      switchLang(lg.dataset.lang);
       return;
     }
     const pr = e.target.closest('[data-pref]');
@@ -495,6 +489,13 @@ export function showPauseMenu(game, api) {
     document.getElementById('game').appendChild(el);
     pz = { el };
     el.addEventListener('click', (e) => {
+      const lg = e.target.closest('[data-lang]');
+      if (lg) {
+        // vorher speichern, damit nach dem Neuladen „Weiterspielen“ genau hier weitermacht
+        if (lg.dataset.lang !== LANG && !pz.game.state.scenario) pz.api.save();
+        switchLang(lg.dataset.lang);
+        return;
+      }
       const b = e.target.closest('[data-pm]');
       const pr = e.target.closest('[data-pref]');
       if (pr) {
@@ -555,11 +556,24 @@ export function showPauseMenu(game, api) {
   if (first) first.focus({ preventScroll: true });
 }
 
+// Sprache · Language: Deutsch/English (Hauptmenü und Pausenmenü)
+function langRow(sub) {
+  return `<div class="mm-toggle mm-lang"><span class="l"><b>Sprache · Language</b><small>${sub}</small></span><span class="mm-lseg">${[['de', 'Deutsch'], ['en', 'English']].map(([l, n]) => `<button data-lang="${l}" class="${LANG === l ? 'on' : ''}" aria-pressed="${LANG === l}">${n}</button>`).join('')}</span></div>`;
+}
+// Sprache wechseln: merken und neu laden (das Wörterbuch wird beim Start geladen)
+function switchLang(l) {
+  if (l === LANG) return;
+  setLang(l);
+  const u = new URL(location.href);
+  u.searchParams.delete('lang');
+  location.href = u.toString();
+}
+
 function renderPause() {
   const s = pz.game.state;
   const set = pz.api.settings();
   const item = (a, title, sub = '', cls = '') => `<button class="mm-item ${cls}" data-pm="${a}"><span class="n"></span><span class="l"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`;
-  const prefs = pz.showSettings ? `<div class="pm-prefs">${[...PREF_ROWS, ['labels', T('Beschriftungen auf der Karte'), T('Rufzeichen und Status an Flugzeugen')]].map(([k, n, sub]) => switchRow(k, n, sub, !!set[k])).join('')}</div>` : '';
+  const prefs = pz.showSettings ? `<div class="pm-prefs">${langRow(s.scenario ? T('Umschalten lädt neu – die Herausforderung beginnt von vorn') : T('Umschalten speichert und lädt das Spiel neu'))}${[...PREF_ROWS, ['labels', T('Beschriftungen auf der Karte'), T('Rufzeichen und Status an Flugzeugen')]].map(([k, n, sub]) => switchRow(k, n, sub, !!set[k])).join('')}</div>` : '';
   pz.el.innerHTML = T`<div class="pm-shade"></div><i class="mm-corner tl"></i><i class="mm-corner bl"></i>
     <div class="mm-left pm-left">
       <div class="pm-paused"><i></i><i></i>Pausiert</div>
@@ -568,7 +582,7 @@ function renderPause() {
       <nav class="mm-list">
         ${item('resume', T('Weiter'), T('Der Flughafen läuft da weiter, wo er stand.'))}
         ${s.scenario ? '' : item('save', T('Jetzt speichern'), T`Platz ${s.slot || 1} · automatisch alle 45 Sekunden und zum Tagesende`)}
-        ${item('settings', T('Einstellungen'), pz.showSettings ? '' : T('Sound, Sprachausgabe, Tooltips, Tipps'))}
+        ${item('settings', T('Einstellungen'), pz.showSettings ? '' : T('Sprache, Sound, Sprachausgabe, Tooltips, Tipps'))}
         ${prefs}
         ${item('role', T('Station wechseln'), T`aktuell: ${esc(ROLES[s.role].name)}`)}
         ${item('goals', T('Ziele & Rang'))}
