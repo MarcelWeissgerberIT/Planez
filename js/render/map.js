@@ -5,6 +5,7 @@ import { drawAircraftBody, drawVehicleBody, drawCarBody } from './volume.js';
 import { Ambient, drawPerson } from './ambient.js';
 import { gaLifeItems } from './galife.js';
 import { busPaxItems } from './buspax.js';
+import { drawApronBus, drawStairsTruck } from './gse2d.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { Polish } from './polish.js';
 import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowySprite } from './snow.js';
@@ -261,6 +262,7 @@ export class MapRenderer {
     if (!this.cache || this.cacheKey !== this.groundKey(state)) this.buildGround(state);
     const light = lightLevel(state);
     const night = 1 - light;
+    this.nightK = night;
     // Sonnenstand: flache Sonne morgens/abends = lange Schatten, nachts keine
     const hr = hourOf(state.time);
     const elev = clamp(Math.sin((Math.PI * (hr - 5.6)) / 14.6), 0, 1);
@@ -1359,6 +1361,16 @@ export class MapRenderer {
   drawVehicle(state, v, lights) {
     const ctx = this.ctx, cam = this.cam;
     const vt = VEH_TYPES[v.type];
+    if (v.type === 'bus' || v.type === 'stairs') {
+      // eigene Formen: Vorfeldbus mit Panoramafenstern, Treppenfahrzeug mit ausfahrender Treppe
+      const broken = v.brokenUntil > state.time;
+      const beacon = (v.st !== 'idle' && (this.time * 2 + v.x) % 1 < 0.35) || broken;
+      if (v.type === 'bus') drawApronBus(this, v, beacon, this.nightK || 0, lights);
+      else drawStairsTruck(this, v, stairsTop(state, v), beacon, lights);
+      const sp = cam.toScreen(v.x, v.y, 0.1);
+      this.picks.push({ type: 'veh', id: v.id, x: sp.x, y: sp.y, r: 10 });
+      return;
+    }
     const img = IMG[vt.sprite];
     const L = vt.len * 1.15;
     const Wd = img ? (L * img.width) / img.height : L * 0.4;
@@ -2318,6 +2330,13 @@ function prism(ctx, cam, pts, z0, z1, cTop, cA, cB) {
 }
 
 // Aufbauhöhe der Vorfeldfahrzeuge (Kacheln)
+// Höhe der Treppe: an der Tür fährt sie langsam bis zur Schwelle hoch, sonst liegt sie flach zum Fahren
+function stairsTop(state, v) {
+  if (v.st !== 'docked' || !v.job) return 0.12;
+  const ac = state.acs.find((a) => a.id === v.job.ac);
+  const door = ac ? Math.max(0.1, 0.085 * ac.len) : 0.16;
+  return 0.12 + (door - 0.12) * clamp((state.time - (v.dockT || 0)) / 25, 0, 1);
+}
 const VEH_H = { tug: 0.075, baggage: 0.07, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13, deice: 0.15 };
 // Lackfarbe -> Dach/Seiten + getönte Scheiben (gecacht)
 const carShadeCache = {};

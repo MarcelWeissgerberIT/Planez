@@ -418,10 +418,10 @@ export function startStageUp(state) {
 
 // Fahrzeug-Grundausstattung je Stufe (Mindestbestand)
 const FLEET = {
-  1: { tug: 2, baggage: 2, fuel: 2, catering: 1, cleaning: 1, bus: 2, deice: 1 },
-  2: { tug: 3, baggage: 3, fuel: 2, catering: 2, cleaning: 2, bus: 2, deice: 1 },
-  3: { tug: 4, baggage: 5, fuel: 3, catering: 3, cleaning: 2, bus: 2, deice: 2 },
-  4: { tug: 5, baggage: 6, fuel: 3, catering: 3, cleaning: 3, bus: 3, deice: 2 },
+  1: { tug: 2, baggage: 2, fuel: 2, catering: 1, cleaning: 1, bus: 2, deice: 1 }, // Turboprops haben eine Bordtreppe
+  2: { tug: 3, baggage: 3, fuel: 2, catering: 2, cleaning: 2, bus: 2, stairs: 2, deice: 1 },
+  3: { tug: 4, baggage: 5, fuel: 3, catering: 3, cleaning: 2, bus: 2, stairs: 3, deice: 2 },
+  4: { tug: 5, baggage: 6, fuel: 3, catering: 3, cleaning: 3, bus: 3, stairs: 4, deice: 2 },
 };
 export function completeStage(state, to) {
   const C = careerState(state);

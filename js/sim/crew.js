@@ -24,6 +24,7 @@ export function crewDispatch(state, v, ac, k) {
     catering: [T`${P} übernommen, Trolleys sind geladen.`, T`Catering rollt zu ${P}.`],
     cleaning: [T`Team unterwegs zu ${P}.`, T`verstanden, Kabinenreinigung ${P}.`],
     bus: [T`fahre ${P}, Passagiere ${ac.cs}.`, T`Bus rollt zu ${P}.`],
+    stairs: [T`Treppe kommt an ${P}, vordere Tür.`, T`verstanden, fahre Treppe zu ${P}.`],
     tug: [T`fahre ${P}, Push für ${ac.cs}.`, T`Schlepper unterwegs zu ${P}.`],
     deice: [T`fahre ${P}, Enteisung ${ac.cs}.`, T`verstanden, Enteiser rollt zu ${P}.`],
   }[v.type];
@@ -41,8 +42,14 @@ export function crewDone(state, v, ac, k, task) {
   else if (k === 'cater') text = pickLine(state, [T`${P} beliefert, Trolleys verstaut.`, T`Catering an ${P} fertig.`]);
   else if (k === 'clean') text = pickLine(state, [T`Kabine ${P} ist sauber.`, T`Reinigung ${P} abgeschlossen.`]);
   else if (k === 'deice') text = T`${ac.cs} enteist, Holdover ab ${fmtClock(state.time)}.`;
+  else if (k === 'stairs') text = pickLine(state, [T`Treppe an ${P} steht, Tür kann auf.`, T`Treppe angesetzt an ${P}, gesichert.`]);
   else if (k === 'board') return say(state, `Gate ${ac.stand}`, pickLine(state, [T`Boarding ${ac.cs} abgeschlossen, Tür ist zu.`, T`alle Passagiere an Bord, ${ac.cs} ist fertig.`]), 2);
   if (text) say(state, v ? v.name : `Crew ${ac.stand}`, text, 1);
+}
+
+export function crewStairsAway(state, v, ac) {
+  if (!on(state)) return;
+  say(state, v.name, pickLine(state, [T`Tür ${ac.cs} ist zu, Treppe ist weg.`, T`Treppe von Position ${ac.stand} abgezogen.`]), 1);
 }
 
 export function crewEmpty(state, v, ac, task) {

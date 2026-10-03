@@ -4,7 +4,7 @@
 <style>html,body{margin:0;background:#9fb3c8;overflow:hidden}canvas{display:block}</style></head>
 <body><script type="module">
 import * as THREE from '../js/vendor/three.module.min.js';
-import { buildVehicle, vehParts } from '../js/render/vehicles3d.js';
+import { buildVehicle, vehParts, STAIRS_3D } from '../js/render/vehicles3d.js';
 import { buildAircraft } from '../js/render/model3d.js';
 import { AIRLINES } from '../js/config.js';
 const q = new URLSearchParams(location.search);
@@ -36,7 +36,7 @@ if (acs) acs.split(',').forEach((t, i, all) => {
   m.rotation.y = +(q.get('rot') || 0.6);
   sc.add(m);
 });
-const types = acs ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,deice,fire,plow,followme').split(',');
+const types = acs ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,stairs,deice,fire,plow,followme').split(',');
 types.forEach((t, i) => {
   const m = buildVehicle({ type: t });
   const col = i % 5, row = Math.floor(i / 5);
@@ -46,6 +46,12 @@ types.forEach((t, i) => {
   if (work) {
     if (P.lift) (P.lift.position.y = 0.07 + 0.11, P.scis.visible = true, P.scis.scale.y = 0.11, P.plat.visible = true);
     if (P.boom) (P.tur.rotation.y = 1.2, P.boom.rotation.z = 0.75, P.bask.rotation.z = -0.75, P.spray.visible = true);
+  }
+  if (P.ramp) {
+    // Treppe: work=1 an der Tür hochgestellt, sonst Fahrstellung
+    const th = Math.asin(((work ? 0.17 : 0.12) - STAIRS_3D.y) / STAIRS_3D.len);
+    P.ramp.rotation.z = th;
+    P.stp.position.set(STAIRS_3D.hinge + Math.cos(th) * STAIRS_3D.len, STAIRS_3D.y + Math.sin(th) * STAIRS_3D.len, 0);
   }
   if (night) { if (P.hl) P.hl.visible = true; if (P.tl) P.tl.visible = true; }
   sc.add(m);

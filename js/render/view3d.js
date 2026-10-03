@@ -14,7 +14,7 @@ import { NM_PER_TILE } from '../config.js';
 import { Q } from './quality.js';
 import { soundscape } from '../soundscape.js';
 import { buildAircraft, buildCessna, buildHeli, glowTex, spriteMat, setNight } from './model3d.js';
-import { buildVehicle, vehParts } from './vehicles3d.js';
+import { buildVehicle, vehParts, STAIRS_3D } from './vehicles3d.js';
 import { followMeCars } from './followme.js';
 import { plowFleet } from './snow.js';
 import { grassRunway3d, smallField3d, smallBuilding3d } from './field3d.js';
@@ -1202,7 +1202,8 @@ export class View3D {
       gse.visible = atStand;
       if (atStand) {
         const st = ac.stand && state.stands.find((x) => x.id === ac.stand || x.n === ac.stand);
-        R.stairs.visible = !(st && st.kind === 'contact');
+        // Bordtreppe nur, wenn kein Treppenfahrzeug kommt (Fuhrpark ohne Treppen)
+        R.stairs.visible = !(st && st.kind === 'contact') && !(ac.ta && ac.ta.tasks && ac.ta.tasks.stairs);
       }
     }
     for (const [id, g] of this.acs) if (!seen.has(id)) (this.scene.remove(g), this.acs.delete(id), this.vis.delete(id));
@@ -1603,6 +1604,16 @@ export class View3D {
       P.bask.rotation.z = -P.boom.rotation.z;
       P.spray.visible = !!ac && P.u > 0.97;
       if (P.spray.visible) P.spray.scale.set(1, 0.85 + 0.15 * Math.sin(now * 23 + v.x), 1);
+    }
+    if (P.ramp) {
+      // Treppe: an der Tür bis zur Schwelle hochstellen, sonst flach zum Fahren; Podest bleibt waagerecht
+      const ac = v.st === 'docked' && v.job ? state.acs.find((a) => a.id === v.job.ac) : null;
+      const S = STAIRS_3D;
+      const tgt = ac ? Math.max(0.1, 0.085 * ac.len) : 0.12;
+      P.top += clamp(tgt - P.top, -dt * 0.02, dt * 0.02);
+      const th = Math.asin(clamp((P.top - S.y) / S.len, 0, 0.95));
+      P.ramp.rotation.z = th;
+      P.stp.position.set(S.hinge + Math.cos(th) * S.len, S.y + Math.sin(th) * S.len, 0);
     }
     if (v.type === 'plow' && Math.random() < dt * 10) {
       const side = v.o < 0 ? -1 : 1;

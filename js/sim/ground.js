@@ -3,7 +3,7 @@ import { aiNote } from './aiplay.js';
 import { AC_TYPES, TASKS, TASK_ORDER, VEH_TYPES, SIZE_RANK, AIRLINES } from '../config.js';
 import { nordoOnBlock } from './nordo.js';
 import { sidOf } from './sid.js';
-import { crewDispatch, crewDone, crewEmpty, crewOnBlock, crewPushStart, crewPushDone } from './crew.js';
+import { crewDispatch, crewDone, crewEmpty, crewOnBlock, crewPushStart, crewPushDone, crewStairsAway } from './crew.js';
 import { scoreDeice } from './score.js';
 import * as LY from '../layout.js';
 import { clamp, dist, angNorm, hourOf, rand } from '../util.js';
@@ -93,6 +93,10 @@ function makeTasks(state, ac, stand) {
   }
   if (!t.cargo) {
     const busF = contact ? 1 : 1.35;
+    // Außenposition: die Treppe fährt an die vordere Tür (Turboprops und Regionaljets mit eingebauter Bordtreppe – und
+    // Plätze ohne Treppenfahrzeuge – brauchen keine); der Bus darf gleichzeitig kommen, ausgestiegen wird erst an der Treppe
+    const stairs = !contact && !t.airstair && state.vehicles.some((v) => v.type === 'stairs');
+    if (stairs) mk('stairs', TASKS.stairs.base, 'stairs');
     mk('deboard', TASKS.deboard.base * paxF * busF, contact ? null : 'bus');
     mk('clean', TASKS.clean.base * sizeF, 'cleaning', ['deboard']);
     mk('cater', TASKS.cater.base * sizeF, 'catering', ['deboard']);
@@ -170,7 +174,7 @@ export function onPushbackDone(state, ac) {
 }
 
 export function efficiency(state) {
-  const needed = staffBase(state) + 2.2 * state.vehicles.length;
+  const needed = staffNeeded(state);
   let e = clamp(state.staff / needed, 0.45, 1.15);
   if (state.strikeUntil > state.time) e *= 0.6;
   if (state.moraleUntil > state.time) e *= 1.1;
@@ -262,7 +266,8 @@ export function updateGround(state, dt) {
         }
       } else if (task.st === 'active' && k !== 'push') {
         // Ereignisse: pausiert (Reparatur, Reinigung) oder verlangsamt (Handarbeit)
-        if (!storm && !(task.pausedUntil > state.time)) task.prog += (dt * eff) / (Math.max(30, task.dur) * (task.slow || 1) * (k === 'board' ? state.secSlow || 1 : 1));
+        const noStairs = k === 'deboard' && tasks.stairs && tasks.stairs.st !== 'done'; // Bus wartet, bis die Treppe steht
+        if (!storm && !noStairs && !(task.pausedUntil > state.time)) task.prog += (dt * eff) / (Math.max(30, task.dur) * (task.slow || 1) * (k === 'board' ? state.secSlow || 1 : 1));
       }
       if (task.st === 'active' && k !== 'push') {
         if (task.prog >= 1) {
@@ -270,7 +275,12 @@ export function updateGround(state, dt) {
           task.st = 'done';
           const tv = task.veh ? state.vehicles.find((x) => x.id === task.veh) : null;
           crewDone(state, tv, ac, k, task);
-          if (tv) releaseVehicle(state, tv, false);
+          if (tv && k === 'stairs') {
+            // Treppe bleibt an der Tür, bis alle eingestiegen sind
+            tv.st = 'docked';
+            tv.dockT = state.time;
+          } else if (tv) releaseVehicle(state, tv, false);
+          if (k === 'board') undockStairs(state, ac);
           if (k === 'board') log(state, 'gnd', T`${ac.cs}: Boarding abgeschlossen.`);
           if (k === 'deice') {
             state.life = state.life || {};
@@ -286,6 +296,7 @@ export function updateGround(state, dt) {
     const push = tasks.push;
     const bridgeGone = !st || st.kind !== 'contact' || (st.bridge || 0) <= 0.001;
     const workDone = TASK_ORDER.every((o) => o === 'push' || !tasks[o] || tasks[o].st === 'done');
+    if (workDone) undockStairs(state, ac);
     ac.ta.ready = workDone;
     // Pilot meldet sich zur TOBT (bzw. nach „Start-up erwartet“ zur TSAT)
     if (push.st === 'active' && workDone && bridgeGone && rot && state.time >= (rot.tobt || rot.std) - 5 * 60 && !(ac.pushWaitUntil > state.time)) {
@@ -317,6 +328,11 @@ export function updateGround(state, dt) {
 }
 
 // ---------- Fahrzeuge ----------
+// Personalbedarf: Grundbedarf plus Besatzung je Fahrzeug (Treppen fährt die Rampencrew mit)
+export function staffNeeded(state) {
+  return staffBase(state) + state.vehicles.reduce((n, v) => n + (v.type === 'stairs' ? 0.4 : 2.2), 0);
+}
+
 export function makeVehicle(state, type, bayIdx) {
   const bay = LY.DEPOT_BAYS[bayIdx % LY.DEPOT_BAYS.length];
   const n = state.vehicles.filter((v) => v.type === type).length + 1;
@@ -356,7 +372,9 @@ export function dispatch(state, ac, k, vehId = null) {
   else {
     const need = k === 'fuel' && task.uplift ? Math.min(5, task.uplift - (task.delivered || 0)) : 0;
     const cands = state.vehicles.filter((x) => x.type === task.need && vehicleAvailable(state, x) && (!need || (x.load || 0) >= need));
-    cands.sort((a, b) => dist(a.x, a.y, ac.x, ac.y) - dist(b.x, b.y, ac.x, ac.y));
+    // vorab bereitgestellte Treppe zuerst, Treppen anderer Flugzeuge zuletzt
+    const pre = (x) => (!x.pre ? 0 : x.pre === ac.id ? -100 : 100);
+    cands.sort((a, b) => pre(a) - pre(b) || dist(a.x, a.y, ac.x, ac.y) - dist(b.x, b.y, ac.x, ac.y));
     v = cands[0];
   }
   if (!v) {
@@ -366,6 +384,7 @@ export function dispatch(state, ac, k, vehId = null) {
   const sp = LY.servicePoint(k, ac);
   v.job = { ac: ac.id, k };
   v.st = 'drive';
+  v.pre = null;
   v.target = sp;
   v.pi = 0;
   v.sh = null;
@@ -381,12 +400,22 @@ export function dispatch(state, ac, k, vehId = null) {
   return { ok: true, v };
 }
 
+// Treppe nach dem Boarding abziehen (vor dem Pushback)
+function undockStairs(state, ac) {
+  for (const v of state.vehicles) {
+    if (v.type !== 'stairs' || v.st !== 'docked' || !v.job || v.job.ac !== ac.id) continue;
+    crewStairsAway(state, v, ac);
+    releaseVehicle(state, v, true);
+  }
+}
+
 function releaseVehicle(state, v, returnNow) {
   // Bus nach dem Aussteigen: wer schon im Bus sitzt, wird noch zum Terminal gefahren
   const lastLoad = v.type === 'bus' && !returnNow && v.sh && v.sh.k === 'deboard' && (v.sh.ph === 'ac' || v.sh.ph === 'toStop' || v.sh.ph === 'stop');
   v.job = null;
   v.st = 'idle';
   v.idleT = returnNow ? 999 : 0;
+  v.dockT = 0;
   if (lastLoad) {
     v.st = 'busEnd';
     if (v.sh.ph === 'ac') busLeg(v, LY.busStop(), 'toStop', state);
@@ -409,9 +438,15 @@ function busLeg(v, to, ph, state) {
   v.sh = { ...v.sh, ph, t0: state.time };
 }
 // ein Schritt im Pendelverkehr; true, solange der Bus dabei ist (fährt oder wartet)
-function busStep(state, v, dt, storm) {
+function busStep(state, v, dt, storm, ac = null) {
   const B = v.sh;
   if (B.ph === 'wait') return true; // alle Fahrten gemacht: warten, bis die Abfertigung fertig ist
+  // Aussteigen erst, wenn die Treppe an der Tür steht
+  const T = ac && ac.ta && ac.ta.tasks;
+  if (B.ph === 'ac' && B.k === 'deboard' && T && T.stairs && T.stairs.st !== 'done') {
+    v.sh = { ...B, t0: state.time };
+    return true;
+  }
   if (B.ph === 'ac' || B.ph === 'stop') {
     if (state.time - B.t0 < (B.ph === 'ac' ? BUS_DWELL_AC : BUS_DWELL_STOP)) return true;
     if (B.last) return false; // letzte Fahrt: alle ausgestiegen
@@ -552,7 +587,12 @@ function updateVehicles(state, dt, storm) {
     if (v.st === 'work') {
       const ac = v.job && acById.get(v.job.ac);
       if (!ac || ac.phase !== PH.STAND) releaseVehicle(state, v, true);
-      else if (v.sh) busStep(state, v, dt, storm);
+      else if (v.sh) busStep(state, v, dt, storm, ac);
+      continue;
+    }
+    if (v.st === 'docked') {
+      const ac = v.job && acById.get(v.job.ac);
+      if (!ac || ac.phase !== PH.STAND) releaseVehicle(state, v, true);
       continue;
     }
     if (v.st === 'busEnd') {
@@ -569,6 +609,7 @@ function updateVehicles(state, dt, storm) {
         continue;
       }
       v.idleT += dt;
+      if (v.pre) continue; // Treppe wartet an der Position auf das einrollende Flugzeug
       const bay = LY.DEPOT_BAYS[v.bay % LY.DEPOT_BAYS.length];
       const atHome = Math.hypot(v.x - bay.x, v.y - bay.y) < 0.1;
       if (!atHome && v.idleT > 45) sendHome(state, v);
@@ -576,7 +617,35 @@ function updateVehicles(state, dt, storm) {
   }
 }
 
+// Treppe vorab: rollt ein Flugzeug zu einer Außenposition, wartet ein freies Treppenfahrzeug schon neben der Position
+const inbound = (ph) => ph === PH.FINAL || ph === PH.ROLLOUT || ph === PH.VACATED || ph === PH.TAXI_WAIT || ph === PH.TAXI_IN;
+function stairsAhead(state, allAuto) {
+  if (!allAuto && !state.settings.vehAuto.stairs) return;
+  const stairs = state.vehicles.filter((v) => v.type === 'stairs');
+  if (!stairs.length) return;
+  for (const v of stairs) if (v.pre && !state.acs.some((a) => a.id === v.pre && (inbound(a.phase) || a.phase === PH.STAND))) v.pre = null;
+  for (const ac of state.acs) {
+    if (!inbound(ac.phase) || ac.stand == null) continue;
+    const t = AC_TYPES[ac.type];
+    if (t.light || t.walk || t.cargo || t.airstair || t.pax <= 20) continue;
+    const st = state.stands.find((s) => s.id === ac.stand);
+    if (!st || st.kind === 'contact' || st.ga || stairs.some((v) => v.pre === ac.id)) continue;
+    const free = stairs.filter((v) => v.st === 'idle' && !v.pre && !(v.brokenUntil > state.time));
+    if (!free.length) continue;
+    // Warteplatz links vor der Position, außerhalb des einrollenden Flugzeugs
+    const to = { x: st.x - 1.5, y: LY.STAND_NOSE + 0.35 };
+    free.sort((a, b) => dist(a.x, a.y, to.x, to.y) - dist(b.x, b.y, to.x, to.y));
+    const v = free[0];
+    v.pre = ac.id;
+    v.st = 'return';
+    v.path = LY.vehPath({ x: v.x, y: v.y }, to);
+    v.pi = 0;
+    v.target = { ...to, hdg: 0 };
+  }
+}
+
 export function autoDispatch(state, allAuto) {
+  stairsAhead(state, allAuto);
   const ready = [];
   for (const ac of state.acs) {
     if (ac.phase !== PH.STAND || !ac.ta) continue;

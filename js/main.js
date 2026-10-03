@@ -370,6 +370,9 @@ function startGame(state) {
   // Winter: ältere Spielstände bekommen zwei Enteisungsfahrzeuge (nicht im Aufbau-Modus: dort bringt sie der Ausbau)
   if (!state.career && !state.vehicles.some((v) => v.type === 'deice')) for (let i = 0; i < 2; i++) state.vehicles.push(makeVehicle(state, 'deice', freeBay(state)));
   if (state.settings.vehAuto && state.settings.vehAuto.deice === undefined) state.settings.vehAuto.deice = false;
+  // Treppenfahrzeuge: ältere Spielstände ab Regionalflughafen bekommen welche (Auto-Einstellung wie bei den Bussen)
+  if (LY.GEO.stage >= 2 && !state.vehicles.some((v) => v.type === 'stairs')) for (let i = 0; i < (LY.GEO.stage >= 9 ? 4 : 2) && state.vehicles.length < 24; i++) state.vehicles.push(makeVehicle(state, 'stairs', freeBay(state)));
+  if (state.settings.vehAuto && state.settings.vehAuto.stairs === undefined) state.settings.vehAuto.stairs = !!state.settings.vehAuto.bus;
   fuelState(state);
   goalsState(state);
   spotter().ensureLooks(state);
@@ -1755,6 +1758,7 @@ function helpGuide(first) {
       <li>Ankünfte brauchen eine <b>Parkposition</b> (automatisch oder per Auswahl – oder Flugzeug anklicken, dann Position auf der Karte).</li>
       <li><b>📊 Positionsplan</b> <kbd>G</kbd>: Zeitstrahl aller Positionen über die nächsten 3 Stunden – orange = belegt bis TOBT, gestrichelt = reservierte Ankunft, rot = Überschneidung (die Ankunft muss warten). Ankünfte ohne Position aus der rechten Liste auf eine grün leuchtende Zeile ziehen; reservierte Balken lassen sich umlegen. Unten rechts siehst du, was später noch kommt (Größe beachten: L nur auf L-Positionen, Fracht nur auf die Frachtposition).</li>
       <li>Im Turnaround werden <b>gelbe Aufgaben</b> fällig: anklicken = nächstes freies Fahrzeug losschicken. Reihenfolge: Aussteigen → Reinigung/Catering → Einsteigen, Entladen → Beladen, Betankung, zum Schluss der Pushback-Schlepper.</li>
+      <li><b>🪜 Außenpositionen</b> (ohne Fluggastbrücke): Zuerst fährt das <b>Treppenfahrzeug</b> an die vordere Tür – auf Auto steht es schon bereit, während das Flugzeug noch rollt –, dann pendelt der <b>Vorfeldbus</b> zwischen Flugzeug und Haltestelle am Terminal. Die Treppe bleibt bis zum Ende des Boardings und fährt vor dem Pushback weg. Turboprops und der KR-90 haben eine eingebaute Bordtreppe, Businessjets und Kleinflugzeuge brauchen keinen Bus.</li>
       <li><b>TOBT</b> zeigt, wann ein Flug voraussichtlich fertig ist. Liegt sie nach der STD, wird er verspätet – und ein Slot (CTOT) kann verfallen.</li>
       <li><b>Tankwagen</b> fassen 36 t. Großraumflugzeuge brauchen 2–3 Ladungen; leere Tankwagen fahren selbst zum Tanklager. Ist das Tanklager leer, stockt die Betankung.</li>
           <li><b>🔁 Anschlussflüge:</b> Kommt eine Maschine verspätet, warten manchmal Umsteiger auf einen Abflug derselben Airline. Du entscheidest: warten (Boarding länger, Airline zufrieden), auf Kosten umbuchen oder ohne sie abfliegen (Ansehen und Airline leiden).</li>

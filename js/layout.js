@@ -297,6 +297,7 @@ export function servicePoint(kind, ac) {
     fuel: [0.02 * L, 0.36 + L * 0.2, 0],
     cater: [0.3 * L, 0.42, 0],
     clean: [-0.34 * L, -0.42, Math.PI],
+    stairs: [0.36 * L, -(0.07 * L + 0.25), Math.PI / 2], // Treppenfahrzeug quer zum Rumpf, oben an der vorderen linken Tür
     deboard: [0.18 * L, -0.95, 0],
     board: [0.18 * L, -0.95, 0],
     push: [0.5 * L + 0.3, 0, Math.PI],

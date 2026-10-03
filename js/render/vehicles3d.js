@@ -1,10 +1,10 @@
 // 3D-Bodenfahrzeuge mit Details: Schlepper mit Warnstreifen und Kanzel, Gepäckzug mit LD3-Containern und offenem
 // Kofferwagen, Tankwagen mit Kessel, Laufsteg und „JET A-1“-Schild, Catering-Hubwagen (Kasten fährt an der Schere
-// hoch), Reinigungstransporter, Vorfeldbus mit Glasband und Doppeltüren, Enteiser mit schwenkbarem Korbarm und
-// Sprühnebel, dazu Flughafenfeuerwehr (Großtanklöschfahrzeug mit Dachwerfer), Schneepflug mit Kehrwalze und das
+// hoch), Reinigungstransporter, Niederflur-Vorfeldbus mit Panorama-Glasband und Doppeltüren, Enteiser mit schwenkbarem Korbarm und
+// Sprühnebel, Treppenfahrzeug mit aufstellbarer Treppe, dazu Flughafenfeuerwehr (Großtanklöschfahrzeug mit Dachwerfer), Schneepflug mit Kehrwalze und das
 // Follow-me-Auto. Räder mit Felgen, Scheinwerfer, Rückleuchten, Spiegel, Rundumleuchte. Alle festen Teile werden je
 // Material zu einem Netz verschmolzen (wenige Draw-Calls); bewegliche Teile sind benannte Gruppen:
-// 'lift'/'scis'/'plat' (Catering), 'tur'/'boom'/'bask'/'spray' (Enteiser), 'hl'/'tl' (Licht), 'bcn' (Rundumleuchte).
+// 'lift'/'scis'/'plat' (Catering), 'tur'/'boom'/'bask'/'spray' (Enteiser), 'ramp'/'stp' (Treppe), 'hl'/'tl' (Licht), 'bcn' (Rundumleuchte).
 // x = Fahrtrichtung (Front bei +x), y = oben, z = quer. 1 Einheit = 1 Kachel (20 m).
 import * as THREE from '../vendor/three.module.min.js';
 import { VEH_TYPES } from '../config.js';
@@ -396,35 +396,99 @@ function van(k, g, body, h = 0.18, w = 0.1) {
   lights(g, h, -h, 0.048, w / 2 - 0.012);
 }
 
-function bus(k, g, body) {
-  const h = 0.4, w = 0.15, roof = 0.128;
-  const white = paint(0xf8fafc, 30);
-  k.bx(-h, h, 0.012, 0.048, w, body);
-  k.bx(-h + 0.006, h - 0.006, 0.048, roof, w + 0.0015, glass());
-  k.bx(-h, h, roof, 0.146, w, white);
-  k.bx(-h + 0.012, h - 0.012, 0.146, 0.15, w - 0.02, paint(0xe2e8f0, 30));
-  for (const x of [-0.25, 0.12]) k.bx(x, x + 0.11, 0.146, 0.164, 0.09, paint(0xe5e7eb, 30));
-  // Fenstersäulen
-  for (let x = -h + 0.006; x < h; x += 0.064) k.bx(x, x + 0.006, 0.048, roof, w + 0.003, white);
-  // Doppeltüren beidseitig (dunkles Glas mit Rahmen und Mittelfuge)
-  for (const x of [-0.27, -0.02, 0.23]) {
-    k.pair(x - 0.034, x + 0.034, 0.014, roof - 0.004, w / 2 + 0.0012, 0.002, matte(0x182230));
-    k.pair(x - 0.036, x + 0.036, roof - 0.006, roof, w / 2 + 0.0016, 0.002, matte(0x94a3b8));
-    k.pair(x - 0.0012, x + 0.0012, 0.014, roof - 0.004, w / 2 + 0.0022, 0.002, matte(0x94a3b8));
+// moderner Vorfeldbus: Niederflur, umlaufendes Glasband mit schmalen Säulen, abgerundete Ecken, je Seite drei
+// Doppeltüren, blaue Schürze mit türkisem Zierstreifen, weißes Dach mit Klimaanlagen, Zielanzeige vorn
+// getöntes Glas mit Himmelsspiegelung oben und Sitzreihen-Schatten unten
+const busGlass = () => canvasMat('busglass', 8, 64, (c, w, h) => {
+  const gr = c.createLinearGradient(0, 0, 0, h);
+  gr.addColorStop(0, '#8fb0cc');
+  gr.addColorStop(0.28, '#4d6f8e');
+  gr.addColorStop(0.55, '#24394f');
+  gr.addColorStop(1, '#16222f');
+  c.fillStyle = gr;
+  c.fillRect(0, 0, w, h);
+});
+function bus(k, g) {
+  const h = 0.36, w = 0.15, rr = 0.022, g0 = 0.043, g1 = 0.128, H = 0.15;
+  const white = paint(0xf8fafc, 40), blue = paint(0x1d4ed8, 60), teal = paint(0x14b8a6, 60), frame = metal(0xcbd5e1);
+  // Band mit runden Ecken von y0 bis y1
+  const band = (y0, y1, m) => {
+    k.bx(-h + rr, h - rr, y0, y1, w, m);
+    k.box(-h, h, y0, y1, -w / 2 + rr, w / 2 - rr, m);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.cyl(sx * (h - rr), (y0 + y1) / 2, sz * (w / 2 - rr), rr, y1 - y0, 'y', m, 12);
+  };
+  band(0.012, 0.036, blue);
+  band(0.036, g0, teal);
+  band(g0, g1, busGlass());
+  band(g1, H, white);
+  k.bx(-h + 0.012, h - 0.012, H, H + 0.005, w - 0.018, white);
+  // Fenstersäulen (zwischen den Türen)
+  for (let x = -h + rr + 0.03; x < h - rr - 0.02; x += 0.06) {
+    if ([-0.24, 0, 0.24].some((d) => Math.abs(x + 0.0035 - d) < 0.058)) continue;
+    k.pair(x, x + 0.007, g0, g1, w / 2 + 0.0008, 0.002, white);
   }
-  // Front und Heck: große Scheiben, Zielanzeige, Lichter
-  k.bx(h - 0.002, h + 0.003, 0.05, roof - 0.004, w - 0.014, glass());
-  k.bx(-h - 0.003, -h + 0.002, 0.06, roof - 0.006, w - 0.02, glass());
-  k.bx(h + 0.001, h + 0.004, roof - 0.002, 0.142, w * 0.6, lamp(0xffb020));
-  k.bx(h, h + 0.008, 0.008, 0.026, w + 0.002, matte(DARK));
-  k.bx(-h - 0.008, -h, 0.008, 0.026, w + 0.002, matte(DARK));
-  k.pair(h + 0.001, h + 0.005, 0.03, 0.04, w / 2 - 0.016, 0.022, lamp(0xfff4d6));
-  k.pair(h - 0.008, h - 0.002, 0.07, 0.1, w / 2 + 0.008, 0.004, matte(0x1c1f24));
+  // Doppeltüren: silberner Rahmen, Glas bis fast zum Boden, Mittelfuge
+  for (const x of [-0.24, 0, 0.24]) {
+    k.pair(x - 0.05, x + 0.05, 0.015, g1 + 0.002, w / 2 + 0.0012, 0.002, frame);
+    k.pair(x - 0.044, x + 0.044, 0.018, g1 - 0.003, w / 2 + 0.002, 0.002, busGlass());
+    k.pair(x - 0.002, x + 0.002, 0.018, g1 - 0.003, w / 2 + 0.0028, 0.002, frame);
+  }
+  // Front: Scheibe weit herunter, Zielanzeige, Scheinwerfer; Heck: Scheibe, Rückleuchten
+  k.bx(h - 0.001, h + 0.0025, 0.028, g1, w - 2 * rr, busGlass());
+  k.bx(h - 0.001, h + 0.003, 0.131, 0.146, w * 0.5, lamp(0xf59e0b));
+  k.pair(h - 0.004, h + 0.002, 0.016, 0.027, w / 2 - rr - 0.012, 0.022, lamp(0xfff4d6));
+  k.bx(-h - 0.0025, -h + 0.001, 0.05, g1, w - 2 * rr, glass());
+  tail(k, -h, 0.018, w - 0.02);
+  // Klimaanlagen auf dem Dach
+  for (const x of [-0.17, 0.15]) {
+    k.bx(x - 0.07, x + 0.07, H + 0.005, H + 0.017, 0.09, paint(0xe5e7eb, 30));
+    k.bx(x - 0.055, x + 0.055, H + 0.017, H + 0.019, 0.066, matte(0x94a3b8));
+  }
+  // kleine Räder (Niederflur)
+  k.axle(h - 0.1, w / 2 - 0.016, 0.017, 0.02);
+  k.axle(-h + 0.1, w / 2 - 0.016, 0.017, 0.02);
+  beacon(g, k, h - 0.06, H + 0.005);
+  lights(g, h, -h, 0.022, w / 2 - rr - 0.012);
+}
+
+// Treppenfahrzeug: Fahrgestell mit Warnstreifen, Fahrerkabine vorn links unter dem Podest, Treppe ('ramp') an der
+// Hinterachse angelenkt – sie stellt sich an der Flugzeugtür steil, das Podest mit Wetterdach ('stp') bleibt waagerecht
+export const STAIRS_3D = { hinge: -0.17, y: 0.052, len: 0.34 };
+function stairsTruck(k, g) {
+  const h = 0.22, w = 0.12;
+  const white = paint(0xf8fafc, 40), yellow = paint(0xfacc15, 50), grey = metal(0x9ca3af);
+  k.bx(-h, h, 0.018, 0.046, w, matte(0x334155));
+  k.pair(-h, h, 0.034, 0.042, w / 2 + 0.0008, 0.0015, hazard());
+  // Fahrerkabine vorn links
+  k.box(h - 0.11, h, 0.046, 0.102, -w / 2, -w / 2 + 0.058, white);
+  k.box(h - 0.003, h + 0.002, 0.07, 0.097, -w / 2 + 0.006, -w / 2 + 0.052, glass());
+  k.box(h - 0.1, h - 0.012, 0.07, 0.097, -w / 2 - 0.001, -w / 2 + 0.002, glass());
+  k.pair(h - 0.002, h + 0.003, 0.05, 0.058, w / 2 - 0.016, 0.014, lamp(0xfff4d6));
   tail(k, -h, 0.03, w);
-  k.axle(h - 0.1, w / 2 - 0.012, 0.022, 0.022);
-  k.axle(-h + 0.1, w / 2 - 0.012, 0.022, 0.022);
-  beacon(g, k, h - 0.05, 0.15);
-  lights(g, h, -h, 0.035, w / 2 - 0.02);
+  k.axle(h - 0.06, w / 2 - 0.006, 0.02, 0.018);
+  k.axle(-h + 0.06, w / 2 - 0.006, 0.02, 0.018);
+  // Treppe als eigene Gruppe (Drehpunkt hinten, Länge entlang +x)
+  const L = STAIRS_3D.len, hw = 0.042;
+  const rk = new Kit();
+  rk.box(0, L, -0.004, 0.022, -hw - 0.004, -hw + 0.004, grey).box(0, L, -0.004, 0.022, hw - 0.004, hw + 0.004, grey);
+  for (let x = 0.012; x < L - 0.004; x += 0.024) rk.box(x, x + 0.016, 0.012, 0.018, -hw + 0.004, hw - 0.004, matte(0xcbd5e1));
+  for (const z of [-hw, hw]) {
+    rk.rod([0.01, 0.022, z], [0.01, 0.07, z], 0.004, yellow).rod([L * 0.5, 0.022, z], [L * 0.5, 0.07, z], 0.004, yellow);
+    rk.rod([0.01, 0.07, z], [L, 0.07, z], 0.004, yellow);
+  }
+  const ramp = rk.build(new THREE.Group());
+  ramp.name = 'ramp';
+  ramp.position.set(STAIRS_3D.hinge, STAIRS_3D.y, 0);
+  g.add(ramp);
+  const pk = new Kit();
+  pk.box(0, 0.06, -0.006, 0.004, -hw - 0.004, hw + 0.004, grey);
+  for (const z of [-hw, hw]) pk.rod([0.002, 0.004, z], [0.002, 0.11, z], 0.004, yellow).rod([0.058, 0.004, z], [0.058, 0.11, z], 0.004, yellow).rod([0.002, 0.07, z], [0.058, 0.07, z], 0.004, yellow);
+  pk.box(-0.006, 0.066, 0.11, 0.116, -hw - 0.01, hw + 0.01, white);
+  const stp = pk.build(new THREE.Group());
+  stp.name = 'stp';
+  g.add(stp);
+  beacon(g, k, h - 0.05, 0.102, -w / 2 + 0.03);
+  lights(g, h, -h, 0.054, w / 2 - 0.016);
 }
 
 function deice(k, g, body) {
@@ -550,7 +614,7 @@ function followMe(k, g) {
   lights(g, h, -h, 0.04, w / 2 - 0.014);
 }
 
-const BUILD = { tug, baggage, fuel, catering, bus, deice, cleaning: van, fire, plow, followme: followMe };
+const BUILD = { tug, baggage, fuel, catering, bus, stairs: stairsTruck, deice, cleaning: van, fire, plow, followme: followMe };
 const BODY = { fire: 0xc81e1e, plow: 0xea6a0c, followme: 0xfacc15 };
 
 const VT = new Map();
@@ -573,7 +637,7 @@ export function vehParts(m) {
     const n = (s) => m.getObjectByName(s) || null;
     const bcn = [];
     m.traverse((o) => o.name === 'bcn' && bcn.push(o));
-    m.__parts = { bcn, hl: n('hl'), tl: n('tl'), lift: n('lift'), scis: n('scis'), plat: n('plat'), tur: n('tur'), boom: n('boom'), bask: n('bask'), spray: n('spray'), u: 0, yaw: 0 };
+    m.__parts = { bcn, hl: n('hl'), tl: n('tl'), lift: n('lift'), scis: n('scis'), plat: n('plat'), tur: n('tur'), boom: n('boom'), bask: n('bask'), spray: n('spray'), ramp: n('ramp'), stp: n('stp'), u: 0, yaw: 0, top: 0.12 };
   }
   return m.__parts;
 }

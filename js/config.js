@@ -15,7 +15,7 @@ export const AIRPORT = { name: 'Planez International', code: 'PLZ', tower: 'Plan
 // Flugzeugtypen: Hersteller und Modelle sind frei erfunden (Aviora, Halvard, Ventis …); `code` ist das Typkürzel für
 // Karte, Radar und Streifen, der Schlüssel (id) bleibt intern gleich, damit Spielstände kompatibel bleiben
 export const AC_TYPES = {
-  AT76: { id: 'AT76', name: 'Ventis VT-70', code: 'VT70', sprite: 'plane_prop', size: 'S', wake: 'M', len: 1.82, mtow: 23, pax: 70, vapp: 115, turn: 30, fuel: 2500, scale: 0.55, finH: 0.32 },
+  AT76: { id: 'AT76', name: 'Ventis VT-70', code: 'VT70', sprite: 'plane_prop', size: 'S', wake: 'M', len: 1.82, mtow: 23, pax: 70, vapp: 115, turn: 30, fuel: 2500, scale: 0.55, finH: 0.32 , airstair: true },
   E190: { id: 'E190', name: 'Selva S-19', code: 'SL19', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.27, mtow: 51, pax: 100, vapp: 130, turn: 35, fuel: 6000, scale: 0.7, finH: 0.4 },
   A320: { id: 'A320', name: 'Aviora AV-32', code: 'AV32', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.47, mtow: 79, pax: 180, vapp: 135, turn: 40, fuel: 11000, scale: 1, finH: 0.45 },
   B738: { id: 'B738', name: 'Halvard H-38', code: 'HV38', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.6, mtow: 79, pax: 186, vapp: 142, turn: 40, fuel: 11000, scale: 1, finH: 0.47 },
@@ -27,8 +27,8 @@ export const AC_TYPES = {
   B748F: { id: 'B748F', name: 'Halvard H-48F Frachter', code: 'HV48', sprite: 'plane_cargo', size: 'L', wake: 'H', len: 4.94, mtow: 448, pax: 0, cargo: 130, vapp: 155, turn: 100, fuel: 110000, scale: 2.2, finH: 0.9 },
   B77F: { id: 'B77F', name: 'Halvard H-77F Frachter', code: 'HV7F', sprite: 'plane_wide', size: 'L', wake: 'H', len: 4.16, mtow: 348, pax: 0, cargo: 100, vapp: 150, turn: 90, fuel: 85000, scale: 2, finH: 0.78 },
   A223: { id: 'A223', name: 'Aviora AV-23', code: 'AV23', sprite: 'plane_narrow', size: 'M', wake: 'M', len: 2.35, mtow: 70, pax: 140, vapp: 130, turn: 35, fuel: 9000, scale: 0.9, finH: 0.42 },
-  CRJ9: { id: 'CRJ9', name: 'Corvin KR-90', code: 'KR90', sprite: 'plane_narrow', size: 'S', wake: 'M', len: 2.1, mtow: 38, pax: 90, vapp: 135, turn: 30, fuel: 4500, scale: 0.68, finH: 0.38 },
-  DH8D: { id: 'DH8D', name: 'Borealis BR-40', code: 'BR40', sprite: 'plane_prop', size: 'S', wake: 'M', len: 1.98, mtow: 30, pax: 78, vapp: 130, turn: 28, fuel: 3000, scale: 0.6, finH: 0.34 },
+  CRJ9: { id: 'CRJ9', name: 'Corvin KR-90', code: 'KR90', sprite: 'plane_narrow', size: 'S', wake: 'M', len: 2.1, mtow: 38, pax: 90, vapp: 135, turn: 30, fuel: 4500, scale: 0.68, finH: 0.38 , airstair: true },
+  DH8D: { id: 'DH8D', name: 'Borealis BR-40', code: 'BR40', sprite: 'plane_prop', size: 'S', wake: 'M', len: 1.98, mtow: 30, pax: 78, vapp: 130, turn: 28, fuel: 3000, scale: 0.6, finH: 0.34 , airstair: true },
   A333: { id: 'A333', name: 'Aviora AV-33', code: 'AV33', sprite: 'plane_wide', size: 'L', wake: 'H', len: 3.9, mtow: 242, pax: 300, vapp: 140, turn: 70, fuel: 55000, scale: 1.75, finH: 0.7 },
   C68A: { id: 'C68A', name: 'Vireo VX-7', code: 'VX7', sprite: 'plane_bizjet', size: 'S', wake: 'L', len: 1.3, mtow: 14, pax: 8, vapp: 120, turn: 30, fuel: 3000, scale: 0.4, finH: 0.25 },
   // Karriere (Grasplatz/Verkehrslandeplatz): Sportflugzeuge und Lufttaxis. light = rollt selbst, tankt an der
@@ -92,11 +92,13 @@ export const VEH_TYPES = {
   catering: { id: 'catering', name: T('Catering-LKW'), short: T('Catering'), sprite: 'veh_catering', len: 0.62, price: 160000, upkeep: 110, speed: 0.19, color: '#e5e7eb' },
   cleaning: { id: 'cleaning', name: T('Reinigungsteam'), short: T('Reinigung'), sprite: 'veh_cleaning', len: 0.36, price: 60000, upkeep: 60, speed: 0.22, color: '#22c55e' },
   bus: { id: 'bus', name: T('Vorfeldbus'), short: T('Bus'), sprite: 'veh_bus', len: 0.8, price: 300000, upkeep: 150, speed: 0.19, color: '#3b82f6' },
+  stairs: { id: 'stairs', name: T('Treppenfahrzeug'), short: T('Treppe'), sprite: 'veh_stairs', len: 0.42, price: 95000, upkeep: 45, speed: 0.17, color: '#f8fafc' },
   deice: { id: 'deice', name: T('Enteisungsfahrzeug'), short: T('Enteiser'), sprite: 'veh_deice', len: 0.82, price: 380000, upkeep: 170, speed: 0.17, color: '#f97316' },
 };
 
 // Abfertigungs-Aufgaben (Basisdauer in Minuten für A320)
 export const TASKS = {
+  stairs: { name: T('Treppe ansetzen'), short: T('Trep'), icon: '🪜', base: 1, veh: 'stairs' },
   deboard: { name: T('Aussteigen'), short: T('Aus'), icon: '🚶', base: 8, pax: true },
   unload: { name: T('Entladen'), short: T('Ent'), icon: '🧳', base: 10, veh: 'baggage' },
   clean: { name: T('Reinigung'), short: T('Rein'), icon: '🧽', base: 11, veh: 'cleaning', pax: true },
@@ -107,7 +109,7 @@ export const TASKS = {
   deice: { name: T('Enteisung'), short: T('Eis'), icon: '❄️', base: 7, veh: 'deice' },
   push: { name: T('Pushback'), short: T('Push'), icon: '🚜', base: 0, veh: 'tug' },
 };
-export const TASK_ORDER = ['deboard', 'unload', 'clean', 'cater', 'fuel', 'board', 'load', 'deice', 'push'];
+export const TASK_ORDER = ['stairs', 'deboard', 'unload', 'clean', 'cater', 'fuel', 'board', 'load', 'deice', 'push'];
 
 // Fixkosten pro Tag
 export const COSTS = {

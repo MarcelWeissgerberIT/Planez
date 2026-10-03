@@ -6,7 +6,7 @@ import { setHTML, toast } from './dom.js';
 import * as EC from '../sim/economy.js';
 import * as LY from '../layout.js';
 import { acceptOffer, declineOffer, cancelContract, feeIndex, standDemand, negotiateOffer, negotiateChance, interestLabel } from '../sim/schedule.js';
-import { fleetSummary, efficiency } from '../sim/ground.js';
+import { fleetSummary, efficiency, staffNeeded } from '../sim/ground.js';
 import { newsState, paxRating } from '../sim/news.js';
 import { achievementsHtml } from './achUi.js';
 import { PH } from '../sim/aircraft.js';
@@ -40,7 +40,7 @@ const C2 = '#d95926'; // Kosten (Kategorie 2)
 
 
 // Bilder zu Ausbauten, Fahrzeugen & Co. (Management-Zentrale), damit man sieht, was man kauft
-const PICS = new Set(['retail', 'security', 'lounge', 'parking', 'hotel', 'rwy2', 'ils3', 'rapidExit', 'apronLights', 'marketing', 'stand_contact', 'stand_remote', 'stand_heavy', 'veh_tug', 'veh_baggage', 'veh_fuel', 'veh_catering', 'veh_cleaning', 'veh_bus', 'veh_deice', 'staff', 'fuel_farm', 'rwy_maint', 'solar', 'rail']);
+const PICS = new Set(['retail', 'security', 'lounge', 'parking', 'hotel', 'rwy2', 'ils3', 'rapidExit', 'apronLights', 'marketing', 'stand_contact', 'stand_remote', 'stand_heavy', 'veh_tug', 'veh_baggage', 'veh_fuel', 'veh_catering', 'veh_cleaning', 'veh_bus', 'veh_stairs', 'veh_deice', 'staff', 'fuel_farm', 'rwy_maint', 'solar', 'rail']);
 const pic = (k, tag = '') => (PICS.has(k) ? `<div class="card-pic" style="background-image:url(assets/menu/${k}.webp)">${tag ? `<span class="pic-tag">${tag}</span>` : ''}</div>` : '');
 // Bilder für den kleinen Platz (Aufbau-Modus)
 const cpic = (url, tag = '') => `<div class="card-pic kb-slow" style="background-image:url(${url})">${tag ? `<span class="pic-tag">${tag}</span>` : ''}</div>`;
@@ -533,7 +533,7 @@ export class ManagerPanel {
     const step = small ? 1 : 5;
     h += T`<div class="p-sec"><span>${small ? T('Platzwart, Flugleitung & Helfer') : T('Bodenpersonal')}</span></div>
       <div class="card has-pic">${small ? cpic(CPIC.crew) : pic('staff')}<div class="row"><span class="t">${s.staff} Mitarbeitende</span><span>Effizienz <b style="font-family:var(--mono);color:${eff < 0.9 ? 'var(--warn)' : 'var(--good)'}">${Math.round(eff * 100)} %</b></span></div>
-      <div class="s">Bedarf ≈ ${Math.round(staffBase(s) + 2.2 * s.vehicles.length)} · Kosten ${fmtMoney(260)} je Person/Tag</div>
+      <div class="s">Bedarf ≈ ${Math.round(staffNeeded(s))} · Kosten ${fmtMoney(260)} je Person/Tag</div>
       <div class="acts"><button class="btn btn-good" data-act="hire" data-v="${step}">+${step} einstellen</button><button class="btn" data-act="hire" data-v="-${step}">−${step} abbauen</button></div></div>`;
     const fc = EC.dailyFixedCosts(s);
     h += T`<div class="p-sec"><span>Fixkosten pro Tag</span></div><table class="ledger">`;

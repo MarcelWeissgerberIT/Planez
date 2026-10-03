@@ -4,6 +4,7 @@ import { PH } from '../sim/aircraft.js';
 import { BUS_DWELL_AC, BUS_DWELL_STOP } from '../sim/ground.js';
 import * as LY from '../layout.js';
 import { drawPerson } from './ambient.js';
+import { stairsFoot } from './gse2d.js';
 import { clamp } from '../util.js';
 
 const SHIRTS = ['#1d4ed8', '#b91c1c', '#f8fafc', '#111827', '#15803d', '#a855f7', '#f59e0b', '#0e7490', '#be185d', '#57534e'];
@@ -28,6 +29,7 @@ export function busPaxItems(r, state, items, vis) {
     const T = ac.ta.tasks;
     if (!(T.deboard && T.deboard.need === 'bus') && !(T.board && T.board.need === 'bus')) continue;
     if (T.board && T.board.st === 'done') continue; // Treppe wird vor dem Pushback weggefahren
+    if (T.stairs) continue; // das Treppenfahrzeug bringt die Treppe (render/gse2d.js)
     const g = geom(ac);
     if (vis(g.foot.x, g.foot.y)) items.push({ d: g.foot.x + g.foot.y + 0.02, f: () => stairs(r, ac, g) });
   }
@@ -40,7 +42,9 @@ export function busPaxItems(r, state, items, vis) {
       const ac = v.job && state.acs.find((a) => a.id === v.job.ac);
       if (!ac) continue;
       const g = geom(ac);
-      pts = B.k === 'deboard' ? [g.foot, g.bus] : [g.bus, g.foot];
+      const st = state.vehicles.find((x) => x.type === 'stairs' && x.st === 'docked' && x.job && x.job.ac === ac.id);
+      const foot = st ? stairsFoot(st) : g.foot;
+      pts = B.k === 'deboard' ? [foot, g.bus] : [g.bus, foot];
       dwell = BUS_DWELL_AC;
     } else {
       const S = LY.busStop();
