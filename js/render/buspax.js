@@ -6,6 +6,7 @@ import * as LY from '../layout.js';
 import { drawPerson } from './ambient.js';
 import { stairsFoot } from './gse2d.js';
 import { clamp } from '../util.js';
+import { doorSill } from '../acshape.js';
 
 const SHIRTS = ['#1d4ed8', '#b91c1c', '#f8fafc', '#111827', '#15803d', '#a855f7', '#f59e0b', '#0e7490', '#be185d', '#57534e'];
 const WALK = 0.05; // Kacheln je Spielsekunde (mit Gepäck)
@@ -73,7 +74,7 @@ export function busPaxItems(r, state, items, vis) {
 function stairs(r, ac, g) {
   const { ctx, cam } = r;
   cam.setScreen(ctx);
-  const z = Math.max(0.1, 0.085 * ac.len); // Höhe der Türschwelle
+  const z = Math.max(0.1, doorSill(ac.type, ac.len)); // Höhe der Türschwelle
   const fx = Math.cos(ac.hdg) * 0.05, fy = Math.sin(ac.hdg) * 0.05; // halbe Treppenbreite entlang des Rumpfs
   const P = (p, h, s) => cam.toScreen(p.x + fx * s, p.y + fy * s, h);
   const top = g.door, bot = g.foot;

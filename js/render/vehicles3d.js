@@ -13,6 +13,7 @@ import { T } from '../i18n.js';
 import { busLoad } from './buspax.js';
 import { toCreasedNormals, mergeGeometries } from '../vendor/BufferGeometryUtils.js';
 import { carKind, carPaint } from './cars.js';
+import { STAIRS, stairsTop, stairsGeom } from '../acshape.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -872,7 +873,7 @@ function bus(k, g, body, ad = 0) {
 
 // Treppenfahrzeug: Fahrgestell mit Warnstreifen, Fahrerkabine vorn links unter dem Podest, Treppe ('ramp') an der
 // Hinterachse angelenkt – sie stellt sich an der Flugzeugtür steil, das Podest mit Wetterdach ('stp') bleibt waagerecht
-export const STAIRS_3D = { hinge: -0.17, y: 0.052, len: 0.34 };
+export const STAIRS_3D = STAIRS; // Maße in acshape.js (die Simulation stellt das Fahrzeug danach an die Tür)
 function stairsTruck(k, g) {
   const h = 0.22, w = 0.12;
   const white = paint(0xf8fafc, 40), yellow = paint(0xfacc15, 50), grey = metal(0x9ca3af);
@@ -1306,11 +1307,12 @@ export function poseVehicle(state, v, m, dt, now) {
     // Treppe: an der Tür bis zur Schwelle hochstellen, sonst flach zum Fahren; Podest bleibt waagerecht
     const ac = v.st === 'docked' && v.job ? state.acs.find((a) => a.id === v.job.ac) : null;
     const S = STAIRS_3D;
-    const tgt = ac ? Math.max(0.1, 0.085 * ac.len) : 0.12;
+    const tgt = stairsTop(ac);
     P.top += clamp(tgt - P.top, -dt * 0.02, dt * 0.02);
-    const th = Math.asin(clamp((P.top - S.y) / S.len, 0, 0.95));
+    const { th, len } = stairsGeom(P.top);
     P.ramp.rotation.z = th;
-    P.stp.position.set(S.hinge + Math.cos(th) * S.len, S.y + Math.sin(th) * S.len, 0);
+    P.ramp.scale.x = len / S.len; // hohe Türen: Treppe fährt aus
+    P.stp.position.set(S.hinge + Math.cos(th) * len, S.y + Math.sin(th) * len, 0);
   }
   if (P.sides) setBusLoad(m, busLoad(v, state.time));
   return `${P.u.toFixed(2)}|${P.top.toFixed(3)}|${P.yaw.toFixed(2)}|${P.load}`;

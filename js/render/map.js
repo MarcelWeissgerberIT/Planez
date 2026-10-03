@@ -7,6 +7,7 @@ import { Ambient, drawPerson } from './ambient.js';
 import { gaLifeItems } from './galife.js';
 import { busPaxItems } from './buspax.js';
 import { carPaint, carKind, hash01 } from './cars.js';
+import { stairsTop as doorTop } from '../acshape.js';
 import { drawApronBus, drawStairsTruck, boxShadow, stairsSize } from './gse2d.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { Polish } from './polish.js';
@@ -2418,7 +2419,7 @@ function prism(ctx, cam, pts, z0, z1, cTop, cA, cB) {
 function stairsTop(state, v) {
   if (v.st !== 'docked' || !v.job) return 0.12;
   const ac = state.acs.find((a) => a.id === v.job.ac);
-  const door = ac ? Math.max(0.1, 0.085 * ac.len) : 0.16;
+  const door = ac ? doorTop(ac) : 0.16;
   return 0.12 + (door - 0.12) * clamp((state.time - (v.dockT || 0)) / 25, 0, 1);
 }
 // Flugzeuge als 3D-Modelle (lädt three.js nach; bis dahin und im Leistungsmodus die gezeichneten Flugzeuge)

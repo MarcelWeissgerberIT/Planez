@@ -7,22 +7,22 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { AC_TYPES, AIRLINES } from '../config.js';
 import { SPECIALS } from '../sim/spotter.js';
+import { SHAPE, SHAPE_OF, R_OF } from '../acshape.js';
 
 const DEG = Math.PI / 180;
 
-// Bauarten: Rumpfradius r und Höhenfaktor kh (je Länge L), Spannweite, Pfeilung, Flügeltiefe innen/außen, Lage
+// Bauarten: Rumpfradius r, Höhenfaktor kh und Achshöhe h aus acshape.js, dazu Spannweite, Pfeilung, Flügeltiefe innen/außen, Lage
 // der Fläche, V-Stellung, Triebwerke (Anteil der Halbspannweite), Gondelradius/-länge, Winglet, Höhenleitwerk, Bodenfreiheit
 const KIND = {
-  narrow: { r: 0.053, kh: 1.06, span: 0.95, sweep: 25, cr: 0.21, ct: 0.065, wx: 0.1, dih: 5, eng: [0.34], er: 0.032, el: 0.15, winglet: 0.05, stab: 0.17, h: 1.95, gearZ: 0.1, wheel: 0.016 },
-  wide: { r: 0.048, kh: 1.06, span: 0.97, sweep: 31, cr: 0.22, ct: 0.05, wx: 0.08, dih: 6, eng: [0.33], er: 0.03, el: 0.14, winglet: 0, stab: 0.16, h: 2.05, gearZ: 0.085, wheel: 0.012, bogie: true },
-  super: { r: 0.05, kh: 1.28, span: 1.08, sweep: 33, cr: 0.27, ct: 0.055, wx: 0.08, dih: 5, eng: [0.3, 0.56], er: 0.021, el: 0.12, winglet: 0.03, stab: 0.2, h: 2.0, gearZ: 0.08, wheel: 0.011, bogie: true },
-  jumbo: { r: 0.045, kh: 1.06, span: 0.9, sweep: 37, cr: 0.22, ct: 0.05, wx: 0.08, dih: 6, eng: [0.31, 0.57], er: 0.021, el: 0.12, winglet: 0, stab: 0.15, h: 2.1, gearZ: 0.075, wheel: 0.011, bogie: true, hump: true },
-  prop: { r: 0.05, kh: 1.05, span: 1.0, sweep: 2, cr: 0.11, ct: 0.065, wx: 0.07, dih: 0, high: true, eng: [0.3], er: 0.026, el: 0.22, prop: true, stab: 0.13, tTail: true, h: 1.5, gearZ: 0.075, wheel: 0.018 },
-  rear: { r: 0.042, kh: 1.05, span: 0.69, sweep: 26, cr: 0.17, ct: 0.05, wx: 0.0, dih: 4, rearEng: true, er: 0.024, el: 0.13, winglet: 0.05, stab: 0.13, tTail: true, h: 1.45, gearZ: 0.08, wheel: 0.016 },
-  biz: { r: 0.052, kh: 1.05, span: 1.05, sweep: 28, cr: 0.2, ct: 0.07, wx: -0.02, dih: 3, rearEng: true, er: 0.034, el: 0.17, winglet: 0.06, stab: 0.17, tTail: true, h: 1.5, gearZ: 0.1, wheel: 0.02 },
+  narrow: { ...SHAPE.narrow, span: 0.95, sweep: 25, cr: 0.21, ct: 0.065, wx: 0.1, dih: 5, eng: [0.34], er: 0.032, el: 0.15, winglet: 0.05, stab: 0.17, gearZ: 0.1, wheel: 0.016 },
+  wide: { ...SHAPE.wide, span: 0.97, sweep: 31, cr: 0.22, ct: 0.05, wx: 0.08, dih: 6, eng: [0.33], er: 0.03, el: 0.14, winglet: 0, stab: 0.16, gearZ: 0.085, wheel: 0.012, bogie: true },
+  super: { ...SHAPE.super, span: 1.08, sweep: 33, cr: 0.27, ct: 0.055, wx: 0.08, dih: 5, eng: [0.3, 0.56], er: 0.021, el: 0.12, winglet: 0.03, stab: 0.2, gearZ: 0.08, wheel: 0.011, bogie: true },
+  jumbo: { ...SHAPE.jumbo, span: 0.9, sweep: 37, cr: 0.22, ct: 0.05, wx: 0.08, dih: 6, eng: [0.31, 0.57], er: 0.021, el: 0.12, winglet: 0, stab: 0.15, gearZ: 0.075, wheel: 0.011, bogie: true, hump: true },
+  prop: { ...SHAPE.prop, span: 1.0, sweep: 2, cr: 0.11, ct: 0.065, wx: 0.07, dih: 0, high: true, eng: [0.3], er: 0.026, el: 0.22, prop: true, stab: 0.13, tTail: true, gearZ: 0.075, wheel: 0.018 },
+  rear: { ...SHAPE.rear, span: 0.69, sweep: 26, cr: 0.17, ct: 0.05, wx: 0.0, dih: 4, rearEng: true, er: 0.024, el: 0.13, winglet: 0.05, stab: 0.13, tTail: true, gearZ: 0.08, wheel: 0.016 },
+  biz: { ...SHAPE.biz, span: 1.05, sweep: 28, cr: 0.2, ct: 0.07, wx: -0.02, dih: 3, rearEng: true, er: 0.034, el: 0.17, winglet: 0.06, stab: 0.17, tTail: true, gearZ: 0.1, wheel: 0.02 },
 };
-const KIND_OF = { AT76: 'prop', DH8D: 'prop', CRJ9: 'rear', C68A: 'biz', A388: 'super', B748F: 'jumbo', B789: 'wide', A359: 'wide', B77W: 'wide', B77F: 'wide', A333: 'wide' };
-const R_OF = { E190: 0.045, A223: 0.048, B77W: 0.044, B77F: 0.046 };
+const KIND_OF = SHAPE_OF;
 
 export function specOf(type) {
   const k = KIND[KIND_OF[type] || 'narrow'];

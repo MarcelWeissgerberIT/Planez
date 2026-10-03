@@ -4,9 +4,11 @@
 <style>html,body{margin:0;background:#9fb3c8;overflow:hidden}canvas{display:block}</style></head>
 <body><script type="module">
 import * as THREE from '../js/vendor/three.module.min.js';
-import { buildVehicle, vehParts, STAIRS_3D, carInstances } from '../js/render/vehicles3d.js';
+import { buildVehicle, vehParts, poseVehicle, STAIRS_3D, carInstances } from '../js/render/vehicles3d.js';
+import { servicePoint } from '../js/layout.js';
 import { buildAircraft } from '../js/render/model3d.js';
-import { AIRLINES } from '../js/config.js';
+import { AIRLINES, AC_TYPES } from '../js/config.js';
+import { stairsGeom } from '../js/acshape.js';
 const q = new URLSearchParams(location.search);
 const view = q.get('view') || 'side', work = q.get('work') === '1', night = view === 'night';
 const r = new THREE.WebGLRenderer({ antialias: true });
@@ -50,7 +52,22 @@ if (q.get('cars')) {
   ci.update();
   sc.add(ci.group);
 }
-const types = acs || q.get('cars') ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,stairs,deice,fire,plow,followme').split(',');
+// Treppe an der Tür (stairsat=TYP): Flugzeug in Nordrichtung, Treppenfahrzeug am Service-Punkt der Simulation
+if (q.get('stairsat')) {
+  const t = q.get('stairsat'), ac = { id: 'a1', type: t, airline: Object.keys(AIRLINES)[0], x: 0, y: 0, hdg: 0, len: AC_TYPES[t].len };
+  const m = buildAircraft(ac);
+  m.position.set(0, m.userData.H || 0.1, 0);
+  sc.add(m);
+  const sp = servicePoint('stairs', ac);
+  const v = { id: 's1', type: 'stairs', name: 'stairs 1', x: sp.x, y: sp.y, hdg: sp.hdg, st: 'docked', job: { ac: 'a1' } };
+  const vm = buildVehicle(v);
+  vm.position.set(v.x, 0, v.y);
+  vm.rotation.y = -v.hdg;
+  vehParts(vm).top = 0.12;
+  for (let i = 0; i < 400; i++) poseVehicle({ acs: [ac], time: 0 }, v, vm, 0.5, 0);
+  sc.add(vm);
+}
+const types = acs || q.get('cars') || q.get('stairsat') ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,stairs,deice,fire,plow,followme').split(',');
 types.forEach((t, i) => {
   const m = buildVehicle({ type: t, id: 'v' + (i * 7 + 3), name: `${t} ${i + 1}` }); // ID und Name: Werbung und Dachnummer
   const col = i % 5, row = Math.floor(i / 5);
@@ -63,9 +80,10 @@ types.forEach((t, i) => {
   }
   if (P.ramp) {
     // Treppe: work=1 an der Tür hochgestellt, sonst Fahrstellung
-    const th = Math.asin(((work ? 0.17 : 0.12) - STAIRS_3D.y) / STAIRS_3D.len);
+    const { th, len } = stairsGeom(work ? 0.26 : 0.12);
     P.ramp.rotation.z = th;
-    P.stp.position.set(STAIRS_3D.hinge + Math.cos(th) * STAIRS_3D.len, STAIRS_3D.y + Math.sin(th) * STAIRS_3D.len, 0);
+    P.ramp.scale.x = len / STAIRS_3D.len;
+    P.stp.position.set(STAIRS_3D.hinge + Math.cos(th) * len, STAIRS_3D.y + Math.sin(th) * len, 0);
   }
   if (night) { if (P.hl) P.hl.visible = true; if (P.tl) P.tl.visible = true; }
   sc.add(m);
