@@ -626,19 +626,33 @@ function van(k, g, body) {
   decal(g, 'clean', -0.045, 0.06, w / 2 + 0.0012, 0.17, 0.03, logo('#16a34a', '#f0fdf4', T('KABINENSERVICE'), null));
 }
 
+// Glanz auf gemalten Scheiben (wie die Glastextur der übrigen Scheiben): oben Himmelsspiegelung, schräge Lichtstreifen
+function sheen(g, x, y, w, h) {
+  g.save();
+  g.beginPath();
+  g.rect(x, y, w, h);
+  g.clip();
+  const top = g.createLinearGradient(0, y, 0, y + h * 0.35);
+  top.addColorStop(0, 'rgba(225,238,250,0.45)');
+  top.addColorStop(1, 'rgba(225,238,250,0)');
+  g.fillStyle = top;
+  g.fillRect(x, y, w, h * 0.35);
+  for (let sx = x - h; sx < x + w; sx += 170) {
+    for (const [o, bw, a] of [[0, 26, 0.22], [40, 8, 0.2]]) {
+      g.fillStyle = `rgba(235,245,255,${a})`;
+      g.beginPath();
+      g.moveTo(sx + o, y + h);
+      g.lineTo(sx + o + bw, y + h);
+      g.lineTo(sx + o + bw + h * 0.8, y);
+      g.lineTo(sx + o + h * 0.8, y);
+      g.fill();
+    }
+  }
+  g.restore();
+}
+
 // moderner Vorfeldbus: Niederflur, umlaufendes Glasband mit schmalen Säulen, abgerundete Ecken, je Seite drei
 // Doppeltüren, blaue Schürze mit türkisem Zierstreifen, weißes Dach mit Klimaanlagen, Zielanzeige vorn
-// getöntes Glas mit Himmelsspiegelung oben (Front, Heck)
-const busGlass = () => canvasMat('busglass', 8, 64, (c, w, h) => {
-  const gr = c.createLinearGradient(0, 0, 0, h);
-  gr.addColorStop(0, '#8fb0cc');
-  gr.addColorStop(0.28, '#4d6f8e');
-  gr.addColorStop(0.55, '#24394f');
-  gr.addColorStop(1, '#16222f');
-  c.fillStyle = gr;
-  c.fillRect(0, 0, w, h);
-});
-
 // ---------- Vorfeldbus: Seitenbild mit Werbung und Fahrgästen ----------
 // Die Busse fahren in Flughafenfarben oder mit Werbung (fiktive Marken); hinter den Scheiben sieht man, ob er leer,
 // halb oder voll ist (load 0/1/2). Das Seitenbild ist eine Fläche je Seite über der Karosserie.
@@ -800,6 +814,7 @@ const busSideMat = (ad, load) => canvasMat(`bus${ad}|${load}`, TW, TH, (g) => {
     g.fillStyle = 'rgba(0,0,0,0.12)';
     for (let y = W0 + 2; y < W1; y += 5) for (let x = (y % 10) / 2; x < TW; x += 5) g.fillRect(x, y, 2, 2);
   }
+  sheen(g, 0, W0, TW, W1 - W0);
   // Fenstersäulen
   g.fillStyle = ad ? 'rgba(255,255,255,0.18)' : '#f8fafc';
   for (let x = 0; x < TW; x += 92) g.fillRect(x, W0, 7, W1 - W0);
@@ -819,6 +834,7 @@ const busSideMat = (ad, load) => canvasMat(`bus${ad}|${load}`, TW, TH, (g) => {
     g.rect(a + 6, top + 5, b - a - 12, bot - top - 9);
     g.clip();
     if (load) riders(g, load);
+    sheen(g, a + 6, top + 5, b - a - 12, bot - top - 9);
     g.restore();
     g.fillStyle = '#cbd5e1';
     g.fillRect((a + b) / 2 - 2, top, 4, bot - top);
@@ -869,14 +885,14 @@ function bus(k, g, body, ad = 0) {
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.cyl(sx * (h - rr), (y0 + y1) / 2, sz * (w / 2 - rr), rr, y1 - y0, 'y', m, 16);
   };
   band(0.012, 0.043, blue);
-  band(0.043, g1, busGlass());
+  band(0.043, g1, glass());
   // Dach: Ecken wie unten, Kanten oben rund
   k.rbx(-h, h, g1 - rr, H + R, w, white, rr);
   // Front: Scheibe weit herunter, Zielanzeige, Scheinwerfer; Heck: Scheibe, Rückleuchten
-  k.bx(h - 0.001, h + 0.0025, 0.028, g1, w - 2 * rr, busGlass());
+  k.bx(h - 0.001, h + 0.0025, 0.028, g1, w - 2 * rr, glass());
   k.bx(h - 0.001, h + 0.003, 0.131, 0.146, w * 0.5, lamp(0xf59e0b));
   k.pair(h - 0.004, h + 0.002, 0.016, 0.027, w / 2 - rr - 0.012, 0.022, lamp(0xfff4d6));
-  k.bx(-h - 0.0025, -h + 0.001, 0.05, g1, w - 2 * rr, busGlass());
+  k.bx(-h - 0.0025, -h + 0.001, 0.05, g1, w - 2 * rr, glass());
   tail(k, -h, 0.018, w - 0.02);
   // Klimaanlagen auf dem Dach
   for (const x of [-0.17, 0.15]) {

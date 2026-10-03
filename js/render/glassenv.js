@@ -13,9 +13,9 @@ export function glassEnv() {
   const hz = H / 2; // Horizont
   // Himmel: Zenit kräftig blau, zum Horizont dunstig hell
   let gr = g.createLinearGradient(0, 0, 0, hz);
-  gr.addColorStop(0, '#3f6fae');
-  gr.addColorStop(0.55, '#86acd4');
-  gr.addColorStop(1, '#dbe7f1');
+  gr.addColorStop(0, '#5f8cc4');
+  gr.addColorStop(0.55, '#9dbddd');
+  gr.addColorStop(1, '#e3edf5');
   g.fillStyle = gr;
   g.fillRect(0, 0, W, hz);
   // Wolken: weiche helle Flecken im mittleren Himmel
@@ -84,18 +84,20 @@ export function glassTex() {
   const N = 128, c = document.createElement('canvas');
   c.width = c.height = N;
   const g = c.getContext('2d');
+  // Tönung: oben spiegelt der Himmel (hell, bläulich), zur Mitte dunkler, unten fast schwarz
   const gr = g.createLinearGradient(0, 0, 0, N);
-  gr.addColorStop(0, '#2c3f55');
-  gr.addColorStop(0.45, '#142030');
-  gr.addColorStop(1, '#070c12');
+  gr.addColorStop(0, '#7f9fbd');
+  gr.addColorStop(0.16, '#42607c');
+  gr.addColorStop(0.5, '#1a2938');
+  gr.addColorStop(1, '#060a0f');
   g.fillStyle = gr;
   g.fillRect(0, 0, N, N);
-  // Lichtstreifen von links unten nach rechts oben
-  for (const [o, w, a] of [[0.34, 0.14, 0.3], [0.6, 0.05, 0.2]]) {
+  // Lichtstreifen von links unten nach rechts oben: ein breiter, ein schmaler, deutlich sichtbar
+  for (const [o, w, a] of [[0.36, 0.11, 0.55], [0.55, 0.035, 0.45], [0.62, 0.02, 0.25]]) {
     const lg = g.createLinearGradient(0, N, N, 0);
-    lg.addColorStop(Math.max(0, o - w), 'rgba(220,235,250,0)');
-    lg.addColorStop(o, `rgba(220,235,250,${a})`);
-    lg.addColorStop(Math.min(1, o + w), 'rgba(220,235,250,0)');
+    lg.addColorStop(Math.max(0, o - w), 'rgba(235,245,255,0)');
+    lg.addColorStop(o, `rgba(235,245,255,${a})`);
+    lg.addColorStop(Math.min(1, o + w), 'rgba(235,245,255,0)');
     g.fillStyle = lg;
     g.fillRect(0, 0, N, N);
   }
@@ -118,5 +120,5 @@ export function glassTex() {
 // Kanzeln von Kleinflugzeugen und Hubschrauber, deren Texturkoordinaten rundherum laufen)
 const GLASS = {};
 export function glassMat(plain = false) {
-  return (GLASS[plain] ||= reflective(new THREE.MeshPhongMaterial({ ...(plain ? { color: 0x101a24, side: THREE.DoubleSide } : { map: glassTex() }), specular: 0x7d91a8, shininess: 160, envMap: glassEnv(), combine: THREE.MixOperation, reflectivity: plain ? 0.32 : 0.24 })));
+  return (GLASS[plain] ||= reflective(new THREE.MeshPhongMaterial({ ...(plain ? { color: 0x101a24, side: THREE.DoubleSide } : { map: glassTex() }), specular: 0x7d91a8, shininess: 160, envMap: glassEnv(), combine: THREE.MixOperation, reflectivity: plain ? 0.34 : 0.28 })));
 }
