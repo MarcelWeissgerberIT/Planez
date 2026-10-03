@@ -16,7 +16,7 @@ const MODEL = {
   hangar: ['hangar', -40.75, 1.9],
   cargo: ['cargo', 68.25, 1.1],
   depot: ['gse_depot', -40, 1.0],
-  fire: ['fire_station', -54.25, 1.6],
+  fire: ['fire_station', 35.75, 1.04], // um 90° gedreht: Tore nach Osten; Höhe wie das Modell (Tore ≈ 6 m, Löschfahrzeug passt hinein)
   fuel: ['fuel_farm', -41.75, 1.3],
   parking: ['parking', -44.5, 1.5],
   hotel: ['hotel', -34.5, 2.8],

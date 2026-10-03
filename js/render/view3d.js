@@ -701,7 +701,7 @@ export class View3D {
         // große Tore zur Vorfeldseite
         for (let x = x0 + 0.6; x < x1 - 1; x += 2.2) this.box(x, x + 1.4, y1, y1 + 0.03, H[b.id] * 0.7, 0x475569, 0, false);
       } else if (b.id === 'fire') {
-        this.bldg(x0, x1, y0, y1, 0.55, 'fire', 0x9ca3af);
+        this.bldg(x0, x1, y0, y1, 0.5, 'fire', 0x9ca3af);
         // Fahrzeughallentore Richtung Bahn
         for (let x = x0 + 0.4; x < x1 - 0.6; x += 1.05) this.box(x, x + 0.8, y0 - 0.03, y0, 0.42, 0xf1f5f9, 0, false);
       } else this.box(x0, x1, y0, y1, H[b.id] || 0.6, CO[b.id] || 0xa1a1aa);

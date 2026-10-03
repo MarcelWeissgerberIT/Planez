@@ -75,7 +75,7 @@ export const BUILDINGS = [
   { id: 'hangar', sprite: 'hangar', fx: 9.5, fy: 21.4, w: 6.8, d: 6.6, frac: 0.507, name: T('Wartungshangar'), minStage: 2 },
   { id: 'cargo', sprite: 'cargo', fx: 64.5, fy: 14.2, w: 10.3, d: 4.2, frac: 0.71, name: T('Frachtterminal'), minStage: 3 },
   { id: 'depot', sprite: 'gse_depot', fx: 73.5, fy: 14.4, w: 4.6, d: 3.6, frac: 0.561, name: T('Fahrzeugdepot'), minStage: 1 },
-  { id: 'fire', sprite: 'fire_station', fx: 40, fy: 48.6, w: 4.4, d: 2.7, frac: 0.62, name: T('Feuerwache'), minStage: 1 },
+  { id: 'fire', sprite: 'fire_station', fx: 37.9, fy: 46.6, w: 0.84, d: 1.5, frac: 0.36, name: T('Feuerwache'), minStage: 1 }, // drei Tore nach Osten (je ≈ 6,5 m)
   { id: 'fuel', sprite: 'fuel_farm', fx: 80, fy: 16.6, w: 3.6, d: 3.6, frac: 0.5, name: T('Tanklager'), minStage: 2 },
   { id: 'parking', sprite: 'parking', fx: 54, fy: 8.8, w: 5.4, d: 4.6, frac: 0.54, name: T('Parkhaus'), minStage: 2 },
   { id: 'hotel', sprite: 'hotel', fx: 18.5, fy: 8.4, w: 3.1, d: 3.1, frac: 0.5, name: T('Hotel'), requires: 'hotel' },
@@ -87,6 +87,8 @@ export const BUILDINGS = [
   { id: 'sterm', sprite: 'small_terminal', fx: 30.6, fy: 14.4, w: 5.2, d: 3.05, frac: 0.63, name: T('Abfertigungsgebäude'), stages: [1] },
   { id: 'stower', sprite: 'small_tower', fx: 34.4, fy: 13.9, w: 0.8, d: 1.0, frac: 0.444, name: T('Flugleitung (Turm)'), stages: [1] },
 ];
+// Feuerwache: Stellplätze der drei Löschfahrzeuge vor den Toren (Ostseite, Nase nach Osten) und die Ausfahrt nach Norden
+export const FIRE_BAYS = { x: 38.22, exit: 38.78, ys: [46.36, 45.9, 45.43] };
 // Gebäude in der aktuellen Ausbaustufe vorhanden?
 export function buildingOn(state, b) {
   if (b.requires && !(state.upgrades && state.upgrades[b.requires])) return false;

@@ -113,15 +113,16 @@ function dayRollover(state) {
   for (const fn of hooks.dayEnd) fn(rec);
 }
 
-// Flughafenfeuerwehr bei Notfällen
-const STATION = { x: 37.2, y: 44.8 };
+// Flughafenfeuerwehr bei Notfällen: drei Löschfahrzeuge vor den Toren der Feuerwache, bei Alarm nacheinander über die
+// Ausfahrt (das Fahrzeug am nächsten zur Ausfahrt zuerst), zurück ebenso mit Abstand
+const FW = LY.FIRE_BAYS;
+const fireHome = (i) => ({ x: FW.x, y: FW.ys[i % FW.ys.length] });
+const GAP = 2.3; // Sekunden zwischen zwei Fahrzeugen (bei 0,3 Kacheln/s etwa eine Fahrzeuglänge Abstand)
 function updateFire(state, dt) {
-  if (!state.fire) {
-    state.fire = { trucks: [0, 1, 2].map((i) => ({ x: STATION.x + i * 0.9, y: STATION.y, hx: STATION.x + i * 0.9, hdg: -Math.PI / 2, st: 'home', path: null, pi: 0 })) };
-  }
+  if (!state.fire) state.fire = { trucks: [0, 1, 2].map((i) => ({ ...fireHome(i), hx: FW.x, hdg: 0, st: 'home', path: null, pi: 0 })) };
   const f = state.fire;
-  // ältere Spielstände: Feuerwache wurde verlegt
-  for (const t of f.trucks) if (t.st === 'home' && !t.path && Math.abs(t.y - STATION.y) > 0.5) t.y = STATION.y;
+  // stehende Fahrzeuge an ihren Platz vor dem Tor (auch ältere Spielstände mit der früheren Wache)
+  f.trucks.forEach((t, i) => t.st === 'home' && !t.path && Object.assign(t, fireHome(i), { hx: FW.x, hdg: 0 }));
   const alert = state.fireAlert;
   if (alert) {
     const ac = state.acs.find((a) => a.id === alert.ac);
@@ -132,7 +133,9 @@ function updateFire(state, dt) {
       const roadY = south ? 44.0 : 34.5;
       f.trucks.forEach((t, i) => {
         const target = { x: tx + (i - 1) * 1.1, y: south ? LY.RWY_S.y + LY.RWY_S.hw + 0.9 : LY.RWY.y + LY.RWY.hw + 0.9 };
-        t.path = roundedPath([{ x: t.x, y: t.y }, { x: t.hx, y: roadY }, { x: target.x, y: roadY }, target], 0.6, 0.2);
+        const out = t.st === 'home' ? [{ x: FW.exit, y: t.y }, { x: FW.exit, y: roadY }] : [{ x: t.x, y: roadY }];
+        t.path = roundedPath([{ x: t.x, y: t.y }, ...out, { x: target.x, y: roadY }, target], 0.6, 0.2);
+        t.wait = t.st === 'home' ? (f.trucks.length - 1 - i) * GAP : 0;
         t.roadY = roadY;
         t.pi = 0;
         t.st = 'out';
@@ -167,12 +170,22 @@ function updateFire(state, dt) {
     if (alert.deployed && (!ac || ac.phase === PH.STAND || ac.phase === PH.GONE || ac.phase === PH.TAXI_IN)) {
       alert.doneT = alert.doneT ?? state.time;
       if (state.time - alert.doneT > 180) {
-        f.trucks.forEach((t) => {
-          const ry = t.roadY || 34.5;
-          t.path = roundedPath([{ x: t.x, y: t.y }, { x: t.x, y: ry }, { x: t.hx, y: ry }, { x: t.hx, y: STATION.y }], 0.6, 0.2);
-          t.pi = 0;
-          t.st = 'back';
+        // zurück über die Ausfahrt vor das eigene Tor; wer den kürzeren Weg hat, fährt zuerst, die anderen mit Abstand
+        const plans = f.trucks.map((t, i) => {
+          const ry = t.roadY || 34.5, h = fireHome(i);
+          const pts = [{ x: t.x, y: t.y }, { x: t.x, y: ry }, { x: FW.exit, y: ry }, { x: FW.exit, y: h.y }, h];
+          return { t, pts, len: LY.polyLen(pts) };
         });
+        plans.sort((a, b) => a.len - b.len);
+        let next = 0;
+        for (const p of plans) {
+          const arrive = p.len / 0.3;
+          p.t.wait = Math.max(0, next - arrive);
+          next = arrive + p.t.wait + GAP;
+          p.t.path = roundedPath(p.pts, 0.6, 0.2);
+          p.t.pi = 0;
+          p.t.st = 'back';
+        }
         state.fireAlert = null;
       }
     }
@@ -180,6 +193,10 @@ function updateFire(state, dt) {
   }
   for (const t of f.trucks) {
     if (!t.path) continue;
+    if (t.wait > 0) {
+      t.wait -= dt;
+      continue;
+    }
     let s = 0.3 * dt;
     while (s > 0 && t.pi < t.path.length - 1) {
       const b = t.path[t.pi + 1];
@@ -200,7 +217,7 @@ function updateFire(state, dt) {
       t.path = null;
       if (t.st === 'back') {
         t.st = 'home';
-        t.hdg = -Math.PI / 2;
+        t.hdg = 0; // rückwärts vors Tor gestellt, Nase zur Ausfahrt
       } else t.st = 'standby';
     }
   }

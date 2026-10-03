@@ -36,7 +36,7 @@ import { standBuildable } from '../sim/career.js';
 import { T as tr_ } from '../i18n.js';
 const markOf = (ac) => (ac.mark && MARKS[ac.mark.c] ? MARKS[ac.mark.c] : null);
 
-const BH = { hall: 1.3, tower: 5, hangar: 1.8, cargo: 0.9, depot: 0.7, fire: 0.8, fuel: 0.9, parking: 1.1, hotel: 3.2, radar: 2.6, club: 0.5, gahangar: 0.6, avgas: 0.25, sterm: 0.6, stower: 1.6 };
+const BH = { hall: 1.3, tower: 5, hangar: 1.8, cargo: 0.9, depot: 0.7, fire: 1.0, fuel: 0.9, parking: 1.1, hotel: 3.2, radar: 2.6, club: 0.5, gahangar: 0.6, avgas: 0.25, sterm: 0.6, stower: 1.6 };
 const MARGIN = 8;
 const RX0 = -MARGIN, RY0 = -MARGIN, RX1 = LY.W + MARGIN, RY1 = LY.H + MARGIN;
 
@@ -2596,7 +2596,7 @@ function drawGround(g, state, trees) {
   g.fillRect(10.2, T.y1, 58.2, LY.LANE + 1.6 - T.y1); // Hauptvorfeld
   g.fillRect(49.5, 9.6, 25, 11.4); // Fracht/Depot
   g.fillRect(0.6, 21.2, 10.2, 5.8); // Hangar-Vorfeld
-  g.fillRect(34.8, 43.9, 5.8, 2.1); // Feuerwache
+  g.fillRect(36.9, 43.7, 2.7, 3.1); // Feuerwache mit Vorplatz vor den Toren
   g.fillRect(74.4, 12.6, 6, 4.4); // Tanklager
   // Dehnfugen etwas dunkler an Vorfeldkante
   g.strokeStyle = 'rgba(240,200,40,0.9)';

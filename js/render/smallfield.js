@@ -144,9 +144,9 @@ export function drawSmallField(g, state, P) {
     }
     // Feuerwehrzufahrt
     g.fillStyle = P.asphalt;
-    g.fillRect(36.9, R.y + R.hw + 0.3, 0.9, 43.9 - (R.y + R.hw + 0.3));
+    g.fillRect(LY.FIRE_BAYS.exit - 0.4, R.y + R.hw + 0.3, 0.8, 43.8 - (R.y + R.hw + 0.3));
     g.fillStyle = P.concrete;
-    g.fillRect(34.8, 43.9, 5.8, 2.1);
+    g.fillRect(36.9, 43.7, 2.7, 3.1);
     // Depot-Vorplatz
     g.fillRect(66.2, 14.4, 8.4, 4.4);
     // Servicestraße vom kleinen Vorfeld zum Depot – südlich an Tankstelle, Vereinsheim und Halle vorbei
