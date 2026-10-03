@@ -926,6 +926,13 @@ function lightTemplate(type, airline) {
   // Kabinenfenster bzw. Kanzel
   if (high) glass.push([tube([[-L * 0.04, R * 0.5, R * 0.52, R * 0.9], [L * 0.18, R * 0.45, R * 0.56, R * 0.9]], 14), M4()]);
   else glass.push([tube([[-L * 0.08, R * 0.6, R * 0.25, R * 0.55], [L * 0.04, R * 0.85, R * 0.5, R * 0.75], [L * 0.17, R * 0.7, R * 0.45, R * 0.72], [L * 0.24, R * 0.4, R * 0.2, R * 0.5]], 14), M4()]);
+  // Pilot und Begleitung unter der Kanzel (Tiefdecker): Köpfe über der Rumpfoberkante, durchs halbtransparente Glas
+  const heads = [], hair = [];
+  if (!high)
+    for (const z of [-R * 0.27, R * 0.27]) {
+      heads.push([new THREE.SphereGeometry(R * 0.17, 10, 8), M4(L * 0.07, R * 1.1, z)]);
+      hair.push([new THREE.SphereGeometry(R * 0.175, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.45), M4(L * 0.065, R * 1.12, z)]);
+    }
   // Tragfläche
   const wy = high ? R * 1.05 : -R * 0.55;
   const cr = L * (turbo ? 0.2 : 0.17), ct = cr * (high ? 1 : 0.75);
@@ -965,6 +972,8 @@ function lightTemplate(type, airline) {
   add(white, phong(0xf8fafc, 60));
   add(trim, phong(trimCol, 40));
   add(dark, lamb(0x1f2937));
+  add(heads, lamb(0xe0b48f));
+  add(hair, lamb(0x3b2a1e));
   add(glass, glassMat(true));
   // Propeller (dreht sich bei laufendem Motor)
   const pg = new THREE.Group();

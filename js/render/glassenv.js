@@ -116,9 +116,77 @@ export function glassTex() {
   return (GTEX = t);
 }
 
-// getöntes Fahrzeug- und Autoglas: Glastextur, darüber die Spiegelung der Umgebung; plain = ohne Textur (gewölbte
-// Kanzeln von Kleinflugzeugen und Hubschrauber, deren Texturkoordinaten rundherum laufen)
+// Glas ist halbtransparent: beim geraden Blick sieht man hindurch (Innenraum, gegenüberliegende Scheibe, Boden),
+// schräg spiegelt es immer stärker (Fresnel). a0 = Deckkraft beim senkrechten Blick
+function seeThrough(m, a0) {
+  m.transparent = true;
+  m.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', `{ float gF = 1.0 - abs(dot(geometryViewDir, normal)); diffuseColor.a = mix(${a0.toFixed(2)}, 0.95, gF * gF); }\n#include <opaque_fragment>`);
+  };
+  m.customProgramCacheKey = () => 'see' + a0;
+  return m;
+}
+
+// getöntes Fahrzeug- und Autoglas: Glastextur, darüber die Spiegelung der Umgebung, halbtransparent; plain = ohne
+// Textur (gewölbte Kanzeln von Kleinflugzeugen und Hubschrauber, deren Texturkoordinaten rundherum laufen).
+// Scheiben auf einer geschlossenen Karosserie bekommen in vehicles3d.js den Innenraum (glassBack) dahinter
 const GLASS = {};
+const glassNew = (plain) => seeThrough(reflective(new THREE.MeshPhongMaterial({ ...(plain ? { color: 0x101a24, side: THREE.DoubleSide } : { map: glassTex() }), specular: 0x7d91a8, shininess: 160, envMap: glassEnv(), combine: THREE.MixOperation, reflectivity: plain ? 0.34 : 0.28 })), plain ? 0.5 : 0.42);
 export function glassMat(plain = false) {
-  return (GLASS[plain] ||= reflective(new THREE.MeshPhongMaterial({ ...(plain ? { color: 0x101a24, side: THREE.DoubleSide } : { map: glassTex() }), specular: 0x7d91a8, shininess: 160, envMap: glassEnv(), combine: THREE.MixOperation, reflectivity: plain ? 0.34 : 0.28 })));
+  if (!GLASS[plain]) {
+    GLASS[plain] = glassNew(plain);
+    if (!plain) GLASS[plain].userData.back = glassBack('seats');
+  }
+  return GLASS[plain];
+}
+// dasselbe Glas für Glaskabinen mit echtem Innenraum (Schlepper, Follow-me): kein aufgemalter Innenraum dahinter
+let GVOL = null;
+export function glassVol() {
+  return (GVOL ||= glassNew(false));
+}
+// Fenster der Fluggastbrücke: dahinter ein heller Gang statt Sitzen
+let GHALL = null;
+export function glassHall() {
+  if (!GHALL) {
+    GHALL = glassNew(false);
+    GHALL.userData.back = glassBack('hall');
+  }
+  return GHALL;
+}
+
+// Innenraum hinter einer Scheibe, durch das Glas gesehen: oben hell (Licht durch die Scheiben gegenüber), darunter
+// Kopfstützen und Sitzlehnen, unten dunkel (hall: Gang der Fluggastbrücke mit Deckenlicht und Boden); etwas
+// zurückversetzt, damit die Scheibe davor sicher gewinnt
+const BACK = {};
+export function glassBack(kind = 'seats') {
+  if (BACK[kind]) return BACK[kind];
+  const N = 128, c = document.createElement('canvas');
+  c.width = c.height = N;
+  const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, N);
+  const stops = kind === 'hall' ? [[0, '#c3ccd4'], [0.12, '#e8edf1'], [0.2, '#9aa7b3'], [0.75, '#5b6773'], [1, '#2a3038']] : [[0, '#8fa3b6'], [0.3, '#5d6f80'], [0.5, '#262e36'], [1, '#0e1216']];
+  for (const [o, col] of stops) gr.addColorStop(o, col);
+  g.fillStyle = gr;
+  g.fillRect(0, 0, N, N);
+  if (kind === 'hall') {
+    // Fensterpfosten der Gegenseite
+    g.fillStyle = 'rgba(60,68,78,0.55)';
+    for (let x = 0.1; x < 1; x += 0.3) g.fillRect(N * x, N * 0.2, N * 0.03, N * 0.5);
+  } else {
+    // Säule der Gegenseite, Sitze: Kopfstützen und Lehnen
+    g.fillStyle = 'rgba(20,24,30,0.7)';
+    g.fillRect(N * 0.47, 0, N * 0.06, N * 0.45);
+    g.fillStyle = '#1a1f25';
+    for (const x of [0.18, 0.6]) {
+      g.beginPath();
+      g.roundRect(N * (x + 0.04), N * 0.4, N * 0.14, N * 0.12, N * 0.04);
+      g.fill();
+      g.beginPath();
+      g.roundRect(N * x, N * 0.54, N * 0.22, N * 0.5, N * 0.06);
+      g.fill();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return (BACK[kind] = new THREE.MeshLambertMaterial({ map: t, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 }));
 }

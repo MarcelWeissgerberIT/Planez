@@ -13,7 +13,7 @@ import { T } from '../i18n.js';
 import { busLoad } from './buspax.js';
 import { toCreasedNormals, mergeGeometries } from '../vendor/BufferGeometryUtils.js';
 import { carKind, carPaint, POLICE_BLUE } from './cars.js';
-import { glassMat } from './glassenv.js';
+import { glassMat, glassVol, glassHall, glassBack } from './glassenv.js';
 import { JB } from './jbdims.js';
 import { STAIRS, stairsTop, stairsGeom, BELT, beltGeom } from '../acshape.js';
 
@@ -236,6 +236,7 @@ class Kit {
   put(geo, m, mx) {
     if (!this.by.has(m)) this.by.set(m, []);
     this.by.get(m).push([geo, mx]);
+    if (m.userData.back) this.put(geo, m.userData.back, mx); // Innenraum hinter einer halbtransparenten Scheibe
     return this;
   }
   box(x0, x1, y0, y1, z0, z1, m, rx = 0, ry = 0, rz = 0) {
@@ -391,6 +392,23 @@ function ld3Geo() {
   return (_ld3 = g);
 }
 
+// Fahrer hinter halbtransparenten Scheiben: Sitz, Oberkörper in Warnweste, Kopf; Blick nach +x, Hüfte bei (x, y, z);
+// wheel: Lenkrad davor
+const VEST = 0xf97316, SKIN = [0xe0b48f, 0xc68b5e, 0x8d5a3b, 0xf1c9a5];
+function driver(k, x, y, z, o = {}) {
+  const dark = matte(0x22262c);
+  k.rbox(x - 0.006, x + 0.012, y - 0.004, y, z - 0.011, z + 0.011, dark, 0.002); // Sitzfläche
+  k.rbox(x - 0.01, x - 0.005, y, y + 0.03, z - 0.011, z + 0.011, dark, 0.002); // Lehne
+  if (o.empty) return;
+  k.rbox(x - 0.005, x + 0.006, y, y + 0.024, z - 0.0085, z + 0.0085, paint(o.vest ?? VEST, 30), 0.004); // Oberkörper
+  k.sph(x + 0.001, y + 0.031, z, 0.0062, 0.0072, 0.006, matte(SKIN[o.skin ?? 0])); // Kopf
+  k.sph(x - 0.0005, y + 0.034, z, 0.0062, 0.005, 0.0062, matte(0x2b2118)); // Haare
+  if (o.wheel) {
+    k.cyl(x + 0.02, y + 0.016, z, 0.0075, 0.0018, 'x', dark, 12);
+    for (const s of [-1, 1]) k.rod([x + 0.003, y + 0.02, z + s * 0.008], [x + 0.019, y + 0.016, z + s * 0.006], 0.0035, paint(o.vest ?? VEST, 30)); // Arme
+  }
+}
+
 // ---------- Fahrzeuge ----------
 // Flugzeugschlepper mit Schleppstange wie auf dem Vorfeld: langer, schwerer Kasten in Gelb (Ballast) mit gefasten
 // Kanten, große Räder in tiefen Radkästen, schwarze Stoßfänger mit Kupplungsmaul und Warnstreifen. Die Kabine sitzt
@@ -400,7 +418,9 @@ function tug(k, g, body) {
   const hx = 0.165, w = 0.13, top = 0.086, dark = matte(0x1f2328), blk = matte(0x15171a);
   // Rahmen, Kasten mit gefasten Oberkanten, schwarze Scheuerleiste unten
   k.bx(-hx + 0.012, hx - 0.012, 0.012, 0.03, w - 0.024, matte(DARK));
-  k.prof([[-hx, 0.022, 0.004], [hx, 0.022, 0.004], [hx, top - 0.012, 0.006], [hx - 0.012, top, 0.006], [-hx + 0.002, top, 0.004], [-hx, top - 0.004, 0.004]], w, body, 0.01);
+  // Kasten: hinten unter der Kabine nur bis zum Kabinenboden, damit man durch die Scheiben hineinsieht
+  const cfl = 0.044, cxe = -hx + 0.092;
+  k.prof([[-hx, 0.022, 0.004], [hx, 0.022, 0.004], [hx, top - 0.012, 0.006], [hx - 0.012, top, 0.006], [cxe - 0.004, top], [cxe - 0.004, cfl], [-hx, cfl, 0.004]], w, body, 0.01);
   k.side([[-hx + 0.004, 0.024], [hx - 0.004, 0.024], [hx - 0.004, 0.033], [-hx + 0.004, 0.033]], w / 2 + 0.0012, blk);
   // Ballastplatten: Fugen an den Seiten und auf dem Deck, Motorgitter vorn, Auspuff und Ansaugrohr an der Kabine
   for (const x of [-0.03, 0.05]) {
@@ -421,9 +441,13 @@ function tug(k, g, body) {
   }
   // Kabine hinten über die ganze Breite, kaum höher als der Kasten: Fensterband rundum in den Kasten eingelassen
   // (Stirnseite und Seiten), Säulen in Wagenfarbe, flaches Dach mit Überstand
-  const cx0 = -hx, cx1 = -hx + 0.092, cz = w / 2, cy0 = top - 0.032, cy = top + 0.022;
-  k.rbox(cx0 + 0.003, cx1 - 0.002, top - 0.004, cy, -cz + 0.002, cz - 0.002, body, 0.006);
-  k.rbox(cx0 - 0.0012, cx1 - 0.008, cy0, cy - 0.006, -cz - 0.0012, cz + 0.0012, glass(), 0.004);
+  const cx0 = -hx, cx1 = cxe, cz = w / 2, cy0 = top - 0.032, cy = top + 0.022;
+  // Kabinenwände unter dem Fensterband, Armaturenbrett, Fahrer mit Lenkrad
+  for (const s of [-1, 1]) k.box(cx0 + 0.002, cx1 - 0.004, cfl, cy0 + 0.001, s * (cz - 0.002), s * cz, body);
+  k.box(cx0, cx0 + 0.002, cfl, cy0 + 0.001, -cz + 0.002, cz - 0.002, body);
+  k.box(cx1 - 0.016, cx1 - 0.004, cfl, cy0 + 0.012, -cz + 0.006, cz - 0.006, matte(0x2a2e34));
+  driver(k, cx0 + 0.034, cfl + 0.012, 0.012, { wheel: true });
+  k.rbox(cx0 - 0.0012, cx1 - 0.008, cy0, cy - 0.006, -cz - 0.0012, cz + 0.0012, glassVol(), 0.004);
   for (const z of [-cz - 0.0016, cz + 0.0016]) {
     for (const x of [cx0 + 0.004, (cx0 + cx1) / 2 + 0.006, cx1 - 0.009]) k.box(x - 0.0035, x + 0.0035, cy0 - 0.002, cy - 0.004, z - 0.0012, z + 0.0012, body); // Säulen
   }
@@ -1041,7 +1065,11 @@ function deice(k, g, body) {
   boom.position.y = 0.032;
   boom.rotation.z = -0.03;
   const ck = new Kit();
-  ck.rbx(-0.032, 0.032, -0.03, 0.03, 0.064, glass(), 0.01);
+  ck.rbx(-0.032, 0.032, -0.03, 0.03, 0.064, glassVol(), 0.01);
+  ck.rbox(-0.008, 0.006, -0.024, 0.0, -0.009, 0.009, paint(VEST, 30), 0.004); // Bediener in Warnweste
+  ck.sph(-0.001, 0.007, 0, 0.0062, 0.0072, 0.006, matte(SKIN[2]));
+  ck.sph(-0.002, 0.0105, 0, 0.0066, 0.0045, 0.0066, paint(0xf8fafc, 40)); // Helm
+  ck.bx(0.016, 0.03, -0.012, -0.006, 0.04, matte(0x2a2e34)); // Bedienpult
   ck.rbx(-0.034, 0.034, 0.027, 0.037, 0.068, body, 0.005);
   ck.rbx(-0.034, 0.034, -0.037, -0.024, 0.068, body, 0.005);
   ck.cyl(0.04, -0.03, 0, 0.005, 0.03, 'x', metal(0x9ca3af), 8);
@@ -1178,7 +1206,10 @@ function followMe(k, g) {
   k.prof([[-h, 0.016, 0.006], [h, 0.016, 0.008], [h + 0.002, 0.05, 0.014], [h - 0.045, 0.06, 0.012], [-h + 0.003, 0.062, 0.01]], w, body, 0.012);
   // Kabine: Glas etwas schmaler (eingezogene Seiten), Dach, B- und C-Säule
   const gw = w - 0.01, yr = 0.088;
-  k.prof([[h - 0.043, 0.058], [h - 0.078, yr, 0.01], [-h + 0.02, yr, 0.01], [-h + 0.005, 0.06]], gw, glass(), 0.007);
+  k.prof([[h - 0.043, 0.058], [h - 0.078, yr, 0.01], [-h + 0.02, yr, 0.01], [-h + 0.005, 0.06]], gw, glassVol(), 0.007);
+  driver(k, 0.008, 0.05, -0.02, { wheel: true, skin: 1 });
+  driver(k, 0.008, 0.05, 0.02, { empty: true });
+  k.rbox(-h + 0.012, -0.03, 0.05, 0.072, -gw / 2 + 0.006, gw / 2 - 0.006, matte(0x22262c), 0.004); // Rückbank
   k.rbox(-h + 0.018, h - 0.075, yr - 0.003, yr + 0.004, -gw / 2 - 0.001, gw / 2 + 0.001, body, 0.0035);
   k.side([[-0.006, 0.059], [0.003, 0.059], [0.001, yr - 0.002], [-0.006, yr - 0.002]], gw / 2 + 0.0004, body);
   k.side([[-h + 0.006, 0.06], [-h + 0.03, 0.06], [-h + 0.024, yr - 0.002], [-h + 0.018, yr - 0.002]], gw / 2 + 0.0004, body);
@@ -1207,7 +1238,7 @@ function policeCar(k, g) {
     m.color.set(POLICE_BLUE);
     return m;
   });
-  for (const m of [new THREE.Mesh(G.body, bm), new THREE.Mesh(G.detail, G.mats[1]), new THREE.Mesh(G.glass, G.glassMat), new THREE.Mesh(G.decal, G.decalMat)]) {
+  for (const m of [new THREE.Mesh(G.body, bm), new THREE.Mesh(G.detail, G.mats[1]), new THREE.Mesh(G.glass, G.glassMat), new THREE.Mesh(G.glass, G.inner), new THREE.Mesh(G.decal, G.decalMat)]) {
     m.castShadow = true;
     g.add(m);
   }
@@ -1294,7 +1325,7 @@ function jetBridge(k, g) {
     tk.box(0, 1, 0.012, H - 0.012, -W / 2, W / 2, jbPanel());
     tk.box(0, 1, 0, 0.014, -W / 2 - 0.002, W / 2 + 0.002, dark); // Boden/Unterzug
     tk.box(0, 1, H - 0.014, H, -W / 2 - 0.003, W / 2 + 0.003, white); // Dachkante
-    for (const s of [-1, 1]) tk.box(0.02, 0.98, H * 0.42, H * 0.78, s * (W / 2) - 0.0012, s * (W / 2) + 0.0012, glass());
+    for (const s of [-1, 1]) tk.box(0.02, 0.98, H * 0.42, H * 0.78, s * (W / 2) - 0.0012, s * (W / 2) + 0.0012, glassHall());
     tk.box(-0.004, 0.012, -0.002, H + 0.002, -W / 2 - 0.004, W / 2 + 0.004, matte(0x9aa3ad)); // Stoßring
     const t = tk.build();
     t.name = 'jbS' + i;
@@ -1316,8 +1347,8 @@ function jetBridge(k, g) {
   // Kabine: Kasten mit Fenstern, Faltenbalg vorn (zum Flugzeug), Dach mit Leuchte; Treppe an der Seite
   const kk = new Kit(), C = JB.cab, cw = 0.17, chh = 0.16;
   kk.rbox(-C, C - 0.02, 0, chh, -cw / 2, cw / 2, white, 0.008);
-  for (const s of [-1, 1]) kk.box(-C + 0.02, C - 0.04, chh * 0.42, chh * 0.8, s * cw / 2 - 0.0012, s * cw / 2 + 0.0012, glass());
-  kk.box(-C - 0.0012, -C + 0.0012, chh * 0.4, chh * 0.8, -cw / 2 + 0.02, cw / 2 - 0.02, glass());
+  for (const s of [-1, 1]) kk.box(-C + 0.02, C - 0.04, chh * 0.42, chh * 0.8, s * cw / 2 - 0.0012, s * cw / 2 + 0.0012, glassHall());
+  kk.box(-C - 0.0012, -C + 0.0012, chh * 0.4, chh * 0.8, -cw / 2 + 0.02, cw / 2 - 0.02, glassHall());
   // Faltenbalg wie ein Schlauch: Rippen als umgedrehtes U, nach vorn zum Rumpf hin abgesenkt und schmaler – die Haube
   // legt sich über die Tür an den gewölbten Rumpf (vorn ragt sie etwas in ihn hinein)
   const bell = matte(0x26292e), NR = 7;
@@ -1584,7 +1615,7 @@ export function carGeos(kind = 'sedan') {
     return g;
   });
   if (!CAR_MATS) CAR_MATS = [new THREE.MeshPhongMaterial({ color: 0xffffff, map: wearTex(), shininess: 80, specular: 0x4a4a4a }), new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 90, specular: 0x47515c })];
-  const out = { body: all(body), detail: mergeGeometries(parts), glass: glassGeo, glassMat: glassMat(), mats: CAR_MATS, len: 2 * h, hgt: Math.max(F1[1], B1[1]), decal, decalMat: decal && policeText() };
+  const out = { body: all(body), detail: mergeGeometries(parts), glass: glassGeo, glassMat: glassMat(), inner: glassBack(), mats: CAR_MATS, len: 2 * h, hgt: Math.max(F1[1], B1[1]), decal, decalMat: decal && policeText() };
   CARS.set(kind, out);
   return out;
 }
@@ -1597,8 +1628,8 @@ export function carInstances(n, rnd = Math.random, kinds = null) {
   const M = {};
   for (const [k, cnt] of by) {
     const G = carGeos(k);
-    M[k] = { body: new THREE.InstancedMesh(G.body, G.mats[0], cnt), det: new THREE.InstancedMesh(G.detail, G.mats[1], cnt), gl: G.glass ? new THREE.InstancedMesh(G.glass, G.glassMat, cnt) : null, dec: G.decal ? new THREE.InstancedMesh(G.decal, G.decalMat, cnt) : null, n: 0 };
-    for (const m of [M[k].body, M[k].det, M[k].gl, M[k].dec]) if (m) (m.frustumCulled = false), group.add(m);
+    M[k] = { body: new THREE.InstancedMesh(G.body, G.mats[0], cnt), det: new THREE.InstancedMesh(G.detail, G.mats[1], cnt), gl: G.glass ? new THREE.InstancedMesh(G.glass, G.glassMat, cnt) : null, inn: G.glass ? new THREE.InstancedMesh(G.glass, G.inner, cnt) : null, dec: G.decal ? new THREE.InstancedMesh(G.decal, G.decalMat, cnt) : null, n: 0 };
+    for (const m of [M[k].body, M[k].det, M[k].gl, M[k].inn, M[k].dec]) if (m) (m.frustumCulled = false), group.add(m);
   }
   const col = new THREE.Color();
   pick.forEach((p, i) => {
@@ -1613,12 +1644,14 @@ export function carInstances(n, rnd = Math.random, kinds = null) {
       X.body.setMatrixAt(j, mx);
       X.det.setMatrixAt(j, mx);
       if (X.gl) X.gl.setMatrixAt(j, mx);
+      if (X.inn) X.inn.setMatrixAt(j, mx);
       if (X.dec) X.dec.setMatrixAt(j, mx);
     },
     update() {
       for (const X of Object.values(M)) {
         X.body.instanceMatrix.needsUpdate = X.det.instanceMatrix.needsUpdate = true;
         if (X.gl) X.gl.instanceMatrix.needsUpdate = true;
+        if (X.inn) X.inn.instanceMatrix.needsUpdate = true;
         if (X.dec) X.dec.instanceMatrix.needsUpdate = true;
         if (X.body.instanceColor) X.body.instanceColor.needsUpdate = true;
       }
