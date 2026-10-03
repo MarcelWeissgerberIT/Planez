@@ -705,17 +705,21 @@ export class MapRenderer {
     }
     for (const strip of state.upgrades.rwy2 ? ['N', 'S'] : ['N']) {
       if (!runwayClosed(state, strip)) continue;
+      // Sperrkreuze wie in echt nur bei längerer, geplanter Sperrung (Bauarbeiten, Übung, Mähen) – kurze
+      // Kontrollen, Vogelvergrämung oder Schneeräumung sperrt allein der Turm
+      const works = p && (p.strip || 'N') === strip;
+      if (!works && !(state.rwyClosedUntil > state.time && (state.rwyClosedMin || 0) >= 25)) continue;
       const rw = stripGeom(strip);
-      // weiße Sperrkreuze
-      ctx.strokeStyle = 'rgba(255,255,255,0.92)';
-      ctx.lineWidth = 0.28;
+      // weiße Sperrkreuze hinter den Schwellen und in der Bahnmitte (nicht über der Bahnkennung)
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.lineWidth = 0.2;
       ctx.lineCap = 'butt';
-      for (const cx of [rw.x0 + 6, rw.x1 - 6, (rw.x0 + rw.x1) / 2]) {
+      for (const cx of [rw.x0 + 11, rw.x1 - 11, (rw.x0 + rw.x1) / 2]) {
         ctx.beginPath();
-        ctx.moveTo(cx - 1.4, rw.y - 0.85);
-        ctx.lineTo(cx + 1.4, rw.y + 0.85);
-        ctx.moveTo(cx - 1.4, rw.y + 0.85);
-        ctx.lineTo(cx + 1.4, rw.y - 0.85);
+        ctx.moveTo(cx - 1.1, rw.y - 0.7);
+        ctx.lineTo(cx + 1.1, rw.y + 0.7);
+        ctx.moveTo(cx - 1.1, rw.y + 0.7);
+        ctx.lineTo(cx + 1.1, rw.y - 0.7);
         ctx.stroke();
       }
     }

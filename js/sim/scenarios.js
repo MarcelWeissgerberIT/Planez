@@ -25,7 +25,7 @@ function rushWave(s, i) {
     return;
   }
   const n = Math.max(1, 1 + Math.floor(i / 3) - (sc.minus || 0));
-  const gap = sc.spread ? 160 : 90;
+  const gap = sc.spread ? 240 : 150; // Landungen belegen die Bahn rund zwei Minuten
   const cs = s.contracts.filter((c) => !c.cargo && AC_TYPES[c.type] && AC_TYPES[c.type].size !== 'L' && AIRLINES[c.airline]);
   if (!cs.length) return;
   for (let k = 0; k < n; k++) {
@@ -262,7 +262,7 @@ export const SCENARIOS = [
     script: Array.from({ length: 31 }, (_, i) => ({ at: (i + 1) * 15 * 60, run: (s) => rushWave(s, i) })),
     goals: [
       { text: T('Überstandene Minuten'), key: 'mins', t: [90, 180, 300] },
-      { text: T('Bewegungen (Landungen + Starts)'), key: 'mov', t: [30, 60, 100] },
+      { text: T('Bewegungen (Landungen + Starts)'), key: 'mov', t: [25, 50, 85] },
     ],
     fail: (m, s) => (m.incidents >= shiftLimit(s) ? T`${m.incidents} Vorfälle – die Schicht wurde abgelöst.` : null),
   },
@@ -443,7 +443,7 @@ function recordDaily(key, stars) {
 export function applyScenario(state, def) {
   def.setup && def.setup(state);
   state.eventTimer = def.dur + 6 * H; // keine zufälligen Großereignisse – das Drehbuch bestimmt
-  state.speed = def.role === 'manager' ? 10 : 1;
+  state.speed = def.role === 'manager' ? 20 : 1;
   state.scenario = { id: def.id, side: !!def.side, start: state.time, end: state.time + def.dur, base: { ...(state.life || {}) }, acc: {}, last: { ...state.stats.today }, fired: 0, done: false, result: null };
   log(state, 'sys', T`Herausforderung „${def.title}“ beginnt.`);
   return state;

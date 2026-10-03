@@ -1,5 +1,5 @@
 // Pistenfolge: gemeinsame Reihenfolge von Landungen und Starts (vom Lotsen änderbar)
-import { PH } from './aircraft.js';
+import { PH, landingRot, takeoffPerf } from './aircraft.js';
 import * as AS from './airspace.js';
 import { pathLength } from '../util.js';
 import { wakeArrSec, wakeDepSec } from './wake.js';
@@ -52,11 +52,13 @@ function rawEta(state, ac) {
 }
 
 // Mindestabstände auf der Piste in Spielsekunden (vorher -> nachher), Wirbelschleppen berücksichtigt
+// Landung → Landung: Wirbelschleppe, aber mindestens so lange, wie der Vordermann die Bahn belegt; Landung → Start:
+// erst nach dem Abrollen; Start → Landung: der Startlauf muss vorbei sein
 const SEP = { AD: 45, DA: 100 };
 export function sepSec(lead, foll, leadArr, follArr) {
-  if (leadArr && follArr) return wakeArrSec(lead.wake, foll.wake);
+  if (leadArr && follArr) return Math.max(wakeArrSec(lead.wake, foll.wake), Math.round(landingRot(lead.type) + 15));
   if (!leadArr && !follArr) return depSepSec(lead.wake, lead.sid, foll.wake, foll.sid) + 15;
-  return leadArr ? SEP.AD : SEP.DA;
+  return leadArr ? Math.max(SEP.AD, Math.round(landingRot(lead.type) + 5)) : Math.max(SEP.DA, Math.round(takeoffPerf(lead.type).occ + 20));
 }
 
 // Bahn in der Pistenfolge: Landungen auf ihrer Bahn, Starts immer Nord

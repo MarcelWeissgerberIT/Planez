@@ -509,9 +509,23 @@ function updateMap(state, ac, dt) {
       ac.x += d * ac.v * dt;
       const rem = (tdx - ac.x) * d;
       ac.z = Math.max(0, rem * 0.075);
+      // früh durchstarten, wenn ein Abflug die Bahn sichtbar noch länger belegt (rollt auf, steht bereit oder ist mitten
+      // im Startlauf und nicht rechtzeitig weg) – nicht erst knapp über ihm
+      if (!ac.decided && rem < 16 && rem >= 7) {
+        const b = runwayBlocker(state, ac);
+        if (b && (b.phase === PH.LINEUP || b.phase === PH.LINED || (b.phase === PH.TAKEOFF && takeoffLeft(b) > rem / Math.max(0.1, ac.v)))) {
+          ac.decided = true;
+          goAround(state, ac, T`Piste belegt durch ${b.cs}`);
+          if (ac.clr.landGivenBlocked) penalize(state, 'incursion', ac);
+          return;
+        }
+      }
       if (!ac.decided && rem < 7) {
-        ac.decided = true;
         let blk = runwayBlocker(state, ac);
+        // Vorausfliegender rollt schon in den Abrollweg und ist gleich hinter der Haltelinie: Entscheidung bis kurz
+        // vor die Schwelle aufschieben statt sofort durchzustarten (vorausschauende Staffelung wie im echten Turm)
+        if (blk && blk.phase === PH.ROLLOUT && rem > 2.2 && blk.v > 0.05 && Math.abs(blk.y - stripGeom(blk.strip).y) > 0.3) break;
+        ac.decided = true;
         const closed = runwayClosed(state, ac.strip || 'N');
         // „Landung hinter rollendem Verkehr“ (an kleinen Plätzen üblich): ein leichtes Flugzeug darf aufsetzen, wenn der
         // ausrollende Sportflieger vor ihm schon über 280 m weiter die Bahn hinunter ist
@@ -533,17 +547,35 @@ function updateMap(state, ac, dt) {
         ac.decided = false;
         const south = ac.strip === 'S';
         const exits = south ? LY.exitsAheadS(ac.rwy) : LY.exitsAhead(ac.rwy, t.light ? 2.5 : undefined);
-        const decel = (t.wake === 'H' ? 0.0062 : 0.0082) * (t.light ? 1.5 : 1) * (state.upgrades.rapidExit ? 1.12 : 1) * decelFactor(state, ac.strip || 'N') * randRange(state, 0.85, 1.12);
-        const ve = state.upgrades.rapidExit ? 0.16 : 0.12;
+        // Bremsen nach dem Aufsetzen: Verkehrsflugzeuge rollen lang aus (Mittelstrecke ≈ 400 m, schwere ≈ 650 m)
+        const decel = (t.light ? 0.0123 : t.wake === 'H' ? 0.0031 : 0.0041) * (state.upgrades.rapidExit ? 1.12 : 1) * decelFactor(state, ac.strip || 'N') * randRange(state, 0.85, 1.12);
+        const ve = state.upgrades.rapidExit ? 0.19 : t.light ? 0.12 : 0.15; // Abrollgeschwindigkeit (Schnellabrollweg: höher)
         const need = (ac.v * ac.v - ve * ve) / (2 * decel);
-        let ex = exits.find((x) => Math.abs(x - tdx) >= need) ?? exits[exits.length - 1];
+        // Abrollweg, an dessen Ende schon jemand wartet (oder gerade hinrollt), überspringen – sonst stehen zwei
+        // Flugzeuge übereinander auf dem Rollweg
+        const busy = (x) => {
+          if (south) return false;
+          const p = LY.pathRollout(ac.rwy, x, ac.len), e = p[p.length - 1];
+          return state.acs.some((o) => o !== ac && o.mode === 'map' && ((o.phase === PH.ROLLOUT && o.exitX === x) || ((o.phase === PH.VACATED || o.phase === PH.TAXI_IN) && Math.hypot(o.x - e.x, o.y - e.y) < 0.5 * (o.len + ac.len))));
+        };
+        let ex = exits.find((x) => Math.abs(x - tdx) >= need && !busy(x)) ?? exits.find((x) => Math.abs(x - tdx) >= need) ?? exits[exits.length - 1];
         ac.exitX = ex;
         ac.decel = decel;
         ac.ve = ve;
         if (south) {
           ac.crossX = LY.crossingFor(ac.rwy, ex);
           ac.path = LY.pathRolloutS(ac.rwy, ex, ac.len, ac.crossX);
-        } else ac.path = LY.pathRollout(ac.rwy, ex, ac.len);
+        } else {
+          ac.path = LY.pathRollout(ac.rwy, ex, ac.len);
+          // Ende des Abrollwegs besetzt (z. B. der letzte Abrollweg für schwere Flugzeuge): auf Rollweg A dahinter aufrücken
+          const endOf = (q) => (q.phase === PH.ROLLOUT && q.path ? q.path[q.path.length - 1] : q);
+          for (let k = 0; k < 3; k++) {
+            const e = ac.path[ac.path.length - 1], pr = ac.path[ac.path.length - 2];
+            const o = state.acs.find((q) => q !== ac && q.mode === 'map' && [PH.ROLLOUT, PH.VACATED, PH.TAXI_IN].includes(q.phase) && Math.hypot(endOf(q).x - e.x, endOf(q).y - e.y) < 0.5 * (q.len + ac.len));
+            if (!o) break;
+            ac.path.push({ x: e.x + (Math.sign(e.x - pr.x) || 1) * (0.5 * (o.len + ac.len) + 0.3), y: e.y });
+          }
+        }
         ac.pi = 0;
         ac.x = ac.path[0].x;
         ac.y = ac.path[0].y;
@@ -590,7 +622,7 @@ function updateMap(state, ac, dt) {
         ac.v = Math.max(ac.ve, ac.v - ac.decel * 0.5 * dt);
         advance(state, ac, dt, ac.v, false, true);
       } else {
-        const done = followPath(state, ac, dt, 0.12);
+        const done = followPath(state, ac, dt, ac.vacated ? 0.12 : Math.max(0.12, ac.ve || 0.12)); // zügig von der Bahn, dann Rollgeschwindigkeit
         const clearY = ac.strip === 'S' ? LY.RWY_S.y - LY.RWY_S.hw - 0.9 : LY.HOLD_Y + 0.15;
         if (!ac.vacated && ac.y + ac.len * 0.5 < clearY) {
           ac.vacated = true;
@@ -608,11 +640,19 @@ function updateMap(state, ac, dt) {
             if (!state.auto.atc) radio(state, ac.cs, `${tel(ac)}, holding short runway ${rwyName(state, 'N', ac.rwy)}, request crossing.`);
           } else if (ac.clr.taxi && ac.stand) startTaxiIn(state, ac);
           else if (!ac.stand) {
-            // ohne Parkposition zur Warteposition am Rollweg-Ende rollen
-            const slot = state.acs.filter((o) => o !== ac && o.phase === PH.TAXI_WAIT).length;
+            // ohne Parkposition zur Warteposition am Rollweg-Ende rollen – hinter die, die dort schon warten oder
+            // hinrollen (nach deren Länge), statt auf denselben Platz
+            const side = ac.rwy === '27' ? 1 : -1, base = LY.waitSpotX(ac.rwy, ac.len, 0) - side * ac.len / 2;
+            let edge = base;
+            for (const o of state.acs) {
+              if (o === ac || o.waitX == null || o.waitSide !== side || ![PH.TAXI_WAIT, PH.VACATED].includes(o.phase)) continue;
+              edge = side > 0 ? Math.max(edge, o.waitX + o.len / 2 + 0.8) : Math.min(edge, o.waitX - o.len / 2 - 0.8);
+            }
+            ac.waitX = edge + side * ac.len / 2;
+            ac.waitSide = side;
             ac.waitedStand = true;
             ac.phase = PH.TAXI_WAIT;
-            ac.path = LY.pathToWait(ac.x, ac.rwy, ac.len, Math.min(slot, 1));
+            ac.path = LY.pathToWait(ac.x, ac.rwy, ac.len, 0, ac.waitX);
             ac.path[0] = { x: ac.x, y: ac.y };
             ac.pi = 0;
             setReq(state, ac, 'taxi_in');
@@ -772,8 +812,9 @@ function updateMap(state, ac, dt) {
 
 // Startleistung je Muster: Rotiergeschwindigkeit vr (Kacheln/s; ×323 = kt), Beschleunigung am Boden a, Zeit bis vr,
 // Steiggradient und Pistenbelegung occ (s vom Anrollen bis 0,4 über der Bahn). Vr steigt mit dem Gewicht (Regionaljet
-// ≈ 120 kt, Mittelstrecke ≈ 145 kt, Superjumbo ≈ 165 kt), der Startlauf dauert länger (≈ 38 s … 85 s) und wird deutlich länger
-// (≈ 7 … 22 Kacheln), schwere Flugzeuge steigen flacher. Sportflugzeuge und Lufttaxi (vmax) wie bisher.
+// ≈ 120 kt, Mittelstrecke ≈ 145 kt, Superjumbo ≈ 165 kt), der Startlauf dauert länger (≈ 75 s … 170 s, bei 1× rund
+// 10 … 23 s) und wird deutlich länger (≈ 14 … 44 Kacheln, also 270 … 870 m), schwere Flugzeuge steigen flacher.
+// Sportflugzeuge und Lufttaxi (vmax) wie bisher.
 const PERF = new Map();
 export function takeoffPerf(type) {
   let p = PERF.get(type);
@@ -785,12 +826,23 @@ export function takeoffPerf(type) {
   } else {
     const lm = Math.log2(Math.max(5, t.mtow) / 20);
     const vr = Math.min(175, t.vapp * (1 + 0.04 * lm)) / 323;
-    const roll = clamp(38 + 10 * Math.log2(Math.max(5, t.mtow) / 23), 34, 88);
+    const roll = clamp(76 + 20 * Math.log2(Math.max(5, t.mtow) / 23), 68, 176);
     p = { vr, a: vr / roll, roll, grad: clamp(0.125 - 0.009 * lm, 0.075, 0.12), vmax: 0.75 };
   }
   p.occ = p.roll + 0.4 / (p.grad * p.vr);
   PERF.set(type, p);
   return p;
+}
+// Pistenbelegung einer Landung in Sekunden (Ausrollen bis zur Abrollgeschwindigkeit, dann Abrollen von der Bahn)
+export function landingRot(type) {
+  const t = AC_TYPES[type], v = t.vapp * 0.0031, decel = t.light ? 0.0123 : t.wake === 'H' ? 0.0031 : 0.0041, ve = t.light ? 0.12 : 0.15;
+  return Math.max(0, v - ve) / decel + 3.6 / ve;
+}
+// Sekunden, bis ein startendes Flugzeug 0,4 über der Bahn ist (dann gilt die Piste als frei)
+function takeoffLeft(b) {
+  const p = takeoffPerf(b.type);
+  if (b.z > 0) return Math.max(0, 0.4 - b.z) / Math.max(0.05, b.v * p.grad);
+  return Math.max(0, p.vr - b.v) / p.a + 0.4 / (p.grad * p.vr);
 }
 // zusätzlicher Abstand (NM) zur nächsten Landung, den ein langer Startlauf braucht (Bezug: 48 s Pistenbelegung,
 // Anflug mit rund 140 kt ≈ 0,04 NM/s)
@@ -1040,8 +1092,11 @@ function resolveDeadlocks(state) {
     const b = byId.get(a.blockedBy);
     if (!b) continue;
     const mutual = b.blockedBy === a.id && a.blockedT > 12 && b.blockedT > 12;
-    const stuckOnParked = a.blockedT > 120 && [PH.STAND, PH.STARTUP, PH.VACATED, PH.HOLDING].includes(b.phase) && b.v === 0 && !b.blockedBy;
-    const longStuck = a.blockedT > 400;
+    // Schlange vor dem Rollhalt: hinter einem Abflug zur selben Piste wird gewartet, nicht hindurchgerollt (sonst
+    // stehen am Ende zwei Flugzeuge übereinander am Haltepunkt)
+    const queue = a.phase === PH.TAXI_OUT && [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(b.phase) && a.rwy === b.rwy;
+    const stuckOnParked = !queue && a.blockedT > 120 && [PH.STAND, PH.STARTUP, PH.VACATED, PH.HOLDING].includes(b.phase) && b.v === 0 && !b.blockedBy;
+    const longStuck = a.blockedT > (queue ? 1800 : 400);
     if (mutual || stuckOnParked || longStuck) {
       const loser = mutual ? (a.id < b.id ? a : b) : a;
       // Hinweis an den Spieler: Rollverkehr hat sich verkeilt (die Simulation löst es auf, der eine rollt vorbei)

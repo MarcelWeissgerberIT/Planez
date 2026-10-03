@@ -435,7 +435,7 @@ function clearNextApproach(state, cands, distCleared, departuresWaiting, order =
     // Wirbelschleppen: Mehrabstand hinter schweren Flugzeugen
     // Grundabstand: zwischen zwei Kleinflugzeugen reichen 3,5 NM (bei 65–110 kt rund zwei Minuten), mit einem 5 NM
     const lL = AC_TYPES[lead.type].light, lF = AC_TYPES[foll.type].light;
-    let sep = (lL && lF ? 3.5 : lL || lF ? 5 : 7) + fast + (wakeNm(lead.wake, foll.wake) - 3) * 1.3 + (state.weather.kind === 'fog' ? 2.5 : 0);
+    let sep = (lL && lF ? 3.5 : lL || lF ? 5 : 7.8) + fast + (wakeNm(lead.wake, foll.wake) - 3) * 1.3 + (state.weather.kind === 'fog' ? 2.5 : 0);
     if (departuresWaiting > 0) sep += 2.5 + depExtra;
     if (Math.abs(next.d - d) < sep) return null;
     if (next.d < d) return null; // nicht vordrängeln
@@ -590,8 +590,9 @@ function autoArrivals(state) {
       f.spdOverride = Math.max(AC_TYPES[f.type].vapp + 5, Math.round(seq[i - 1].a.spd + 10));
       continue;
     }
-    if (gap < 6.2 + extra && f.spdOverride !== 160) f.spdOverride = 160;
-    else if (gap > 8.5 + extra && f.spdOverride) f.spdOverride = null;
+    // Landungen belegen die Bahn rund zwei Minuten: im Endanflug gut 7 NM Abstand halten
+    if (gap < 7 + extra && f.spdOverride !== 160) f.spdOverride = 160;
+    else if (gap > 9.3 + extra && f.spdOverride) f.spdOverride = null;
   }
   }
 }

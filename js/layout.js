@@ -268,8 +268,8 @@ export function waitSpotX(rwy, len, slot = 0) {
   if (rwy === '27') return RWY.thr['09'] + len / 2 + 0.6 + slot * (len + 0.8);
   return RWY.thr['27'] - len / 2 - 0.6 - slot * (len + 0.8);
 }
-export function pathToWait(fromX, rwy, len, slot = 0) {
-  const x = waitSpotX(rwy, len, slot);
+export function pathToWait(fromX, rwy, len, slot = 0, at = null) {
+  const x = at ?? waitSpotX(rwy, len, slot);
   return roundedPath([P(fromX, TWY_A), P(x, TWY_A)], 1, 0.2);
 }
 

@@ -3,7 +3,7 @@ import { IS_DEMO, DEMO } from '../edition.js';
 import { SHIFT_BONI, shiftLimit, SCENARIOS, scenarioById, scenarioLive, loadBest, unlocked, goalValue, goalNeed, totalStars, dailyKey, dailyDef, dailyInfo, dailyLabel, MUTATORS } from '../sim/scenarios.js';
 import { ROLES } from '../state.js';
 import { esc } from '../util.js';
-import { TIME_SCALE } from '../config.js';
+import { TIME_SCALE, DEFAULT_SPEED } from '../config.js';
 import { CHAPTERS, chapterOf, chapterDone, chapterOpen, campaignProgress } from '../sim/campaign.js';
 import { CHAIR } from '../sim/board.js';
 import { T, DEC, LOCALE } from '../i18n.js';
@@ -16,7 +16,7 @@ const hm = (sec) => {
 };
 const durText = (def) => (def.endless ? T`endlos · bis ${hm(def.dur)}` : def.dur >= 86400 ? T`${Math.round(def.dur / 86400)} Spieltage` : T`${hm(def.dur)} Spielzeit`);
 // echte Minuten bei Standardtempo
-const realMin = (def) => Math.round(def.dur / TIME_SCALE / (def.role === 'manager' ? 10 : 1) / 60);
+const realMin = (def) => Math.round(def.dur / TIME_SCALE / (DEFAULT_SPEED[def.role] || 1) / 60);
 
 // ---------- Hauptmenü ----------
 export function scenarioListHtml() {
