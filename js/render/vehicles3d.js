@@ -1285,6 +1285,17 @@ function beltLoader(k, g, body) {
   bk.cyl(L, -0.001, 0, 0.006, bw + 0.012, 'z', black, 10);
   const belt = bk.build();
   belt.name = 'belt';
+  // Koffer und Taschen auf dem Band (in poseVehicle bewegt, nur bei hochgefahrenem Band an der Frachttür)
+  const BAGS = [[0x1f2937, 0.028, 0.019], [0xb91c1c, 0.024, 0.016], [0x1e3a8a, 0.03, 0.018], [0x9ca3af, 0.022, 0.015], [0x065f46, 0.028, 0.02]];
+  BAGS.forEach(([c, l, hgt], i) => {
+    const ck = new Kit(), wz = i % 2 ? 0.03 : 0.036;
+    ck.rbox(-l / 2, l / 2, 0.0074, 0.0074 + hgt, -wz / 2, wz / 2, paint(c, 40), 0.003);
+    ck.box(-0.003, 0.003, 0.0074 + hgt, 0.0074 + hgt + 0.0025, -0.006, 0.006, matte(0x111111)); // Griff
+    const bag = ck.build();
+    bag.name = 'bag';
+    bag.visible = false;
+    belt.add(bag);
+  });
   belt.position.set(BELT.px, BELT.y, 0.018);
   belt.rotation.z = 0.04;
   g.add(belt);
@@ -1687,7 +1698,9 @@ export function vehParts(m) {
     m.traverse((o) => o.name === 'bcn' && bcn.push(o));
     const sides = [];
     m.traverse((o) => o.name === 'busSide' && sides.push(o));
-    m.__parts = { sides: sides.length ? sides : null, load: 0, bcn, hl: n('hl'), tl: n('tl'), lift: n('lift'), scis: n('scis'), plat: n('plat'), belt: n('belt'), jb: n('jbRot') && { rot: n('jbRot'), s: [n('jbS0'), n('jbS1'), n('jbS2')], col: n('jbCol'), bogie: n('jbBogie'), cab: n('jbCab'), stairs: n('jbStairs') }, tur: n('tur'), boom: n('boom'), bask: n('bask'), spray: n('spray'), ramp: n('ramp'), stp: n('stp'), tbar: n('tbar') && { g: n('tbar'), t: n('tbarT'), h: n('tbarH') }, bar: 0, u: 0, yaw: 0, top: 0.12 };
+    const bags = [];
+    m.traverse((o) => o.name === 'bag' && bags.push(o));
+    m.__parts = { sides: sides.length ? sides : null, load: 0, bcn, hl: n('hl'), tl: n('tl'), lift: n('lift'), scis: n('scis'), plat: n('plat'), belt: n('belt'), jb: n('jbRot') && { rot: n('jbRot'), s: [n('jbS0'), n('jbS1'), n('jbS2')], col: n('jbCol'), bogie: n('jbBogie'), cab: n('jbCab'), stairs: n('jbStairs') }, tur: n('tur'), boom: n('boom'), bask: n('bask'), spray: n('spray'), ramp: n('ramp'), stp: n('stp'), tbar: n('tbar') && { g: n('tbar'), t: n('tbarT'), h: n('tbarH') }, bar: 0, bags: bags.length ? bags : null, bagPh: -1, u: 0, yaw: 0, top: 0.12 };
   }
   return m.__parts;
 }
@@ -1760,6 +1773,19 @@ export function poseVehicle(state, v, m, dt, now) {
     P.u = v.lift ?? 0;
     P.belt.rotation.z = 0.04 + (th - 0.04) * P.u;
     P.belt.scale.x = 1 + (len / BELT.len - 1) * P.u; // hohe Frachttüren: Band fährt aus
+    if (P.bags) {
+      // Koffer laufen mit 0,5 m/s (Echtzeit) über das Band: beim Entladen hinunter, beim Beladen hinauf; in 10 Schritten
+      // je Abstand (die Karte rendert das Bild nur bei einer neuen Stellung neu)
+      const on = P.u > 0.97 && !!v.dir, sc = P.belt.scale.x, L = BELT.len, sp = L / P.bags.length;
+      P.bagPh = on ? Math.floor((((now * 0.025) / sc) % sp) / (sp / 10)) * (sp / 10) : -1;
+      P.bags.forEach((b, i) => {
+        b.visible = on;
+        if (!on) return;
+        const u = i * sp + P.bagPh;
+        b.position.x = v.dir > 0 ? u : L - u;
+        b.scale.x = 1 / sc; // Band gestreckt, Koffer nicht
+      });
+    }
   }
   if (P.tbar) {
     // Schleppstange: am Flugzeug (wartend und beim Pushback) von der Kupplung bis zum Bugrad (0,36 L vor der Mitte;
@@ -1773,5 +1799,5 @@ export function poseVehicle(state, v, m, dt, now) {
     }
   }
   if (P.sides) setBusLoad(m, busLoad(v, state.time));
-  return `${P.u.toFixed(2)}|${P.top.toFixed(3)}|${P.yaw.toFixed(2)}|${P.load}|${P.bar.toFixed(2)}|${P.jb ? `${(v.len ?? 0).toFixed(2)}|${(v.h1 ?? 0).toFixed(3)}|${(v.cab ?? 0).toFixed(2)}` : ''}`;
+  return `${P.u.toFixed(2)}|${P.top.toFixed(3)}|${P.yaw.toFixed(2)}|${P.load}|${P.bar.toFixed(2)}|${P.bagPh >= 0 ? P.bagPh.toFixed(4) + (v.dir ?? '') : ''}|${P.jb ? `${(v.len ?? 0).toFixed(2)}|${(v.h1 ?? 0).toFixed(3)}|${(v.cab ?? 0).toFixed(2)}` : ''}`;
 }

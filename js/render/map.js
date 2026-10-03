@@ -8,7 +8,7 @@ import { gaLifeItems } from './galife.js';
 import { busPaxItems } from './buspax.js';
 import { carPaint, carKind, hash01, POLICE_BLUE } from './cars.js';
 import { stairsTop as doorTop } from '../acshape.js';
-import { vehVsAc } from './occlude.js';
+import { vehVsAc, vehOrder, acParts, personBox } from './occlude.js';
 import { beltLoaders } from './beltloader.js';
 import { jetBridges } from './jetbridge.js';
 import { drawApronBus, drawStairsTruck, boxShadow, stairsSize } from './gse2d.js';
@@ -468,6 +468,8 @@ export class MapRenderer {
     plowItems(this, state, items, lights);
     infraItems(this, state, items, lights, night);
     deiceFx(this, state, items);
+    // Personen (p: Standort) unter Tragfläche, Leitwerk oder Rumpf eines stehenden Flugzeugs vor ihm zeichnen
+    for (const it of items) if (it.p) it.d = personDepth(it.p[0], it.p[1], parked, it.d);
     items.sort((a, b) => a.d - b.d);
     for (const it of items) it.f();
     this.drawFireSpray(state);
@@ -854,13 +856,13 @@ export class MapRenderer {
       for (const sgn of [-1, 1]) {
         const a = 0.55 + i * 0.3;
         const px = door.x + lx * a + fx * sgn * 0.3, py = door.y + ly * a + fy * sgn * 0.3;
-        items.push({ d: px + py, f: () => drawPerson(this, px, py, '#3f4a3c', 1, false, 0, false) });
+        items.push({ d: px + py, p: [px, py], f: () => drawPerson(this, px, py, '#3f4a3c', 1, false, 0, false) });
       }
     }
     const COM = ['#111827', '#7f1d1d', '#111827'];
     COM.forEach((c, i) => {
       const px = end.x + lx * 0.15 + fx * (i - 1) * 0.22, py = end.y + ly * 0.15 + fy * (i - 1) * 0.22;
-      items.push({ d: px + py, f: () => drawPerson(this, px, py, c, 1, false, t + i, false) });
+      items.push({ d: px + py, p: [px, py], f: () => drawPerson(this, px, py, c, 1, false, t + i, false) });
     });
   }
 
@@ -1895,7 +1897,7 @@ export class MapRenderer {
         const seg = u * (pts.length - 1), i0 = Math.min(pts.length - 2, Math.floor(seg)), f = seg - i0;
         const px = pts[i0].x + (pts[i0 + 1].x - pts[i0].x) * f, py = pts[i0].y + (pts[i0 + 1].y - pts[i0].y) * f;
         const col = ['#1e3a8a', '#7c2d12', '#334155', '#be123c', '#065f46', '#6d28d9'][k % 6];
-        items.push({ d: px + py, f: () => drawPerson(this, px, py, col, 1, false, this.time + k, u < 1) });
+        items.push({ d: px + py, p: [px, py], f: () => drawPerson(this, px, py, col, 1, false, this.time + k, u < 1) });
       }
       if (busT > 0) {
         const bu = clamp(busT / 25, 0, 1);
@@ -1922,7 +1924,7 @@ export class MapRenderer {
           const h = ((k * 7919) % 100) / 100;
           const px = E.gx + (h - 0.5) * 2.2, py = E.gy + (((k * 104729) % 100) / 100 - 0.5) * 0.9;
           const col = ['#1e3a8a', '#7c2d12', '#334155', '#be123c', '#065f46', '#6d28d9'][k % 6];
-          items.push({ d: px + py, f: () => drawPerson(this, px, py, col, 1, false, this.time + k, false) });
+          items.push({ d: px + py, p: [px, py], f: () => drawPerson(this, px, py, col, 1, false, this.time + k, false) });
         }
         const bu = clamp(bt / 25, 0, 1);
         const away = bt > 25 + 72 ? clamp((bt - 97) / 20, 0, 1) : 0;
@@ -2460,6 +2462,19 @@ function stairsTop(state, v) {
 // Flugzeuge als 3D-Modelle (lädt three.js nach; bis dahin und im Leistungsmodus die gezeichneten Flugzeuge)
 // Zeichentiefe eines Fahrzeugs: vor oder hinter stehenden Flugzeugen einsortieren (Rumpf, Flügel und Leitwerk einzeln
 // geprüft, siehe occlude.js); die kleine Verschiebung je Abstand erhält die Reihenfolge mehrerer Fahrzeuge am selben Flugzeug
+function personDepth(x, y, parked, d0) {
+  let d = d0, lo = Infinity, hi = -Infinity;
+  for (const a of parked) {
+    const dx = x - a.x, dy = y - a.y, r = a.len * 0.62 + 0.3;
+    if (dx * dx + dy * dy > r * r) continue;
+    const o = vehOrder(personBox(x, y), acParts(a)), ad = a.x + a.y, k = (d0 - ad) * 0.005;
+    if (o < 0) lo = Math.min(lo, ad - 0.04 + k);
+    else if (o > 0) hi = Math.max(hi, ad + 0.04 + k);
+  }
+  if (hi > d) d = hi;
+  if (lo < d) d = lo;
+  return d;
+}
 function vehDepth(v, parked) {
   let d = v.x + v.y, lo = Infinity, hi = -Infinity;
   for (const a of parked) {

@@ -65,7 +65,7 @@ export function busPaxItems(r, state, items, vis) {
       // an Treppe, Bus und Tür ein- bzw. ausblenden
       const a = Math.min(1, u * 6, (1 - u) * 6);
       const col = SHIRTS[(k * 3 + (v.id.charCodeAt(v.id.length - 1) || 0)) % SHIRTS.length];
-      items.push({ d: x + y, f: () => drawPerson(r, x, y, col, a, k % 3 !== 1, now + k, true) });
+      items.push({ d: x + y, p: [x, y], f: () => drawPerson(r, x, y, col, a, k % 3 !== 1, now + k, true) });
     }
   }
 }

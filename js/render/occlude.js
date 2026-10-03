@@ -54,6 +54,9 @@ export function vehBox(v) {
   return box(v.x, v.y, Math.cos(v.hdg || 0), Math.sin(v.hdg || 0), L / 2, (VW[v.type] || 0.12) / 2, 0, VH[v.type] || 0.12);
 }
 
+// Person auf dem Vorfeld (≈ 0,8 × 0,8 m, 1,8 m hoch)
+export const personBox = (x, y) => box(x, y, 1, 0, 0.02, 0.02, 0, 0.09);
+
 // Sichtstrahl zum Betrachter: Punkte (x + t, y + t, z + t) liegen auf demselben Bildpunkt, t > 0 ist näher. Trifft der
 // Strahl von p aus den Quader b?
 function hits(b, px, py, pz) {

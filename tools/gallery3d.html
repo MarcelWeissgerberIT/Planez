@@ -8,7 +8,7 @@ import { buildVehicle, vehParts, poseVehicle, STAIRS_3D, carInstances } from '..
 import { servicePoint } from '../js/layout.js';
 import { buildAircraft } from '../js/render/model3d.js';
 import { AIRLINES, AC_TYPES } from '../js/config.js';
-import { stairsGeom } from '../js/acshape.js';
+import { stairsGeom, beltDoor } from '../js/acshape.js';
 import { jetBridges } from '../js/render/jetbridge.js';
 import { STAND_NOSE } from '../js/layout.js';
 const q = new URLSearchParams(location.search);
@@ -114,7 +114,26 @@ if (q.get('tugat')) {
   vm.rotation.y = -sp.hdg;
   sc.add(vm);
 }
-const types = acs || q.get('cars') || q.get('stairsat') || q.get('busat') || q.get('jbat') || q.get('tugat') ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,stairs,deice,fire,plow,followme').split(',');
+if (q.get('beltat')) {
+  // Förderband an der hinteren Frachttür (wie render/beltloader.js atDoor), Band hochgefahren
+  const t = q.get('beltat'), ac = { id: 'a5', type: t, airline: Object.keys(AIRLINES)[3], x: 0, y: 0, hdg: -Math.PI / 2, len: AC_TYPES[t].len };
+  const m = buildAircraft(ac);
+  m.position.set(0, m.userData.H || 0.1, 0);
+  m.rotation.y = -ac.hdg;
+  sc.add(m);
+  const D = beltDoor(t, ac.len), ANG = 0.45;
+  if (D) {
+    const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg), rx = -fy, ry = fx, dx = Math.cos(ANG), dl = -Math.sin(ANG);
+    const a = D.along - dx * D.reach, l = D.lat - dl * D.reach;
+    const v = { id: 'b5', type: 'belt', x: fx * a + rx * l, y: fy * a + ry * l, hdg: Math.atan2(fy * dx + ry * dl, fx * dx + rx * dl), top: D.top, lift: +(q.get('lift') ?? 1), st: 'work', dir: +(q.get('dir') ?? -1) };
+    const vm = buildVehicle(v);
+    poseVehicle({ acs: [ac], time: 0 }, v, vm, 0, +(q.get('t') ?? 0));
+    vm.position.set(v.x, 0, v.y);
+    vm.rotation.y = -v.hdg;
+    sc.add(vm);
+  }
+}
+const types = acs || q.get('cars') || q.get('stairsat') || q.get('busat') || q.get('jbat') || q.get('tugat') || q.get('beltat') ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,stairs,deice,fire,plow,followme').split(',');
 types.forEach((t, i) => {
   const m = buildVehicle({ type: t, id: 'v' + (i * 7 + 3), name: `${t} ${i + 1}` }); // ID und Name: Werbung und Dachnummer
   const col = i % 5, row = Math.floor(i / 5);

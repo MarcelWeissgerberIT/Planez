@@ -43,12 +43,14 @@ export function beltGeom(top) {
   if (th > MAX) (th = MAX), (len = h / Math.sin(MAX));
   return { th, len, reach: BELT.px + Math.cos(th) * len };
 }
-// Förderband an der hinteren Frachttür (rechts, Steuerbord): Lage (entlang, quer) der Bandspitze und Schwellenhöhe
+// Förderband an der hinteren Frachttür (rechts, Steuerbord): Lage (entlang, quer) der Bandspitze und Schwellenhöhe.
+// Die Bandspitze liegt an der Rumpfflanke (gut ein Drittel unter der Achse), nicht unter dem Bauch – von schräg
+// oben (Karte, Turmblick) sieht man sonst nicht, dass das Band am Rumpf anliegt
 export function beltDoor(type, len) {
   const kind = SHAPE_OF[type] || 'narrow';
   if (kind === 'prop' || kind === 'biz') return null; // Turboprops und Businessjets: kein Förderband
-  const f = fuselage(type, len), top = f.axis - 0.8 * f.ry;
-  return { along: -0.3 * len, lat: 0.6 * f.rz + 0.012, top, ...beltGeom(top) };
+  const f = fuselage(type, len), k = 0.35, top = f.axis - k * f.ry;
+  return { along: -0.3 * len, lat: Math.sqrt(1 - k * k) * f.rz + 0.01, top, ...beltGeom(top) };
 }
 
 // Schwelle der vorderen Tür (gemalt von 56° bis 93° unter dem Scheitel, also knapp unter der Rumpfachse)

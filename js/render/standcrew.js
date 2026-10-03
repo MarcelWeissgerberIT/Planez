@@ -33,7 +33,7 @@ export class StandCrew {
         const fx = Math.cos(ac.hdg), fy = Math.sin(ac.hdg), rx = -fy, ry = fx;
         if (ac.phase === PH.PUSH) {
           const wx = ac.x + rx * (span * 0.5 + 0.15) - fx * L * 0.05, wy = ac.y + ry * (span * 0.5 + 0.15) - fy * L * 0.05;
-          if (visible(wx, wy)) items.push({ d: wx + wy, f: () => drawPerson(r, wx, wy, '#facc15', 1, false, now * 2, true, true) });
+          if (visible(wx, wy)) items.push({ d: wx + wy, p: [wx, wy], f: () => drawPerson(r, wx, wy, '#facc15', 1, false, now * 2, true, true) });
         } else {
           if (ac.phase === PH.TAXI_OUT && !this.wave.has(ac.id)) this.wave.set(ac.id, now);
           if (ac.phase !== PH.TAXI_OUT) this.wave.delete(ac.id);
@@ -46,7 +46,7 @@ export class StandCrew {
           }
           if (!P) continue; // erst beim Triebwerksstart gesehen (z. B. nach dem Laden): niemand da
           const waving = ac.phase === PH.TAXI_OUT;
-          if (visible(P.x, P.y)) items.push({ d: P.x + P.y, f: () => this.pinMan(r, P.x, P.y, waving, now) });
+          if (visible(P.x, P.y)) items.push({ d: P.x + P.y, p: [P.x, P.y], f: () => this.pinMan(r, P.x, P.y, waving, now) });
         }
         continue;
       }

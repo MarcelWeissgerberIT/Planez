@@ -217,7 +217,7 @@ export class Ambient {
           const side = fs * ac.len * 0.5 + Math.sign(fs) * 0.18 + Math.cos(vt * 0.5 + s) * 0.05;
           const x = ac.x + fx * along + rx * side;
           const y = ac.y + fy * along + ry * side;
-          items.push({ d: x + y + 0.02, f: () => drawPerson(r, x, y, HIVIS[s % 3], 1, false, vt * 1.3 + s, Math.abs(wob) < 0.9, true) });
+          items.push({ d: x + y + 0.02, p: [x, y], f: () => drawPerson(r, x, y, HIVIS[s % 3], 1, false, vt * 1.3 + s, Math.abs(wob) < 0.9, true) });
         }
       }
     }

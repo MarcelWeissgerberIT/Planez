@@ -76,7 +76,8 @@ export function beltLoaders(state) {
     const um = ease(clamp01(door ? dt / 6 : (dt - 4) / 6)), lift = door ? ease(clamp01((dt - 6) / 6)) : P.from.lift * (1 - clamp01(dt / 4));
     const cur = { x: P.from.x + (tgt.x - P.from.x) * um, y: P.from.y + (tgt.y - P.from.y) * um, h: angLerp(P.from.h, tgt.h, um), lift };
     P.cur = cur;
-    out.push({ id: 'belt' + v.id, type: 'belt', len: 2 * BELT.h + 0.03, x: cur.x, y: cur.y, hdg: cur.h, top: door ? door.top : P.from.top || BELT.y, lift, st: v.st === 'idle' ? 'idle' : 'work' });
+    // dir: Koffer laufen beim Entladen das Band hinunter (−1), beim Beladen hinauf (+1)
+    out.push({ id: 'belt' + v.id, type: 'belt', len: 2 * BELT.h + 0.03, x: cur.x, y: cur.y, hdg: cur.h, top: door ? door.top : P.from.top || BELT.y, lift, st: v.st === 'idle' ? 'idle' : 'work', dir: door && v.job ? (v.job.k === 'load' ? 1 : -1) : 0 });
     if (door) cur.top = door.top;
   }
   return out;

@@ -197,7 +197,7 @@ export function prepare(r, state, acs, vehs = [], dt = 0) {
   budget = BUDGET.veh;
   for (const v of vehs) {
     const m = modelFor(v.id, `v|${v.type}`, () => buildVehicle(v));
-    const pose = poseVehicle(state, v, m.g, dt, state.time); // bewegliche Teile weiterführen, auch ohne neues Bild
+    const pose = poseVehicle(state, v, m.g, dt, r.time ?? state.time); // bewegliche Teile weiterführen, auch ohne neues Bild (Uhr: Echtzeit wie in 3D)
     const key = `${K.toFixed(2)}|${Math.round((v.hdg || 0) * 57.3)}|${pose}`;
     const c = cache.get(v.id);
     if (c) c.seen = frame;
