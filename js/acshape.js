@@ -1,14 +1,15 @@
 // Rumpfmaße der Flugzeugmodelle (für 3D-Modelle, Karte und Simulation gemeinsam): Bauart je Typ, Rumpfradius r und
 // Höhenfaktor kh (je Länge L), Höhe der Rumpfachse h (in Rumpfradien), dazu die Maße des Treppenfahrzeugs.
 export const SHAPE_OF = { AT76: 'prop', DH8D: 'prop', CRJ9: 'rear', C68A: 'biz', A388: 'super', B748F: 'jumbo', B789: 'wide', A359: 'wide', B77W: 'wide', B77F: 'wide', A333: 'wide' };
+// Tragfläche: Spannweite span, Pfeilung sweep (Grad), Flügeltiefe innen cr / außen ct, Vorderkante an der Wurzel wx (je L)
 export const SHAPE = {
-  narrow: { r: 0.053, kh: 1.06, h: 1.95 },
-  wide: { r: 0.048, kh: 1.06, h: 2.05 },
-  super: { r: 0.05, kh: 1.28, h: 2.0 },
-  jumbo: { r: 0.045, kh: 1.06, h: 2.1 },
-  prop: { r: 0.05, kh: 1.05, h: 1.5 },
-  rear: { r: 0.042, kh: 1.05, h: 1.45 },
-  biz: { r: 0.052, kh: 1.05, h: 1.5 },
+  narrow: { r: 0.053, kh: 1.06, h: 1.95, span: 0.95, sweep: 25, cr: 0.21, ct: 0.065, wx: 0.1 },
+  wide: { r: 0.048, kh: 1.06, h: 2.05, span: 0.97, sweep: 31, cr: 0.22, ct: 0.05, wx: 0.08 },
+  super: { r: 0.05, kh: 1.28, h: 2.0, span: 1.08, sweep: 33, cr: 0.27, ct: 0.055, wx: 0.08 },
+  jumbo: { r: 0.045, kh: 1.06, h: 2.1, span: 0.9, sweep: 37, cr: 0.22, ct: 0.05, wx: 0.08 },
+  prop: { r: 0.05, kh: 1.05, h: 1.5, span: 1.0, sweep: 2, cr: 0.11, ct: 0.065, wx: 0.07 },
+  rear: { r: 0.042, kh: 1.05, h: 1.45, span: 0.69, sweep: 26, cr: 0.17, ct: 0.05, wx: 0.0 },
+  biz: { r: 0.052, kh: 1.05, h: 1.5, span: 1.05, sweep: 28, cr: 0.2, ct: 0.07, wx: -0.02 },
 };
 export const R_OF = { E190: 0.045, A223: 0.048, B77W: 0.044, B77F: 0.046 };
 
@@ -18,6 +19,21 @@ export function fuselage(type, len) {
   const rz = (R_OF[type] ?? k.r) * len, ry = rz * k.kh;
   return { rz, ry, axis: k.h * ry };
 }
+// Grundriss einer Tragfläche in (entlang, quer ≥ 0): Wurzel-Vorderkante, Spitze-Vorderkante, Spitze-Hinterkante, Wurzel-Hinterkante
+export function wingPoly(type, len) {
+  const k = SHAPE[SHAPE_OF[type] || 'narrow'], rz = fuselage(type, len).rz;
+  const b = (k.span * len) / 2, z0 = rz * 0.6;
+  const rLE = k.wx * len, tLE = rLE - (b - z0) * Math.tan((k.sweep * Math.PI) / 180);
+  return [[rLE, z0], [tLE, b], [tLE - k.ct * len, b], [rLE - k.cr * len, z0]];
+}
+// liegt der Punkt (entlang, quer) unter dieser Tragfläche? (pad = Rand)
+export function underWing(poly, along, lat, pad = 0) {
+  if (lat < poly[0][1] - pad || lat > poly[1][1] + pad) return false;
+  const t = (lat - poly[0][1]) / (poly[1][1] - poly[0][1] || 1);
+  const le = poly[0][0] + (poly[1][0] - poly[0][0]) * t, te = poly[3][0] + (poly[2][0] - poly[3][0]) * t;
+  return along <= le + pad && along >= te - pad;
+}
+
 // Schwelle der vorderen Tür (gemalt von 56° bis 93° unter dem Scheitel, also knapp unter der Rumpfachse)
 export function doorSill(type, len) {
   const f = fuselage(type, len);

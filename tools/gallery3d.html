@@ -67,7 +67,20 @@ if (q.get('stairsat')) {
   for (let i = 0; i < 400; i++) poseVehicle({ acs: [ac], time: 0 }, v, vm, 0.5, 0);
   sc.add(vm);
 }
-const types = acs || q.get('cars') || q.get('stairsat') ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,stairs,deice,fire,plow,followme').split(',');
+// Bus an der Außenposition (busat=TYP): Flugzeug in Nordrichtung, Vorfeldbus am Service-Punkt „deboard“
+if (q.get('busat')) {
+  const t = q.get('busat'), ac = { id: 'a2', type: t, airline: Object.keys(AIRLINES)[1], x: 0, y: 0, hdg: -Math.PI / 2, len: AC_TYPES[t].len };
+  const m = buildAircraft(ac);
+  m.position.set(0, m.userData.H || 0.1, 0);
+  m.rotation.y = -ac.hdg;
+  sc.add(m);
+  const sp = servicePoint('deboard', ac);
+  const vm = buildVehicle({ id: 'b9', type: 'bus', name: 'bus 1' });
+  vm.position.set(sp.x, 0, sp.y);
+  vm.rotation.y = -sp.hdg;
+  sc.add(vm);
+}
+const types = acs || q.get('cars') || q.get('stairsat') || q.get('busat') ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,stairs,deice,fire,plow,followme').split(',');
 types.forEach((t, i) => {
   const m = buildVehicle({ type: t, id: 'v' + (i * 7 + 3), name: `${t} ${i + 1}` }); // ID und Name: Werbung und Dachnummer
   const col = i % 5, row = Math.floor(i / 5);
@@ -88,7 +101,7 @@ types.forEach((t, i) => {
   if (night) { if (P.hl) P.hl.visible = true; if (P.tl) P.tl.visible = true; }
   sc.add(m);
 });
-const cam = new THREE.PerspectiveCamera(view === 'top' ? 30 : 32, innerWidth / innerHeight, 0.05, 100);
+const cam = new THREE.PerspectiveCamera(q.get('fov') ? +q.get('fov') : view === 'top' ? 30 : 32, innerWidth / innerHeight, 0.05, 200); // fov=… klein + Kamera weit weg ≈ Kartenprojektion
 const one = types.length === 1 || (acs && acs.split(',').length === 1);
 if (view === 'top') cam.position.set(0, 4.2, 2.6);
 else if (one && acs) cam.position.set(0.9, 0.35, 2.0);

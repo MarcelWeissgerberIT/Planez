@@ -8,6 +8,7 @@ import { gaLifeItems } from './galife.js';
 import { busPaxItems } from './buspax.js';
 import { carPaint, carKind, hash01 } from './cars.js';
 import { stairsTop as doorTop } from '../acshape.js';
+import { vehVsAc } from './occlude.js';
 import { drawApronBus, drawStairsTruck, boxShadow, stairsSize } from './gse2d.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { Polish } from './polish.js';
@@ -433,16 +434,18 @@ export class MapRenderer {
     const parked = state.acs.filter((a) => a.mode === 'map' && a.z < 0.05);
     for (const v of state.vehicles) {
       if (!inView(view, v.x, v.y, 2)) continue;
-      let d = v.x + v.y;
+      // vor oder hinter stehenden Flugzeugen einsortieren (Rumpf, Flügel und Leitwerk einzeln geprüft, siehe occlude.js);
+      // die kleine Verschiebung je Abstand erhält die Reihenfolge mehrerer Fahrzeuge am selben Flugzeug
+      let d = v.x + v.y, lo = Infinity, hi = -Infinity;
       for (const a of parked) {
-        const dx = v.x - a.x, dy = v.y - a.y;
-        if (dx * dx + dy * dy > a.len * a.len * 0.36) continue;
-        const fx = Math.cos(a.hdg), fy = Math.sin(a.hdg);
-        const along = dx * fx + dy * fy, side = -dx * fy + dy * fx;
-        const span = a.len * 0.5;
-        const viewerSide = side * (-fy + fx) > 0; // seitlich zum Betrachter hin versetzt
-        if (Math.abs(along) < a.len * 0.5 && Math.abs(side) < span && !(viewerSide && Math.abs(side) < 0.6 && along > -a.len * 0.3)) d = Math.min(d, a.x + a.y - 0.05);
+        const dx = v.x - a.x, dy = v.y - a.y, r = a.len * 0.62 + 0.6;
+        if (dx * dx + dy * dy > r * r) continue;
+        const o = vehVsAc(v, a), ad = a.x + a.y, k = (d - ad) * 0.005;
+        if (o < 0) lo = Math.min(lo, ad - 0.04 + k);
+        else if (o > 0) hi = Math.max(hi, ad + 0.04 + k);
       }
+      if (hi > d) d = hi;
+      if (lo < d) d = lo;
       items.push({ d, f: () => this.drawVehicle(state, v, lights) });
     }
     if (state.fire) for (const t of state.fire.trucks) if (t.st !== 'home' || LY.GEO.stage > 0) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
