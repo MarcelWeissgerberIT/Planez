@@ -10,6 +10,7 @@ import { carPaint, carKind, hash01, POLICE_BLUE } from './cars.js';
 import { stairsTop as doorTop } from '../acshape.js';
 import { vehVsAc } from './occlude.js';
 import { beltLoaders } from './beltloader.js';
+import { jetBridges } from './jetbridge.js';
 import { drawApronBus, drawStairsTruck, boxShadow, stairsSize } from './gse2d.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { Polish } from './polish.js';
@@ -422,6 +423,8 @@ export class MapRenderer {
     // Flugzeuge als 3D-Modelle vorab in den Atlas rendern (nicht im Leistungsmodus)
     if (!Q.perf) loadImp();
     const belts = IMP && !Q.perf ? beltLoaders(state) : [];
+    const jbs = IMP && !Q.perf ? jetBridges(state) : [];
+    this.jbObj = new Map(jbs.map((o) => [o.stand.id, o]));
     if (IMP && !Q.perf) {
       const list = [];
       for (const ac of state.acs) {
@@ -432,6 +435,8 @@ export class MapRenderer {
       const vl = state.vehicles.filter((v) => inView(view, v.x, v.y, 2));
       for (const t of fireTrucks(state)) if (inView(view, t.x, t.y, 2)) vl.push(t);
       for (const b of belts) if (inView(view, b.x, b.y, 1)) vl.push(b);
+      for (const o of jbs) if (inView(view, o.x, o.y, 2)) vl.push(o);
+      for (const c of followMeCars(state)) if (inView(view, c.x, c.y, 2)) vl.push({ ...c, type: 'followme' });
       saluteView(state)?.trucks.forEach((t, i) => vl.push({ id: 'sal' + i, type: 'fire', x: t.x, y: t.y, hdg: t.hdg, st: 'alarm' }));
       IMP.prepare(this, state, list, vl, dtReal * (state.speed || 0) * TIME_SCALE);
     } else if (IMP) IMP.prepare(this, state, [], []);
@@ -747,6 +752,11 @@ export class MapRenderer {
   // „Follow me“: Superjumbo, Regierungsmaschine und VIP-Jets werden nach der Landung von einem gelben Lotsenfahrzeug zur Position geführt
   followMeItems(state, items, lights) {
     for (const c of followMeCars(state)) {
+      if (IMP && !Q.perf && IMP.has(c.id)) {
+        // 3D-Modell (gelber Kombi mit „FOLLOW ME“-Leuchtschild), sonst wie bisher als Schleppersilhouette
+        items.push({ d: c.x + c.y, f: () => { boxShadow(this, c, 0.26, 0.1, 0.09); IMP.draw(this, c.id, c.x, c.y, 0); if ((this.time * 2 + c.x) % 1 < 0.35) lights.push({ x: c.x, y: c.y, z: 0.14, c: '#ffae00', s: 14, a: 0.9, day: true }); } });
+        continue;
+      }
       const fv = { ...c, type: 'tug' };
       items.push({ d: c.x + c.y, f: () => this.drawVehicle(state, fv, lights) });
     }
@@ -1034,6 +1044,13 @@ export class MapRenderer {
 
   drawBridge(state, st) {
     const ctx = this.ctx, cam = this.cam;
+    // 3D-Modell (Rotunde, Teleskop-Tunnel, Fahrstütze, Kabine mit Faltenbalg), sonst die einfache Form unten
+    const o = this.jbObj?.get(st.id);
+    if (o && IMP && !Q.perf && IMP.has(o.id)) {
+      boxShadow(this, o, o.len, 0.14, 0.42);
+      IMP.draw(this, o.id, o.x, o.y, 0);
+      return;
+    }
     const ac = st.occ ? state.acs.find((a) => a.id === st.occ) : null;
     const root = LY.bridgeRoot(st);
     const park = { x: st.x - 0.95, y: 15.75 };
@@ -2485,7 +2502,7 @@ function carBody(ctx, cam, x, y, h, color, simple, sc = 1, zb = 0, force = false
   drawCarBody(ctx, cam, x, y, h, color, prism, carShades, simple, sc, zb);
   return false;
 }
-const VEH_H = { tug: 0.075, baggage: 0.13, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13, deice: 0.15 };
+const VEH_H = { tug: 0.125, baggage: 0.13, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13, deice: 0.15 };
 // Lackfarbe -> Dach/Seiten + getönte Scheiben (gecacht)
 const carShadeCache = {};
 function carShades(hex) {

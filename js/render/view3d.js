@@ -17,6 +17,7 @@ import { buildAircraft, buildCessna, buildHeli, glowTex, spriteMat, setNight } f
 import { buildVehicle, vehParts, poseVehicle, carInstances } from './vehicles3d.js';
 import { followMeCars } from './followme.js';
 import { beltLoaders } from './beltloader.js';
+import { jetBridges } from './jetbridge.js';
 import { plowFleet } from './snow.js';
 import { grassRunway3d, smallField3d, smallBuilding3d } from './field3d.js';
 import { placeModel, whenModelsLoaded, modelsNight, preloadModels } from './models3d.js';
@@ -568,19 +569,7 @@ export class View3D {
     this.termGlow = new THREE.Mesh(new THREE.PlaneGeometry(TE.x1 - TE.x0 - 0.4, 0.62), new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
     this.termGlow.position.set((TE.x0 + TE.x1) / 2, 0.5, TE.y1 + 0.02);
     this.static.add(this.termGlow);
-    // Fluggastbrücken an Kontaktpositionen: Rotunde, Tunnel, Kabine
-    for (const st of state.stands) if (st.built && st.kind === 'contact') {
-      const x = st.x - 1.35;
-      const rot = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.42, 12), this.mat(0xd1d5db));
-      rot.position.set(x, 0.38, TE.y1 + 0.35);
-      rot.castShadow = true;
-      this.static.add(rot);
-      this.box(x - 0.12, x + 0.12, TE.y1 + 0.35, LY.STAND_NOSE + 0.1, 0.2, 0xc7ccd1, 0.32);
-      this.box(x - 0.18, x + 0.18, LY.STAND_NOSE - 0.05, LY.STAND_NOSE + 0.3, 0.26, 0x9ca3af, 0.3);
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.32, 6), this.mat(0x4b5563));
-      leg.position.set(x, 0.16, LY.STAND_NOSE + 0.1);
-      this.static.add(leg);
-    }
+    // Fluggastbrücken: bewegliche Modelle (jetbridge.js), wie die Fahrzeuge
     }
     // Flutlichtmasten am Vorfeldrand: nachts Lichtkegel auf dem Beton
     const poolTex = canvasTex(64, 64, (g) => {
@@ -1574,6 +1563,7 @@ export class View3D {
     for (const c of followMeCars(state)) out.push({ ...c, type: 'followme' });
     for (const c of state.patrol?.cars || []) out.push({ id: c.id, type: 'police', x: c.x, y: c.y, hdg: c.hdg, st: c.lights ? 'alarm' : 'idle' });
     for (const b of beltLoaders(state)) out.push(b);
+    for (const o of jetBridges(state)) out.push(o);
     return out;
   }
   // Rundumleuchte, Scheinwerfer, Catering-Hubkasten, Enteiser-Arm mit Sprühstrahl, Schneefahne der Pflüge

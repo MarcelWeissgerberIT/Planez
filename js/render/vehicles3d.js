@@ -14,6 +14,7 @@ import { busLoad } from './buspax.js';
 import { toCreasedNormals, mergeGeometries } from '../vendor/BufferGeometryUtils.js';
 import { carKind, carPaint, POLICE_BLUE } from './cars.js';
 import { glassMat } from './glassenv.js';
+import { JB } from './jbdims.js';
 import { STAIRS, stairsTop, stairsGeom, BELT, beltGeom } from '../acshape.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -391,35 +392,84 @@ function ld3Geo() {
 }
 
 // ---------- Fahrzeuge ----------
-// Flugzeugschlepper: flache Wanne mit schrägen Enden, Warnstreifen-Stoßfänger, Kanzel links rundum verglast
+// Flugzeugschlepper mit Schleppstange wie auf dem Vorfeld: langer, schwerer Kasten in Gelb (Ballast) mit gefasten
+// Kanten, große Räder in tiefen Radkästen, schwarze Stoßfänger mit Kupplungsmaul und Warnstreifen. Die Kabine sitzt
+// über die ganze Breite am hinteren Ende, rundum verglast und an der Stirnseite tief heruntergezogen, Rundumleuchte
+// auf dem Dach. Vorn (+x, zum Flugzeug) hängt beim Pushback die Schleppstange am Bugrad (tbar, in poseVehicle).
 function tug(k, g, body) {
-  const h = 0.21, w = 0.16, top = 0.07;
-  k.bx(-h + 0.02, h - 0.02, 0.022, 0.036, w - 0.05, matte(DARK));
-  k.prof([[-h, 0.03, 0.006], [h, 0.03, 0.006], [h, 0.054, 0.012], [h - 0.045, top, 0.02], [-h + 0.045, top, 0.02], [-h, 0.054, 0.012]], w, body, 0.016);
-  k.rbx(h - 0.004, h + 0.013, 0.024, 0.05, w - 0.004, hazard(), 0.006);
-  k.rbx(-h - 0.013, -h + 0.004, 0.024, 0.05, w - 0.004, hazard(), 0.006);
-  k.cyl(h + 0.022, 0.037, 0, 0.007, 0.022, 'x', metal(0x8b9299), 8);
-  k.cyl(-h - 0.022, 0.037, 0, 0.007, 0.022, 'x', metal(0x8b9299), 8);
-  // Motorhaube hinten mit Lüftungsgitter, Auspuff
-  k.rbx(-h + 0.05, -0.05, top - 0.004, top + 0.024, w - 0.05, body, 0.01);
-  for (let x = -h + 0.07; x < -0.07; x += 0.012) k.bx(x, x + 0.006, top + 0.024, top + 0.0255, w - 0.09, matte(0x1f2328));
-  k.cyl(-0.075, top + 0.05, w / 2 - 0.03, 0.005, 0.055, 'y', metal(0x6b7280), 8);
-  // Kanzel links: Brüstung, Glas mit runden Ecken, Dach
-  const cz0 = -w / 2 + 0.006, cz1 = -w / 2 + 0.082, cx0 = -0.03, cx1 = 0.085, cy = top + 0.064;
-  k.rbox(cx0, cx1, top - 0.004, top + 0.018, cz0, cz1, body, 0.008);
-  k.rbox(cx0 + 0.003, cx1 - 0.003, top + 0.012, cy, cz0 + 0.003, cz1 - 0.003, glass(), 0.01);
-  k.rbox(cx0 - 0.003, cx1 + 0.003, cy - 0.003, cy + 0.008, cz0 - 0.003, cz1 + 0.003, body, 0.006);
-  k.rbox(cx0 + 0.016, cx0 + 0.04, top + 0.012, top + 0.04, cz0 + 0.02, cz1 - 0.02, matte(0x1f2937), 0.006);
-  // Scheinwerfer in den Schrägen
-  k.pair(h - 0.006, h - 0.001, 0.056, 0.064, w / 2 - 0.024, 0.024, lamp(0xfff4d6));
-  k.pair(-h + 0.001, -h + 0.006, 0.056, 0.062, w / 2 - 0.024, 0.018, lamp(0xb91c1c));
-  for (const x of [h - 0.085, -h + 0.085]) {
-    k.well(x, 0.026, w - 0.004);
-    k.axle(x, w / 2 - 0.016, 0.026, 0.032);
+  const hx = 0.165, w = 0.13, top = 0.086, dark = matte(0x1f2328), blk = matte(0x15171a);
+  // Rahmen, Kasten mit gefasten Oberkanten, schwarze Scheuerleiste unten
+  k.bx(-hx + 0.012, hx - 0.012, 0.012, 0.03, w - 0.024, matte(DARK));
+  k.prof([[-hx, 0.022, 0.004], [hx, 0.022, 0.004], [hx, top - 0.012, 0.006], [hx - 0.012, top, 0.006], [-hx + 0.002, top, 0.004], [-hx, top - 0.004, 0.004]], w, body, 0.01);
+  k.side([[-hx + 0.004, 0.024], [hx - 0.004, 0.024], [hx - 0.004, 0.033], [-hx + 0.004, 0.033]], w / 2 + 0.0012, blk);
+  // Ballastplatten: Fugen an den Seiten und auf dem Deck, Motorgitter vorn, Auspuff und Ansaugrohr an der Kabine
+  for (const x of [-0.03, 0.05]) {
+    k.side([[x, 0.034], [x + 0.0025, 0.034], [x + 0.0025, top - 0.006], [x, top - 0.006]], w / 2 + 0.0014, dark);
+    k.bx(x, x + 0.0025, top, top + 0.0012, w - 0.02, dark);
   }
-  beacon(g, k, (cx0 + cx1) / 2, cy + 0.008, (cz0 + cz1) / 2);
-  lights(g, h, -h, 0.06, w / 2 - 0.03);
+  for (let x = 0.07; x < hx - 0.03; x += 0.011) k.bx(x, x + 0.006, top, top + 0.002, w - 0.05, blk);
+  k.cyl(-hx + 0.104, top + 0.02, w / 2 - 0.014, 0.0055, 0.04, 'y', metal(0x6b7280), 8);
+  k.cyl(-hx + 0.104, top + 0.041, w / 2 - 0.014, 0.0068, 0.004, 'y', matte(0x111111), 8);
+  k.cyl(-hx + 0.104, top + 0.014, -w / 2 + 0.014, 0.0075, 0.028, 'y', dark, 8);
+  // Stoßfänger vorn und hinten: schwarz, Warnstreifen, Kupplungsmaul mit Bolzen
+  for (const s of [-1, 1]) {
+    const x0 = s * (hx - 0.004), x1 = s * (hx + 0.014);
+    k.rbox(x0, x1, 0.016, 0.048, -w / 2 + 0.002, w / 2 - 0.002, blk, 0.004);
+    k.box(x1, x1 + s * 0.0015, 0.024, 0.042, -w / 2 + 0.012, w / 2 - 0.012, hazard());
+    k.rbox(x1, x1 + s * 0.016, 0.026, 0.04, -0.012, 0.012, dark, 0.003);
+    k.cyl(x1 + s * 0.009, 0.033, 0, 0.0035, 0.03, 'y', metal(0x9aa3ad), 8);
+  }
+  // Kabine hinten über die ganze Breite, kaum höher als der Kasten: Fensterband rundum in den Kasten eingelassen
+  // (Stirnseite und Seiten), Säulen in Wagenfarbe, flaches Dach mit Überstand
+  const cx0 = -hx, cx1 = -hx + 0.092, cz = w / 2, cy0 = top - 0.032, cy = top + 0.022;
+  k.rbox(cx0 + 0.003, cx1 - 0.002, top - 0.004, cy, -cz + 0.002, cz - 0.002, body, 0.006);
+  k.rbox(cx0 - 0.0012, cx1 - 0.008, cy0, cy - 0.006, -cz - 0.0012, cz + 0.0012, glass(), 0.004);
+  for (const z of [-cz - 0.0016, cz + 0.0016]) {
+    for (const x of [cx0 + 0.004, (cx0 + cx1) / 2 + 0.006, cx1 - 0.009]) k.box(x - 0.0035, x + 0.0035, cy0 - 0.002, cy - 0.004, z - 0.0012, z + 0.0012, body); // Säulen
+  }
+  for (const z of [-0.012, 0.012]) k.box(cx0 - 0.0018, cx0 + 0.002, cy0 - 0.002, cy - 0.004, z - 0.003, z + 0.003, body); // Stirnsäulen
+  k.rbox(cx0 - 0.004, cx1 + 0.002, cy - 0.006, cy + 0.004, -cz - 0.003, cz + 0.003, body, 0.004);
+  k.box(cx0 + 0.014, cx1 - 0.016, cy + 0.004, cy + 0.0055, -cz + 0.014, cz - 0.014, paint(0xf3f4f6, 40)); // Dachluke
+  for (const s of [-1, 1]) k.obox(cx1 - 0.004, cy - 0.012, s * (cz + 0.008), 0.004, 0.014, 0.006, dark); // Spiegel
+  // Scheinwerfer an beiden Enden, rote Schlussleuchten hinten, Arbeitsscheinwerfer am Dach nach vorn
+  k.pair(hx + 0.0005, hx + 0.003, 0.058, 0.068, w / 2 - 0.016, 0.02, lamp(0xfff4d6));
+  k.pair(-hx - 0.004, -hx - 0.001, 0.05, 0.06, w / 2 - 0.016, 0.016, lamp(0xfff4d6));
+  k.pair(-hx - 0.004, -hx - 0.001, 0.05, 0.06, w / 2 - 0.036, 0.012, lamp(0xb91c1c));
+  k.box(cx1 + 0.002, cx1 + 0.006, cy - 0.004, cy + 0.002, -0.02, 0.02, lamp(0xfff4d6));
+  // große Räder, bündig mit dem Kasten
+  for (const x of [hx - 0.062, -hx + 0.064]) {
+    k.well(x, 0.028, w + 0.003);
+    k.axle(x, w / 2 - 0.012, 0.028, 0.026);
+  }
+  beacon(g, k, (cx0 + cx1) / 2, cy + 0.004);
+  lights(g, hx + 0.003, -hx - 0.003, 0.062, w / 2 - 0.016);
+  // Schleppstange (nur am Flugzeug sichtbar): Rohr der Länge 1 (gestreckt), Fahrwerk an der Kupplung, Kopf am Bugrad
+  const tb = new THREE.Group(), tk = new Kit(), hk = new Kit(), wk = new Kit(), red = paint(0xd9481c, 40);
+  tb.name = 'tbar';
+  tb.position.set(hx + 0.026, 0.035, 0);
+  tb.visible = false;
+  tk.box(0, 1, -0.0045, 0.0045, -0.0045, 0.0045, red);
+  const tube = tk.build();
+  tube.name = 'tbarT';
+  for (const s of [-1, 1]) wk.rod([0, 0, 0], [0.05, 0, s * 0.012], 0.006, red);
+  wk.cyl(0.05, -0.01, 0, 0.002, 0.034, 'z', metal(0x9aa3ad), 6);
+  for (const s of [-1, 1]) wk.cyl(0.05, -0.022, s * 0.016, 0.013, 0.007, 'z', matte(TIRE), 10);
+  hk.box(-0.016, 0.004, -0.006, 0.006, -0.011, 0.011, dark);
+  hk.box(0.004, 0.012, -0.012, 0.004, -0.011, 0.011, metal(0x9aa3ad));
+  const head = hk.build();
+  head.name = 'tbarH';
+  tb.add(tube, head);
+  wk.build(tb);
+  g.add(tb);
+  // unsichtbare Endpunkte: Bildgröße auf der Karte reicht für die längste Stange
+  const hide = cached('jbHide', () => new THREE.MeshBasicMaterial({ visible: false }));
+  for (const s of [-1, 1]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.001, 0.001, 0.001), hide);
+    m.position.x = s * (hx + 0.026 + TBAR_MAX + 0.014);
+    g.add(m);
+  }
 }
+const TBAR_MAX = 0.5;
 
 // Gepäckzug wie auf dem Vorfeld: gelber Gepäckschlepper mit kurzer, abgeschrägter Haube und hoher, rundum verglaster
 // Kabine (Rundumleuchte auf dem Dach), dahinter zwei offene Gepäckwagen mit Koffern und Taschen und ein gelber,
@@ -1211,11 +1261,103 @@ function beltLoader(k, g, body) {
   lights(g, h, -h, 0.04, w / 2 - 0.015);
 }
 
-const BUILD = { tug, baggage, fuel, catering, bus, stairs: stairsTruck, deice, cleaning: van, fire, plow, followme: followMe, police: policeCar, belt: beltLoader };
-const BODY = { belt: 0xf4f5f2, fire: 0xd11f1c, plow: 0xea6a0c, followme: 0xfacc15 };
+// Fluggastbrücke: verglaste Rotunde auf einer Säule am Terminal, drei ineinander geschobene Tunnelteile (Blech mit Fugen,
+// Fensterband beidseitig), Fahrstütze mit Querträger und Radbock, Kabine mit Faltenbalg, Rundumleuchte und Servicetreppe.
+// Lage und Länge stellt poseVehicle ein (v.len, v.h0, v.h1, v.cab); Ursprung = Mitte zwischen Rotunde und Kabine
+const jbPanel = () => canvasMat('jbpanel', 64, 64, (g, w, h) => {
+  g.fillStyle = '#e6e9ec';
+  g.fillRect(0, 0, w, h);
+  for (let x = 0; x < w; x += 4) {
+    g.fillStyle = x % 8 ? 'rgba(255,255,255,0.35)' : 'rgba(80,90,100,0.18)'; // Trapezblech
+    g.fillRect(x, 0, 2, h);
+  }
+  g.fillStyle = 'rgba(70,80,90,0.35)';
+  g.fillRect(0, h - 3, w, 3);
+  g.fillRect(0, 0, w, 2);
+});
+function jetBridge(k, g) {
+  const white = paint(0xeef0f2, 50), gray = matte(0x6b7280), dark = matte(0x2b2f35), rail = metal(0xc3c9d0);
+  // Rotunde: Säule, Glastrommel, Dach
+  const rk = new Kit(), R = JB.rot;
+  rk.cyl(0, 0.18, 0, 0.05, 0.36, 'y', gray, 12);
+  rk.cyl(0, 0.365, 0, R, 0.012, 'y', white, 24);
+  rk.cyl(0, 0.44, 0, R - 0.006, 0.14, 'y', glassMat(true), 24);
+  for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) rk.cyl(Math.cos(a) * (R - 0.004), 0.44, Math.sin(a) * (R - 0.004), 0.004, 0.14, 'y', white, 6);
+  rk.cyl(0, 0.518, 0, R + 0.008, 0.02, 'y', white, 24);
+  rk.cyl(0, 0.532, 0, R * 0.5, 0.012, 'y', gray, 16);
+  const rot = rk.build();
+  rot.name = 'jbRot';
+  g.add(rot);
+  // Tunnelteile (Länge 1 entlang x, in poseVehicle gestreckt), Unterkante bei y = 0
+  for (let i = 0; i < 3; i++) {
+    const tk = new Kit(), W = JB.w[i], H = JB.h[i];
+    tk.box(0, 1, 0.012, H - 0.012, -W / 2, W / 2, jbPanel());
+    tk.box(0, 1, 0, 0.014, -W / 2 - 0.002, W / 2 + 0.002, dark); // Boden/Unterzug
+    tk.box(0, 1, H - 0.014, H, -W / 2 - 0.003, W / 2 + 0.003, white); // Dachkante
+    for (const s of [-1, 1]) tk.box(0.02, 0.98, H * 0.42, H * 0.78, s * (W / 2) - 0.0012, s * (W / 2) + 0.0012, glass());
+    tk.box(-0.004, 0.012, -0.002, H + 0.002, -W / 2 - 0.004, W / 2 + 0.004, matte(0x9aa3ad)); // Stoßring
+    const t = tk.build();
+    t.name = 'jbS' + i;
+    g.add(t);
+  }
+  // Fahrstütze: zwei Beine (Höhe 1, gestreckt), Querträger oben, Radbock unten
+  const ck = new Kit();
+  for (const s of [-1, 1]) ck.box(-0.012, 0.012, 0, 1, s * 0.07 - 0.012, s * 0.07 + 0.012, metal(0x9aa3ad));
+  const col = ck.build();
+  col.name = 'jbCol';
+  g.add(col);
+  const bk = new Kit();
+  bk.rbox(-0.05, 0.05, 0.028, 0.05, -0.1, 0.1, matte(0x3f4650), 0.004);
+  bk.rbox(-0.03, 0.03, 0.05, 0.075, -0.09, 0.09, paint(0xf2c418, 40), 0.004); // Antrieb, gelb
+  for (const s of [-1, 1]) bk.wheel(0, s * 0.075, 0.026, 0.03);
+  const bogie = bk.build();
+  bogie.name = 'jbBogie';
+  g.add(bogie);
+  // Kabine: Kasten mit Fenstern, Faltenbalg vorn (zum Flugzeug), Dach mit Leuchte; Treppe an der Seite
+  const kk = new Kit(), C = JB.cab, cw = 0.17, chh = 0.16;
+  kk.rbox(-C, C - 0.02, 0, chh, -cw / 2, cw / 2, white, 0.008);
+  for (const s of [-1, 1]) kk.box(-C + 0.02, C - 0.04, chh * 0.42, chh * 0.8, s * cw / 2 - 0.0012, s * cw / 2 + 0.0012, glass());
+  kk.box(-C - 0.0012, -C + 0.0012, chh * 0.4, chh * 0.8, -cw / 2 + 0.02, cw / 2 - 0.02, glass());
+  // Faltenbalg wie ein Schlauch: Rippen als umgedrehtes U, nach vorn zum Rumpf hin abgesenkt und schmaler – die Haube
+  // legt sich über die Tür an den gewölbten Rumpf (vorn ragt sie etwas in ihn hinein)
+  const bell = matte(0x26292e), NR = 7;
+  for (let j = 0; j < NR; j++) {
+    const t = j / (NR - 1), x = C - 0.012 + t * 0.068, top = chh + 0.008 - t * t * 0.05, bot = 0.004 + t * t * 0.01, hw = cw / 2 + 0.008 - t * 0.014;
+    kk.rbox(x, x + 0.009, top - 0.012, top, -hw, hw, bell, 0.004);
+    for (const sd of [-1, 1]) kk.rbox(x, x + 0.009, bot, top - 0.006, sd * hw - 0.01, sd * hw + 0.002 * sd, bell, 0.003);
+    if (j < NR - 1) kk.box(x + 0.004, x + 0.016, top - 0.006, top - 0.002, -hw + 0.004, hw - 0.004, matte(0x34383e)); // Haut zwischen den Rippen
+  }
+  kk.box(C - 0.012, C + 0.06, 0, 0.006, -cw / 2 + 0.006, cw / 2 - 0.006, metal(0x8b9299)); // Bodenplatte bis an die Tür
+  kk.rbox(-C - 0.006, C + 0.002, chh, chh + 0.012, -cw / 2 - 0.006, cw / 2 + 0.006, white, 0.004);
+  kk.rbox(C + 0.02, C + 0.06, chh + 0.006, chh + 0.018, -cw / 2 - 0.01, cw / 2 + 0.01, matte(0x3a3f45), 0.003); // Vordach
+  // Servicetreppe außen an der Seite bis zum Boden (Höhe 1, in poseVehicle gestreckt)
+  const sk = new Kit();
+  for (let i = 0; i < 9; i++) sk.box(0.07 - i * 0.017, 0.055 - i * 0.017, 0.11 * i, 0.11 * i + 0.02, -0.02, 0.02, rail);
+  sk.rod([0.075, 0, 0.022], [-0.075, 1, 0.022], 0.004, rail);
+  sk.rod([0.075, 0.25, 0.024], [-0.075, 1.25, 0.024], 0.003, rail);
+  const stairs = sk.build();
+  stairs.name = 'jbStairs';
+  const cab = new THREE.Group();
+  cab.name = 'jbCab';
+  beacon(cab, kk, 0, chh + 0.012, 0);
+  kk.build(cab);
+  stairs.position.set(-C + 0.02, 0, -cw / 2 - 0.024);
+  cab.add(stairs);
+  g.add(cab);
+  // unsichtbare Eckpunkte: Bildgröße für die längste Stellung (Karte rendert die Brücke als Bild)
+  const hide = cached('jbHide', () => new THREE.MeshBasicMaterial({ visible: false }));
+  for (const s of [-1, 1]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.001, 0.001, 0.001), hide);
+    m.position.set((s * JB.max) / 2, s > 0 ? 0.62 : 0, 0);
+    g.add(m);
+  }
+}
+
+const BUILD = { jetbridge: jetBridge, tug, baggage, fuel, catering, bus, stairs: stairsTruck, deice, cleaning: van, fire, plow, followme: followMe, police: policeCar, belt: beltLoader };
+const BODY = { jetbridge: 0xeef0f2, belt: 0xf4f5f2, fire: 0xd11f1c, plow: 0xea6a0c, followme: 0xfacc15 };
 
 // große Nummer auf dem Dach (wie auf echten Vorfeldern, damit der Tower die Fahrzeuge erkennt): Buchstabe je Typ + Nummer
-const ROOF = { tug: [-0.12, 0.0952, 0.08], baggage: [0.378, 0.1362, 0.06], fuel: [0.312, 0.1642, 0.09], catering: [0.238, 0.1562, 0.09], cleaning: [-0.03, 0.1272, 0.08], bus: [-0.01, 0.1652, 0.12], stairs: [0.165, 0.1052, 0.05, -0.031], deice: [0.332, 0.1642, 0.09] };
+const ROOF = { tug: [0.01, 0.0875, 0.06], baggage: [0.378, 0.1362, 0.06], fuel: [0.312, 0.1642, 0.09], catering: [0.238, 0.1562, 0.09], cleaning: [-0.03, 0.1272, 0.08], bus: [-0.01, 0.1652, 0.12], stairs: [0.165, 0.1052, 0.05, -0.031], deice: [0.332, 0.1642, 0.09] };
 const LETTER = { tug: 'T', baggage: 'G', fuel: 'F', catering: 'C', cleaning: 'R', bus: 'B', stairs: 'S', deice: 'E' };
 const numMat = (text) => cached(`num${text}`, () => {
   const c = document.createElement('canvas');
@@ -1512,7 +1654,7 @@ export function vehParts(m) {
     m.traverse((o) => o.name === 'bcn' && bcn.push(o));
     const sides = [];
     m.traverse((o) => o.name === 'busSide' && sides.push(o));
-    m.__parts = { sides: sides.length ? sides : null, load: 0, bcn, hl: n('hl'), tl: n('tl'), lift: n('lift'), scis: n('scis'), plat: n('plat'), belt: n('belt'), tur: n('tur'), boom: n('boom'), bask: n('bask'), spray: n('spray'), ramp: n('ramp'), stp: n('stp'), u: 0, yaw: 0, top: 0.12 };
+    m.__parts = { sides: sides.length ? sides : null, load: 0, bcn, hl: n('hl'), tl: n('tl'), lift: n('lift'), scis: n('scis'), plat: n('plat'), belt: n('belt'), jb: n('jbRot') && { rot: n('jbRot'), s: [n('jbS0'), n('jbS1'), n('jbS2')], col: n('jbCol'), bogie: n('jbBogie'), cab: n('jbCab'), stairs: n('jbStairs') }, tur: n('tur'), boom: n('boom'), bask: n('bask'), spray: n('spray'), ramp: n('ramp'), stp: n('stp'), tbar: n('tbar') && { g: n('tbar'), t: n('tbarT'), h: n('tbarH') }, bar: 0, u: 0, yaw: 0, top: 0.12 };
   }
   return m.__parts;
 }
@@ -1557,6 +1699,28 @@ export function poseVehicle(state, v, m, dt, now) {
     P.ramp.scale.x = len / S.len; // hohe Türen: Treppe fährt aus
     P.stp.position.set(S.hinge + Math.cos(th) * len, S.y + Math.sin(th) * len, 0);
   }
+  if (P.jb) {
+    // Fluggastbrücke: Rotunde hinten, Kabine vorn (Abstand v.len), Tunnel als Teleskop dazwischen, geneigt von der
+    // Bodenhöhe der Rotunde (v.h0) zur Türschwelle (v.h1); Kabine zum Flugzeug gedreht (v.cab), Stütze unter dem Tunnel
+    const J = P.jb, L = v.len ?? 1.4, h0 = v.h0 ?? 0.36, h1 = v.h1 ?? h0;
+    J.rot.position.set(-L / 2, 0, 0);
+    const x0 = -L / 2 + JB.rot - 0.01, x1 = L / 2 - 0.02, T = x1 - x0, pitch = Math.atan2(h1 - h0, T), tp = Math.tan(pitch);
+    const starts = [0, 0.3, 0.6], lens = [0.36, 0.36, 0.4];
+    J.s.forEach((s, i) => {
+      const xs = x0 + starts[i] * T, Ls = lens[i] * T / Math.cos(pitch);
+      s.position.set(xs, h0 + (xs - x0) * tp + (JB.h[0] - JB.h[i]) / 2, 0);
+      s.rotation.z = pitch;
+      s.scale.x = Ls;
+    });
+    const xc = x0 + 0.72 * T, yb = h0 + 0.72 * T * tp;
+    J.col.position.set(xc, 0.07, 0);
+    J.col.scale.y = Math.max(0.05, yb - 0.07);
+    J.bogie.position.set(xc, 0, 0);
+    J.cab.position.set(L / 2, h1 - 0.005, 0);
+    J.cab.rotation.y = -(v.cab ?? 0); // Kartenwinkel → Drehung um die Hochachse (wie beim Fahrzeug selbst)
+    J.stairs.position.y = -(h1 - 0.005); // vom Kabinenboden bis zum Boden
+    J.stairs.scale.y = Math.max(0.05, h1 - 0.005);
+  }
   if (P.belt) {
     // Förderband: an der Frachttür auf die Schwelle hochgestellt (v.lift 0 … 1), sonst flach
     const { th, len } = beltGeom(v.top ?? BELT.y);
@@ -1564,6 +1728,17 @@ export function poseVehicle(state, v, m, dt, now) {
     P.belt.rotation.z = 0.04 + (th - 0.04) * P.u;
     P.belt.scale.x = 1 + (len / BELT.len - 1) * P.u; // hohe Frachttüren: Band fährt aus
   }
+  if (P.tbar) {
+    // Schleppstange: am Flugzeug (wartend und beim Pushback) von der Kupplung bis zum Bugrad (0,36 L vor der Mitte;
+    // der Schlepper steht 0,3 vor der Nase), sonst nicht da
+    const ac = v.job && (v.st === 'attached' || (v.st === 'work' && v.job.k === 'push')) ? state.acs.find((a) => a.id === v.job.ac) : null;
+    P.bar = ac ? clamp(0.14 * ac.len + 0.3 - 0.191, 0.08, TBAR_MAX) : 0; // große Flugzeuge: Ende unter dem Rumpf
+    P.tbar.g.visible = P.bar > 0;
+    if (P.bar) {
+      P.tbar.t.scale.x = P.bar;
+      P.tbar.h.position.x = P.bar;
+    }
+  }
   if (P.sides) setBusLoad(m, busLoad(v, state.time));
-  return `${P.u.toFixed(2)}|${P.top.toFixed(3)}|${P.yaw.toFixed(2)}|${P.load}`;
+  return `${P.u.toFixed(2)}|${P.top.toFixed(3)}|${P.yaw.toFixed(2)}|${P.load}|${P.bar.toFixed(2)}|${P.jb ? `${(v.len ?? 0).toFixed(2)}|${(v.h1 ?? 0).toFixed(3)}|${(v.cab ?? 0).toFixed(2)}` : ''}`;
 }

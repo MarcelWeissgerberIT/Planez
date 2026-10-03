@@ -161,28 +161,31 @@ export class Wildlife {
         ctx.fill();
       }
     }
+    // Vögel von oben: Rumpf in Flugrichtung, Flügel quer dazu, beim Flügelschlag kürzer (Verkürzung); Größe etwa
+    // maßstäblich (Möwe ≈ 1,8 m Spannweite, gut erkennbar), aber nie kleiner als ein paar Pixel; Möwen hell mit dunklen Spitzen,
+    // Zugvögel als dunkle Silhouetten
     for (const f of this.flocks) {
-      ctx.strokeStyle = f.gulls ? 'rgba(245,245,245,0.9)' : 'rgba(30,34,40,0.8)';
-      ctx.lineWidth = Math.max(1, 1.2 * z);
+      const span = Math.max(f.gulls ? 7 : 6, (f.gulls ? 0.09 : 0.07) * 36 * cam.zoom) / 2;
       for (const b of f.birds) {
-        let bx = f.cx + b.ox, by = f.cy + b.oy;
+        let bx = f.cx + b.ox, by = f.cy + b.oy, dx = f.vx || 1, dy = f.vy || 0;
         if (f.gulls && !f.leave) {
-          // kreisen um den Schwerpunkt
+          // kreisen um den Schwerpunkt, Blick entlang der Kreisbahn
           const a = t * b.sp + b.ph;
           bx = f.cx + Math.cos(a) * b.r * 1.4;
           by = f.cy + Math.sin(a) * b.r * 0.6;
+          dx = -Math.sin(a) * 1.4;
+          dy = Math.cos(a) * 0.6;
         } else {
           bx += Math.sin(t * 0.7 + b.ph) * 0.3;
           by += Math.cos(t * 0.6 + b.ph) * 0.2;
         }
         const p = cam.toScreen(bx, by, f.z + Math.sin(t + b.ph) * 0.2);
         if (p.x < -20 || p.y < -20 || p.x > cam.w + 20 || p.y > cam.h + 20) continue;
-        const w = 4.5 * z, flap = Math.sin(t * 11 + b.ph * 3) * 2.2 * z;
-        ctx.beginPath();
-        ctx.moveTo(p.x - w, p.y - flap);
-        ctx.quadraticCurveTo(p.x - w * 0.4, p.y - flap * 0.2 - 1, p.x, p.y);
-        ctx.quadraticCurveTo(p.x + w * 0.4, p.y - flap * 0.2 - 1, p.x + w, p.y - flap);
-        ctx.stroke();
+        // Möwen gleiten meist und schlagen nur ab und zu, kleine Vögel flattern schnell
+        const ph = Math.sin(t * (f.gulls ? 7 : 13) + b.ph * 3);
+        const glide = f.gulls ? Math.max(0, Math.sin(t * 0.8 + b.ph)) : 1;
+        const sf = 1 - 0.45 * glide * ph * ph;
+        drawBird(ctx, p.x, p.y, Math.atan2((dx + dy) * 16, (dx - dy) * 32), span, sf, f.gulls);
       }
     }
     const hc = this.heli;
@@ -238,4 +241,48 @@ export class Wildlife {
       }
     }
   }
+}
+
+// ein Vogel von oben (Bildschirmraum): Mitte x, y, Flugrichtung ang, halbe Spannweite s, Flügelverkürzung sf
+function drawBird(ctx, x, y, ang, s, sf, gull) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(ang);
+  const w = s * sf;
+  // Flügel: vorn gewölbt mit Knick (Handgelenk), hinten leicht eingebuchtet, Spitzen nach hinten gezogen
+  ctx.fillStyle = gull ? '#d9dee4' : 'rgba(38,40,44,0.92)';
+  ctx.beginPath();
+  for (const k of [-1, 1]) {
+    ctx.moveTo(s * 0.14, 0);
+    ctx.quadraticCurveTo(s * 0.26, k * w * 0.45, s * 0.02, k * w * 0.62);
+    ctx.quadraticCurveTo(-s * 0.1, k * w * 0.86, -s * 0.3, k * w);
+    ctx.quadraticCurveTo(-s * 0.16, k * w * 0.55, -s * 0.2, k * w * 0.16);
+    ctx.lineTo(-s * 0.12, 0);
+  }
+  ctx.fill();
+  if (gull) {
+    // schwarze Flügelspitzen
+    ctx.fillStyle = '#23262b';
+    ctx.beginPath();
+    for (const k of [-1, 1]) {
+      ctx.moveTo(-s * 0.04, k * w * 0.78);
+      ctx.quadraticCurveTo(-s * 0.14, k * w * 0.9, -s * 0.3, k * w);
+      ctx.quadraticCurveTo(-s * 0.2, k * w * 0.84, -s * 0.18, k * w * 0.72);
+    }
+    ctx.fill();
+  }
+  // Rumpf mit Kopf und Schwanz
+  ctx.fillStyle = gull ? '#f6f7f9' : 'rgba(30,32,36,0.95)';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, s * 0.4, s * 0.1, 0, 0, Math.PI * 2);
+  ctx.moveTo(-s * 0.32, 0);
+  ctx.lineTo(-s * 0.56, -s * 0.11);
+  ctx.lineTo(-s * 0.56, s * 0.11);
+  ctx.closePath();
+  ctx.fill();
+  if (gull) {
+    ctx.fillStyle = '#e8a33a'; // Schnabel
+    ctx.fillRect(s * 0.38, -s * 0.025, s * 0.1, s * 0.05);
+  }
+  ctx.restore();
 }

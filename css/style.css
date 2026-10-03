@@ -1933,10 +1933,32 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 
 /* ---------- Info-Karte ---------- */
 #info { background: var(--ui-bg-2); border-radius: 16px; padding: 12px 14px 12px; overflow: hidden; }
-/* Desktop: rechts an der Kartensteuerung ausgerichtet, damit links Funk und Entscheidungen frei bleiben */
+/* Kontextspalte: Entscheidungskarte und Info-Karte zum Gewählten liegen übereinander statt sich zu überdecken; die
+   Info-Karte gibt nach, wenn beides zusammen nicht passt, und scrollt dann. Desktop: rechts über der Seitenleiste
+   (gleiche Lage und Breite), so bleibt die Kartenmitte mit dem ausgewählten Flugzeug frei. Schmal: unten. */
+#ctx { display: flex; flex-direction: column; gap: 8px; position: absolute; z-index: 11; pointer-events: none; }
+#ctx > * { pointer-events: auto; }
+#game #ctx > #info, #game #ctx > #decision { position: relative; left: auto; right: auto; top: auto; bottom: auto; transform: none; width: auto; min-width: 0; max-width: none; z-index: auto; }
+#game #ctx > #info { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
+#game #ctx > #decision { flex: 0 0 auto; }
+#game #info .i-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (min-width: 1001px) {
-  #info { left: auto; right: calc(var(--panel-w) + 76px); transform: none; bottom: 14px; min-width: 340px; width: min(560px, calc(100vw - var(--panel-w) - 130px)); max-width: none; }
-  #game.no-panel #info { right: 76px; }
+  #ctx { right: 8px; top: calc(var(--hud-h) + 8px); width: var(--panel-w); max-height: calc(100vh - var(--hud-h) - 16px); }
+  #game #ctx > #info, #game #ctx > #decision { animation: info-in .18s ease-out; }
+  /* über der Seitenleiste deckend, sonst scheint deren Text durch */
+  #ctx > #info { background: linear-gradient(180deg, rgb(28, 40, 64), rgb(13, 20, 36)); }
+  #ctx > #decision { background: linear-gradient(160deg, rgb(34, 27, 10), rgb(10, 16, 28)); }
+  #game #info .i-btns { justify-content: flex-start; margin-left: 0; }
+  .a11y-big #ctx { zoom: 1.13; width: calc(var(--panel-w) / 1.13); top: calc((var(--hud-h) + 8px) / 1.13); right: calc(8px / 1.13); max-height: calc((100vh - var(--hud-h) - 16px) / 1.13); }
+  .a11y-big #ctx > #info, .a11y-big #ctx > #decision { zoom: 1; }
+}
+@keyframes info-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+/* schmale Bildschirme: unten über der Seitenleiste, die Info-Karte höchstens 46 % hoch */
+@media (max-width: 1000px) {
+  #ctx { left: 12px; right: 12px; bottom: 12px; max-height: calc(100% - var(--hud-h) - 70px); gap: 6px; }
+  #game.tw-layout #ctx { bottom: calc(var(--rail-h) + 16px); }
+  #game.role-manager #ctx, #game.role-observer #ctx { bottom: 48px; }
+  #game #ctx > #info { max-height: 46vh; min-height: min(140px, 30vh); }
 }
 #info .i-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
 .i-head { flex-wrap: wrap; align-items: flex-start; gap: 6px 8px; }

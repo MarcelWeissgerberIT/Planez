@@ -9,6 +9,8 @@ import { servicePoint } from '../js/layout.js';
 import { buildAircraft } from '../js/render/model3d.js';
 import { AIRLINES, AC_TYPES } from '../js/config.js';
 import { stairsGeom } from '../js/acshape.js';
+import { jetBridges } from '../js/render/jetbridge.js';
+import { STAND_NOSE } from '../js/layout.js';
 const q = new URLSearchParams(location.search);
 const view = q.get('view') || 'side', work = q.get('work') === '1', night = view === 'night';
 const r = new THREE.WebGLRenderer({ antialias: true });
@@ -68,6 +70,24 @@ if (q.get('stairsat')) {
   sc.add(vm);
 }
 // Bus an der Außenposition (busat=TYP): Flugzeug in Nordrichtung, Vorfeldbus am Service-Punkt „deboard“
+// Fluggastbrücke an der Tür (jbat=TYP, jbe=0…1): Position 0 bei x = 20, Flugzeug in Nordrichtung; Szene um den Ursprung verschoben
+if (q.get('jbat')) {
+  const t = q.get('jbat'), L = AC_TYPES[t].len, X = 20;
+  const ac = { id: 'a3', type: t, airline: Object.keys(AIRLINES)[0], x: X, y: STAND_NOSE + L / 2, hdg: -Math.PI / 2, len: L, mode: 'map' };
+  const st = { id: 9, x: X, kind: 'contact', built: true, occ: 'a3', bridge: +(q.get('jbe') ?? 1) };
+  const off = new THREE.Vector3(-X, 0, -16.2);
+  const m = buildAircraft(ac);
+  m.position.set(ac.x, m.userData.H || 0.1, ac.y).add(off);
+  m.rotation.y = -ac.hdg;
+  sc.add(m);
+  for (const o of jetBridges({ stands: [st], acs: [ac] })) {
+    const vm = buildVehicle(o);
+    poseVehicle({ acs: [ac], time: 0 }, o, vm, 0, 0);
+    vm.position.set(o.x, 0, o.y).add(off);
+    vm.rotation.y = -o.hdg;
+    sc.add(vm);
+  }
+}
 if (q.get('busat')) {
   const t = q.get('busat'), ac = { id: 'a2', type: t, airline: Object.keys(AIRLINES)[1], x: 0, y: 0, hdg: -Math.PI / 2, len: AC_TYPES[t].len };
   const m = buildAircraft(ac);
@@ -80,7 +100,21 @@ if (q.get('busat')) {
   vm.rotation.y = -sp.hdg;
   sc.add(vm);
 }
-const types = acs || q.get('cars') || q.get('stairsat') || q.get('busat') ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,stairs,deice,fire,plow,followme').split(',');
+if (q.get('tugat')) {
+  // Pushback: Schlepper vor der Nase, Schleppstange am Bugrad
+  const t = q.get('tugat'), ac = { id: 'a4', type: t, airline: Object.keys(AIRLINES)[2], x: 0, y: 0, hdg: -Math.PI / 2, len: AC_TYPES[t].len };
+  const m = buildAircraft(ac);
+  m.position.set(0, m.userData.H || 0.1, 0);
+  m.rotation.y = -ac.hdg;
+  sc.add(m);
+  const sp = servicePoint('push', ac), v = { id: 't9', type: 'tug', name: 'tug 3', x: sp.x, y: sp.y, hdg: sp.hdg, st: 'attached', job: { ac: ac.id, k: 'push' } };
+  const vm = buildVehicle(v);
+  poseVehicle({ acs: [ac], time: 0 }, v, vm, 0, 0);
+  vm.position.set(sp.x, 0, sp.y);
+  vm.rotation.y = -sp.hdg;
+  sc.add(vm);
+}
+const types = acs || q.get('cars') || q.get('stairsat') || q.get('busat') || q.get('jbat') || q.get('tugat') ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,stairs,deice,fire,plow,followme').split(',');
 types.forEach((t, i) => {
   const m = buildVehicle({ type: t, id: 'v' + (i * 7 + 3), name: `${t} ${i + 1}` }); // ID und Name: Werbung und Dachnummer
   const col = i % 5, row = Math.floor(i / 5);

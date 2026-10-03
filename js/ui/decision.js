@@ -14,7 +14,10 @@ export class DecisionCard {
     const el = document.createElement('section');
     el.id = 'decision';
     el.className = 'hidden';
-    document.getElementById('game').appendChild(el);
+    // oben in die rechte Kontextspalte, über die Info-Karte
+    const ctx = document.getElementById('ctx');
+    if (ctx) ctx.prepend(el);
+    else document.getElementById('game').appendChild(el);
     this.el = el;
     this.cur = null;
     el.addEventListener('click', (e) => {
