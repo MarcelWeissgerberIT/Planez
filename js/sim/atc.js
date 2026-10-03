@@ -1,10 +1,10 @@
 // Flugsicherung: Befehle, automatischer Lotse, Konfliktwarnung, Pistenwechsel
 import { aiNote, markManual, manualLocked } from './aiplay.js';
 import { AC_TYPES } from '../config.js';
-import { dist, degNorm } from '../util.js';
+import { dist, degNorm, pathLength } from '../util.js';
 import * as AS from './airspace.js';
 import * as LY from '../layout.js';
-import { PH, tel, windStr, goAround, startTaxiIn, startPushback, startTaxiOut, startLineUp, runwayBlocker, runwayOccupants, setReq, fmtAlt, crossingSafe } from './aircraft.js';
+import { PH, tel, windStr, goAround, startTaxiIn, startPushback, startTaxiOut, startLineUp, runwayBlocker, runwayOccupants, setReq, fmtAlt, crossingSafe, takeoffExtraNm, takeoffPerf } from './aircraft.js';
 import { radio, log, notify, fx } from './messages.js';
 import { penalize } from './economy.js';
 import { updateSequence, seqNumber, updateArrQueue, isSeqArrival, isSeqDeparture, sepSec, seqStrip } from './sequence.js';
@@ -297,7 +297,7 @@ export function clearanceRisk(state, ac, key) {
   if (key !== 'takeoff' && key !== 'lineup') return null;
   const occ = runwayOccupants(state, strip).filter((o) => o !== ac && !(o.phase === PH.FINAL));
   if (occ.length) return T`Bahn belegt – ${occ[0].cs || T('Verkehr')} ${occ[0].phase === PH.ROLLOUT ? T('rollt noch aus') : T('ist auf der Bahn')}`;
-  const lim = key === 'takeoff' && (ac.phase === PH.LINED || ac.phase === PH.LINEUP) ? 2 : 3.5;
+  const lim = (key === 'takeoff' && (ac.phase === PH.LINED || ac.phase === PH.LINEUP) ? 2 : 3.5) + takeoffExtraNm(ac);
   for (const a of state.acs) {
     if (a === ac || !a.arr || (a.strip || 'N') !== strip) continue;
     if (a.mode === 'map' && a.phase === PH.FINAL) return T`${a.cs} ist im kurzen Endanflug`;
@@ -322,8 +322,8 @@ export function departureWait(state, ac) {
       next = a;
     }
   }
-  // vom Rollhalt braucht ein Start gut 1½ Minuten, bis die Piste wieder frei ist
-  const need = ac.phase === PH.LINED || ac.phase === PH.LINEUP ? 2.8 : 6;
+  // vom Rollhalt braucht ein Start gut 1½ Minuten, bis die Piste wieder frei ist (schwere Flugzeuge länger)
+  const need = (ac.phase === PH.LINED || ac.phase === PH.LINEUP ? 2.8 : 6) + takeoffExtraNm(ac);
   if (next && nd < need) return { sec: Math.round((nd / Math.max(120, next.spd || 140)) * 3600 + 45), why: T`Landung ${next.cs} zuerst`, land: true };
   const dg = depGap(state, ac);
   const gap = dg.sec - dg.since - 20;
@@ -401,7 +401,7 @@ export function autoAtc(state, dt) {
 
 // Nächste Anflugfreigabe: Kandidaten in Reihenfolge (Notfälle und Treibstoffmangel zuerst),
 // aus der Warteschleife immer der Unterste; Abstand zu bereits freigegebenen Anflügen derselben Bahn
-function clearNextApproach(state, cands, distCleared, departuresWaiting, order = null) {
+function clearNextApproach(state, cands, distCleared, departuresWaiting, order = null, depExtra = 0) {
   const rwy = state.rwy;
   const nextStrip = stripForArrival(state);
   const lowestInStack = (c) => c.phase !== PH.HOLD || !cands.some((o) => o !== c && o.phase === PH.HOLD && o.holdFix && c.holdFix && o.holdFix.name === c.holdFix.name && o.alt < c.alt - 100);
@@ -436,7 +436,7 @@ function clearNextApproach(state, cands, distCleared, departuresWaiting, order =
     // Grundabstand: zwischen zwei Kleinflugzeugen reichen 3,5 NM (bei 65–110 kt rund zwei Minuten), mit einem 5 NM
     const lL = AC_TYPES[lead.type].light, lF = AC_TYPES[foll.type].light;
     let sep = (lL && lF ? 3.5 : lL || lF ? 5 : 7) + fast + (wakeNm(lead.wake, foll.wake) - 3) * 1.3 + (state.weather.kind === 'fog' ? 2.5 : 0);
-    if (departuresWaiting > 0) sep += 2.5;
+    if (departuresWaiting > 0) sep += 2.5 + depExtra;
     if (Math.abs(next.d - d) < sep) return null;
     if (next.d < d) return null; // nicht vordrängeln
   }
@@ -557,7 +557,10 @@ function autoArrivals(state) {
   const distCleared = cleared.map((a) => ({ a, d: distToLand(a) }));
   const nextStrip = stripForArrival(state);
   // Starts belegen nur die Nordbahn: im getrennten Betrieb kein Zusatzabstand für Landungen auf der Südbahn
-  const departuresWaiting = nextStrip === 'N' ? state.acs.filter((a) => [PH.HOLDING, PH.LINED, PH.LINEUP].includes(a.phase) || (a.phase === PH.TAXI_OUT && a.rwy === rwy)).length : 0;
+  const waitDeps = nextStrip === 'N' ? state.acs.filter((a) => [PH.HOLDING, PH.LINED, PH.LINEUP].includes(a.phase) || (a.phase === PH.TAXI_OUT && a.rwy === rwy)) : [];
+  const departuresWaiting = waitDeps.length;
+  // Lücke für einen Start: der längste Startlauf der nächsten Abflüge bestimmt den Mehrabstand
+  const depExtra = waitDeps.slice(0, 3).reduce((m, a) => Math.max(m, takeoffExtraNm(a)), 0);
 
   // Landefreigaben
   for (const { a, d } of distCleared) {
@@ -571,7 +574,7 @@ function autoArrivals(state) {
 
   if (!state.rwyPending) {
     const cands = state.acs.filter((a) => [PH.INBOUND, PH.HOLD].includes(a.phase));
-    clearNextApproach(state, cands, distCleared, departuresWaiting);
+    clearNextApproach(state, cands, distCleared, departuresWaiting, null, depExtra);
   }
   // Geschwindigkeit: Aufholen verhindern (einfach)
   for (const strip of ['N', 'S']) {
@@ -604,12 +607,20 @@ function autoDepartures(state) {
     return t.vmax ? (d * 140) / Math.max(55, a.mode === 'air' ? a.spd : t.vapp) : d;
   };
   const nextArr = Math.min(arrivals.reduce((m, a) => Math.min(m, eqNm(a)), 99), state.vfrFinal ?? 99);
+  // zusätzlich nach Zeit: Sekunden bis zur nächsten Landung (mit der aktuellen Geschwindigkeit, Anflüge sind oft
+  // noch schneller als 140 kt) gegen die Zeit, die der Start die Piste belegt (Aufrollen, Warten, Startlauf)
+  const arrSec = Math.min(arrivals.reduce((m, a) => Math.min(m, (distToLand(a) / Math.max(90, a.mode === 'air' ? a.spd : AC_TYPES[a.type].vapp)) * 3600), 1e9), state.vfrFinal != null ? (state.vfrFinal / 140) * 3600 : 1e9);
+  const lineupSec = (a) => {
+    const p = LY.pathLineUp(a.rwy, a.len);
+    p[0] = { x: a.x, y: a.y };
+    return pathLength(p) / 0.075;
+  };
   const lined = state.acs.find((a) => a.phase === PH.LINED || a.phase === PH.LINEUP);
   const sinceTo = state.time - (state.lastTakeoff || -999);
   if (runwayClosed(state)) return;
   if (lined && !lined.clr.takeoff) {
     const others = occupants.filter((o) => o !== lined);
-    if (!others.length && nextArr > 2.6 && sinceTo > depGap(state, lined).sec && slotOpen(state, lined)) command(state, lined, 'takeoff');
+    if (!others.length && nextArr > 2.6 + takeoffExtraNm(lined) && arrSec > takeoffPerf(lined.type).occ + 15 && sinceTo > depGap(state, lined).sec && slotOpen(state, lined)) command(state, lined, 'takeoff');
     return;
   }
   if (lined) return;
@@ -623,9 +634,10 @@ function autoDepartures(state) {
   const queue = state.acs.filter((a) => a.phase === PH.HOLDING && a.rwy === rwy && slotOpen(state, a, 60)).sort((a, b) => key(a) - key(b));
   const head = queue[0];
   if (!head) return;
-  const wakeGap = depGap(state, head).sec;
-  if (!occupants.length && nextArr > 5.2 && sinceTo > wakeGap - 20) command(state, head, 'takeoff');
-  else if (!occupants.length && nextArr > 4.4 && sinceTo > wakeGap - 30) command(state, head, 'lineup');
+  const wakeGap = depGap(state, head).sec, ext = takeoffExtraNm(head);
+  const need = lineupSec(head) + Math.max(0, wakeGap - sinceTo) + takeoffPerf(head.type).occ + 20;
+  if (!occupants.length && nextArr > 5.2 + ext && arrSec > need && sinceTo > wakeGap - 20) command(state, head, 'takeoff');
+  else if (!occupants.length && nextArr > 4.4 + ext && arrSec > need && sinceTo > wakeGap - 30) command(state, head, 'lineup');
 }
 
 function autoGround(state) {

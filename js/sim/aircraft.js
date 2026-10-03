@@ -730,11 +730,12 @@ function updateMap(state, ac, dt) {
       } else setReq(state, ac, 'takeoff');
       break;
     case PH.TAKEOFF: {
-      const tk = AC_TYPES[ac.type];
-      const vr = tk.vmax ? Math.min(0.36, tk.vapp * 0.0027) : 0.36;
-      ac.v = Math.min(tk.vmax ? 0.42 : 0.75, ac.v + (ac.z > 0 ? 0.006 : 0.0095) * (tk.light ? 0.7 : 1) * dt);
+      // Startlauf nach Muster (takeoffPerf): schwere Flugzeuge beschleunigen langsamer, rotieren schneller und steigen flacher
+      const tk = AC_TYPES[ac.type], P = takeoffPerf(ac.type);
+      const acc = tk.vmax ? (ac.z > 0 ? 0.006 : 0.0095) * (tk.light ? 0.7 : 1) : ac.z > 0 ? Math.min(0.006, P.a * 0.85) : P.a;
+      ac.v = Math.min(P.vmax, ac.v + acc * dt);
       ac.x += d * ac.v * dt;
-      if (ac.v >= vr || ac.z > 0) {
+      if (ac.v >= P.vr || ac.z > 0) {
         if (!ac.airborne) {
           ac.airborne = true;
           state.lastTakeoff = state.time;
@@ -743,7 +744,7 @@ function updateMap(state, ac, dt) {
           onTakeoff(state, ac);
           acdmOnTakeoff(state, ac, getRot(state, ac));
         }
-        ac.z += ac.v * 0.11 * dt;
+        ac.z += ac.v * P.grad * dt;
       }
       if ((d < 0 && ac.x < -16) || (d > 0 && ac.x > LY.W + 16)) toAirDeparture(state, ac);
       break;
@@ -769,14 +770,43 @@ function updateMap(state, ac, dt) {
   }
 }
 
+// Startleistung je Muster: Rotiergeschwindigkeit vr (Kacheln/s; ×323 = kt), Beschleunigung am Boden a, Zeit bis vr,
+// Steiggradient und Pistenbelegung occ (s vom Anrollen bis 0,4 über der Bahn). Vr steigt mit dem Gewicht (Regionaljet
+// ≈ 120 kt, Mittelstrecke ≈ 145 kt, Superjumbo ≈ 165 kt), der Startlauf dauert länger (≈ 38 s … 85 s) und wird deutlich länger
+// (≈ 7 … 22 Kacheln), schwere Flugzeuge steigen flacher. Sportflugzeuge und Lufttaxi (vmax) wie bisher.
+const PERF = new Map();
+export function takeoffPerf(type) {
+  let p = PERF.get(type);
+  if (p) return p;
+  const t = AC_TYPES[type];
+  if (t.vmax) {
+    const vr = Math.min(0.36, t.vapp * 0.0027), a = 0.0095 * (t.light ? 0.7 : 1);
+    p = { vr, a, roll: vr / a, grad: 0.11, vmax: 0.42 };
+  } else {
+    const lm = Math.log2(Math.max(5, t.mtow) / 20);
+    const vr = Math.min(175, t.vapp * (1 + 0.04 * lm)) / 323;
+    const roll = clamp(38 + 10 * Math.log2(Math.max(5, t.mtow) / 23), 34, 88);
+    p = { vr, a: vr / roll, roll, grad: clamp(0.125 - 0.009 * lm, 0.075, 0.12), vmax: 0.75 };
+  }
+  p.occ = p.roll + 0.4 / (p.grad * p.vr);
+  PERF.set(type, p);
+  return p;
+}
+// zusätzlicher Abstand (NM) zur nächsten Landung, den ein langer Startlauf braucht (Bezug: 48 s Pistenbelegung,
+// Anflug mit rund 140 kt ≈ 0,04 NM/s)
+export function takeoffExtraNm(ac) {
+  return ac ? Math.max(0, (takeoffPerf(ac.type).occ - 48) * 0.04) : 0;
+}
+
 function toAirDeparture(state, ac) {
   const rot = getRot(state, ac);
   const nm = LY.tileToNm(ac.x, ac.y);
   ac.mode = 'air';
   ac.pos = nm;
-  ac.alt = 1200;
-  ac.crs = AS.finalCrs(ac.rwy);
   const tdep = AC_TYPES[ac.type];
+  // Höhe an der Übergabe wie auf der Karte (z · 2 Kacheln in 3D ≈ z · 131 ft): schwere Flugzeuge kommen tiefer an
+  ac.alt = tdep.vmax ? 1200 : Math.round(clamp(ac.z * 131, 500, 1200) / 50) * 50;
+  ac.crs = AS.finalCrs(ac.rwy);
   ac.spd = Math.min(180, tdep.vmax || 180);
   ac.tSpd = Math.min(250, tdep.vmax || 250);
   ac.tAlt = tdep.vmax ? tdep.cruise : 24000;

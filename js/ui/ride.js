@@ -4,7 +4,7 @@
 // mit Geschwindigkeit, Höhe, Kurs, Steig-/Sinkrate und Höhenansagen im Endanflug). Die Kamera fährt mit, bis das
 // Flugzeug an der Position steht oder die Karte verlässt. Esc oder ✕ beendet. Nur Darstellung.
 import { AC_TYPES, AIRLINES, CITIES, typeCode, typeName } from '../config.js';
-import { PH, PHASE_DE } from '../sim/aircraft.js';
+import { PH, PHASE_DE, takeoffPerf } from '../sim/aircraft.js';
 import { clamp, esc } from '../util.js';
 import { voice } from '../voice.js';
 import { icon } from './icons.js';
@@ -600,7 +600,7 @@ export class Ride {
       this.R.nd.textContent = ac.phase === PH.FINAL ? `RWY ${s.rwy} · ${((distLeft(ac)) * 20 / 1852).toFixed(1)} NM` : arrNow ? (ac.stand ? `→ P${ac.stand}` : '') : rot && rot.sid ? rot.sid : '';
       // Startlauf: V1, Rotate, Positive rate
       if (ac.phase === PH.TAKEOFF) {
-        if (kt >= 120 && !this.called.has('v1')) (this.called.add('v1'), this.callout('V one'));
+        if (kt >= takeoffPerf(ac.type).vr * 323 - 8 && !this.called.has('v1')) (this.called.add('v1'), this.callout('V one')); // kurz vor Vr des Musters
         if (z > 0.01 && !this.called.has('rot')) (this.called.add('rot'), this.callout('Rotate'));
         if (z > 0.25 && !this.called.has('pos')) (this.called.add('pos'), this.callout(T('Positive rate. Gear up.')));
       }
