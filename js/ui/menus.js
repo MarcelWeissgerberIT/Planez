@@ -297,7 +297,7 @@ export function initMainMenu(api) {
     setActive(lists[key], first);
     const f = (key === 'scn' || key === 'slots') && lists[key].querySelector('.mm-item:not(.locked)');
     if (f) setActive(lists[key], f);
-    showSide(key === 'new' ? 'new' : key === 'settings' ? 'settings' : f ? f.dataset.side : mm.save ? 'save' : 'new');
+    showSide(key === 'new' ? 'new' : key === 'settings' ? 'settings' : f && f.dataset.side ? f.dataset.side : mm.save ? 'save' : 'new'); // Import-Eintrag hat keine Seitenkarte
   };
   mm.openList = openList;
 

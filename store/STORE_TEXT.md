@@ -101,7 +101,7 @@ challenge every day.
 All airlines, aircraft manufacturers and types are fictional. Fully playable in English and German.
 
 **Feature list**
-- Build-up mode: from grass strip to international hub in five stages
+- Expansion mode: from grass strip to international hub in five stages
 - Three playable stations: tower, apron, management – switch at any time
 - Real voice radio and push-to-talk (Chrome/Edge)
 - Weather, day and night, seasons, winter operations

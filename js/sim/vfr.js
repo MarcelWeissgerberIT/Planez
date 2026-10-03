@@ -45,7 +45,7 @@ function circuit(rwy) {
 const SPD = 0.26, SPD_GND = 0.16; // Kacheln/s – etwa 90 kt im Verhältnis zu den Linienflügen (135 kt ≈ 0,42)
 // Funk-Rufzeichen im ICAO-Alphabet: beim Erstanruf vollständig („Delta Echo Kilo Lima Mike“), danach wie in
 // Deutschland üblich abgekürzt auf Nationalitätszeichen und die letzten beiden Buchstaben („Delta Lima Mike“)
-export const PHON = { A: 'Alpha', B: 'Bravo', C: 'Charlie', D: 'Delta', E: 'Echo', F: 'Foxtrot', G: 'Golf', H: 'Hotel', I: 'India', K: 'Kilo', L: 'Lima', M: 'Mike', N: 'November', O: 'Oscar', P: 'Papa', R: 'Romeo', S: 'Sierra', T: 'Tango', U: 'Uniform', W: 'Whiskey' };
+export const PHON = { A: 'Alpha', B: 'Bravo', C: 'Charlie', D: 'Delta', E: 'Echo', F: 'Foxtrot', G: 'Golf', H: 'Hotel', I: 'India', K: 'Kilo', L: 'Lima', M: 'Mike', N: 'November', O: 'Oscar', P: 'Papa', R: 'Romeo', S: 'Sierra', T: 'Tango', U: 'Uniform', V: 'Victor', W: 'Whiskey', X: 'X-ray', Y: 'Yankee', Z: 'Zulu', J: 'Juliett', Q: 'Quebec' };
 export const vfrTel = (cs, full = false) => {
   const l = cs.replace('-', '');
   return (full ? l.split('') : [l[0], l[3], l[4]]).map((c) => PHON[c] || c).join(' ');

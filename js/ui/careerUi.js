@@ -81,7 +81,7 @@ export function careerPageHtml(s) {
   // aktuelle Stufe
   const cap = rotCap(s);
   const last = (s.history || []).slice(-1)[0];
-  h += T`<div class="cr-now"><div class="cr-now-pic kb0" style="background-image:url(${stagePic(st)})"></div><div class="cr-now-b"><small>Jetzt</small><h3>${STAGES[st].icon} ${esc(STAGES[st].name)}</h3><p>${esc(STAGES[st].desc)}</p>
+  h += T`<div class="cr-now"><div class="cr-now-pic"><i class="kb0" style="background-image:url(${stagePic(st)})"></i></div><div class="cr-now-b"><small>Jetzt</small><h3>${STAGES[st].icon} ${esc(STAGES[st].name)}</h3><p>${esc(STAGES[st].desc)}</p>
     <div class="kpis"><div class="k"><span>Bekanntheit</span><b>${Math.round(C.fame)}/100</b></div><div class="k"><span>Bewegungen gestern</span><b>${last ? last.mov : '—'}</b></div><div class="k"><span>Partner</span><b>${partnerContracts(s).length}</b></div>${cap > 0 && cap < Infinity ? T`<div class="k"><span>Linienflüge/Tag</span><b>${airlineRotations(s)} / ${cap}</b></div>` : ''}</div></div></div>`;
   h += perksOwnedHtml(s);
   // nächste Stufe

@@ -34,7 +34,7 @@ export const GOAL_DEFS = {
   fuelT: { role: 'ground', type: 'sum', t: [250, 450, 700, 1000], text: (n) => T`${n0(n)} t Kerosin vertanken` },
   tobtKept: { role: 'ground', type: 'sum', t: [12, 20, 30, 40], text: (n) => T`${n} Flüge ohne TOBT-Verschiebung abfertigen` },
   noStandWait: { role: 'ground', type: 'sum', t: [12, 20, 30, 40], text: (n) => T`${n} Ankünfte ohne Warten direkt zur Parkposition` },
-  contracts: { role: 'manager', type: 'sum', t: [1, 2, 2, 3], text: (n) => T`${n} neue Verträge abschließen (Airlines oder Partner)` },
+  contracts: { role: 'manager', type: 'sum', t: [1, 2, 2, 3], text: (n) => (n === 1 ? T('Einen neuen Vertrag abschließen (Airline oder Partner)') : T`${n} neue Verträge abschließen (Airlines oder Partner)`) },
   fuelMargin: { role: 'manager', type: 'sum', t: [25000, 50000, 90000, 150000], text: (n) => T`${fmtMoney(n)} Kerosin-Marge erwirtschaften` },
   pax: { role: 'manager', type: 'sum', t: [10000, 18000, 30000, 45000], text: (n) => T`${n0(n)} Passagiere abfertigen` },
   profitDays: { role: 'manager', type: 'streak', t: [1, 2, 3, 5], text: (n) => (n > 1 ? T`${n} Tage in Folge mit positivem Betriebsergebnis` : T`${n} Tag in Folge mit positivem Betriebsergebnis`) },

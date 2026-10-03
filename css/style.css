@@ -2188,7 +2188,9 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .cr-step.done span::after { content: ' ✓'; color: var(--good); }
 .cr-step.now { filter: none; box-shadow: 0 0 0 2px var(--manager), 0 8px 22px rgba(251,191,36,.25); }
 .cr-now { display: grid; grid-template-columns: minmax(220px, 1.1fr) 1.4fr; gap: 14px; margin-bottom: 12px; }
-.cr-now-pic { min-height: 210px; border-radius: 12px; background: center / cover no-repeat; animation: kb0 40s ease-in-out infinite; box-shadow: 0 0 0 1px rgba(148,178,214,.22); }
+/* Ken Burns nur im Inneren: die Box selbst bleibt fest, sonst wächst sie über die Spalte mit dem Text */
+.cr-now-pic { position: relative; min-height: 210px; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px rgba(148,178,214,.22); }
+.cr-now-pic > i { position: absolute; inset: -6%; background: #0b1220 center / cover no-repeat; animation: kb0 40s ease-in-out infinite; will-change: transform; }
 .cr-now-b small { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--manager); }
 .cr-now-b h3 { margin: 2px 0 6px; font: 600 24px var(--mm-font); }
 .cr-now-b p { margin: 0 0 10px; color: #cbd5e1; }
@@ -2205,7 +2207,7 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .cr-money b { display: block; font: 600 14px var(--mono); color: #e2e8f0; }
 .cr-hint { font-size: 11.5px; color: #94a3b8 !important; }
 @media (max-width: 900px) { .cr-now, .cr-up { grid-template-columns: 1fr; } .cr-up-b { padding: 0 12px; } .cr-line { grid-template-columns: repeat(5, minmax(90px, 1fr)); overflow-x: auto; } }
-@media (prefers-reduced-motion: reduce) { .cr-hero-img, .cr-now-pic, .cr-go { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .cr-hero-img, .cr-now-pic > i, .cr-go { animation: none !important; } }
 .rk-stage { font-size: 15px; }
 .mg-body > .cr-line, .mg-body > .cr-now, .mg-body > .cr-up, .mg-body > .cr-acts, .mg-body > .cr-partners { column-span: all; }
 
