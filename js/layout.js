@@ -302,12 +302,57 @@ export function servicePoint(kind, ac) {
   return { x: ac.x + fx * off[0] + rx * off[1], y: ac.y + fy * off[0] + ry * off[1], hdg: h + off[2] };
 }
 
+// Servicestraße: Am Grasplatz und Verkehrslandeplatz stehen Zapfsäule, Vereinsheim und Halle direkt an ihrer Linie –
+// dort umfährt sie die Gebäude südlich (zwischen Tankstellen-Vorplatz und den Wiesenplätzen)
+export const SERVICE_BYPASS = { x0: 38.6, x1: 55.2, y: 16.95, ramp: 1.0 };
+const smallStage = () => GEO.stage <= 1;
+export function serviceY(x) {
+  const B = SERVICE_BYPASS;
+  return smallStage() && x > B.x0 && x < B.x1 ? B.y : SERVICE;
+}
+// Wegpunkte entlang der Servicestraße von x0 nach x1 (mit Umfahrung), dy = Fahrspur
+export function serviceRun(x0, x1, dy = 0) {
+  const pts = [P(x0, serviceY(x0) + dy)];
+  if (smallStage()) {
+    const B = SERVICE_BYPASS, dir = Math.sign(x1 - x0) || 1;
+    for (const e of dir > 0 ? [B.x0, B.x1] : [B.x1, B.x0]) {
+      if ((e - x0) * dir <= B.ramp / 2 || (x1 - e) * dir <= B.ramp / 2) continue;
+      pts.push(P(e - (dir * B.ramp) / 2, serviceY(e - dir * 0.01) + dy), P(e + (dir * B.ramp) / 2, serviceY(e + dir * 0.01) + dy));
+    }
+  }
+  pts.push(P(x1, serviceY(x1) + dy));
+  return pts;
+}
+// Zufahrt für Sonderfahrzeuge (Rettungswagen, Kolonne) von Osten: südlich am Tanklager vorbei auf die Servicestraße
+export function gateRoute(toX, dy = 0) {
+  return [P(84, 17.3), P(76.2, 17.3), ...serviceRun(75.2, toX, dy)];
+}
+// Länge eines Linienzugs und Punkt nach Strecke s (mit Fahrtrichtung h)
+export function polyLen(pts) {
+  let L = 0;
+  for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  return L;
+}
+export function alongPoly(pts, s) {
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    const L = Math.hypot(b.x - a.x, b.y - a.y);
+    if (s <= L || i === pts.length - 1) {
+      const u = L > 1e-6 ? clamp(s / L, 0, 1) : 1;
+      return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, h: Math.atan2(b.y - a.y, b.x - a.x) };
+    }
+    s -= L;
+  }
+  return { x: pts[0].x, y: pts[0].y, h: 0 };
+}
+
 // Weg für ein Fahrzeug: über die Servicestraße
 export function vehPath(from, to) {
   const pts = [P(from.x, from.y)];
-  const nearRoad = Math.abs(from.y - SERVICE) < 0.3;
-  if (!nearRoad) pts.push(P(from.x, SERVICE));
-  if (Math.abs(to.x - from.x) > 0.3 || !nearRoad) pts.push(P(to.x, SERVICE));
+  const y0 = serviceY(from.x);
+  const nearRoad = Math.abs(from.y - y0) < 0.3;
+  if (!nearRoad) pts.push(P(from.x, y0));
+  if (Math.abs(to.x - from.x) > 0.3 || !nearRoad) pts.push(...serviceRun(from.x, to.x).slice(1));
   pts.push(P(to.x, to.y));
   return roundedPath(dedupe(pts), 0.5, 0.15);
 }

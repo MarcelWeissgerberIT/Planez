@@ -85,6 +85,12 @@ export function smallField3d(v, state) {
       v.flat(s.x - 0.03, s.x + 0.03, LY.STAND_NOSE, LY.LANE, 0xfacc15, 0.009);
       v.flat(s.x - 0.4, s.x + 0.4, LY.STAND_NOSE - 0.05, LY.STAND_NOSE + 0.02, 0xfacc15, 0.009);
     }
+    // Servicestraße zum Depot (südlich an Tankstelle, Vereinsheim und Halle vorbei) und Depot-Vorplatz wie auf der Karte
+    const B = LY.SERVICE_BYPASS, sy = LY.SERVICE;
+    v.flat(41.4, B.x1 - 0.4, B.y - 0.45, B.y + 0.45, 0x52565c, 0.0061);
+    v.flat(B.x1 - 0.6, B.x1 + 0.6, sy - 0.45, B.y + 0.45, 0x52565c, 0.0061);
+    v.flat(B.x1 + 0.4, 66.4, sy - 0.45, sy + 0.45, 0x52565c, 0.0061);
+    v.flat(66.2, 74.6, 14.4, 18.8, 0x5b6067, 0.006);
     // Zufahrt und Parkplatz am Abfertigungsgebäude
     v.flat(27.2, 28, 0.7, 7.6, 0x52565c, 0.006);
     v.flat(22.6, 31, 7.6, 10.4, 0x5b6067, 0.006);

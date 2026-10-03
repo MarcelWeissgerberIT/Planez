@@ -239,10 +239,12 @@ export class Ambient {
       const mx = east ? 11 + along : 11 + laneL - along, my = 34.55 + lane * 0.6;
       if (vis(mx, my)) items.push({ d: mx + my, f: () => r.drawAmbientCar({ kind: 'mower', col: '#15803d' }, { x: mx, y: my, h: east ? 0 : Math.PI }, night, lights) });
     }
-    // Follow-me-Wagen auf der Vorfeldstraße
-    const L = 108, u = (vt * 0.9) % L;
-    const fm = u < 54 ? { x: 12 + u, y: LY.SERVICE - 0.25, h: 0 } : { x: 66 - (u - 54), y: LY.SERVICE + 0.25, h: Math.PI };
-    items.push({ d: fm.x + fm.y, f: () => r.drawAmbientCar({ kind: 'followme', col: '#facc15' }, fm, night, lights) });
+    // Follow-me-Wagen auf der Vorfeldstraße (erst ab Regionalflughafen – am kleinen Platz gibt es keinen)
+    if (LY.GEO.stage >= 2) {
+      const L = 108, u = (vt * 0.9) % L;
+      const fm = u < 54 ? { x: 12 + u, y: LY.SERVICE - 0.25, h: 0 } : { x: 66 - (u - 54), y: LY.SERVICE + 0.25, h: Math.PI };
+      items.push({ d: fm.x + fm.y, f: () => r.drawAmbientCar({ kind: 'followme', col: '#facc15' }, fm, night, lights) });
+    }
 
     // Baustellen: Arbeiter, Kipper, nachts Flutlicht
     for (const s of sites) {

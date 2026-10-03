@@ -693,10 +693,11 @@ export class MapRenderer {
     const ac = state.acs.find((a) => a.id === S.ac);
     const t = this.ambient.vt;
     const st = M.stand;
-    const parkX = st.x - 3, y0 = LY.SERVICE + 0.25, yEnd = LY.STAND_NOSE + 4.6;
-    const P = [{ x: 84, y: y0 }, { x: parkX, y: y0 }, { x: parkX, y: yEnd }];
-    const L1 = P[0].x - P[1].x, Ltot = L1 + (P[2].y - P[1].y);
-    const at = (s) => (s <= L1 ? { x: P[0].x - s, y: y0, h: Math.PI } : { x: parkX, y: y0 + Math.min(s - L1, P[2].y - y0), h: Math.PI / 2 });
+    const parkX = st.x - 3, yEnd = LY.STAND_NOSE + 4.6;
+    // über die Zufahrt südlich des Tanklagers und die Servicestraße (nicht quer durch Gebäude)
+    const route = [...LY.gateRoute(parkX, 0.25), { x: parkX, y: yEnd }];
+    const Ltot = LY.polyLen(route);
+    const at = (s) => LY.alongPoly(route, s);
     const KINDS = ['police', 'limo', 'limo', 'limo', 'police'];
     const ease = (u) => 1 - (1 - u) * (1 - u);
     KINDS.forEach((kind, k) => {
@@ -1661,9 +1662,10 @@ export class MapRenderer {
       const atStand = ac && ac.phase === PH.STAND;
       // Abfahrt: nach der Übergabe oder sobald das Flugzeug die Position verlässt
       if (m.tLeave == null && ((m.tStand != null && now - m.tStand > HANDOVER) || (m.tStand != null && !atStand))) m.tLeave = now;
-      const y0 = LY.SERVICE + 0.25, parkX = st.x + 1.05, yEnd = LY.STAND_NOSE + 0.85;
-      const L1 = 84 - parkX, Ltot = L1 + (yEnd - y0);
-      const at = (s) => (s <= L1 ? { x: 84 - s, y: y0, h: Math.PI } : { x: parkX, y: y0 + Math.min(s - L1, yEnd - y0), h: Math.PI / 2 });
+      const parkX = st.x + 1.05, yEnd = LY.STAND_NOSE + 0.85;
+      const route = [...LY.gateRoute(parkX, 0.25), { x: parkX, y: yEnd }];
+      const Ltot = LY.polyLen(route);
+      const at = (s) => LY.alongPoly(route, s);
       const ease = (u) => 1 - (1 - u) * (1 - u);
       let p, moving;
       if (m.tLeave != null) {

@@ -149,6 +149,17 @@ export function drawSmallField(g, state, P) {
     g.fillRect(34.8, 43.9, 5.8, 2.1);
     // Depot-Vorplatz
     g.fillRect(66.2, 14.4, 8.4, 4.4);
+    // Servicestraße vom kleinen Vorfeld zum Depot – südlich an Tankstelle, Vereinsheim und Halle vorbei
+    g.strokeStyle = P.asphalt;
+    g.lineWidth = 0.9;
+    g.lineCap = 'butt';
+    g.lineJoin = 'round';
+    strokeP(g, LY.serviceRun(41.2, 66.6), 0.8);
+    g.strokeStyle = 'rgba(255,255,255,0.55)';
+    g.lineWidth = 0.03;
+    g.setLineDash([0.3, 0.3]);
+    strokeP(g, LY.serviceRun(41.6, 66.2), 0.8);
+    g.setLineDash([]);
   }
   // ---- Abstellplätze ----
   // gemähte Abstellwiese für die Sportflieger (Reihe vor Tankstelle, Vereinsheim und Halle)
