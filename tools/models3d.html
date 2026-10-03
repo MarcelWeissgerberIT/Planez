@@ -1,0 +1,63 @@
+<!doctype html>
+<!-- Entwickler-Ansicht: Gebäude-Modell (GLB) von vier Seiten. tools/models3d.html?m=assets/models/clubhouse.glb -->
+<html><head><meta charset="utf-8"><title>Planez Modelle</title>
+<style>html,body{margin:0;background:#b8c8d8;overflow:hidden}canvas{display:block}</style></head>
+<body><script type="module">
+import * as THREE from '../js/vendor/three.module.min.js';
+import { GLTFLoader } from '../js/vendor/GLTFLoader.js';
+const q = new URLSearchParams(location.search);
+const W = innerWidth, H = innerHeight;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+r.setPixelRatio(1);
+r.setSize(W, H);
+r.outputColorSpace = THREE.SRGBColorSpace;
+r.setScissorTest(true);
+document.body.appendChild(r.domElement);
+const sc = new THREE.Scene();
+sc.add(new THREE.HemisphereLight(0xdfeaf5, 0x55606a, 1.2));
+const sun = new THREE.DirectionalLight(0xfff3dc, 2.0);
+sun.position.set(-3, 6, 4);
+sc.add(sun);
+const gltf = await new GLTFLoader().loadAsync('../' + q.get('m'));
+const obj = gltf.scene;
+const box = new THREE.Box3().setFromObject(obj), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+obj.position.sub(c);
+sc.add(obj);
+let tris = 0;
+obj.traverse((o) => { if (o.isMesh) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
+window.__info = { size: size.toArray().map((v) => +v.toFixed(3)), tris };
+const R = Math.max(size.x, size.y, size.z) * 1.15;
+// iso=1: Spiel-Schrägsicht aus Südost (wie die 2D-Sprites) mit vier Drehungen (rot=-45,45,135,225)
+const iso = q.get('iso') === '1';
+const rots = (q.get('rot') || '-45,45,135,225').split(',').map(Number);
+const views = iso || q.get('top') === '1' ? rots : [[1, 0.7, 1], [-1, 0.7, 1], [1, 0.7, -1], [0, 2.2, 0.01]];
+views.forEach((v, i) => {
+  let cam;
+  if (q.get('top') === '1') {
+    // Draufsicht (Norden oben) zum Ausrichten: rot = Drehung um die Hochachse in Grad
+    obj.rotation.y = (v * Math.PI) / 180;
+    const a = (W / 2) / (H / 2), e = R * 0.6;
+    cam = new THREE.OrthographicCamera(-e * a, e * a, e, -e, 0.01, 100);
+    cam.position.set(0, R * 3, 0.0001);
+    cam.lookAt(0, 0, 0);
+  } else if (iso) {
+    obj.rotation.y = (v * Math.PI) / 180;
+    const a = (W / 2) / (H / 2), e = (R * 0.8) / Number(q.get('z') || 1);
+    cam = new THREE.OrthographicCamera(-e * a, e * a, e, -e, 0.01, 100);
+    cam.position.set(R * 2, R * 2 * Math.tan(Math.PI / 6) * Math.SQRT2, R * 2);
+    cam.lookAt(0, 0, 0);
+  } else {
+    const [x, y, z] = v;
+    cam = new THREE.PerspectiveCamera(35, (W / 2) / (H / 2), 0.01, 100);
+    cam.position.set(x * R * 1.1, y * R * 1.1, z * R * 1.1);
+    cam.lookAt(0, 0, 0);
+  }
+  const vx = (i % 2) * W / 2, vy = (i < 2 ? 1 : 0) * H / 2;
+  r.setViewport(vx, vy, W / 2, H / 2);
+  r.setScissor(vx, vy, W / 2, H / 2);
+  r.setClearColor(0xb8c8d8);
+  r.clear();
+  r.render(sc, cam);
+});
+window.__done = true;
+</script></body></html>

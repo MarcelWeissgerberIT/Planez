@@ -18,6 +18,7 @@ import { buildVehicle, vehParts } from './vehicles3d.js';
 import { followMeCars } from './followme.js';
 import { plowFleet } from './snow.js';
 import { grassRunway3d, smallField3d, smallBuilding3d } from './field3d.js';
+import { placeModel, whenModelsLoaded, modelsNight, preloadModels } from './models3d.js';
 import { countryside3d } from './land3d.js';
 import { T as tr_ } from '../i18n.js';
 
@@ -82,6 +83,11 @@ function rng(seed) {
   return () => ((s = (s * 16807) % 2147483647) / 2147483647);
 }
 
+// Gebäudemodelle des aktuellen Platzes vorab laden (aus dem Leerlauf-Vorladen der 3D-Ansicht)
+export function preloadBuildings(state) {
+  preloadModels(LY.BUILDINGS.filter((b) => LY.buildingOn(state, b)).map((b) => b.id));
+}
+
 export class View3D {
   static supported() {
     try {
@@ -124,6 +130,7 @@ export class View3D {
     this.refs = new WeakMap(); // je Flugzeugmodell: Verweise auf Fahrwerk, Lichter, Propeller …
     this.puffs = [];
     this.built = false;
+    whenModelsLoaded(() => (this.built = false)); // nachgeladene Gebäudemodelle: Szene einmal neu aufbauen
     this.rwy2 = false;
     this.flash = 0;
     this.lastT = performance.now() / 1000;
@@ -467,7 +474,7 @@ export class View3D {
   build(state) {
     if (this.static) this.scene.remove(this.static);
     this.static = new THREE.Group();
-    this.termGlow = this.beacon = this.radarAnt = this.towerRoof = null;
+    this.termGlow = this.beacon = this.radarAnt = this.towerRoof = this.towerHost = null;
     this.nightLights = [];
     this.rabbits = {};
     this.papis = [];
@@ -607,6 +614,15 @@ export class View3D {
     const CO = { hall: 0xd6dde5, hangar: 0xaab3bc, cargo: 0x8d9aa7, depot: 0x9ca3af, fire: 0xb91c1c, fuel: 0xe5e7eb, parking: 0x9aa0a6, hotel: 0xe2e8f0, radar: 0x94a3b8 };
     for (const b of LY.BUILDINGS) {
       if (!LY.buildingOn(state, b)) continue;
+      // texturiertes Modell, sobald geladen (Tower und Radar bleiben gebaut: Kanzel-Blick, drehende Antenne)
+      const mdl = placeModel(this.static, b.id, b.fx - b.w, b.fx, b.fy - b.d, b.fy);
+      if (mdl) {
+        // Blick aus der Funkkabine des Vereinsheims bzw. der Kanzel des kleinen Turms knapp unter dem Dach
+        if (b.id === 'club' || b.id === 'stower') this.towerHost = mdl;
+        if (b.id === 'club') this.towerPos = new THREE.Vector3(b.fx - b.w / 2, mdl.userData.height * 0.92, b.fy - b.d / 2 - 0.12);
+        if (b.id === 'stower') this.towerPos = new THREE.Vector3(b.fx - b.w / 2, mdl.userData.height * 0.86, b.fy - b.d / 2);
+        continue;
+      }
       if (smallBuilding3d(this, b)) continue;
       const cx = b.fx - b.w / 2, cy = b.fy - b.d / 2;
       if (b.id === 'tower') {
@@ -1443,6 +1459,7 @@ export class View3D {
     if (this.townMat) this.townMat.emissiveIntensity = clamp(0.9 - dayK * 1.2, 0, 0.9);
     setNight(clamp(1 - dayK * 1.4, 0, 1));
     if (this.bmats) for (const m of this.bmats.values()) m.emissiveIntensity = clamp(0.95 - dayK * 1.2, 0, 0.95);
+    modelsNight(clamp(1 - dayK * 1.3, 0, 1));
     if (this.radarAnt) this.radarAnt.rotation.y += dt * 1.6;
     if (this.poolMat) this.poolMat.opacity = lightsOn ? clamp(0.55 - dayK * 0.6, 0.08, 0.55) : 0;
     for (const p of this.pools) p.visible = lightsOn;
@@ -1694,6 +1711,8 @@ export class View3D {
   }
 
   camera3d(state, ride, ac, dt) {
+    // im Turmblick steht die Kamera im Gebäude: dessen Modell ausblenden, damit Dach und Kanzelrahmen nicht die Sicht versperren
+    if (this.towerHost) this.towerHost.visible = ride.mode !== 'tower';
     const cam = this.camera;
     // in der Kanzel: Dach und Mast nicht von innen zeichnen
     if (this.towerRoof) for (const m of this.towerRoof) m.visible = ride.mode !== 'tower';

@@ -3,7 +3,7 @@
 Planez ist ein eigenständiges Spiel. Folgende Fremdbestandteile sind enthalten:
 
 ## three.js (3D-Ansicht)
-`js/vendor/three.module.min.js`, Version r160 – MIT-Lizenz, Copyright 2010–2023 Three.js Authors.
+`js/vendor/three.module.min.js` sowie die Zusatzmodule `js/vendor/GLTFLoader.js` und `js/vendor/BufferGeometryUtils.js` (aus `three/examples/jsm`), Version r160 – MIT-Lizenz, Copyright 2010–2023 Three.js Authors.
 
 > Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 >
@@ -15,7 +15,7 @@ Planez ist ein eigenständiges Spiel. Folgende Fremdbestandteile sind enthalten:
 Inter, JetBrains Mono, Chakra Petch und Orbitron – SIL Open Font License 1.1, lokal eingebunden (`assets/fonts/`, Lizenztext in `assets/fonts/OFL.txt`). Es werden keine Schriften von externen Servern geladen.
 
 ## Bilder, Videos, Musik
-Grafiken, Fotos und Hintergrundvideos wurden mit Higgsfield AI (GPT Image, Kling) erzeugt, die Musik mit OpenArt. Die Nutzungsrechte richten sich nach den Bedingungen des jeweiligen Dienstes zum Zeitpunkt der Erzeugung.
+Grafiken, Fotos und Hintergrundvideos wurden mit Higgsfield AI (GPT Image, Kling) erzeugt, die 3D-Gebäudemodelle (`assets/models/`) mit Higgsfield AI (Tripo, aus den Gebäudegrafiken), die Musik mit OpenArt. Die Nutzungsrechte richten sich nach den Bedingungen des jeweiligen Dienstes zum Zeitpunkt der Erzeugung.
 
 ## Fiktive Inhalte
 Alle Airlines, Flugzeughersteller und -typen (Aviora, Halvard, Ventis, Borealis, Corvin, Selva, Vireo, Alcedo, Pember, Merle, Alpenwerk, Regent), Rufzeichen, Flughäfen in der Umgebung, Personen und Flüge sind frei erfunden. Ähnlichkeiten mit realen Flugzeugen sind gewollt allgemein (Bauart, Größe), Namen und Kürzel sind eigene.

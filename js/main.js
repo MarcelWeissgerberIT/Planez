@@ -345,7 +345,7 @@ function startGame(state) {
   applyStage(state); // Pisten-/Rollweg-Geometrie der Ausbaustufe (Aufbau-Modus) bzw. voller Flughafen
   soundscape.unlock();
   // 3D-Ansicht im Leerlauf vorladen, damit Turmblick und Mitfliegen sofort starten
-  setTimeout(() => (window.requestIdleCallback || ((f) => setTimeout(f, 1)))(() => preload3d().catch(() => {})), 20000);
+  setTimeout(() => (window.requestIdleCallback || ((f) => setTimeout(f, 1)))(() => preload3d().then((m) => game.state && m.preloadBuildings(game.state)).catch(() => {})), 20000);
   Q.perf = !!loadPrefs().perf;
   game.fpsProbe = { t: 0, n: 0, sum: 0 };
   game.state = state;
