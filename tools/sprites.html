@@ -1,0 +1,73 @@
+<!doctype html>
+<!-- Gebäudegrafiken der Karte aus den 3D-Modellen rendern – genau in der Projektion der Karte (2:1, Höhe 32 px je Kachel),
+     damit die Gebäude auf dem Raster stehen und Karte und 3D-Ansicht übereinstimmen. Aufruf über tools/sprites.mjs. -->
+<html><head><meta charset="utf-8"><base href="../"><title>Planez Gebäudegrafiken</title>
+<style>html,body{margin:0;background:#888}</style></head>
+<body><script type="module">
+import * as THREE from './js/vendor/three.module.min.js';
+import { placeModel, preloadModels, whenModelsLoaded } from './js/render/models3d.js';
+import { BUILDINGS } from './js/layout.js';
+
+const K = 32 / Math.SQRT1_2; // Bildpunkte je Welteinheit, wenn eine Kachel 32 px breit erscheint
+const EL = Math.PI / 6; // Blickhöhe 30° ergibt das 2:1-Raster der Karte
+const ZFIX = 32 / (K * Math.cos(EL)); // die Karte zeichnet eine Kachel Höhe mit 32 px, die echte Projektion mit ≈ 39 px
+const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+r.outputColorSpace = THREE.SRGBColorSpace;
+r.setClearColor(0x000000, 0);
+r.setPixelRatio(1);
+document.body.appendChild(r.domElement);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xeef4fb, 0x7a8060, 1.55));
+const sun = new THREE.DirectionalLight(0xfff4e0, 2.3);
+sun.position.set(0.45, 1.0, 0.75); // Sonne von Südsüdost: Südseite hell, Ostseite etwas dunkler
+scene.add(sun);
+
+const loaded = new Promise((res) => whenModelsLoaded(res));
+preloadModels(BUILDINGS.map((b) => b.id));
+
+// rendert ein Gebäude; S = Bildpunkte je Karten-Bildpunkt (Zoom 1)
+window.renderSprite = async (id, S) => {
+  await loaded;
+  const b = BUILDINGS.find((x) => x.id === id);
+  const g = new THREE.Group();
+  g.scale.y = ZFIX;
+  scene.add(g);
+  const m = placeModel(g, id, 0, b.w, 0, b.d);
+  if (!m) return null;
+  // Die Karte zeigt die Gebäude in den eigenen Proportionen des Modells (höher als in 3D, wo sie neben den Flugzeugen
+  // gestaucht stehen) – sonst wirken sie von oben wie flache Platten
+  const sx = b.w / m.scale.x, sz = b.d / m.scale.z, sy = m.userData.height / m.scale.y;
+  const nat = (sy * (b.w + b.d)) / (sx + sz);
+  g.scale.y = (ZFIX * nat) / m.userData.height;
+  const H = nat * ZFIX;
+  // Bildausschnitt in Kamerakoordinaten: links die Ecke (0,d), rechts (w,0), unten die vordere Ecke (w,d), oben die hintere Dachkante
+  const sE = Math.sin(EL), cE = Math.cos(EL);
+  const left = -b.d * Math.SQRT1_2, right = b.w * Math.SQRT1_2;
+  const bottom = -sE * Math.SQRT1_2 * (b.w + b.d), top = cE * H + 0.02;
+  const cam = new THREE.OrthographicCamera(left, right, top, bottom, 0.1, 1000);
+  const dir = new THREE.Vector3(cE * Math.SQRT1_2, sE, cE * Math.SQRT1_2);
+  cam.position.copy(dir.multiplyScalar(300));
+  cam.lookAt(0, 0, 0);
+  // doppelt so groß rendern und verkleinern (glattere Kanten), oben leere Zeilen abschneiden – Breite und Unterkante bleiben exakt
+  const W = Math.round((b.w + b.d) * 32 * S), Hpx = Math.round((top - bottom) * K * S);
+  r.setSize(W * 2, Hpx * 2, false);
+  r.render(scene, cam);
+  scene.remove(g);
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = Hpx;
+  const x = c.getContext('2d');
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(r.domElement, 0, 0, W, Hpx);
+  const a = x.getImageData(0, 0, W, Hpx).data;
+  let y0 = 0;
+  outer: for (; y0 < Hpx; y0++) for (let i = 0; i < W; i++) if (a[(y0 * W + i) * 4 + 3] > 6) break outer;
+  y0 = Math.max(0, y0 - 2);
+  const o = document.createElement('canvas');
+  o.width = W;
+  o.height = Hpx - y0;
+  o.getContext('2d').drawImage(c, 0, -y0);
+  return { webp: o.toDataURL('image/webp', 0.9), w: W, h: o.height, frac: b.w / (b.w + b.d) };
+};
+window.__ready = true;
+</script></body></html>
