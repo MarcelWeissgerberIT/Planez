@@ -2477,7 +2477,7 @@ function carBody(ctx, cam, x, y, h, color, simple, sc = 1, zb = 0, force = false
   drawCarBody(ctx, cam, x, y, h, color, prism, carShades, simple, sc, zb);
   return false;
 }
-const VEH_H = { tug: 0.075, baggage: 0.07, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13, deice: 0.15 };
+const VEH_H = { tug: 0.075, baggage: 0.12, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13, deice: 0.15 };
 // Lackfarbe -> Dach/Seiten + getönte Scheiben (gecacht)
 const carShadeCache = {};
 function carShades(hex) {
