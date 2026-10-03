@@ -207,31 +207,7 @@ function livery(type, al, L, k) {
       win(x, 222, ww, wh - 1);
     }
   }
-  // Cockpitscheiben auf der Nase: Lage als (s, θ) – s = Anteil der Nasenlänge (0 Beginn, 1 Spitze), θ = Winkel von oben
-  // (Grad). Zwei Frontscheiben auf der abfallenden Nase mit Mittelsteg, dahinter je Seite Schiebefenster und kleineres
-  // hinteres Seitenfenster, Unterkante knapp über der Kabinenfensterreihe
-  const nf = k.prop ? 0.16 : 0.19;
-  const U = (sn) => (1024 * (0.8 + nf * sn)) / (0.8 + nf);
-  const COCKPIT = [
-    [[0.672, 3], [0.672, 32], [0.79, 42], [0.79, 3]],
-    [[0.565, 41], [0.565, 67], [0.655, 65], [0.655, 37]],
-    [[0.475, 51], [0.475, 67], [0.548, 68], [0.548, 43]],
-  ];
-  const cockpit = (cx, fill) => {
-    cx.fillStyle = fill;
-    for (const side of [1, -1])
-      for (const P of COCKPIT) {
-        cx.beginPath();
-        P.forEach(([sn, th], i) => {
-          const v = side > 0 ? (th / 360) * 256 : 256 - (th / 360) * 256;
-          i ? cx.lineTo(U(sn), v) : cx.moveTo(U(sn), v);
-        });
-        cx.closePath();
-        cx.fill();
-      }
-  };
-  // nachts schwach beleuchtet
-  cockpit(e, '#3b4a66');
+  // nachts schwach beleuchtetes Cockpit: siehe cockpitBand() am Ende
   // Türen
   g.strokeStyle = '#94a3b8';
   g.lineWidth = 1.5;
@@ -243,23 +219,8 @@ function livery(type, al, L, k) {
   door(185);
   if (!cargo && L > 3) door(560);
   if (cargo) door(860), g.strokeRect(300, 36, 60, 34), g.strokeRect(300, 186, 60, 34);
-  // Cockpitscheiben: dunkles Glas mit schwarzem Rahmen
-  g.save();
-  g.strokeStyle = '#05080e';
-  g.lineWidth = 1.2;
-  g.lineJoin = 'round';
-  for (const side of [1, -1])
-    for (const P of COCKPIT) {
-      g.beginPath();
-      P.forEach(([sn, th], i) => {
-        const v = side > 0 ? (th / 360) * 256 : 256 - (th / 360) * 256;
-        i ? g.lineTo(U(sn), v) : g.moveTo(U(sn), v);
-      });
-      g.closePath();
-      g.stroke();
-    }
-  g.restore();
-  cockpit(g, '#122033');
+  // Cockpit: durchgehende Scheibenfront rund um die Nase
+  cockpitBand(g, e, k);
   // Schriftzug über den Fenstern
   const name = al.name || '';
   g.fillStyle = col;
@@ -284,6 +245,75 @@ function livery(type, al, L, k) {
   et.flipY = false;
   et.colorSpace = THREE.SRGBColorSpace;
   return { map: t, glow: et };
+}
+
+// Cockpitfenster wie bei Airbus und Boeing: ein waagerechtes Fensterband läuft um die Nase herum – vorn zwei große
+// Frontscheiben mit Mittelsteg, seitlich die schrägen Eckscheiben, dahinter Schiebefenster und hinteres Seitenfenster
+// (Oberkante fällt nach hinten ab), getrennt durch schmale Rahmen. Gemalt wird Texel für Texel: aus (u, v) folgen Lage
+// auf der Nase (s = Anteil der Nasenlänge, θ = Winkel von oben) und Höhe/Seitenabstand auf der echten Nasenform (dieselben
+// Ringe wie der Rumpf), so liegt die Unterkante von vorn gesehen waagerecht. 3×3 Abtastungen je Texel glätten die Kanten.
+const NOSE_S = [0, 0.2, 0.42, 0.6, 0.75, 0.86, 0.94, 0.985, 1];
+function noseRing(sn) {
+  let i = 0;
+  while (i < NOSE_S.length - 2 && NOSE_S[i + 1] < sn) i++;
+  const a = NOSE_S[i], b = NOSE_S[i + 1], t = Math.min(1, Math.max(0, (sn - a) / (b - a)));
+  const R = (x) => Math.sqrt(Math.max(0, 1 - x * x)), Y = (x) => -0.18 * x * x;
+  return { r: R(a) + (R(b) - R(a)) * t, yc: Y(a) + (Y(b) - Y(a)) * t };
+}
+function cockpitBand(g, e, k) {
+  const nf = k.prop ? 0.16 : 0.19;
+  const sOf = (u) => ((u / 1024) * (0.8 + nf) - 0.8) / nf;
+  const YB = 0.27, YT = 0.6; // Unter- und Oberkante (Rumpfradien über der Achse)
+  const SA = 0.655, SC = 0.555, SD = 0.47, C1 = 0.4; // Rahmen: Eckscheibe/Schiebefenster, Schiebe-/Hinterfenster, Ende, Front/Ecke
+  // 0 = kein Glas; m = Rand (Rahmen) nach innen
+  const glass = (sn, th, m) => {
+    const { r, yc } = noseRing(sn);
+    const y = yc + r * Math.cos(th), z = r * Math.abs(Math.sin(th));
+    if (y < YB + m || y > YT - m) return 0;
+    const up = (y - YB) / (YT - YB); // 0 unten, 1 oben – Rahmen sind oben nach hinten geneigt
+    const sa = SA - 0.045 * up, sc = SC - 0.03 * up;
+    if (sn >= sa + 0.006 + m) {
+      // Frontscheiben (Mittelsteg) und Eckscheiben (Rahmen bei z = C1)
+      if (z < C1 - 0.014 - m) return Math.abs(th) > 0.022 + m * 1.5 ? 1 : 0;
+      return z > C1 + 0.014 + m ? 1 : 0;
+    }
+    if (sn <= sa - 0.006 - m && sn >= sc + 0.006 + m) return 1; // Schiebefenster
+    if (sn <= sc - 0.006 - m && sn >= SD + m) return y <= YT - 0.14 * ((sc - sn) / (sc - SD)) - m ? 1 : 0; // hinteres Fenster
+    return 0;
+  };
+  const u0 = Math.floor((1024 * (0.8 + nf * (SD - 0.02))) / (0.8 + nf)), u1 = Math.ceil((1024 * (0.8 + nf * 0.97)) / (0.8 + nf));
+  const W = u1 - u0;
+  const img = g.getImageData(u0, 0, W, 256), glow = e.getImageData(u0, 0, W, 256);
+  const D = img.data, G = glow.data;
+  const N = 3;
+  for (let py = 0; py < 256; py++)
+    for (let px = 0; px < W; px++) {
+      let rim = 0, in_ = 0, ys = 0;
+      for (let a = 0; a < N; a++)
+        for (let b = 0; b < N; b++) {
+          const u = u0 + px + (a + 0.5) / N, v = py + (b + 0.5) / N;
+          const sn = sOf(u), th = v < 128 ? (v / 256) * Math.PI * 2 : -((256 - v) / 256) * Math.PI * 2;
+          if (glass(sn, th, 0)) {
+            rim++;
+            if (glass(sn, th, 0.012)) {
+              in_++;
+              const { r, yc } = noseRing(sn);
+              ys += (yc + r * Math.cos(th) - YB) / (YT - YB);
+            }
+          }
+        }
+      if (!rim) continue;
+      const i = (py * W + px) * 4, cr = rim / (N * N), ci = in_ / (N * N), t = in_ ? ys / in_ : 0;
+      // schwarzer Dichtungsrahmen, darin getöntes Glas: oben Himmelsspiegelung, unten dunkel
+      const mixc = (c, f) => {
+        for (let j = 0; j < 3; j++) D[i + j] = D[i + j] + (c[j] - D[i + j]) * f;
+      };
+      mixc([6, 9, 15], cr);
+      mixc([16 + 40 * t, 28 + 52 * t, 44 + 66 * t], ci);
+      for (let j = 0; j < 3; j++) G[i + j] = G[i + j] + ([59, 74, 102][j] - G[i + j]) * ci;
+    }
+  g.putImageData(img, u0, 0);
+  e.putImageData(glow, u0, 0);
 }
 
 // Nachtbeleuchtung aller Modelle: Kabinenfenster und angestrahlte Leitwerke (0 = Tag, 1 = Nacht)
