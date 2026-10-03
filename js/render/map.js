@@ -2219,7 +2219,9 @@ export class MapRenderer {
     const showStands = ui && (ui.showStands || role === 'ground' || role === 'manager');
     if (showStands) {
       cam.setScreen(ctx);
-      ctx.font = `600 ${Math.max(9, 12 * cam.zoom)}px system-ui, sans-serif`;
+      // Positionsschilder: klein und halb durchsichtig, wachsen beim Zoomen nur wenig (die Nummer steht ja auch am Boden)
+      const fsz = clamp(8 + 2.4 * cam.zoom, 9, 14);
+      ctx.font = `600 ${fsz}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       for (const st of state.stands) {
@@ -2238,14 +2240,16 @@ export class MapRenderer {
         } else if (st.occ) col = '#94a3b8';
         else if (st.resv) col = '#3b82f6';
         const hl = ui && (ui.hoverStand === st.id || ui.selStand === st.id);
-        const r = Math.max(st.ga ? 7 : 9, 13 * cam.zoom * (st.ga ? 0.62 : 1)) * (hl ? 1.25 : 1);
-        ctx.fillStyle = 'rgba(10,15,25,0.72)';
+        const r = fsz * (st.ga ? 0.7 : 0.95) * (hl ? 1.2 : 1);
+        ctx.fillStyle = hl ? 'rgba(10,15,25,0.82)' : 'rgba(10,15,25,0.5)';
         const wl = sp ? 2.3 : st.ga ? 1.15 : 1.6;
         roundRect(ctx, p.x - r * wl, p.y - r * 0.7, r * wl * 2, r * 1.4, 4);
         ctx.fill();
         ctx.strokeStyle = col;
-        ctx.lineWidth = hl ? 2.5 : 1.5;
+        ctx.lineWidth = hl ? 2 : 1;
+        ctx.globalAlpha = hl ? 1 : 0.75;
         ctx.stroke();
+        ctx.globalAlpha = 1;
         ctx.fillStyle = col === '#94a3b8' ? '#e2e8f0' : col;
         ctx.fillText(txt, p.x, p.y + 0.5);
         this.picks.push({ type: 'stand', id: st.id, x: p.x, y: p.y, r: r * 1.6 });
@@ -2272,7 +2276,7 @@ export class MapRenderer {
     // Labels
     if (!ui) return;
     cam.setScreen(ctx);
-    const fs = Math.round(clamp(11 * Math.sqrt(cam.zoom / 0.6), 9, 13));
+    const fs = Math.round(clamp(10 * Math.sqrt(cam.zoom / 0.6), 9, 12));
     const MONO = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
     ctx.font = `700 ${fs}px ${MONO}`;
     ctx.textAlign = 'left';
@@ -2293,13 +2297,17 @@ export class MapRenderer {
       ctx.font = `700 ${fs}px ${MONO}`;
       const bw = Math.max(w1, w2, w3) + 14 + (mk ? 4 : 0);
       const bh = (line2 ? fs * 2 + 8 : fs + 7) + (line3 ? fs + 2 : 0);
-      const bx = p.x + 10, by = p.y - 26 - bh / 2;
-      let border = 'rgba(255,255,255,0.25)';
+      // Schild über dem Flugzeug statt auf dem Rumpf: nah herangezoomt weiter nach oben, Linie zeigt auf das Flugzeug
+      const lift = 22 + Math.min(110, (ac.len || 1) * 7 * cam.zoom);
+      const bx = p.x + 10, by = p.y - lift - bh / 2;
+      const quiet = !isSel && !ac.req && !ac.emergency && !mk;
+      let border = quiet ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.25)';
       const sc = ui.seqCol ? ui.seqCol(ac) : null;
       if (ac.req) border = '#fbbf24';
       if (sc) border = sc;
       if (ac.emergency) border = '#f43f5e';
       if (isSel) border = '#38bdf8';
+      if (quiet) ctx.globalAlpha = cam.zoom > 1.6 ? 0.78 : 0.9;
       ctx.strokeStyle = border;
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -2308,11 +2316,11 @@ export class MapRenderer {
       ctx.stroke();
       ctx.fillStyle = border;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 1.8, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
       ctx.fill();
       const lg = ctx.createLinearGradient(0, by, 0, by + bh);
-      lg.addColorStop(0, isSel ? 'rgba(14,58,84,0.94)' : 'rgba(22,32,52,0.88)');
-      lg.addColorStop(1, isSel ? 'rgba(6,30,46,0.94)' : 'rgba(8,12,22,0.86)');
+      lg.addColorStop(0, isSel ? 'rgba(14,58,84,0.94)' : quiet ? 'rgba(22,32,52,0.62)' : 'rgba(22,32,52,0.88)');
+      lg.addColorStop(1, isSel ? 'rgba(6,30,46,0.94)' : quiet ? 'rgba(8,12,22,0.58)' : 'rgba(8,12,22,0.86)');
       ctx.fillStyle = lg;
       roundRect(ctx, bx, by, bw, bh, 5);
       ctx.fill();
@@ -2336,6 +2344,7 @@ export class MapRenderer {
         ctx.fillText(line3, tx, by + (line2 ? fs * 2.5 + 6 : fs * 1.5 + 5));
       }
       ctx.font = `700 ${fs}px ${MONO}`;
+      ctx.globalAlpha = 1;
     }
   }
 
