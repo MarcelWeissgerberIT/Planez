@@ -692,7 +692,7 @@ export class MapRenderer {
     ctx.restore();
   }
 
-  // Pistenarbeiten / FOD-Kontrolle: Sperrkreuze, frische Deckschicht, Fahrzeuge auf der Piste
+  // Pistenarbeiten / Sperrung: frische Deckschicht, gesperrte Bahn rot überlagert (statt Sperrkreuzen)
   drawRunwayWorkGround(state) {
     const ctx = this.ctx, cam = this.cam;
     const p = state.rwyWorking ? (state.projects || []).find((q) => q.id === state.rwyWorking) : null;
@@ -705,23 +705,14 @@ export class MapRenderer {
     }
     for (const strip of state.upgrades.rwy2 ? ['N', 'S'] : ['N']) {
       if (!runwayClosed(state, strip)) continue;
-      // Sperrkreuze wie in echt nur bei längerer, geplanter Sperrung (Bauarbeiten, Übung, Mähen) – kurze
-      // Kontrollen, Vogelvergrämung oder Schneeräumung sperrt allein der Turm
-      const works = p && (p.strip || 'N') === strip;
-      if (!works && !(state.rwyClosedUntil > state.time && (state.rwyClosedMin || 0) >= 25)) continue;
       const rw = stripGeom(strip);
-      // weiße Sperrkreuze hinter den Schwellen und in der Bahnmitte (nicht über der Bahnkennung)
-      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-      ctx.lineWidth = 0.2;
-      ctx.lineCap = 'butt';
-      for (const cx of [rw.x0 + 11, rw.x1 - 11, (rw.x0 + rw.x1) / 2]) {
-        ctx.beginPath();
-        ctx.moveTo(cx - 1.1, rw.y - 0.7);
-        ctx.lineTo(cx + 1.1, rw.y + 0.7);
-        ctx.moveTo(cx - 1.1, rw.y + 0.7);
-        ctx.lineTo(cx + 1.1, rw.y - 0.7);
-        ctx.stroke();
-      }
+      // halbtransparentes Rot über der ganzen Bahn, sanft pulsierend – Markierungen bleiben lesbar
+      const a = 0.24 + 0.06 * Math.sin(this.time * 2.2);
+      ctx.fillStyle = `rgba(239,68,68,${a.toFixed(3)})`;
+      ctx.fillRect(rw.x0, rw.y - rw.hw, rw.x1 - rw.x0, 2 * rw.hw);
+      ctx.strokeStyle = 'rgba(239,68,68,0.75)';
+      ctx.lineWidth = 0.12;
+      ctx.strokeRect(rw.x0 + 0.06, rw.y - rw.hw + 0.06, rw.x1 - rw.x0 - 0.12, 2 * rw.hw - 0.12);
     }
   }
 

@@ -110,7 +110,6 @@ export function canWorkRunway(state, strip = 'N') {
 
 export function closeRunway(state, minutes, why, strip = 'N') {
   state.rwyClosedUntil = state.time + minutes * 60;
-  state.rwyClosedMin = minutes;
   state.rwyClosedWhy = why;
   state.rwyClosedStrip = strip;
 }
