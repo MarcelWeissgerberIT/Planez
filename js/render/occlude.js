@@ -48,7 +48,7 @@ export function acParts(a) {
 
 // Maße der Vorfeldfahrzeuge auf der Karte (Breite, Höhe; Länge aus VEH_TYPES wie beim Zeichnen × 1.15)
 const VW = { bus: 0.15, fuel: 0.125, catering: 0.13, tug: 0.16, baggage: 0.11, stairs: 0.12, cleaning: 0.1, deice: 0.124, police: 0.1 };
-const VH = { tug: 0.075, baggage: 0.12, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13, deice: 0.15, stairs: 0.19, police: 0.09 }; // Treppe: bis zur Tür hochgefahren
+const VH = { tug: 0.075, baggage: 0.13, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13, deice: 0.15, stairs: 0.19, police: 0.09 }; // Treppe: bis zur Tür hochgefahren
 export function vehBox(v) {
   const L = v.len ?? (VEH_TYPES[v.type]?.len || 0.5) * 1.15;
   return box(v.x, v.y, Math.cos(v.hdg || 0), Math.sin(v.hdg || 0), L / 2, (VW[v.type] || 0.12) / 2, 0, VH[v.type] || 0.12);

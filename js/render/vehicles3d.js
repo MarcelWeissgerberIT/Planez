@@ -421,78 +421,75 @@ function tug(k, g, body) {
   lights(g, h, -h, 0.06, w / 2 - 0.03);
 }
 
+// Gepäckzug wie auf dem Vorfeld: gelber Gepäckschlepper mit kurzer, abgeschrägter Haube und hoher, rundum verglaster
+// Kabine (Rundumleuchte auf dem Dach), dahinter zwei offene Gepäckwagen mit Koffern und Taschen und ein gelber,
+// überdachter Wagen mit offenen Seiten
 function baggage(k, g, body) {
-  const h = 0.475, x1 = h, x0 = h - 0.17, w = 0.092, yr = 0.132;
-  // Schlepper als Elektro-Cart: weiße, runde Front mit Scheinwerfern, schwarzer Stoßfänger, zwei Sitzbänke (vorn
-  // nach vorn, hinten nach hinten, Lehnen Rücken an Rücken), dünne schwarze Dachstützen, großes weißes Dach, hohe
-  // Frontscheibe mit schwarzem Rahmen und Spiegeln, Chromfelgen; Rundumleuchte und orange Zierlinie fürs Vorfeld
-  const white = paint(0xf2f3ef, 70), cream = matte(0xe9e4d6), black = matte(0x1b1d21), trim = paint(0xf59e0b, 60);
-  k.rbx(x0 + 0.004, x1 - 0.008, 0.016, 0.03, w - 0.012, black, 0.005);
-  // Front (Haube) und hinterer Aufbau unter der Rückbank
-  k.prof([[x1 - 0.06, 0.028], [x1 - 0.002, 0.028, 0.006], [x1 + 0.003, 0.05, 0.014], [x1 - 0.014, 0.068, 0.014], [x1 - 0.06, 0.072, 0.006]], w, white, 0.016);
-  k.prof([[x0, 0.028], [x0 + 0.075, 0.028], [x0 + 0.075, 0.058, 0.004], [x0 + 0.002, 0.06, 0.008], [x0 - 0.002, 0.04, 0.006]], w, white, 0.014);
-  k.side([[x1 - 0.06, 0.03], [x0 + 0.075, 0.03], [x0 + 0.075, 0.036], [x1 - 0.06, 0.036]], w / 2 - 0.006, black); // Trittbrett
-  k.side([[x0 + 0.004, 0.045], [x0 + 0.072, 0.045], [x0 + 0.072, 0.049], [x0 + 0.004, 0.049]], w / 2 + 0.0008, trim);
-  k.side([[x1 - 0.058, 0.046], [x1 - 0.004, 0.046], [x1 - 0.004, 0.05], [x1 - 0.058, 0.05]], w / 2 + 0.0008, trim);
-  // Stoßfänger, Scheinwerfer (oval), Blinker
-  k.rbx(x1 - 0.004, x1 + 0.009, 0.018, 0.033, w + 0.002, black, 0.006);
-  for (const s of [-1, 1]) {
-    k.sph(x1 - 0.002, 0.056, s * 0.03, 0.006, 0.0045, 0.011, lamp(0xfff4d6));
-    k.sph(x1 - 0.004, 0.05, s * 0.04, 0.004, 0.003, 0.004, lamp(0xff9d1a));
+  const h = 0.475, x1 = h, x0 = h - 0.15, w = 0.088, yr = 0.13;
+  const yel = paint(0xf2c418, 60), black = matte(0x1b1d21), rail = metal(0xc3c9d0);
+  // Fahrgestell, Unterbau mit Haube vorn
+  k.rbx(x0 + 0.004, x1 - 0.004, 0.014, 0.03, w - 0.014, black, 0.004);
+  k.prof([[x0, 0.026], [x1, 0.026, 0.004], [x1 + 0.002, 0.05, 0.008], [x1 - 0.042, 0.064, 0.008], [x0, 0.064, 0.006]], w, yel, 0.012);
+  // Kabine: Rahmen in Gelb, Scheiben rundum (Front leicht geneigt), Dach mit Überstand
+  const cf = x1 - 0.046, cr = x0 + 0.006;
+  k.prof([[cr, 0.06], [cf, 0.06], [cf - 0.008, yr, 0.004], [cr, yr, 0.004]], w - 0.006, yel, 0.006);
+  k.slab(cf + 0.0012, 0.068, cf - 0.0062, yr - 0.006, 0.002, w - 0.022, glass());
+  k.side([[cr + 0.008, 0.07], [cf - 0.008, 0.07], [cf - 0.013, yr - 0.008], [cr + 0.008, yr - 0.008]], (w - 0.006) / 2 + 0.0008, glass());
+  k.box(cr - 0.0008, cr + 0.001, 0.072, yr - 0.008, -(w - 0.022) / 2, (w - 0.022) / 2, glass());
+  k.side([[(cr + cf) / 2 - 0.003, 0.07], [(cr + cf) / 2 + 0.003, 0.07], [(cr + cf) / 2 + 0.003, yr - 0.008], [(cr + cf) / 2 - 0.003, yr - 0.008]], (w - 0.006) / 2 + 0.0012, yel); // Türsäule
+  k.rbox(cr - 0.006, cf - 0.002, yr - 0.002, yr + 0.006, -w / 2 - 0.003, w / 2 + 0.003, yel, 0.003);
+  // Stoßfänger, Scheinwerfer, Spiegel, Anhängekupplung
+  k.rbx(x1 - 0.004, x1 + 0.008, 0.016, 0.032, w + 0.002, black, 0.005);
+  k.rbx(x0 - 0.008, x0 + 0.004, 0.016, 0.034, w + 0.002, black, 0.005);
+  k.pair(x1 + 0.0005, x1 + 0.0035, 0.044, 0.052, w / 2 - 0.014, 0.014, lamp(0xfff4d6));
+  for (const s of [-1, 1]) k.obox(cf - 0.002, 0.092, s * (w / 2 + 0.006), 0.004, 0.014, 0.008, black);
+  k.rod([x0 - 0.006, 0.026, 0], [x0 - 0.03, 0.028, 0], 0.006, black);
+  for (const x of [x0 + 0.03, x1 - 0.03]) {
+    k.well(x, 0.017, w + 0.002);
+    k.axle(x, w / 2 - 0.002, 0.017, 0.02);
   }
-  // Sitze: vorn Sitzfläche und Lehne, hinten nach hinten gewandt; Lenkrad links
-  k.rbox(x1 - 0.1, x1 - 0.062, 0.068, 0.077, -w / 2 + 0.008, w / 2 - 0.008, cream, 0.004);
-  k.rbox(x1 - 0.108, x1 - 0.098, 0.075, 0.106, -w / 2 + 0.01, w / 2 - 0.01, cream, 0.004);
-  k.rbox(x1 - 0.116, x1 - 0.107, 0.07, 0.104, -w / 2 + 0.01, w / 2 - 0.01, black, 0.004);
-  k.rbox(x0 + 0.016, x0 + 0.05, 0.06, 0.068, -w / 2 + 0.008, w / 2 - 0.008, cream, 0.004);
-  for (const s of [-1, 1]) k.rod([x0 + 0.004, 0.06, s * (w / 2 - 0.006)], [x0 + 0.004, 0.084, s * (w / 2 - 0.006)], 0.0035, metal(0xb8bec6));
-  k.rod([x0 + 0.004, 0.084, -(w / 2 - 0.006)], [x0 + 0.004, 0.084, w / 2 - 0.006], 0.0035, metal(0xb8bec6));
-  k.rod([x1 - 0.064, 0.072, 0.022], [x1 - 0.058, 0.088, 0.022], 0.004, black);
-  k.cyl(x1 - 0.058, 0.09, 0.022, 0.012, 0.003, 'x', black, 14);
-  // Dachstützen, Dach, Frontscheibe mit Rahmen und Spiegeln
-  const fx = x1 - 0.058, rx = x0 + 0.026, zs = w / 2 - 0.004;
-  for (const s of [-1, 1]) {
-    k.rod([fx, 0.068, s * zs], [fx + 0.004, yr, s * zs], 0.004, black);
-    k.rod([rx, 0.058, s * zs], [rx, yr, s * zs], 0.004, black);
-    k.obox(fx + 0.002, 0.09, s * (zs + 0.009), 0.004, 0.008, 0.012, black);
-  }
-  k.rbox(x0 + 0.008, x1 - 0.034, yr, yr + 0.007, -w / 2 - 0.006, w / 2 + 0.006, white, 0.0035);
-  k.slab(fx + 0.0005, 0.07, fx + 0.0045, yr - 0.002, 0.002, 2 * zs - 0.004, glass());
-  k.rod([fx, 0.07, -zs], [fx, 0.07, zs], 0.003, black);
-  for (const x of [x0 + 0.035, x1 - 0.032]) {
-    k.well(x, 0.019, w + 0.002);
-    k.axle(x, w / 2 - 0.002, 0.019, 0.02);
-  }
-  k.rod([x0 - 0.002, 0.026, 0], [x0 - 0.03, 0.03, 0], 0.006, black); // Kupplung zum ersten Wagen
-  tail(k, x0 - 0.002, 0.042, w);
-  beacon(g, k, (x0 + x1) / 2 - 0.02, yr + 0.007);
-  lights(g, x1, x0, 0.056, 0.03);
-  // drei Anhänger: zwei mit LD3-Containern, einer offen mit Koffern und Plane
-  const CUR = [0x1d4ed8, 0x7c2d12, 0x065f46, 0x9a3412, 0x334155];
-  const BAG = [0x1f2937, 0x7f1d1d, 0x1e3a8a, 0x065f46, 0x9ca3af, 0x6b21a8, 0xb45309];
-  for (let i = 0; i < 3; i++) {
-    const c1 = x0 - 0.03 - i * 0.24, c0 = c1 - 0.21;
-    if (i) k.rod([c1, 0.03, 0], [c1 + 0.03, 0.03, 0], 0.006, matte(DARK));
-    k.rbx(c0, c1, 0.03, 0.04, 0.11, metal(0x8b9299), 0.003);
-    k.bx(c0 + 0.01, c1 - 0.01, 0.018, 0.03, 0.03, matte(DARK));
-    k.axle(c0 + 0.035, 0.046, 0.014, 0.016);
-    k.axle(c1 - 0.035, 0.046, 0.014, 0.016);
-    if (i < 2) {
-      for (const [j, cx] of [[0, c0 + 0.052], [1, c1 - 0.052]]) {
-        k.put(ld3Geo(), metal(0xc6ccd2), MX(cx, 0.04, 0, 0.078, 1, 1));
-        k.box(cx - 0.034, cx + 0.034, 0.046, 0.114, 0.0502, 0.0512, matte(CUR[(i * 2 + j) % CUR.length]));
-        k.rbox(cx - 0.04, cx + 0.04, 0.118, 0.122, -0.05, 0.05, metal(0xaab1b9), 0.002);
-      }
-    } else {
-      for (const x of [c0 + 0.006, c1 - 0.012]) for (const s of [-1, 1]) k.box(x, x + 0.006, 0.04, 0.115, s * 0.049, s * 0.054, matte(0x52575e));
-      k.rbx(c0, c1, 0.113, 0.124, 0.116, paint(0x1e40af, 20), 0.005);
-      let n = 0;
-      for (let x = c0 + 0.015; x < c1 - 0.03; x += 0.036)
-        for (const z of [-0.026, 0.022]) {
-          const hh = 0.025 + ((n * 7) % 5) * 0.004;
-          k.rbox(x, x + 0.03, 0.04, 0.04 + hh, z - 0.018, z + 0.018, matte(BAG[n++ % BAG.length]), 0.005);
-          if (n % 3 === 0) k.rbox(x + 0.004, x + 0.026, 0.04 + hh, 0.06 + hh, z - 0.014, z + 0.014, matte(BAG[(n * 3) % BAG.length]), 0.005);
+  tail(k, x0 - 0.008, 0.04, w);
+  beacon(g, k, (cr + cf) / 2, yr + 0.006);
+  lights(g, x1, x0, 0.048, w / 2 - 0.014);
+  // Wagen: Plattform mit Rahmen, Deichsel, vier kleine Räder; Gepäck zufällig, aber fest je Wagen
+  const BAG = [0x1f2937, 0x7f1d1d, 0x1e3a8a, 0x065f46, 0x9ca3af, 0x6b21a8, 0xb45309, 0x0f766e, 0x374151, 0xbe123c];
+  let n = 3;
+  const rnd = () => ((n = (n * 16807) % 2147483647) / 2147483647);
+  const luggage = (a, b, zw, top) => {
+    // Koffer liegend und stehend in zwei Lagen, dazwischen Reisetaschen
+    for (let x = a; x < b - 0.024; x += 0.03)
+      for (const z of [-zw / 4, zw / 4]) {
+        const hh = 0.012 + rnd() * 0.012, col = matte(BAG[Math.floor(rnd() * BAG.length)]);
+        if (rnd() < 0.7) k.rbox(x, x + 0.026, 0.04, 0.04 + hh, z - zw / 4 + 0.003, z + zw / 4 - 0.003, col, 0.004);
+        else k.cyl(x + 0.013, 0.048, z, 0.009, zw / 2 - 0.01, 'z', col, 10);
+        if (rnd() < 0.55 && 0.04 + hh + 0.03 < top) {
+          const c2 = matte(BAG[Math.floor(rnd() * BAG.length)]);
+          if (rnd() < 0.5) k.rbox(x + 0.002, x + 0.024, 0.04 + hh, 0.04 + hh + 0.012 + rnd() * 0.012, z - zw / 4 + 0.005, z + zw / 4 - 0.005, c2, 0.004);
+          else k.rbox(x + 0.006, x + 0.016, 0.04 + hh, 0.04 + hh + 0.028, z - zw / 4 + 0.004, z + zw / 4 - 0.004, c2, 0.003); // Koffer hochkant
         }
+      }
+  };
+  for (let i = 0; i < 3; i++) {
+    const c1 = x0 - 0.03 - i * 0.24, c0 = c1 - 0.21, cw = 0.1;
+    if (i) k.rod([c1, 0.03, 0], [c1 + 0.03, 0.03, 0], 0.006, matte(DARK));
+    k.rbx(c0, c1, 0.03, 0.04, cw, metal(0x8b9299), 0.003);
+    k.bx(c0 + 0.01, c1 - 0.01, 0.018, 0.03, 0.03, matte(DARK));
+    k.axle(c0 + 0.035, cw / 2 - 0.004, 0.014, 0.016);
+    k.axle(c1 - 0.035, cw / 2 - 0.004, 0.014, 0.016);
+    if (i < 2) {
+      // offener Wagen: Eckpfosten, niedrige Reling, vorn ein Gitterrahmen
+      for (const x of [c0 + 0.004, c1 - 0.004]) for (const s of [-1, 1]) k.rod([x, 0.04, s * (cw / 2 - 0.003)], [x, 0.064, s * (cw / 2 - 0.003)], 0.004, rail);
+      for (const s of [-1, 1]) k.rod([c0 + 0.004, 0.064, s * (cw / 2 - 0.003)], [c1 - 0.004, 0.064, s * (cw / 2 - 0.003)], 0.003, rail);
+      k.rod([c1 - 0.004, 0.064, -(cw / 2 - 0.003)], [c1 - 0.004, 0.064, cw / 2 - 0.003], 0.003, rail);
+      k.box(c1 - 0.006, c1 - 0.002, 0.04, 0.095, -(cw / 2 - 0.004), cw / 2 - 0.004, rail);
+      luggage(c0 + 0.012, c1 - 0.012, cw - 0.012, 0.11);
+    } else {
+      // überdachter Wagen: gelbes Dach und Stirnwände, Seiten offen
+      for (const x of [c0 + 0.002, c1 - 0.008]) k.box(x, x + 0.006, 0.04, 0.118, -(cw / 2), cw / 2, yel);
+      for (const x of [(c0 + c1) / 2 - 0.003]) for (const s of [-1, 1]) k.box(x, x + 0.006, 0.04, 0.118, s * (cw / 2 - 0.006), s * (cw / 2), yel);
+      k.rbox(c0 - 0.004, c1 + 0.004, 0.116, 0.126, -cw / 2 - 0.006, cw / 2 + 0.006, yel, 0.004);
+      for (const s of [-1, 1]) k.side([[c0 + 0.008, 0.104], [c1 - 0.008, 0.104], [c1 - 0.008, 0.116], [c0 + 0.008, 0.116]], cw / 2 + 0.001, matte(0x3f3f46)); // eingerollte Plane
+      luggage(c0 + 0.014, c1 - 0.014, cw - 0.014, 0.105);
     }
   }
 }
@@ -1162,7 +1159,7 @@ const BUILD = { tug, baggage, fuel, catering, bus, stairs: stairsTruck, deice, c
 const BODY = { fire: 0xd11f1c, plow: 0xea6a0c, followme: 0xfacc15 };
 
 // große Nummer auf dem Dach (wie auf echten Vorfeldern, damit der Tower die Fahrzeuge erkennt): Buchstabe je Typ + Nummer
-const ROOF = { tug: [-0.12, 0.0952, 0.08], baggage: [0.384, 0.1392, 0.07], fuel: [0.312, 0.1642, 0.09], catering: [0.238, 0.1562, 0.09], cleaning: [-0.03, 0.1272, 0.08], bus: [-0.01, 0.1652, 0.12], stairs: [0.165, 0.1052, 0.05, -0.031], deice: [0.332, 0.1642, 0.09] };
+const ROOF = { tug: [-0.12, 0.0952, 0.08], baggage: [0.378, 0.1362, 0.06], fuel: [0.312, 0.1642, 0.09], catering: [0.238, 0.1562, 0.09], cleaning: [-0.03, 0.1272, 0.08], bus: [-0.01, 0.1652, 0.12], stairs: [0.165, 0.1052, 0.05, -0.031], deice: [0.332, 0.1642, 0.09] };
 const LETTER = { tug: 'T', baggage: 'G', fuel: 'F', catering: 'C', cleaning: 'R', bus: 'B', stairs: 'S', deice: 'E' };
 const numMat = (text) => cached(`num${text}`, () => {
   const c = document.createElement('canvas');
