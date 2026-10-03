@@ -10,6 +10,7 @@ import * as LY from '../layout.js';
 import { ZS } from '../config.js';
 import { PH } from '../sim/aircraft.js';
 import { clamp, hourOf } from '../util.js';
+import { carPaint, carKind, hash01 } from './cars.js';
 
 const WALK = 0.045; // Kacheln je Spielsekunde (gut 1 m/s)
 const DRIVE = 0.11; // Quad
@@ -27,7 +28,6 @@ const PANTS = ['#1f2937', '#334155', '#1e3a8a', '#44403c', '#0f172a', '#78716c',
 const SKIN = ['#f1c7a3', '#e0b48c', '#c68b5e', '#8d5a3b', '#f5d6bd'];
 const HAIR = ['#2b1d12', '#5b3a1e', '#a16207', '#d6b370', '#111827', '#9ca3af', '#7c2d12'];
 const SUITS = ['#0ea5e9', '#f97316', '#e11d48', '#16a34a', '#7c3aed', '#facc15'];
-const CAR_COLS = ['#e2e8f0', '#1f2937', '#b91c1c', '#1d4ed8', '#9ca3af', '#065f46', '#f8fafc', '#475569', '#7c2d12', '#a16207'];
 
 // fester Zufall
 const h01 = (a, b = 0) => {
@@ -477,7 +477,7 @@ export function gaLifeItems(r, state, items, lights, night, vis) {
   for (let k = 0; k < Math.min(nCar, order.length); k++) {
     const { s, i } = order[k];
     const p = { x: s.x, y: s.y, h: (s.y < 11.5 ? -1 : 1) * Math.PI / 2 };
-    if (vis(p.x, p.y)) items.push({ d: p.x + p.y, f: () => r.drawAmbientCar({ kind: 'car', col: CAR_COLS[i % CAR_COLS.length] }, p, night, lights) });
+    if (vis(p.x, p.y)) items.push({ d: p.x + p.y, f: () => r.drawAmbientCar({ kind: 'car', col: carPaint(hash01(i + 3)), body: carKind(hash01(i + 70)) }, p, night, lights) });
   }
 
   // ---- Flugplatzfest ----
@@ -508,7 +508,7 @@ export function gaLifeItems(r, state, items, lights, night, vis) {
     for (let k = 0; k < 28; k++) {
       const x = 50.6 + (k % 14) * 0.45, y = 3.4 + Math.floor(k / 14) * 1.3 + (k % 2) * 0.02;
       const p = { x, y, h: Math.PI / 2 };
-      if (fest && h01(k, 91) < 0.85 && vis(x, y)) items.push({ d: x + y, f: () => r.drawAmbientCar({ kind: 'car', col: CAR_COLS[(k * 3) % CAR_COLS.length] }, p, night, lights) });
+      if (fest && h01(k, 91) < 0.85 && vis(x, y)) items.push({ d: x + y, f: () => r.drawAmbientCar({ kind: 'car', col: carPaint(hash01(k * 3 + 1)), body: carKind(hash01(k + 140)) }, p, night, lights) });
     }
     if (fest) {
       // Besucher schlendern zwischen Parkplatz, Zelt, Bude und Hüpfburg

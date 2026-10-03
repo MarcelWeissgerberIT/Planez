@@ -687,14 +687,12 @@ export class View3D {
         this.bldg(x0, x1, y0, y1, 0.8, 'parking', 0x9aa0a6);
         // Autos auf dem Parkdeck
         const r = rng(55);
-        const cars = carInstances(40);
-        const mx = new THREE.Matrix4(), col = new THREE.Color();
-        const CC = [0xe5e7eb, 0x1f2937, 0x991b1b, 0x1d4ed8, 0x9ca3af, 0x065f46, 0xf59e0b];
+        const cars = carInstances(40, r);
+        const mx = new THREE.Matrix4();
         for (let i = 0; i < 40; i++) {
           mx.makeRotationY(Math.PI / 2 + (r() < 0.5 ? 0 : Math.PI));
           mx.setPosition(x0 + 0.3 + (i % 8) * ((b.w - 0.6) / 8), 0.8, y0 + 0.4 + Math.floor(i / 8) * ((b.d - 0.8) / 5));
           cars.set(i, mx);
-          cars.color(i, col.setHex(r() < 0.3 ? 0x6b7280 : CC[Math.floor(r() * CC.length)]));
         }
         cars.update();
         this.static.add(cars.group);
@@ -797,13 +795,11 @@ export class View3D {
     this.flat(LY.W / 2 - 41, LY.W / 2 - 39, TY, 0, road, 0.004);
     this.flat(-400, 480, -6, -4.5, road, 0.004);
     const NC = 60;
-    this.cars = carInstances(NC);
+    this.cars = carInstances(NC, r);
     this.carData = [];
-    const CC = [0xe5e7eb, 0x1f2937, 0x991b1b, 0x1d4ed8, 0x9ca3af, 0x065f46];
     for (let i = 0; i < NC; i++) {
       const ns = i % 3 === 0;
       this.carData.push({ ns, dir: r() < 0.5 ? 1 : -1, p: r(), v: 0.012 + r() * 0.01 });
-      this.cars.color(i, col.setHex(CC[i % CC.length]));
     }
     this.cars.update();
     this.static.add(this.cars.group);

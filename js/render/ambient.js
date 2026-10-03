@@ -8,8 +8,8 @@ import { ZS, AC_TYPES } from '../config.js';
 import { trainPos } from './infra.js';
 import { Q } from './quality.js';
 import { season } from '../sim/winter.js';
+import { carPaint, carKind } from './cars.js';
 
-const CAR_COLS = ['#e2e8f0', '#1f2937', '#b91c1c', '#1d4ed8', '#9ca3af', '#065f46', '#f8fafc', '#475569', '#7c2d12', '#a16207'];
 const SHIRTS = ['#1d4ed8', '#b91c1c', '#f8fafc', '#111827', '#15803d', '#a855f7', '#f59e0b', '#0e7490', '#be185d', '#57534e'];
 const HIVIS = ['#facc15', '#f97316', '#fde047'];
 const EAST = -0.4, WEST = 0.4; // Fahrspuren der Landseite (nach Osten / nach Westen)
@@ -80,8 +80,8 @@ export class Ambient {
   spawnTrip(state) {
     const r = this.rnd();
     const fromWest = this.rnd() < 0.5;
-    const col = CAR_COLS[Math.floor(this.rnd() * CAR_COLS.length)];
-    const car = { kind: 'car', col, v: 1.1 + this.rnd() * 0.35, pts: [], i: 0, t: 0 };
+    const col = carPaint(this.rnd());
+    const car = { kind: 'car', col, body: carKind(this.rnd()), v: 1.1 + this.rnd() * 0.35, pts: [], i: 0, t: 0 };
     const inRoad = (xTurn) => (fromWest ? [{ x: -8, y: EAST }, { x: xTurn - 0.6, y: EAST }] : [{ x: 88, y: WEST }, { x: xTurn + 0.6, y: WEST }]);
     const outRoad = (xTurn, east) => (east ? [{ x: xTurn + 0.6, y: EAST }, { x: 88, y: EAST }] : [{ x: xTurn - 0.6, y: WEST }, { x: -8, y: WEST }]);
     const GX = 51.0, LX = 58.4;
@@ -108,6 +108,7 @@ export class Ambient {
       // Taxi am Taxistand
       car.kind = 'taxi';
       car.col = '#facc15';
+      car.body = 'sedan';
       const x = 23 + this.rnd() * 2.5;
       car.pts = [{ x: 88, y: WEST }, { x: x + 1, y: WEST }, { x, y: 0.72, w: 8 + this.rnd() * 10, pick: 1 + Math.floor(this.rnd() * 2) }, { x: x - 1.2, y: WEST }, { x: -8, y: WEST }];
     } else {

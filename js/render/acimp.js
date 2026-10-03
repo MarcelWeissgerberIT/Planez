@@ -111,38 +111,50 @@ function render(id, m, key, K, x, cz, y, z0) {
 
 // ---------- Pkw: ein Bild je Farbe und Richtung (48 Richtungen), für Straßen, Parkplatz und Parkhaus ----------
 const CAR_DIRS = 48;
-const carCache = new Map(); // "Farbe|Richtung|Maßstab" -> { cv, px, q, K, cz }
-let carGroup = null, carBudget = 0;
-function carModel() {
-  if (carGroup) return carGroup;
-  const G = carGeos();
-  carGroup = new THREE.Group();
-  carGroup.add(new THREE.Mesh(G.body, G.mats[0].clone()), new THREE.Mesh(G.detail, G.mats[1]));
-  carGroup.visible = false;
-  world.add(carGroup);
-  return carGroup;
+const carCache = new Map(); // "Bauform|Farbe|Richtung|Maßstab" -> { cv, px, q, K, cz }
+const carGroups = new Map();
+let carBudget = 0;
+function carModel(kind) {
+  if (carGroups.has(kind)) return carGroups.get(kind);
+  let g;
+  if (kind.startsWith('bus')) {
+    // Linienbus bzw. Hotel-Shuttle der Landseite: Niederflurbus mit Werbung (je Name ein anderes Motiv)
+    g = buildVehicle({ type: 'bus', id: kind });
+    g.traverse((o) => o.isSprite && (o.visible = false));
+    const sz = new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3());
+    g.userData = { len: sz.x, hgt: sz.y, fixed: true };
+  } else {
+    const G = carGeos(kind);
+    g = new THREE.Group();
+    g.add(new THREE.Mesh(G.body, G.mats[0].clone()), new THREE.Mesh(G.detail, G.mats[1]));
+    g.userData = { len: G.len, hgt: G.hgt };
+  }
+  g.visible = false;
+  world.add(g);
+  carGroups.set(kind, g);
+  return g;
 }
-// Pkw zeichnen (Mitte x, y; Kurs h; sc = Maßstab; zb = Bodenhöhe). force: sofort rendern (vorberechnete Ebenen).
-// false = kein Bild (dann die gezeichnete Form)
-export function drawCar(ctx, map, x, y, h, color, sc = 1, zb = 0, force = false) {
+// Pkw zeichnen (Mitte x, y; Kurs h; sc = Maßstab; zb = Bodenhöhe; kind = Bauform). force: sofort rendern (vorberechnete
+// Ebenen). false = kein Bild (dann die gezeichnete Form)
+export function drawCar(ctx, map, x, y, h, color, sc = 1, zb = 0, force = false, kind = 'sedan') {
   if (!ready()) return false;
   const dpr = map.dpr || 1, K = K1 * map.zoom * dpr;
   const d = ((Math.round((h / (2 * Math.PI)) * CAR_DIRS) % CAR_DIRS) + CAR_DIRS) % CAR_DIRS;
-  const key = `${color}|${d}|${sc}`;
+  const key = `${kind}|${color}|${d}|${sc}`;
   let c = carCache.get(key);
   if (!c || Math.abs(c.K / K - 1) > 0.2) {
     if (!force && carBudget <= 0) {
       if (!c) return false; // später; bis dahin das alte Bild passend skaliert
     } else {
       carBudget--;
-      const m = carModel();
-      m.children[0].material.color.set(color);
+      const m = carModel(kind), { len, hgt } = m.userData;
+      if (!m.userData.fixed) m.children[0].material.color.set(color);
       m.scale.setScalar(sc);
       m.position.set(0, 0, 0);
       m.rotation.set(0, (-d / CAR_DIRS) * 2 * Math.PI, 0);
-      const cz = 0.04 * sc;
+      const cz = (hgt / 2) * sc;
       if (!c) carCache.set(key, (c = { cv: document.createElement('canvas') }));
-      Object.assign(c, shoot(m, 0.125 * sc, 0.08 * sc, K, 0, cz, 0, c.cv), { K, cz });
+      Object.assign(c, shoot(m, (len / 2 + 0.012) * sc, hgt * sc, K, 0, cz, 0, c.cv), { K, cz });
     }
   }
   const p = map.toScreen(x, y, zb + c.cz);

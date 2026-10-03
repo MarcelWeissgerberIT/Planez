@@ -6,6 +6,7 @@ import { Q } from './quality.js';
 import { Ambient, drawPerson } from './ambient.js';
 import { gaLifeItems } from './galife.js';
 import { busPaxItems } from './buspax.js';
+import { carPaint, carKind, hash01 } from './cars.js';
 import { drawApronBus, drawStairsTruck, boxShadow, stairsSize } from './gse2d.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { Polish } from './polish.js';
@@ -70,7 +71,7 @@ function bakeLot(level) {
       cam.setIso(g, 0);
       g.fillStyle = 'rgba(0,0,0,0.28)';
       g.fillRect(cx - 0.05, cy - 0.13, 0.13, 0.3);
-      carBody(g, cam, cx, cy, Math.PI / 2 + (rnd() < 0.5 ? 0 : Math.PI), CAR_COLORS[Math.floor(rnd() * CAR_COLORS.length)], false, 0.95, 0, true);
+      carBody(g, cam, cx, cy, Math.PI / 2 + (rnd() < 0.5 ? 0 : Math.PI), carPaint(rnd()), false, 0.95, 0, true, carKind(rnd()));
     }
   }
   const f = cam.toScreen(x0, y0, 0);
@@ -133,7 +134,7 @@ function bakeGarage(b, level) {
     for (const ry of rows) {
       for (let x = x0 + 0.35; x < x1 - 0.25; x += 0.2) {
         if (rnd() < (roof ? 0.45 : 0.25)) continue;
-        carBody(g, cam, x, ry, Math.PI / 2 + (rnd() < 0.5 ? 0 : Math.PI), CAR_COLORS[Math.floor(rnd() * CAR_COLORS.length)], false, 0.95, z + 0.02, true);
+        carBody(g, cam, x, ry, Math.PI / 2 + (rnd() < 0.5 ? 0 : Math.PI), carPaint(rnd()), false, 0.95, z + 0.02, true, carKind(rnd()));
       }
     }
     if (lv < decks) {
@@ -1049,7 +1050,7 @@ export class MapRenderer {
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.fillRect(-0.16, -0.07, 0.32, 0.14);
     ctx.restore();
-    carBody(ctx, cam, p.x, p.y, p.h, car.c, cam.zoom < 0.7);
+    carBody(ctx, cam, p.x, p.y, p.h, car.c, cam.zoom < 0.7, 1, 0, false, car.k);
     if (night > 0.2) {
       lights.push({ x: p.x + Math.cos(p.h) * 0.3, y: p.y + Math.sin(p.h) * 0.3, z: 0.03, c: '#fff4d0', s: 14, a: 0.7 });
       lights.push({ x: p.x - Math.cos(p.h) * 0.18, y: p.y - Math.sin(p.h) * 0.18, z: 0.03, c: '#ff3020', s: 8, a: 0.7 });
@@ -1123,7 +1124,9 @@ export class MapRenderer {
     ctx.fillRect(-len, -0.08, len * 2, 0.16);
     ctx.restore();
     ctx.globalAlpha = a;
-    if (c.kind === 'bus') {
+    if (c.kind === 'bus' && IMP && !Q.perf && cam.zoom >= 0.7 && IMP.drawCar(ctx, cam, p.x, p.y, p.h, c.col, 1.1, 0, false, c.col === '#f8fafc' ? 'bus-hotel' : 'bus-line')) {
+      // Linienbus/Shuttle als 3D-Modell
+    } else if (c.kind === 'bus') {
       const cs = carShades(c.col);
       rect(-0.4, 0.4, 0.085, 0.02, 0.2, cs.top, cs.a, cs.b);
       // Fensterband
@@ -1141,7 +1144,7 @@ export class MapRenderer {
       rect(-0.3, 0.1, 0.085, 0.03, 0.13, [120, 110, 100], [96, 88, 80], [70, 64, 58]);
       rect(-0.26, 0.06, 0.07, 0.13, 0.15, [150, 120, 80], [120, 96, 64], [96, 76, 50]);
     } else {
-      carBody(ctx, cam, p.x, p.y, p.h, c.col, cam.zoom < 0.7);
+      carBody(ctx, cam, p.x, p.y, p.h, c.col, cam.zoom < 0.7, 1, 0, false, c.body || BODY_OF[c.kind] || 'sedan');
       if (c.kind === 'taxi') rect(-0.02, 0.03, 0.02, 0.095, 0.11, [255, 255, 255], [220, 220, 220], [190, 190, 190]);
       if (c.kind === 'police') {
         rect(-0.03, 0.05, 0.05, 0.095, 0.11, [30, 64, 175], [30, 58, 138], [23, 37, 84]);
@@ -2380,8 +2383,10 @@ function loadImp() {
   if (!impLoad) impLoad = import('./acimp.js').then((m) => (IMP = m.ready() ? m : null)).catch(() => (IMP = null));
 }
 // Pkw: als 3D-Modell (rund, mit Scheiben und Rädern), im Leistungsmodus, weit herausgezoomt oder vor dem Laden als Quader
-function carBody(ctx, cam, x, y, h, color, simple, sc = 1, zb = 0, force = false) {
-  if (IMP && !Q.perf && !simple && IMP.drawCar(ctx, cam, x, y, h, color, sc * 1.3, zb, force)) return;
+// Bauform für besondere Autos (Taxi, Polizei, Rettungswagen, Kolonne, Follow-me)
+const BODY_OF = { taxi: 'sedan', police: 'estate', ambulance: 'van', followme: 'suv', limo: 'sedan' };
+function carBody(ctx, cam, x, y, h, color, simple, sc = 1, zb = 0, force = false, kind = 'sedan') {
+  if (IMP && !Q.perf && !simple && IMP.drawCar(ctx, cam, x, y, h, color, sc * 1.3, zb, force, kind)) return;
   drawCarBody(ctx, cam, x, y, h, color, prism, carShades, simple, sc, zb);
 }
 const VEH_H = { tug: 0.075, baggage: 0.07, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13, deice: 0.15 };
@@ -2396,7 +2401,6 @@ function carShades(hex) {
 }
 
 // Autos auf der Landseite
-const CAR_COLORS = ['#e2e8f0', '#1f2937', '#b91c1c', '#1d4ed8', '#9ca3af', '#f59e0b', '#065f46', '#f8fafc', '#475569', '#7c2d12'];
 function makeCars() {
   const routes = [
     { pts: [{ x: -8, y: -0.4 }, { x: 88, y: -0.4 }], loop: false },
@@ -2405,7 +2409,7 @@ function makeCars() {
   const cars = [];
   for (let i = 0; i < 22; i++) {
     const r = routes[i % 2];
-    cars.push({ r, off: (i * 0.0457 * 7) % 1, v: 0.018 + ((i * 7) % 5) * 0.002, c: CAR_COLORS[i % CAR_COLORS.length] });
+    cars.push({ r, off: (i * 0.0457 * 7) % 1, v: 0.018 + ((i * 7) % 5) * 0.002, c: carPaint(hash01(i)), k: carKind(hash01(i + 50)) });
   }
   return cars;
 }

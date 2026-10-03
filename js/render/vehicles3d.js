@@ -12,6 +12,7 @@ import { merge, spriteMat } from './model3d.js';
 import { T } from '../i18n.js';
 import { busLoad } from './buspax.js';
 import { toCreasedNormals, mergeGeometries } from '../vendor/BufferGeometryUtils.js';
+import { carKind, carPaint } from './cars.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1112,40 +1113,88 @@ const logo = (bg, fg, text, sub, icon) => (c, w, h) => {
 };
 
 // ---------- Pkw (Parkplätze, Straßen, Karte) ----------
-// Limousine mit Haube, geneigter Front- und Heckscheibe, Glaskabine (eingezogene Seiten), Dach und B-Säule in Wagenfarbe,
-// Stoßfängern, Radhäusern, Rädern mit Felgen und Lichtern. Zwei Netze: Karosserie (Farbe je Auto) und Details (Eckenfarben).
-let CAR = null;
-export function carGeos() {
-  if (CAR) return CAR;
-  const h = 0.11, w = 0.096, gw = w - 0.012, yr = 0.074, M = matte(0xffffff);
+// Sieben Bauformen aus Seitenprofilen: low = Karosserie bis zur Gürtellinie, cab = Kabine [Scheibenfuß vorn, Scheibe oben,
+// Dachende, Heckfuß] mit Eckenradien cr, pil = Säulen zwischen den Seitenfenstern, wx = Achsen, r = Radradius.
+// Zwei Netze je Bauform: Karosserie (Farbe je Auto) und Details mit Eckenfarben (Scheiben, Räder, Lichter, Schürzen).
+const CAR_SPEC = {
+  mini: { h: 0.088, w: 0.082, r: 0.014, wx: [0.061, -0.06], low: [[-0.088, 0.014, 0.008], [0.088, 0.014, 0.008], [0.09, 0.034, 0.014], [0.05, 0.043, 0.012], [-0.085, 0.046, 0.01]], cab: [[0.054, 0.041], [0.017, 0.074], [-0.077, 0.073], [-0.086, 0.044]], cr: [0.016, 0.014], pil: [-0.018] },
+  hatch: { h: 0.1, w: 0.09, r: 0.0155, wx: [0.066, -0.064], low: [[-0.1, 0.014, 0.008], [0.1, 0.014, 0.008], [0.102, 0.034, 0.014], [0.046, 0.045, 0.012], [-0.096, 0.047, 0.01]], cab: [[0.05, 0.043], [0.009, 0.072], [-0.084, 0.071], [-0.097, 0.045]], cr: [0.014, 0.012], pil: [-0.021] },
+  sedan: { h: 0.11, w: 0.096, r: 0.016, wx: [0.07, -0.07], low: [[-0.11, 0.014, 0.008], [0.11, 0.014, 0.008], [0.112, 0.036, 0.014], [0.046, 0.047, 0.012], [-0.068, 0.048, 0.01], [-0.108, 0.045, 0.012]], cab: [[0.05, 0.045], [0.006, 0.074], [-0.046, 0.074], [-0.084, 0.046]], cr: [0.014, 0.014], pil: [-0.021] },
+  estate: { h: 0.118, w: 0.096, r: 0.016, wx: [0.075, -0.074], low: [[-0.118, 0.014, 0.008], [0.118, 0.014, 0.008], [0.12, 0.036, 0.014], [0.05, 0.047, 0.012], [-0.115, 0.048, 0.01]], cab: [[0.054, 0.045], [0.01, 0.074], [-0.106, 0.073], [-0.116, 0.046]], cr: [0.014, 0.01], pil: [-0.02, -0.074], rails: true },
+  suv: { h: 0.115, w: 0.1, r: 0.019, base: 0.02, wx: [0.074, -0.074], low: [[-0.115, 0.02, 0.008], [0.115, 0.02, 0.008], [0.117, 0.048, 0.016], [0.05, 0.057, 0.012], [-0.112, 0.059, 0.012]], cab: [[0.054, 0.055], [0.016, 0.086], [-0.1, 0.086], [-0.112, 0.057]], cr: [0.014, 0.012], pil: [-0.02, -0.07], rails: true, clad: true },
+  van: { h: 0.124, w: 0.1, r: 0.017, base: 0.016, wx: [0.082, -0.08], low: [[-0.124, 0.016, 0.008], [0.124, 0.016, 0.01], [0.127, 0.05, 0.016], [0.09, 0.06, 0.014], [-0.122, 0.06, 0.01]], cab: [[0.092, 0.058], [0.056, 0.098], [-0.12, 0.098], [-0.123, 0.058]], cr: [0.02, 0.014], pil: [0.02, -0.05] },
+  pickup: { h: 0.13, w: 0.1, r: 0.018, base: 0.02, wx: [0.086, -0.08], low: [[-0.13, 0.02, 0.006], [0.13, 0.02, 0.008], [0.132, 0.048, 0.016], [0.06, 0.056, 0.012], [-0.128, 0.058, 0.006]], cab: [[0.062, 0.054], [0.026, 0.086], [-0.03, 0.086], [-0.032, 0.056]], cr: [0.014, 0.008], pil: [-0.003], bed: true },
+};
+// Polygon auf den Bereich a <= x <= b zuschneiden (Seitenfenster an den Säulen trennen)
+function clipX(poly, a, b) {
+  const cut = (P, keep, X) => {
+    const out = [];
+    for (let i = 0; i < P.length; i++) {
+      const p = P[i], q = P[(i + 1) % P.length], kp = keep(p[0]), kq = keep(q[0]);
+      if (kp) out.push(p);
+      if (kp !== kq) out.push([X, p[1] + ((q[1] - p[1]) * (X - p[0])) / (q[0] - p[0])]);
+    }
+    return out;
+  };
+  return cut(cut(poly, (x) => x >= a, a), (x) => x <= b, b);
+}
+const CARS = new Map();
+let CAR_MATS = null;
+export const CAR_BODIES = Object.keys(CAR_SPEC);
+export function carGeos(kind = 'sedan') {
+  if (CARS.has(kind)) return CARS.get(kind);
+  const S = CAR_SPEC[kind] || CAR_SPEC.sedan;
+  const { h, w, r } = S, base = S.base || 0.014, gw = w - 0.012, M = matte(0xffffff), GL = 0x22303d;
   const body = new Kit(), det = new Map();
   const d = (hex) => det.get(hex) || (det.set(hex, new Kit()), det.get(hex));
-  body.prof([[-h, 0.014, 0.008], [h, 0.014, 0.008], [h + 0.002, 0.036, 0.014], [0.046, 0.047, 0.012], [-0.068, 0.048, 0.01], [-h + 0.002, 0.045, 0.012]], w, M, 0.014);
-  // Kabine in Wagenfarbe (Säulen, Dach), Scheiben darauf: Front- und Heckscheibe geneigt, je Seite zwei Fenster
-  const F0 = [0.05, 0.045], F1 = [0.006, yr], B0 = [-0.084, 0.046], B1 = [-0.046, yr];
-  body.prof([F0, F1.concat(0.014), B1.concat(0.014), B0], gw, M, 0.01);
-  const win = (A, B, f0, f1, o) => {
-    const L = Math.hypot(B[0] - A[0], B[1] - A[1]), nx = ((B[1] - A[1]) / L) * o, ny = ((A[0] - B[0]) / L) * o;
-    const P = (f) => [A[0] + (B[0] - A[0]) * f + nx * 0.001, A[1] + (B[1] - A[1]) * f + ny * 0.001];
-    d(0x22303d).slab(...P(f0), ...P(f1), 0.0016, gw - 0.018, M);
+  body.prof(S.low, w, M, 0.014);
+  // Kabine in Wagenfarbe (Säulen, Dach); unten verlängert, damit die Rundung in der Karosserie verschwindet
+  const [F0, F1, B1, B0] = S.cab;
+  const ext = (A, B, e) => {
+    const L = Math.hypot(B[0] - A[0], B[1] - A[1]);
+    return [A[0] - ((B[0] - A[0]) / L) * e, A[1] - ((B[1] - A[1]) / L) * e];
   };
-  win(F0, F1, 0.12, 0.84, 1);
-  win(B0, B1, 0.14, 0.84, -1);
-  d(0x22303d).side([[0.024, 0.049], [-0.019, 0.049], [-0.019, 0.0635], [0.002, 0.0635]], gw / 2 + 0.0007, M);
-  d(0x22303d).side([[-0.023, 0.049], [-0.06, 0.049], [-0.042, 0.0635], [-0.023, 0.0635]], gw / 2 + 0.0007, M);
-  // Schürzen, Grill, Kennzeichen
-  d(0x16181b).rbx(h - 0.012, h + 0.004, 0.011, 0.02, w - 0.002, M, 0.004).rbx(-h - 0.004, -h + 0.012, 0.011, 0.02, w - 0.002, M, 0.004);
-  d(0x2a2e33).bx(h - 0.001, h + 0.0032, 0.022, 0.031, w * 0.42, M);
-  d(0xe5e7eb).bx(h + 0.001, h + 0.0045, 0.014, 0.02, 0.026, M).bx(-h - 0.0035, -h + 0.001, 0.026, 0.032, 0.026, M);
-  for (const x of [0.07, -0.07]) {
-    d(0x0d0f12).well(x, 0.016, w + 0.001);
+  body.prof([ext(F0, F1, 0.012), F1.concat(S.cr[0]), B1.concat(S.cr[1]), ext(B0, B1, 0.012)], gw, M, 0.01);
+  // Front- und Heckscheibe auf den geneigten Flächen (nach außen versetzt)
+  const cx = (F0[0] + F1[0] + B0[0] + B1[0]) / 4, cy = (F0[1] + F1[1] + B0[1] + B1[1]) / 4;
+  const pane = (A, B, f0, f1) => {
+    const L = Math.hypot(B[0] - A[0], B[1] - A[1]);
+    let nx = (B[1] - A[1]) / L, ny = (A[0] - B[0]) / L;
+    if (nx * ((A[0] + B[0]) / 2 - cx) + ny * ((A[1] + B[1]) / 2 - cy) < 0) (nx = -nx), (ny = -ny);
+    const P = (f) => [A[0] + (B[0] - A[0]) * f + nx * 0.001, A[1] + (B[1] - A[1]) * f + ny * 0.001];
+    d(GL).slab(...P(f0), ...P(f1), 0.0016, gw - 0.018, M);
+  };
+  pane(F0, F1, 0.12, 0.84);
+  pane(B0, B1, 0.14, 0.84);
+  // Seitenfenster: Kabinenfläche ohne Rand, an den Säulen getrennt
+  const m = 0.012, yb = Math.max(F0[1], B0[1]) + 0.004, yt = Math.min(F1[1], B1[1]) - m;
+  const xOn = (A, B, y) => A[0] + ((B[0] - A[0]) * (y - A[1])) / (B[1] - A[1]);
+  const sin = (A, B) => Math.abs(B[1] - A[1]) / Math.hypot(B[0] - A[0], B[1] - A[1]);
+  const xf = (y) => xOn(F0, F1, y) - m / sin(F0, F1), xr = (y) => xOn(B0, B1, y) + m / sin(B0, B1);
+  const poly = [[xr(yb), yb], [xf(yb), yb], [xf(yt), yt], [xr(yt), yt]];
+  const cuts = [-1, ...S.pil, 1];
+  for (let i = 0; i < cuts.length - 1; i++) {
+    const p = clipX(poly, cuts[i] + 0.003, cuts[i + 1] - 0.003);
+    if (p.length >= 3) d(GL).side(p, gw / 2 + 0.0007, M);
+  }
+  // Schürzen, Grill, Kennzeichen, Lichter (Höhe nach Front- und Heckkante)
+  const yH = S.low[2][1], yT = S.low[S.low.length - 1][1];
+  d(0x16181b).rbx(h - 0.012, h + 0.004, base - 0.003, base + 0.006, w - 0.002, M, 0.004).rbx(-h - 0.004, -h + 0.012, base - 0.003, base + 0.006, w - 0.002, M, 0.004);
+  d(0x2a2e33).bx(h - 0.001, h + 0.0032, base + 0.008, yH - 0.01, w * 0.42, M);
+  d(0xe5e7eb).bx(h + 0.001, h + 0.0045, base, base + 0.006, 0.026, M).bx(-h - 0.0035, -h + 0.001, yT - 0.022, yT - 0.016, 0.026, M);
+  d(0xfff4d6).pair(h - 0.001, h + 0.003, yH - 0.009, yH - 0.003, w / 2 - 0.015, 0.016, M);
+  d(0xb91c1c).pair(-h - 0.003, -h + 0.002, yT - 0.013, yT - 0.005, w / 2 - 0.013, 0.018, M);
+  for (const x of S.wx) {
+    d(0x0d0f12).well(x, r, w + 0.001);
     for (const s of [-1, 1]) {
-      d(0x111214).cyl(x, 0.016, s * (w / 2 - 0.004), 0.016, 0.012, 'z', M, 14);
-      d(0xb9c0c8).cyl(x, 0.016, s * (w / 2 - 0.0035), 0.0095, 0.0115, 'z', M, 10);
+      d(0x111214).cyl(x, r, s * (w / 2 - 0.004), r, 0.012, 'z', M, 14);
+      d(0xb9c0c8).cyl(x, r, s * (w / 2 - 0.0035), r * 0.6, 0.0115, 'z', M, 10);
     }
   }
-  d(0xfff4d6).pair(h - 0.001, h + 0.003, 0.031, 0.037, w / 2 - 0.015, 0.016, M);
-  d(0xb91c1c).pair(-h - 0.003, -h + 0.002, 0.034, 0.041, w / 2 - 0.013, 0.018, M);
+  // Dachreling (Kombi, SUV), dunkle Beplankung (SUV), offene Ladefläche (Pick-up)
+  if (S.rails) d(0x2a2d33).pair(B1[0] + 0.01, F1[0] - 0.012, F1[1] - 0.001, F1[1] + 0.004, gw / 2 - 0.008, 0.004, M);
+  if (S.clad) d(0x2a2d33).side([[-h + 0.012, base + 0.002], [h - 0.012, base + 0.002], [h - 0.012, base + 0.01], [-h + 0.012, base + 0.01]], w / 2 + 0.0008, M);
+  if (S.bed) d(0x2a2d33).rbox(-h + 0.008, B0[0] - 0.007, yT - 0.012, yT + 0.0004, -w / 2 + 0.007, w / 2 - 0.007, M, 0.002);
   const all = (k) => merge([...k.by.values()].flat());
   const parts = [...det].map(([hex, k]) => {
     const g = all(k), c = new THREE.Color(hex), n = g.attributes.position.count, a = new Float32Array(n * 3);
@@ -1153,27 +1202,40 @@ export function carGeos() {
     g.setAttribute('color', new THREE.BufferAttribute(a, 3));
     return g;
   });
-  CAR = { body: all(body), detail: mergeGeometries(parts), mats: [new THREE.MeshPhongMaterial({ color: 0xffffff, map: wearTex(), shininess: 80, specular: 0x4a4a4a }), new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 110, specular: 0x6a7684 })] };
-  return CAR;
+  if (!CAR_MATS) CAR_MATS = [new THREE.MeshPhongMaterial({ color: 0xffffff, map: wearTex(), shininess: 80, specular: 0x4a4a4a }), new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 90, specular: 0x47515c })];
+  const out = { body: all(body), detail: mergeGeometries(parts), mats: CAR_MATS, len: 2 * h, hgt: Math.max(F1[1], B1[1]) };
+  CARS.set(kind, out);
+  return out;
 }
-// viele Pkw als Instanzen: set(i, Matrix), color(i, Farbe), update() nach dem Setzen
-export function carInstances(n) {
-  const G = carGeos();
-  const body = new THREE.InstancedMesh(G.body, G.mats[0], n), det = new THREE.InstancedMesh(G.detail, G.mats[1], n);
-  const group = new THREE.Group();
-  for (const m of [body, det]) (m.frustumCulled = false), group.add(m);
+// viele Pkw als Instanzen, Bauform und Farbe je Auto aus rnd: set(i, Matrix), update() nach dem Setzen
+export function carInstances(n, rnd = Math.random, kinds = null) {
+  const pick = [...Array(n)].map((_, i) => ({ k: kinds ? kinds[i % kinds.length] : carKind(rnd()), c: carPaint(rnd()) }));
+  const by = new Map(), slot = [], group = new THREE.Group();
+  for (const p of pick) by.set(p.k, (by.get(p.k) || 0) + 1);
+  const M = {};
+  for (const [k, cnt] of by) {
+    const G = carGeos(k);
+    M[k] = { body: new THREE.InstancedMesh(G.body, G.mats[0], cnt), det: new THREE.InstancedMesh(G.detail, G.mats[1], cnt), n: 0 };
+    for (const m of [M[k].body, M[k].det]) (m.frustumCulled = false), group.add(m);
+  }
+  const col = new THREE.Color();
+  pick.forEach((p, i) => {
+    const X = M[p.k];
+    slot[i] = [X, X.n++];
+    X.body.setColorAt(slot[i][1], col.set(p.c));
+  });
   return {
     group,
     set(i, mx) {
-      body.setMatrixAt(i, mx);
-      det.setMatrixAt(i, mx);
-    },
-    color(i, c) {
-      body.setColorAt(i, c);
+      const [X, j] = slot[i];
+      X.body.setMatrixAt(j, mx);
+      X.det.setMatrixAt(j, mx);
     },
     update() {
-      body.instanceMatrix.needsUpdate = det.instanceMatrix.needsUpdate = true;
-      if (body.instanceColor) body.instanceColor.needsUpdate = true;
+      for (const X of Object.values(M)) {
+        X.body.instanceMatrix.needsUpdate = X.det.instanceMatrix.needsUpdate = true;
+        if (X.body.instanceColor) X.body.instanceColor.needsUpdate = true;
+      }
     },
   };
 }
