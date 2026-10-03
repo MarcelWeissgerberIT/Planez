@@ -34,6 +34,23 @@ export function underWing(poly, along, lat, pad = 0) {
   return along <= le + pad && along >= te - pad;
 }
 
+// Gepäckförderband: Band hinten bei px (vor der Mitte) in Höhe y angelenkt, Länge len; h = halbe Fahrzeuglänge
+export const BELT = { px: -0.1, y: 0.05, len: 0.3, h: 0.185 };
+// Band für eine Schwelle in Höhe top: Neigung th (höchstens 34°, darüber fährt das Band aus), Länge len, Reichweite
+export function beltGeom(top) {
+  const h = Math.max(0, top - BELT.y), MAX = 0.6;
+  let th = Math.asin(Math.min(1, h / BELT.len)), len = BELT.len;
+  if (th > MAX) (th = MAX), (len = h / Math.sin(MAX));
+  return { th, len, reach: BELT.px + Math.cos(th) * len };
+}
+// Förderband an der hinteren Frachttür (rechts, Steuerbord): Lage (entlang, quer) der Bandspitze und Schwellenhöhe
+export function beltDoor(type, len) {
+  const kind = SHAPE_OF[type] || 'narrow';
+  if (kind === 'prop' || kind === 'biz') return null; // Turboprops und Businessjets: kein Förderband
+  const f = fuselage(type, len), top = f.axis - 0.8 * f.ry;
+  return { along: -0.3 * len, lat: 0.6 * f.rz + 0.012, top, ...beltGeom(top) };
+}
+
 // Schwelle der vorderen Tür (gemalt von 56° bis 93° unter dem Scheitel, also knapp unter der Rumpfachse)
 export function doorSill(type, len) {
   const f = fuselage(type, len);

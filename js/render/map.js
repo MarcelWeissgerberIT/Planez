@@ -9,6 +9,7 @@ import { busPaxItems } from './buspax.js';
 import { carPaint, carKind, hash01, POLICE_BLUE } from './cars.js';
 import { stairsTop as doorTop } from '../acshape.js';
 import { vehVsAc } from './occlude.js';
+import { beltLoaders } from './beltloader.js';
 import { drawApronBus, drawStairsTruck, boxShadow, stairsSize } from './gse2d.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { Polish } from './polish.js';
@@ -420,6 +421,7 @@ export class MapRenderer {
     }
     // Flugzeuge als 3D-Modelle vorab in den Atlas rendern (nicht im Leistungsmodus)
     if (!Q.perf) loadImp();
+    const belts = IMP && !Q.perf ? beltLoaders(state) : [];
     if (IMP && !Q.perf) {
       const list = [];
       for (const ac of state.acs) {
@@ -429,6 +431,7 @@ export class MapRenderer {
       }
       const vl = state.vehicles.filter((v) => inView(view, v.x, v.y, 2));
       for (const t of fireTrucks(state)) if (inView(view, t.x, t.y, 2)) vl.push(t);
+      for (const b of belts) if (inView(view, b.x, b.y, 1)) vl.push(b);
       saluteView(state)?.trucks.forEach((t, i) => vl.push({ id: 'sal' + i, type: 'fire', x: t.x, y: t.y, hdg: t.hdg, st: 'alarm' }));
       IMP.prepare(this, state, list, vl, dtReal * (state.speed || 0) * TIME_SCALE);
     } else if (IMP) IMP.prepare(this, state, [], []);
@@ -436,6 +439,11 @@ export class MapRenderer {
     const parked = state.acs.filter((a) => a.mode === 'map' && a.z < 0.05);
     for (const v of state.vehicles) if (inView(view, v.x, v.y, 2)) items.push({ d: vehDepth(v, parked), f: () => this.drawVehicle(state, v, lights) });
     for (const t of fireTrucks(state)) items.push({ d: t.x + t.y, f: () => this.drawFireTruck(t, lights) });
+    // Gepäckförderbänder (begleiten die Gepäckzüge, an der Frachttür hochgestellt)
+    for (const b of belts) {
+      if (!inView(view, b.x, b.y, 1)) continue;
+      items.push({ d: vehDepth(b, parked), f: () => IMP.has(b.id) && (boxShadow(this, b, b.len, 0.1, 0.08), IMP.draw(this, b.id, b.x, b.y, 0)) });
+    }
     // Polizeistreife auf dem Vorfeld (Streifenwagen als 3D-Modell, Blaulicht bei Einsatzfahrt oder Kontrolle)
     for (const c of state.patrol?.cars || []) {
       if (!inView(view, c.x, c.y, 1)) continue;

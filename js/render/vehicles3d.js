@@ -14,7 +14,7 @@ import { busLoad } from './buspax.js';
 import { toCreasedNormals, mergeGeometries } from '../vendor/BufferGeometryUtils.js';
 import { carKind, carPaint, POLICE_BLUE } from './cars.js';
 import { glassMat } from './glassenv.js';
-import { STAIRS, stairsTop, stairsGeom } from '../acshape.js';
+import { STAIRS, stairsTop, stairsGeom, BELT, beltGeom } from '../acshape.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1155,8 +1155,48 @@ function policeCar(k, g) {
   lights(g, G.len / 2, -G.len / 2, 0.03, 0.03);
 }
 
-const BUILD = { tug, baggage, fuel, catering, bus, stairs: stairsTruck, deice, cleaning: van, fire, plow, followme: followMe, police: policeCar };
-const BODY = { fire: 0xd11f1c, plow: 0xea6a0c, followme: 0xfacc15 };
+// Gepäckförderband (wie die Elektroflotte auf dem Vorfeld: weiß mit grünem Streifen): flaches Fahrgestell, kleine Kabine
+// hinten links, langes Band mit Geländer; am Flugzeug fährt das Band zur Frachttür hoch (Teil 'belt', siehe poseVehicle)
+function beltLoader(k, g, body) {
+  const h = BELT.h, w = 0.095, green = paint(0x15a34a, 60), black = matte(0x1b1d21), rail = metal(0xd5dade);
+  k.rbx(-h + 0.006, h - 0.006, 0.014, 0.03, w - 0.012, black, 0.004);
+  k.rbx(-h, h, 0.028, 0.046, w, body, 0.006);
+  k.side([[-h + 0.006, 0.033], [h - 0.006, 0.033], [h - 0.006, 0.039], [-h + 0.006, 0.039]], w / 2 + 0.0008, green);
+  k.rbx(h - 0.004, h + 0.006, 0.02, 0.034, w + 0.002, black, 0.004);
+  k.rbx(-h - 0.006, -h + 0.004, 0.02, 0.034, w + 0.002, black, 0.004);
+  // Kabine hinten links mit Scheiben und grünem Dach
+  const cz0 = -w / 2, cz1 = -w / 2 + 0.042, cx0 = -h + 0.008, cx1 = -h + 0.07;
+  k.rbox(cx0, cx1, 0.046, 0.1, cz0, cz1, body, 0.005);
+  k.box(cx1 - 0.001, cx1 + 0.0008, 0.058, 0.094, cz0 + 0.005, cz1 - 0.005, glass());
+  k.box(cx0 + 0.006, cx1 - 0.006, 0.058, 0.094, cz0 - 0.0008, cz0 + 0.001, glass());
+  k.box(cx0 - 0.0008, cx0 + 0.001, 0.058, 0.094, cz0 + 0.005, cz1 - 0.005, glass());
+  k.rbox(cx0 - 0.002, cx1 + 0.002, 0.1, 0.106, cz0 - 0.002, cz1 + 0.002, green, 0.003);
+  for (const x of [h - 0.045, -h + 0.045]) {
+    k.well(x, 0.015, w + 0.002);
+    k.axle(x, w / 2 - 0.004, 0.015, 0.016);
+  }
+  // Band als eigene Gruppe, Drehpunkt hinten
+  const bk = new Kit(), L = BELT.len, bw = 0.05;
+  bk.rbox(0, L, -0.007, 0.004, -bw / 2 - 0.006, bw / 2 + 0.006, body, 0.003);
+  bk.box(0.004, L - 0.004, 0.004, 0.0062, -bw / 2, bw / 2, matte(0x24272c));
+  for (let x = 0.01; x < L - 0.01; x += 0.012) bk.box(x, x + 0.003, 0.0062, 0.0074, -bw / 2, bw / 2, matte(0x3a3f45));
+  for (const s of [-1, 1]) {
+    bk.box(0.002, L - 0.002, -0.004, 0.001, s * (bw / 2 + 0.0058), s * (bw / 2 + 0.0066), green);
+    for (let x = 0.03; x < L - 0.01; x += 0.055) bk.rod([x, 0.004, s * (bw / 2 + 0.004)], [x, 0.034, s * (bw / 2 + 0.004)], 0.0025, rail);
+    bk.rod([0.03, 0.034, s * (bw / 2 + 0.004)], [L - 0.025, 0.034, s * (bw / 2 + 0.004)], 0.0025, rail);
+  }
+  bk.cyl(L, -0.001, 0, 0.006, bw + 0.012, 'z', black, 10);
+  const belt = bk.build();
+  belt.name = 'belt';
+  belt.position.set(BELT.px, BELT.y, 0.018);
+  belt.rotation.z = 0.04;
+  g.add(belt);
+  beacon(g, k, cx0 + 0.03, 0.106, cz0 + 0.021);
+  lights(g, h, -h, 0.04, w / 2 - 0.015);
+}
+
+const BUILD = { tug, baggage, fuel, catering, bus, stairs: stairsTruck, deice, cleaning: van, fire, plow, followme: followMe, police: policeCar, belt: beltLoader };
+const BODY = { belt: 0xf4f5f2, fire: 0xd11f1c, plow: 0xea6a0c, followme: 0xfacc15 };
 
 // große Nummer auf dem Dach (wie auf echten Vorfeldern, damit der Tower die Fahrzeuge erkennt): Buchstabe je Typ + Nummer
 const ROOF = { tug: [-0.12, 0.0952, 0.08], baggage: [0.378, 0.1362, 0.06], fuel: [0.312, 0.1642, 0.09], catering: [0.238, 0.1562, 0.09], cleaning: [-0.03, 0.1272, 0.08], bus: [-0.01, 0.1652, 0.12], stairs: [0.165, 0.1052, 0.05, -0.031], deice: [0.332, 0.1642, 0.09] };
@@ -1456,7 +1496,7 @@ export function vehParts(m) {
     m.traverse((o) => o.name === 'bcn' && bcn.push(o));
     const sides = [];
     m.traverse((o) => o.name === 'busSide' && sides.push(o));
-    m.__parts = { sides: sides.length ? sides : null, load: 0, bcn, hl: n('hl'), tl: n('tl'), lift: n('lift'), scis: n('scis'), plat: n('plat'), tur: n('tur'), boom: n('boom'), bask: n('bask'), spray: n('spray'), ramp: n('ramp'), stp: n('stp'), u: 0, yaw: 0, top: 0.12 };
+    m.__parts = { sides: sides.length ? sides : null, load: 0, bcn, hl: n('hl'), tl: n('tl'), lift: n('lift'), scis: n('scis'), plat: n('plat'), belt: n('belt'), tur: n('tur'), boom: n('boom'), bask: n('bask'), spray: n('spray'), ramp: n('ramp'), stp: n('stp'), u: 0, yaw: 0, top: 0.12 };
   }
   return m.__parts;
 }
@@ -1500,6 +1540,13 @@ export function poseVehicle(state, v, m, dt, now) {
     P.ramp.rotation.z = th;
     P.ramp.scale.x = len / S.len; // hohe Türen: Treppe fährt aus
     P.stp.position.set(S.hinge + Math.cos(th) * len, S.y + Math.sin(th) * len, 0);
+  }
+  if (P.belt) {
+    // Förderband: an der Frachttür auf die Schwelle hochgestellt (v.lift 0 … 1), sonst flach
+    const { th, len } = beltGeom(v.top ?? BELT.y);
+    P.u = v.lift ?? 0;
+    P.belt.rotation.z = 0.04 + (th - 0.04) * P.u;
+    P.belt.scale.x = 1 + (len / BELT.len - 1) * P.u; // hohe Frachttüren: Band fährt aus
   }
   if (P.sides) setBusLoad(m, busLoad(v, state.time));
   return `${P.u.toFixed(2)}|${P.top.toFixed(3)}|${P.yaw.toFixed(2)}|${P.load}`;

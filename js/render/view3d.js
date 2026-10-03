@@ -16,6 +16,7 @@ import { soundscape } from '../soundscape.js';
 import { buildAircraft, buildCessna, buildHeli, glowTex, spriteMat, setNight } from './model3d.js';
 import { buildVehicle, vehParts, poseVehicle, carInstances } from './vehicles3d.js';
 import { followMeCars } from './followme.js';
+import { beltLoaders } from './beltloader.js';
 import { plowFleet } from './snow.js';
 import { grassRunway3d, smallField3d, smallBuilding3d } from './field3d.js';
 import { placeModel, whenModelsLoaded, modelsNight, preloadModels } from './models3d.js';
@@ -1572,6 +1573,7 @@ export class View3D {
     for (const p of plowFleet(state)) out.push(p);
     for (const c of followMeCars(state)) out.push({ ...c, type: 'followme' });
     for (const c of state.patrol?.cars || []) out.push({ id: c.id, type: 'police', x: c.x, y: c.y, hdg: c.hdg, st: c.lights ? 'alarm' : 'idle' });
+    for (const b of beltLoaders(state)) out.push(b);
     return out;
   }
   // Rundumleuchte, Scheinwerfer, Catering-Hubkasten, Enteiser-Arm mit Sprühstrahl, Schneefahne der Pflüge
