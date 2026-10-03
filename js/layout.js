@@ -44,6 +44,12 @@ export function setGeometry(g) {
 export const ARP = { x: 40, y: 32.2 };
 export const TERMINAL = { x0: 12, x1: 49.5, y0: 10.6, y1: 14.6, h: 1.0 };
 export const BUS_GATE = { x: 50.4, y: SERVICE };
+// Haltestelle der Vorfeldbusse (Außenpositionen) mit der Tür, durch die die Fluggäste ins Gebäude gehen:
+// am Verkehrslandeplatz vor dem Abfertigungsgebäude (Vordach am Ostende), sonst am Ostende des Terminals
+export function busStop() {
+  // Busbucht zwischen Gebäude und Servicestraße, damit der wartende Bus den übrigen Verkehr nicht blockiert
+  return GEO.stage === 1 ? { x: 29.6, y: SERVICE - 0.42, hdg: Math.PI, door: { x: 29.9, y: 14.5 } } : { x: BUS_GATE.x, y: BUS_GATE.y - 0.42, hdg: Math.PI, door: { x: 49.25, y: TERMINAL.y1 + 0.12 } };
+}
 export const APPROACH_TILES = 24; // sichtbarer Endanflug vor der Schwelle
 
 // Parkpositionen: kind = contact | remote | cargo

@@ -74,8 +74,8 @@ function makeTasks(state, ac, stand) {
   const contact = stand.kind === 'contact';
   const tasks = {};
   const mk = (k, dur, need, after = []) => (tasks[k] = { k, st: 'wait', dur: dur * 60, prog: 0, need, after, veh: null });
-  if (t.light || t.walk) {
-    // Kleinflugzeug/Lufttaxi: Gäste gehen zu Fuß, Pilot tankt selbst (Sportflieger) bzw. Tankwagen (Turboprop)
+  if (t.light || t.walk || (!t.cargo && t.pax <= 20)) {
+    // Kleinflugzeug/Lufttaxi/Businessjet: Gäste gehen zu Fuß, Pilot tankt selbst (Sportflieger) bzw. Tankwagen
     const paxN = Math.max(1, rot ? Math.max(rot.paxIn, rot.paxOut) : 2);
     const has = (type) => state.vehicles.some((v) => v.type === type);
     mk('deboard', 1.5 + paxN * 0.4, null);
@@ -366,9 +366,15 @@ export function dispatch(state, ac, k, vehId = null) {
   const sp = LY.servicePoint(k, ac);
   v.job = { ac: ac.id, k };
   v.st = 'drive';
-  v.path = LY.vehPath({ x: v.x, y: v.y }, sp);
-  v.pi = 0;
   v.target = sp;
+  v.pi = 0;
+  v.sh = null;
+  if (v.type === 'bus' && k === 'board') {
+    // Boarding an der Außenposition: erst an der Haltestelle am Terminal die Fluggäste abholen
+    const B = LY.busStop();
+    v.path = LY.vehPath({ x: v.x, y: v.y }, B);
+    v.sh = { k, ph: 'toStop' };
+  } else v.path = LY.vehPath({ x: v.x, y: v.y }, sp);
   task.st = 'assigned';
   task.veh = v.id;
   crewDispatch(state, v, ac, k);
@@ -376,10 +382,56 @@ export function dispatch(state, ac, k, vehId = null) {
 }
 
 function releaseVehicle(state, v, returnNow) {
+  // Bus nach dem Aussteigen: wer schon im Bus sitzt, wird noch zum Terminal gefahren
+  const lastLoad = v.type === 'bus' && !returnNow && v.sh && v.sh.k === 'deboard' && (v.sh.ph === 'ac' || v.sh.ph === 'toStop' || v.sh.ph === 'stop');
   v.job = null;
   v.st = 'idle';
   v.idleT = returnNow ? 999 : 0;
+  if (lastLoad) {
+    v.st = 'busEnd';
+    if (v.sh.ph === 'ac') busLeg(v, LY.busStop(), 'toStop', state);
+    v.sh.last = true;
+    return;
+  }
+  v.sh = null;
   if (v.type === 'fuel' && (v.load || 0) < FUEL.truckCap * 0.35) sendRefill(state, v);
+}
+
+// ---------- Vorfeldbus an Außenpositionen ----------
+// Der Bus pendelt zwischen Flugzeugtür und Haltestelle am Terminal, solange Aus- bzw. Einsteigen läuft (die Dauer der
+// Abfertigung hängt davon nicht ab – der Bus zeigt, was passiert). v.sh = { k, ph, t0 }: ph = ac | toStop | stop | toAc
+export const BUS_DWELL_AC = 80; // Sekunden an der Tür (Fluggäste steigen um)
+export const BUS_DWELL_STOP = 50; // Sekunden an der Haltestelle
+const BUS_PAX = 80; // Fluggäste je Busfahrt
+function busLeg(v, to, ph, state) {
+  v.path = LY.vehPath({ x: v.x, y: v.y }, to);
+  v.pi = 0;
+  v.sh = { ...v.sh, ph, t0: state.time };
+}
+// ein Schritt im Pendelverkehr; true, solange der Bus dabei ist (fährt oder wartet)
+function busStep(state, v, dt, storm) {
+  const B = v.sh;
+  if (B.ph === 'wait') return true; // alle Fahrten gemacht: warten, bis die Abfertigung fertig ist
+  if (B.ph === 'ac' || B.ph === 'stop') {
+    if (state.time - B.t0 < (B.ph === 'ac' ? BUS_DWELL_AC : BUS_DWELL_STOP)) return true;
+    if (B.last) return false; // letzte Fahrt: alle ausgestiegen
+    // Boarding endet am Flugzeug, Aussteigen an der Haltestelle
+    if ((B.k === 'board') === (B.ph === 'ac') && B.n >= B.need) v.sh = { ...B, ph: 'wait' };
+    else if (B.ph === 'ac') busLeg(v, LY.busStop(), 'toStop', state);
+    else busLeg(v, v.target, 'toAc', state);
+    return true;
+  }
+  if (storm) return true;
+  if (moveAlong(v, dt, VEH_TYPES.bus.speed)) {
+    if (B.ph === 'toStop') {
+      v.sh = { ...B, ph: 'stop', t0: state.time, n: B.n + (B.k === 'deboard' ? 1 : 0) };
+      v.hdg = LY.busStop().hdg;
+    } else {
+      v.sh = { ...B, ph: 'ac', t0: state.time, n: B.n + (B.k === 'board' ? 1 : 0) };
+      if (v.target) v.hdg = v.target.hdg;
+    }
+  }
+  return true;
 }
 
 // Tankwagen zur Füllstelle am Tanklager
@@ -392,6 +444,7 @@ function sendRefill(state, v) {
 
 function sendHome(state, v) {
   const bay = LY.DEPOT_BAYS[v.bay % LY.DEPOT_BAYS.length];
+  v.sh = null;
   if (Math.hypot(v.x - bay.x, v.y - bay.y) < 0.1) return;
   v.st = 'return';
   v.path = LY.vehPath({ x: v.x, y: v.y }, { x: bay.x, y: bay.y });
@@ -463,6 +516,15 @@ function updateVehicles(state, dt, storm) {
           continue;
         }
       }
+      if (v.st === 'drive' && v.sh && (v.sh.ph === 'toStop' || v.sh.ph === 'stop')) {
+        // Boarding: erst an der Haltestelle die Fluggäste abholen, dann zum Flugzeug
+        if (v.sh.ph === 'stop' && state.time - v.sh.t0 >= BUS_DWELL_STOP) busLeg(v, v.target, 'toAc', state);
+        else if (v.sh.ph === 'toStop' && moveAlong(v, dt, vt.speed)) {
+          v.sh = { ...v.sh, ph: 'stop', t0: state.time };
+          v.hdg = LY.busStop().hdg;
+        }
+        continue;
+      }
       const done = moveAlong(v, dt, vt.speed);
       if (done) {
         if (v.st === 'drive') {
@@ -472,6 +534,12 @@ function updateVehicles(state, dt, storm) {
             task.st = 'active';
             v.st = 'work';
             if (v.target) v.hdg = v.target.hdg;
+            if (v.type === 'bus' && (v.job.k === 'deboard' || v.job.k === 'board')) {
+              // so viele Fahrten, wie Fluggäste da sind (≈ 80 je Bus); beim Boarding ist die erste Ladung schon da
+              const rot = getRot(state, ac);
+              const pax = rot ? (v.job.k === 'board' ? rot.paxOut : rot.paxIn) : AC_TYPES[ac.type].pax;
+              v.sh = { k: v.job.k, ph: 'ac', t0: state.time, n: v.job.k === 'board' ? 1 : 0, need: Math.max(1, Math.ceil((pax || 0) / BUS_PAX)) };
+            }
           } else releaseVehicle(state, v, true);
         } else {
           v.st = 'idle';
@@ -484,6 +552,15 @@ function updateVehicles(state, dt, storm) {
     if (v.st === 'work') {
       const ac = v.job && acById.get(v.job.ac);
       if (!ac || ac.phase !== PH.STAND) releaseVehicle(state, v, true);
+      else if (v.sh) busStep(state, v, dt, storm);
+      continue;
+    }
+    if (v.st === 'busEnd') {
+      if (!busStep(state, v, dt, storm)) {
+        v.sh = null;
+        v.st = 'idle';
+        v.idleT = 999;
+      }
       continue;
     }
     if (v.st === 'idle') {
