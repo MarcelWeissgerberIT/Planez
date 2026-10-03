@@ -14,7 +14,7 @@ import { NM_PER_TILE } from '../config.js';
 import { Q } from './quality.js';
 import { soundscape } from '../soundscape.js';
 import { buildAircraft, buildCessna, buildHeli, glowTex, spriteMat, setNight } from './model3d.js';
-import { buildVehicle, vehParts, STAIRS_3D } from './vehicles3d.js';
+import { buildVehicle, vehParts, poseVehicle, carInstances } from './vehicles3d.js';
 import { followMeCars } from './followme.js';
 import { plowFleet } from './snow.js';
 import { grassRunway3d, smallField3d, smallBuilding3d } from './field3d.js';
@@ -687,15 +687,17 @@ export class View3D {
         this.bldg(x0, x1, y0, y1, 0.8, 'parking', 0x9aa0a6);
         // Autos auf dem Parkdeck
         const r = rng(55);
-        const cars = new THREE.InstancedMesh(new THREE.BoxGeometry(0.22, 0.08, 0.11), new THREE.MeshLambertMaterial({ color: 0xffffff }), 40);
+        const cars = carInstances(40);
         const mx = new THREE.Matrix4(), col = new THREE.Color();
         const CC = [0xe5e7eb, 0x1f2937, 0x991b1b, 0x1d4ed8, 0x9ca3af, 0x065f46, 0xf59e0b];
         for (let i = 0; i < 40; i++) {
-          mx.makeTranslation(x0 + 0.3 + (i % 8) * ((b.w - 0.6) / 8), 0.84, y0 + 0.4 + Math.floor(i / 8) * ((b.d - 0.8) / 5));
-          cars.setMatrixAt(i, mx);
-          cars.setColorAt(i, col.setHex(r() < 0.3 ? 0x6b7280 : CC[Math.floor(r() * CC.length)]));
+          mx.makeRotationY(Math.PI / 2 + (r() < 0.5 ? 0 : Math.PI));
+          mx.setPosition(x0 + 0.3 + (i % 8) * ((b.w - 0.6) / 8), 0.8, y0 + 0.4 + Math.floor(i / 8) * ((b.d - 0.8) / 5));
+          cars.set(i, mx);
+          cars.color(i, col.setHex(r() < 0.3 ? 0x6b7280 : CC[Math.floor(r() * CC.length)]));
         }
-        this.static.add(cars);
+        cars.update();
+        this.static.add(cars.group);
       } else if (b.id === 'cargo' || b.id === 'depot') {
         this.bldg(x0, x1, y0, y1, H[b.id], 'metal', 0x94a3b8);
         // große Tore zur Vorfeldseite
@@ -795,15 +797,16 @@ export class View3D {
     this.flat(LY.W / 2 - 41, LY.W / 2 - 39, TY, 0, road, 0.004);
     this.flat(-400, 480, -6, -4.5, road, 0.004);
     const NC = 60;
-    this.cars = new THREE.InstancedMesh(new THREE.BoxGeometry(0.22, 0.08, 0.1), new THREE.MeshLambertMaterial({ color: 0xffffff }), NC);
+    this.cars = carInstances(NC);
     this.carData = [];
     const CC = [0xe5e7eb, 0x1f2937, 0x991b1b, 0x1d4ed8, 0x9ca3af, 0x065f46];
     for (let i = 0; i < NC; i++) {
       const ns = i % 3 === 0;
       this.carData.push({ ns, dir: r() < 0.5 ? 1 : -1, p: r(), v: 0.012 + r() * 0.01 });
-      this.cars.setColorAt(i, col.setHex(CC[i % CC.length]));
+      this.cars.color(i, col.setHex(CC[i % CC.length]));
     }
-    this.static.add(this.cars);
+    this.cars.update();
+    this.static.add(this.cars.group);
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(NC * 3), 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(NC * 3), 3));
@@ -818,17 +821,18 @@ export class View3D {
     this.carData.forEach((c, i) => {
       c.p = (c.p + c.v * dt * (c.ns ? 0.25 : 0.05) + 1) % 1;
       let x, y, rot;
-      if (c.ns) (x = LY.W / 2 - 40 + c.dir * 0.45, y = this.TY + (c.dir > 0 ? c.p : 1 - c.p) * -this.TY, rot = Math.PI / 2);
-      else (x = -400 + (c.dir > 0 ? c.p : 1 - c.p) * 880, y = -5.25 + c.dir * 0.35, rot = 0);
+      // Front in Fahrtrichtung (Modell schaut nach +x)
+      if (c.ns) (x = LY.W / 2 - 40 + c.dir * 0.45, y = this.TY + (c.dir > 0 ? c.p : 1 - c.p) * -this.TY, rot = -c.dir * Math.sign(-this.TY || 1) * (Math.PI / 2));
+      else (x = -400 + (c.dir > 0 ? c.p : 1 - c.p) * 880, y = -5.25 + c.dir * 0.35, rot = c.dir > 0 ? 0 : Math.PI);
       m.makeRotationY(rot);
-      m.setPosition(x, 0.05, y);
-      this.cars.setMatrixAt(i, m);
+      m.setPosition(x, 0.01, y);
+      this.cars.set(i, m);
       pos.setXYZ(i, x + (c.ns ? 0 : c.dir * 0.12), 0.07, y + (c.ns ? c.dir * 0.12 : 0));
       // zur Kamera fahrend weiß (Scheinwerfer), sonst rot – vereinfacht: Richtung entscheidet
       if (c.dir > 0) colA.setXYZ(i, 1, 0.95, 0.8);
       else colA.setXYZ(i, 1, 0.15, 0.1);
     });
-    this.cars.instanceMatrix.needsUpdate = true;
+    this.cars.update();
     pos.needsUpdate = true;
     colA.needsUpdate = true;
     this.carLights.visible = night;
@@ -1580,41 +1584,7 @@ export class View3D {
     const blink = Math.floor(now * (fast ? 4.5 : 2.2) + (v.id.length || 0)) % 2 === 0;
     P.bcn.forEach((b, i) => (b.visible = (lightsOn || v.st !== 'idle') && (i % 2 ? !blink : blink)));
     if (P.hl) P.hl.visible = P.tl.visible = lightsOn;
-    const ease = (tgt, rate) => (P.u += Math.sign(tgt - P.u) * Math.min(Math.abs(tgt - P.u), dt * rate));
-    if (P.lift) {
-      ease(v.st === 'work' ? 1 : 0, 0.45);
-      const hgt = P.u * 0.11;
-      P.lift.position.y = 0.07 + hgt;
-      P.scis.visible = hgt > 0.004;
-      P.scis.scale.y = Math.max(0.001, hgt);
-      P.plat.visible = P.u > 0.6;
-      P.plat.scale.x = Math.max(0.02, (P.u - 0.6) / 0.4);
-    }
-    if (P.boom) {
-      const ac = v.st === 'work' && v.job ? state.acs.find((a) => a.id === v.job.ac) : null;
-      ease(ac ? 1 : 0, 0.35);
-      let yaw = 0;
-      if (ac) {
-        yaw = (v.hdg || 0) - Math.atan2(ac.y - v.y, ac.x - v.x);
-        yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
-      }
-      P.yaw += (yaw - P.yaw) * Math.min(1, dt * 1.5);
-      P.tur.rotation.y = P.yaw * Math.min(1, P.u * 2);
-      P.boom.rotation.z = -0.03 + P.u * 0.72;
-      P.bask.rotation.z = -P.boom.rotation.z;
-      P.spray.visible = !!ac && P.u > 0.97;
-      if (P.spray.visible) P.spray.scale.set(1, 0.85 + 0.15 * Math.sin(now * 23 + v.x), 1);
-    }
-    if (P.ramp) {
-      // Treppe: an der Tür bis zur Schwelle hochstellen, sonst flach zum Fahren; Podest bleibt waagerecht
-      const ac = v.st === 'docked' && v.job ? state.acs.find((a) => a.id === v.job.ac) : null;
-      const S = STAIRS_3D;
-      const tgt = ac ? Math.max(0.1, 0.085 * ac.len) : 0.12;
-      P.top += clamp(tgt - P.top, -dt * 0.02, dt * 0.02);
-      const th = Math.asin(clamp((P.top - S.y) / S.len, 0, 0.95));
-      P.ramp.rotation.z = th;
-      P.stp.position.set(S.hinge + Math.cos(th) * S.len, S.y + Math.sin(th) * S.len, 0);
-    }
+    poseVehicle(state, v, m, dt, now);
     if (v.type === 'plow' && Math.random() < dt * 10) {
       const side = v.o < 0 ? -1 : 1;
       this.puff(v.x + v.dir * 0.32, 0.08, v.y + side * 0.2, 'spray');

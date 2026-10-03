@@ -9,20 +9,164 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { VEH_TYPES } from '../config.js';
 import { merge, spriteMat } from './model3d.js';
+import { T } from '../i18n.js';
+import { busLoad } from './buspax.js';
+import { toCreasedNormals, mergeGeometries } from '../vendor/BufferGeometryUtils.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const MX = (x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0) => new THREE.Matrix4().compose(V(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), V(sx, sy, sz));
 
 const BOX = new THREE.BoxGeometry(1, 1, 1);
 const SPH = new THREE.SphereGeometry(1, 14, 8);
 const CYL = new Map();
 const cylGeo = (seg) => CYL.get(seg) || (CYL.set(seg, new THREE.CylinderGeometry(1, 1, 1, seg)), CYL.get(seg));
+// Radkasten: Halbscheibe über der Achse (Achse entlang z)
+const ARCH = new THREE.CylinderGeometry(1, 1, 1, 14, 1, false, 0, Math.PI).rotateX(Math.PI / 2).rotateZ(Math.PI / 2);
+
+// Texturkoordinaten je Fläche aus der Blickrichtung (Seite, Front, Dach) über das ganze Teil gespannt – so liegen
+// Blechfugen und Schmutz der Lacktextur auch auf runden Teilen richtig
+function boxUV(g) {
+  g.computeBoundingBox();
+  const { min, max } = g.boundingBox;
+  const sx = max.x - min.x || 1, sy = max.y - min.y || 1, sz = max.z - min.z || 1;
+  const P = g.attributes.position, N = g.attributes.normal;
+  const uv = new Float32Array(P.count * 2);
+  for (let i = 0; i < P.count; i++) {
+    const nx = Math.abs(N.getX(i)), ny = Math.abs(N.getY(i)), nz = Math.abs(N.getZ(i));
+    const x = (P.getX(i) - min.x) / sx, y = (P.getY(i) - min.y) / sy, z = (P.getZ(i) - min.z) / sz;
+    if (nz >= nx && nz >= ny) (uv[i * 2] = x), (uv[i * 2 + 1] = y);
+    else if (ny >= nx) (uv[i * 2] = x), (uv[i * 2 + 1] = z);
+    else (uv[i * 2] = z), (uv[i * 2 + 1] = y);
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  return g;
+}
+// Quader mit rundum gerundeten Kanten (Radius r, absolute Maße), mittig um den Ursprung
+const RB = new Map();
+function rboxGeo(sx, sy, sz, r) {
+  const key = [sx, sy, sz, r].map((v) => v.toFixed(4)).join('|');
+  if (RB.has(key)) return RB.get(key);
+  r = Math.min(r, sx / 2, sy / 2, sz / 2);
+  const n = 7; // ungerade: mittlere Reihe bleibt flach
+  const g = new THREE.BoxGeometry(1, 1, 1, n, n, n).toNonIndexed();
+  const P = g.attributes.position, N = g.attributes.normal;
+  const bx = sx / 2 - r, by = sy / 2 - r, bz = sz / 2 - r, hs = 0.5 / n;
+  const p = V(0, 0, 0), q = V(0, 0, 0);
+  for (let i = 0; i < P.count; i++) {
+    p.fromBufferAttribute(P, i);
+    const ax = Math.sign(p.x), ay = Math.sign(p.y), az = Math.sign(p.z);
+    q.set(p.x - ax * hs, p.y - ay * hs, p.z - az * hs).normalize();
+    P.setXYZ(i, bx * ax + q.x * r, by * ay + q.y * r, bz * az + q.z * r);
+    N.setXYZ(i, q.x, q.y, q.z);
+  }
+  RB.set(key, boxUV(g));
+  return g;
+}
+// Seitenprofil [x, y, Eckenradius] quer von z0 bis z1 extrudiert; b = Rundung der Längskanten (Dach, Seiten, Front)
+const PR = new Map();
+function profGeo(pts, z0, z1, b) {
+  const key = JSON.stringify([pts, z0, z1, b]);
+  if (PR.has(key)) return PR.get(key);
+  const s = new THREE.Shape();
+  const n = pts.length;
+  for (let i = 0; i < n; i++) {
+    const [x, y, r = 0] = pts[i], [px, py] = pts[(i + n - 1) % n], [nx, ny] = pts[(i + 1) % n];
+    if (!r) {
+      i ? s.lineTo(x, y) : s.moveTo(x, y);
+      continue;
+    }
+    const d1 = Math.hypot(px - x, py - y), d2 = Math.hypot(nx - x, ny - y), a = Math.min(r, d1 / 2, d2 / 2);
+    const ax = x + ((px - x) / d1) * a, ay = y + ((py - y) / d1) * a;
+    i ? s.lineTo(ax, ay) : s.moveTo(ax, ay);
+    s.quadraticCurveTo(x, y, x + ((nx - x) / d2) * a, y + ((ny - y) / d2) * a);
+  }
+  b = Math.min(b, (z1 - z0) / 2 - 0.0005);
+  const geo = new THREE.ExtrudeGeometry(s, { depth: z1 - z0 - 2 * Math.max(0, b), curveSegments: 5, bevelEnabled: b > 0, bevelThickness: b, bevelSize: b, bevelOffset: -b, bevelSegments: 3 });
+  geo.translate(0, 0, z0 + Math.max(0, b));
+  const out = boxUV(toCreasedNormals(geo, 0.75));
+  PR.set(key, out);
+  return out;
+}
 
 const MATS = new Map();
 const cached = (k, make) => MATS.get(k) || (MATS.set(k, make()), MATS.get(k));
-const paint = (c, shin = 50) => cached(`p${c}|${shin}`, () => new THREE.MeshPhongMaterial({ color: c, shininess: shin, specular: 0x3a3a3a }));
-const metal = (c) => cached(`m${c}`, () => new THREE.MeshPhongMaterial({ color: c, shininess: 95, specular: 0x9aa6b4 }));
-const matte = (c) => cached(`l${c}`, () => new THREE.MeshLambertMaterial({ color: c }));
+// Oberflächen (graustufig, werden mit der Farbe multipliziert): Lack mit Blechfugen, Nieten, Laufspuren und Schmutz
+// unten; gebürstetes Metall; matter Kunststoff mit Körnung. Fest gesät, damit alle Fahrzeuge gleich aussehen.
+function grayTex(key, draw) {
+  return cached(`g${key}`, () => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, 128, 128);
+    let n = 9;
+    const rnd = () => ((n = (n * 16807) % 2147483647) / 2147483647);
+    draw(g, rnd);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  });
+}
+const wearTex = () => grayTex('wear', (g, rnd) => {
+  for (let i = 0; i < 900; i++) {
+    g.fillStyle = `rgba(0,0,0,${0.025 + rnd() * 0.04})`;
+    g.fillRect(rnd() * 128, rnd() * 128, 1 + rnd() * 2, 1 + rnd() * 2);
+  }
+  // Laufspuren (Regen, Staub) von oben nach unten
+  for (let i = 0; i < 14; i++) {
+    const x = rnd() * 128, len = 20 + rnd() * 70;
+    const gr = g.createLinearGradient(0, 128 - len, 0, 128);
+    gr.addColorStop(0, 'rgba(70,60,50,0)');
+    gr.addColorStop(1, `rgba(70,60,50,${0.05 + rnd() * 0.07})`);
+    g.fillStyle = gr;
+    g.fillRect(x, 128 - len, 1 + rnd() * 2, len);
+  }
+  // Schmutz und Bremsstaub unten
+  const gr = g.createLinearGradient(0, 84, 0, 128);
+  gr.addColorStop(0, 'rgba(60,50,40,0)');
+  gr.addColorStop(1, 'rgba(60,50,40,0.32)');
+  g.fillStyle = gr;
+  g.fillRect(0, 84, 128, 44);
+  // Blechfugen am Rand, Nieten
+  g.strokeStyle = 'rgba(0,0,0,0.22)';
+  g.lineWidth = 2;
+  g.strokeRect(1, 1, 126, 126);
+  g.strokeStyle = 'rgba(255,255,255,0.35)';
+  g.lineWidth = 1;
+  g.strokeRect(3.5, 3.5, 121, 121);
+  for (let x = 8; x < 124; x += 12) for (const y of [6, 122]) {
+    g.fillStyle = 'rgba(0,0,0,0.25)';
+    g.fillRect(x, y, 2, 2);
+    g.fillStyle = 'rgba(255,255,255,0.4)';
+    g.fillRect(x, y - 1, 1, 1);
+  }
+});
+const brushedTex = () => grayTex('brush', (g, rnd) => {
+  g.fillStyle = '#e9edf1';
+  g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 260; i++) {
+    g.fillStyle = rnd() < 0.5 ? `rgba(255,255,255,${0.2 + rnd() * 0.4})` : `rgba(0,0,0,${0.04 + rnd() * 0.08})`;
+    g.fillRect(rnd() * 128 - 40, rnd() * 128, 30 + rnd() * 90, 1);
+  }
+  g.strokeStyle = 'rgba(0,0,0,0.18)';
+  g.strokeRect(0.5, 0.5, 127, 127);
+});
+const grainTex = () => grayTex('grain', (g, rnd) => {
+  for (let i = 0; i < 1400; i++) {
+    g.fillStyle = rnd() < 0.5 ? `rgba(0,0,0,${0.03 + rnd() * 0.05})` : `rgba(255,255,255,${0.04 + rnd() * 0.06})`;
+    g.fillRect(rnd() * 128, rnd() * 128, 1, 1);
+  }
+  const gr = g.createLinearGradient(0, 96, 0, 128);
+  gr.addColorStop(0, 'rgba(50,45,40,0)');
+  gr.addColorStop(1, 'rgba(50,45,40,0.2)');
+  g.fillStyle = gr;
+  g.fillRect(0, 96, 128, 32);
+});
+const paint = (c, shin = 50) => cached(`p${c}|${shin}`, () => new THREE.MeshPhongMaterial({ color: c, map: wearTex(), shininess: shin, specular: 0x3a3a3a }));
+const metal = (c) => cached(`m${c}`, () => new THREE.MeshPhongMaterial({ color: c, map: brushedTex(), shininess: 95, specular: 0x9aa6b4 }));
+const matte = (c) => cached(`l${c}`, () => new THREE.MeshLambertMaterial({ color: c, map: grainTex() }));
 const lamp = (c) => cached(`b${c}`, () => new THREE.MeshBasicMaterial({ color: c }));
 const glass = () => cached('glass', () => new THREE.MeshPhongMaterial({ color: 0x1a2735, shininess: 130, specular: 0xc4d6ea }));
 const TIRE = 0x15171a, DARK = 0x24272c, RIM = 0xb9c0c8;
@@ -115,6 +259,32 @@ class Kit {
   sph(x, y, z, sx, sy, sz, m) {
     return this.put(SPH, m, MX(x, y, z, sx, sy, sz));
   }
+  // Quader mit gerundeten Kanten (r = Radius)
+  rbox(x0, x1, y0, y1, z0, z1, m, r = 0.008) {
+    const [a, b] = x0 < x1 ? [x0, x1] : [x1, x0], [c, d] = y0 < y1 ? [y0, y1] : [y1, y0], [e, f] = z0 < z1 ? [z0, z1] : [z1, z0];
+    return this.put(rboxGeo(b - a, d - c, f - e, r), m, MX((a + b) / 2, (c + d) / 2, (e + f) / 2, 1, 1, 1));
+  }
+  rbx(x0, x1, y0, y1, w, m, r = 0.008) {
+    return this.rbox(x0, x1, y0, y1, -w / 2, w / 2, m, r);
+  }
+  // Seitenprofil über die Breite w (mittig) oder von z0 bis z1; b = Rundung der Längskanten
+  prof(pts, w, m, b = 0.01, z0 = -w / 2, z1 = w / 2) {
+    return this.put(profGeo(pts, z0, z1, b), m, new THREE.Matrix4());
+  }
+  // flaches Profil auf beiden Seitenwänden (Fenster, Zierleisten): d = Abstand der Außenfläche von der Mitte
+  side(pts, d, m, t = 0.0016) {
+    this.put(profGeo(pts, d - t, d, 0), m, new THREE.Matrix4());
+    return this.put(profGeo(pts, -d, -d + t, 0), m, new THREE.Matrix4());
+  }
+  // schräge Platte von (xa, ya) nach (xb, yb), Dicke t, Breite wz (Frontscheibe, Haube)
+  slab(xa, ya, xb, yb, t, wz, m) {
+    const dx = xb - xa, dy = yb - ya;
+    return this.put(BOX, m, MX((xa + xb) / 2, (ya + yb) / 2, 0, t, Math.hypot(dx, dy), wz, 0, 0, Math.atan2(-dx, dy)));
+  }
+  // dunkler Radkasten hinter einem Rad (Halbscheibe, etwas größer als der Reifen), quer über die Breite w
+  well(x, r, w) {
+    return this.put(ARCH, matte(0x0d0f12), MX(x, r, 0, r * 1.28, r * 1.28, w));
+  }
   // Rad mit Reifen, Felge und Nabe
   wheel(x, z, r, w) {
     const s = Math.sign(z) || 1;
@@ -144,19 +314,26 @@ class Kit {
   }
 }
 
-// Fahrerhaus (Front bei x1): Kasten, Frontscheibe, Seitenfenster, Dach, Stoßfänger, Grill, Scheinwerfer, Spiegel
+// Fahrerhaus (Front bei x1): gerundete Kabine mit leicht geneigter Frontscheibe, Seitenfenster mit schräger
+// Vorderkante, Stoßfänger, Kühlergrill, Scheinwerfer, Spiegel; o.win = Fensterunterkante (Anteil), o.roof = Dachfarbe
 function cab(k, x0, x1, y0, y1, w, body, o = {}) {
   const wy = y0 + (y1 - y0) * (o.win ?? 0.5);
-  k.bx(x0, x1, y0, y1, w, body);
-  k.bx(x1 - 0.004, x1 + 0.0022, wy, y1 - 0.009, w - 0.016, glass());
-  k.pair(x0 + 0.012, x1 - 0.012, wy, y1 - 0.011, w / 2, 0.004, glass());
-  k.bx(x0 - 0.002, x1 + 0.003, y1, y1 + 0.007, w + 0.004, o.roof || body);
-  k.bx(x1, x1 + 0.01, y0 - 0.006, y0 + 0.02, w + 0.004, matte(DARK));
-  k.bx(x1 + 0.0005, x1 + 0.0035, y0 + 0.022, wy - 0.008, w * 0.5, matte(0x2f343b));
-  k.pair(x1 + 0.0005, x1 + 0.004, y0 + 0.024, y0 + 0.036, w / 2 - 0.02, 0.022, lamp(0xfff4d6));
-  k.pair(x1 - 0.004, x1 + 0.002, y0 + 0.024, y0 + 0.03, w / 2 - 0.004, 0.006, lamp(0xff9d1a));
-  k.pair(x1 - 0.016, x1 - 0.006, wy - 0.002, wy + 0.022, w / 2 + 0.012, 0.004, matte(0x1c1f24));
-  k.pair(x1 - 0.02, x1 - 0.012, wy + 0.01, wy + 0.013, w / 2 + 0.005, 0.012, matte(0x1c1f24));
+  const b = Math.min(0.014, w * 0.11), rake = (y1 - wy) * 0.3;
+  const A = [x1, wy - 0.006], B = [x1 - rake, y1];
+  k.prof([[x0, y0], [x1, y0, 0.006], [A[0], A[1], 0.014], [B[0], B[1], 0.016], [x0, y1, 0.01]], w, body, b);
+  const L = Math.hypot(B[0] - A[0], B[1] - A[1]), nx = (B[1] - A[1]) / L, ny = (A[0] - B[0]) / L;
+  const at = (f) => [A[0] + (B[0] - A[0]) * f + nx * 0.0012, A[1] + (B[1] - A[1]) * f + ny * 0.0012];
+  k.slab(...at(0.12), ...at(0.88), 0.002, w - 2 * b - 0.002, glass());
+  const xf = (y) => A[0] - (rake * (y - A[1])) / (B[1] - A[1]) - b - 0.002, yt = y1 - b - 0.002;
+  k.side([[x0 + b + 0.004, wy], [xf(wy), wy], [xf(yt), yt], [x0 + b + 0.004, yt]], w / 2 + 0.0008, glass());
+  if (o.roof) k.rbox(x0 + 0.004, B[0] - 0.006, y1 - 0.004, y1 + 0.005, -w / 2 + 0.006, w / 2 - 0.006, o.roof, 0.004);
+  k.rbx(x1 - 0.008, x1 + 0.01, y0 - 0.006, y0 + 0.022, w + 0.004, matte(DARK), 0.006);
+  k.bx(x1 - 0.002, x1 + 0.0025, y0 + 0.026, wy - 0.014, w * 0.46, matte(0x2f343b));
+  for (let y = y0 + 0.03; y < wy - 0.016; y += 0.008) k.bx(x1 + 0.0025, x1 + 0.0035, y, y + 0.0025, w * 0.44, metal(0x9aa3ad));
+  k.pair(x1 - 0.002, x1 + 0.003, y0 + 0.026, y0 + 0.037, w / 2 - 0.022, 0.02, lamp(0xfff4d6));
+  k.pair(x1 - 0.004, x1 + 0.0015, y0 + 0.024, y0 + 0.03, w / 2 - 0.007, 0.006, lamp(0xff9d1a));
+  k.pair(A[0] - 0.018, A[0] - 0.008, wy - 0.002, wy + 0.022, w / 2 + 0.012, 0.004, matte(0x1c1f24));
+  k.pair(A[0] - 0.022, A[0] - 0.014, wy + 0.01, wy + 0.013, w / 2 + 0.005, 0.012, matte(0x1c1f24));
   return wy;
 }
 // Rückleuchten am Heck (x0)
@@ -211,51 +388,53 @@ function ld3Geo() {
 }
 
 // ---------- Fahrzeuge ----------
+// Flugzeugschlepper: flache Wanne mit schrägen Enden, Warnstreifen-Stoßfänger, Kanzel links rundum verglast
 function tug(k, g, body) {
   const h = 0.21, w = 0.16, top = 0.07;
-  k.bx(-h + 0.02, h - 0.02, 0.022, 0.046, w - 0.05, matte(DARK));
-  k.bx(-h, h, 0.046, top, w, body);
-  k.bx(h - 0.05, h, 0.03, 0.046, w, body);
-  k.bx(-h, -h + 0.05, 0.03, 0.046, w, body);
-  k.bx(-h + 0.012, h - 0.06, top, top + 0.006, w - 0.016, matte(0x2c3036));
-  k.bx(h, h + 0.012, 0.026, 0.058, w + 0.002, hazard());
-  k.bx(-h - 0.012, -h, 0.026, 0.058, w + 0.002, hazard());
-  k.cyl(h + 0.022, 0.038, 0, 0.007, 0.022, 'x', matte(0x111111), 8);
-  k.cyl(-h - 0.022, 0.038, 0, 0.007, 0.022, 'x', matte(0x111111), 8);
-  // Motorhaube hinten, Auspuff
-  k.bx(-h + 0.02, -0.06, top, top + 0.024, w - 0.05, body);
-  k.box(-h + 0.03, -0.07, top + 0.024, top + 0.026, -w / 2 + 0.04, w / 2 - 0.04, matte(0x1f2328));
-  k.cyl(-0.08, top + 0.05, w / 2 - 0.03, 0.005, 0.055, 'y', matte(0x3a3d42), 8);
-  // Kanzel links, ganz verglast
-  const cz0 = -w / 2 + 0.004, cz1 = -w / 2 + 0.08, cx0 = -0.03, cx1 = 0.085, cy = top + 0.062;
-  k.box(cx0 + 0.003, cx1 - 0.003, top, cy, cz0 + 0.003, cz1 - 0.003, glass());
-  for (const x of [cx0, cx1 - 0.006]) for (const z of [cz0, cz1 - 0.006]) k.box(x, x + 0.006, top, cy, z, z + 0.006, body);
-  k.box(cx0 - 0.004, cx1 + 0.004, cy, cy + 0.008, cz0 - 0.004, cz1 + 0.004, body);
-  k.box(cx0 + 0.01, cx1 - 0.01, top, top + 0.02, cz0 + 0.01, cz1 - 0.01, matte(0x1f2937));
-  // Scheinwerfer in der Front
-  k.pair(h + 0.0005, h + 0.004, 0.06, 0.068, w / 2 - 0.02, 0.022, lamp(0xfff4d6));
-  k.pair(-h - 0.004, -h - 0.0005, 0.06, 0.066, w / 2 - 0.02, 0.016, lamp(0xb91c1c));
-  k.axle(h - 0.085, w / 2 - 0.016, 0.026, 0.032);
-  k.axle(-h + 0.085, w / 2 - 0.016, 0.026, 0.032);
+  k.bx(-h + 0.02, h - 0.02, 0.022, 0.036, w - 0.05, matte(DARK));
+  k.prof([[-h, 0.03, 0.006], [h, 0.03, 0.006], [h, 0.054, 0.012], [h - 0.045, top, 0.02], [-h + 0.045, top, 0.02], [-h, 0.054, 0.012]], w, body, 0.016);
+  k.rbx(h - 0.004, h + 0.013, 0.024, 0.05, w - 0.004, hazard(), 0.006);
+  k.rbx(-h - 0.013, -h + 0.004, 0.024, 0.05, w - 0.004, hazard(), 0.006);
+  k.cyl(h + 0.022, 0.037, 0, 0.007, 0.022, 'x', metal(0x8b9299), 8);
+  k.cyl(-h - 0.022, 0.037, 0, 0.007, 0.022, 'x', metal(0x8b9299), 8);
+  // Motorhaube hinten mit Lüftungsgitter, Auspuff
+  k.rbx(-h + 0.05, -0.05, top - 0.004, top + 0.024, w - 0.05, body, 0.01);
+  for (let x = -h + 0.07; x < -0.07; x += 0.012) k.bx(x, x + 0.006, top + 0.024, top + 0.0255, w - 0.09, matte(0x1f2328));
+  k.cyl(-0.075, top + 0.05, w / 2 - 0.03, 0.005, 0.055, 'y', metal(0x6b7280), 8);
+  // Kanzel links: Brüstung, Glas mit runden Ecken, Dach
+  const cz0 = -w / 2 + 0.006, cz1 = -w / 2 + 0.082, cx0 = -0.03, cx1 = 0.085, cy = top + 0.064;
+  k.rbox(cx0, cx1, top - 0.004, top + 0.018, cz0, cz1, body, 0.008);
+  k.rbox(cx0 + 0.003, cx1 - 0.003, top + 0.012, cy, cz0 + 0.003, cz1 - 0.003, glass(), 0.01);
+  k.rbox(cx0 - 0.003, cx1 + 0.003, cy - 0.003, cy + 0.008, cz0 - 0.003, cz1 + 0.003, body, 0.006);
+  k.rbox(cx0 + 0.016, cx0 + 0.04, top + 0.012, top + 0.04, cz0 + 0.02, cz1 - 0.02, matte(0x1f2937), 0.006);
+  // Scheinwerfer in den Schrägen
+  k.pair(h - 0.006, h - 0.001, 0.056, 0.064, w / 2 - 0.024, 0.024, lamp(0xfff4d6));
+  k.pair(-h + 0.001, -h + 0.006, 0.056, 0.062, w / 2 - 0.024, 0.018, lamp(0xb91c1c));
+  for (const x of [h - 0.085, -h + 0.085]) {
+    k.well(x, 0.026, w - 0.004);
+    k.axle(x, w / 2 - 0.016, 0.026, 0.032);
+  }
   beacon(g, k, (cx0 + cx1) / 2, cy + 0.008, (cz0 + cz1) / 2);
-  lights(g, h, -h, 0.064, w / 2 - 0.03);
+  lights(g, h, -h, 0.06, w / 2 - 0.03);
 }
 
 function baggage(k, g, body) {
   const h = 0.475, x1 = h, x0 = h - 0.17, w = 0.1;
-  // Schlepper: Rahmen, Motorhaube, Sitz, Überrollbügel mit Dach, Windschutzscheibe
-  k.bx(x0, x1, 0.02, 0.048, w, body);
-  k.bx(x1 - 0.06, x1, 0.048, 0.076, w - 0.012, body);
-  k.bx(x1 - 0.002, x1 + 0.008, 0.016, 0.034, w + 0.004, hazard());
-  k.bx(x0 + 0.02, x0 + 0.05, 0.048, 0.07, 0.05, matte(0x1f2937));
-  k.bx(x0 + 0.012, x0 + 0.02, 0.048, 0.1, 0.05, matte(0x1f2937));
-  for (const x of [x0 + 0.004, x1 - 0.066]) for (const s of [-1, 1]) k.box(x, x + 0.005, 0.048, 0.122, s * (w / 2 - 0.006), s * (w / 2 - 0.001), matte(0x2a2d33));
-  k.bx(x0, x1 - 0.058, 0.122, 0.129, w + 0.006, body);
-  k.bx(x1 - 0.066, x1 - 0.062, 0.078, 0.118, w - 0.014, glass());
-  k.pair(x1 + 0.0005, x1 + 0.004, 0.056, 0.064, w / 2 - 0.016, 0.016, lamp(0xfff4d6));
-  k.axle(x0 + 0.032, w / 2, 0.019, 0.022);
-  k.axle(x1 - 0.034, w / 2, 0.019, 0.022);
-  beacon(g, k, x0 + 0.05, 0.129);
+  // Schlepper: Rahmen, runde Motorhaube, Sitz, Überrollbügel mit Dach, Windschutzscheibe
+  k.rbx(x0, x1, 0.02, 0.05, w, body, 0.009);
+  k.prof([[x1 - 0.064, 0.046], [x1 + 0.002, 0.046, 0.004], [x1 + 0.002, 0.07, 0.012], [x1 - 0.064, 0.082, 0.01]], w - 0.012, body, 0.012);
+  k.rbx(x1 - 0.003, x1 + 0.009, 0.016, 0.036, w + 0.004, hazard(), 0.005);
+  k.rbx(x0 + 0.018, x0 + 0.052, 0.048, 0.07, 0.05, matte(0x1f2937), 0.008);
+  k.rbx(x0 + 0.01, x0 + 0.022, 0.05, 0.1, 0.05, matte(0x1f2937), 0.005);
+  for (const x of [x0 + 0.004, x1 - 0.07]) for (const s of [-1, 1]) k.cyl(x + 0.003, 0.088, s * (w / 2 - 0.004), 0.0028, 0.074, 'y', matte(0x2a2d33), 6);
+  k.rbx(x0 - 0.002, x1 - 0.06, 0.122, 0.131, w + 0.008, body, 0.004);
+  k.slab(x1 - 0.066, 0.082, x1 - 0.07, 0.12, 0.003, w - 0.014, glass());
+  k.pair(x1 + 0.0015, x1 + 0.0045, 0.054, 0.063, w / 2 - 0.016, 0.016, lamp(0xfff4d6));
+  for (const x of [x0 + 0.032, x1 - 0.034]) {
+    k.well(x, 0.019, w + 0.002);
+    k.axle(x, w / 2, 0.019, 0.022);
+  }
+  beacon(g, k, x0 + 0.05, 0.131);
   lights(g, x1, x0, 0.06, w / 2 - 0.016);
   // drei Anhänger: zwei mit LD3-Containern, einer offen mit Koffern und Plane
   const CUR = [0x1d4ed8, 0x7c2d12, 0x065f46, 0x9a3412, 0x334155];
@@ -263,7 +442,7 @@ function baggage(k, g, body) {
   for (let i = 0; i < 3; i++) {
     const c1 = x0 - 0.03 - i * 0.24, c0 = c1 - 0.21;
     k.rod([c1, 0.03, 0], [c1 + 0.03, 0.03, 0], 0.006, matte(DARK));
-    k.bx(c0, c1, 0.03, 0.04, 0.11, metal(0x8b9299));
+    k.rbx(c0, c1, 0.03, 0.04, 0.11, metal(0x8b9299), 0.003);
     k.bx(c0 + 0.01, c1 - 0.01, 0.018, 0.03, 0.03, matte(DARK));
     k.axle(c0 + 0.035, 0.046, 0.014, 0.016);
     k.axle(c1 - 0.035, 0.046, 0.014, 0.016);
@@ -271,17 +450,17 @@ function baggage(k, g, body) {
       for (const [j, cx] of [[0, c0 + 0.052], [1, c1 - 0.052]]) {
         k.put(ld3Geo(), metal(0xc6ccd2), MX(cx, 0.04, 0, 0.078, 1, 1));
         k.box(cx - 0.034, cx + 0.034, 0.046, 0.114, 0.0502, 0.0512, matte(CUR[(i * 2 + j) % CUR.length]));
-        k.box(cx - 0.04, cx + 0.04, 0.119, 0.121, -0.05, 0.05, metal(0xaab1b9));
+        k.rbox(cx - 0.04, cx + 0.04, 0.118, 0.122, -0.05, 0.05, metal(0xaab1b9), 0.002);
       }
     } else {
       for (const x of [c0 + 0.006, c1 - 0.012]) for (const s of [-1, 1]) k.box(x, x + 0.006, 0.04, 0.115, s * 0.049, s * 0.054, matte(0x52575e));
-      k.bx(c0, c1, 0.115, 0.122, 0.116, paint(0x1e40af, 20));
+      k.rbx(c0, c1, 0.113, 0.124, 0.116, paint(0x1e40af, 20), 0.005);
       let n = 0;
       for (let x = c0 + 0.015; x < c1 - 0.03; x += 0.036)
         for (const z of [-0.026, 0.022]) {
           const hh = 0.025 + ((n * 7) % 5) * 0.004;
-          k.box(x, x + 0.03, 0.04, 0.04 + hh, z - 0.018, z + 0.018, matte(BAG[n++ % BAG.length]));
-          if (n % 3 === 0) k.box(x + 0.004, x + 0.026, 0.04 + hh, 0.06 + hh, z - 0.014, z + 0.014, matte(BAG[(n * 3) % BAG.length]));
+          k.rbox(x, x + 0.03, 0.04, 0.04 + hh, z - 0.018, z + 0.018, matte(BAG[n++ % BAG.length]), 0.005);
+          if (n % 3 === 0) k.rbox(x + 0.004, x + 0.026, 0.04 + hh, 0.06 + hh, z - 0.014, z + 0.014, matte(BAG[(n * 3) % BAG.length]), 0.005);
         }
     }
   }
@@ -294,29 +473,30 @@ function fuel(k, g, body) {
   // Kessel mit gewölbten Böden, rote Ringe, Laufsteg mit Geländer, Domdeckel
   const tx0 = -h + 0.075, tx1 = h - 0.17, ty = 0.106;
   const steel = metal(0xdfe4e9);
-  k.cyl((tx0 + tx1) / 2, ty, 0, 0.06, tx1 - tx0, 'x', steel, 20, 0.061);
+  k.cyl((tx0 + tx1) / 2, ty, 0, 0.06, tx1 - tx0, 'x', steel, 24, 0.061);
   k.sph(tx0, ty, 0, 0.026, 0.06, 0.061, steel);
   k.sph(tx1, ty, 0, 0.026, 0.06, 0.061, steel);
-  for (const x of [tx0 + 0.04, (tx0 + tx1) / 2, tx1 - 0.04]) k.cyl(x, ty, 0, 0.0612, 0.014, 'x', paint(0xdc2626), 20, 0.0622);
+  for (const x of [tx0 + 0.04, (tx0 + tx1) / 2, tx1 - 0.04]) k.cyl(x, ty, 0, 0.0612, 0.014, 'x', paint(0xdc2626), 24, 0.0622);
   k.bx(tx0 + 0.01, tx1 - 0.01, ty + 0.06, ty + 0.064, 0.032, matte(0x6b7280));
   for (let x = tx0 + 0.02; x <= tx1 - 0.01; x += 0.08) for (const s of [-1, 1]) k.rod([x, ty + 0.064, s * 0.017], [x, ty + 0.086, s * 0.017], 0.003, metal(0xcbd5e1));
   for (const s of [-1, 1]) k.rod([tx0 + 0.02, ty + 0.086, s * 0.017], [tx1 - 0.01, ty + 0.086, s * 0.017], 0.003, metal(0xcbd5e1));
   for (const x of [tx0 + 0.09, tx0 + 0.24, tx0 + 0.39]) k.cyl(x, ty + 0.062, 0, 0.012, 0.008, 'y', metal(0xaeb6bf), 12);
   k.box(tx0 + 0.12, tx0 + 0.22, ty - 0.012, ty + 0.012, -0.0618, 0.0618, plate('jet', 'JET A-1', '#111111', '#f8fafc'));
   // Pumpenschrank hinten mit Schlauchtrommel, Leiter
-  k.bx(-h, -h + 0.07, 0.032, 0.14, 0.122, paint(0xe5e7eb));
-  k.pair(-h + 0.006, -h + 0.064, 0.05, 0.13, 0.0615, 0.002, matte(0x9ca3af));
-  k.cyl(-h - 0.006, 0.09, 0, 0.032, 0.09, 'z', matte(0x1f2937), 14);
+  k.rbx(-h, -h + 0.07, 0.032, 0.14, 0.122, paint(0xe5e7eb), 0.01);
+  k.side([[-h + 0.012, 0.05], [-h + 0.058, 0.05], [-h + 0.058, 0.128], [-h + 0.012, 0.128]], 0.0618, matte(0x9ca3af));
+  k.cyl(-h - 0.006, 0.09, 0, 0.032, 0.09, 'z', matte(0x1f2937), 16);
   k.cyl(-h - 0.006, 0.09, 0, 0.012, 0.096, 'z', paint(0xdc2626), 10);
   for (let y = 0.05; y < 0.15; y += 0.022) k.box(-h + 0.072, -h + 0.076, y, y + 0.003, -0.02, 0.02, metal(0xcbd5e1));
-  // Unterfahrschutz, Kotflügel, Räder (vorn eine, hinten zwei Achsen)
+  // Unterfahrschutz, runde Kotflügel, Räder (vorn eine, hinten zwei Achsen)
   k.pair(-h + 0.26, h - 0.16, 0.034, 0.042, 0.06, 0.004, metal(0xb4bcc5));
-  k.pair(-h + 0.08, -h + 0.24, 0.058, 0.064, 0.056, 0.03, matte(DARK));
+  for (const s of [-1, 1]) k.rbox(-h + 0.078, -h + 0.242, 0.056, 0.066, s * 0.041, s * 0.071, matte(DARK), 0.004);
+  k.well(h - 0.075, 0.027, w + 0.001);
   k.axle(h - 0.075, 0.052, 0.027, 0.026);
   k.axle(-h + 0.12, 0.052, 0.027, 0.026);
   k.axle(-h + 0.2, 0.052, 0.027, 0.026);
   tail(k, -h, 0.05, 0.122);
-  beacon(g, k, h - 0.075, 0.165);
+  beacon(g, k, h - 0.075, 0.163);
   lights(g, h, -h, 0.064, w / 2 - 0.02);
 }
 
@@ -324,24 +504,36 @@ function catering(k, g, body) {
   const h = 0.31, w = 0.128;
   const teal = paint(0x0f766e);
   k.bx(-h + 0.02, h - 0.02, 0.026, 0.05, 0.085, matte(DARK));
-  k.bx(-h + 0.01, h - 0.15, 0.05, 0.07, w - 0.01, matte(0x3a3f46));
+  k.rbx(-h + 0.01, h - 0.15, 0.05, 0.07, w - 0.01, matte(0x3a3f46), 0.005);
   cab(k, h - 0.135, h, 0.032, 0.15, w, paint(0xf8fafc), { roof: teal });
-  k.pair(h - 0.135, h - 0.002, 0.07, 0.078, w / 2 + 0.0005, 0.003, teal);
+  k.side([[h - 0.122, 0.07], [h - 0.016, 0.07], [h - 0.016, 0.077], [h - 0.122, 0.077]], w / 2 + 0.0009, teal);
   k.axle(h - 0.07, 0.054, 0.026, 0.026);
   k.axle(-h + 0.085, 0.054, 0.026, 0.026);
-  k.pair(-h + 0.05, -h + 0.12, 0.054, 0.06, 0.056, 0.032, matte(DARK));
+  for (const s of [-1, 1]) k.rbox(-h + 0.048, -h + 0.122, 0.052, 0.062, s * 0.04, s * 0.072, matte(DARK), 0.004);
+  k.well(h - 0.07, 0.026, w + 0.001);
   beacon(g, k, h - 0.07, 0.157);
   lights(g, h, -h, 0.064, w / 2 - 0.02);
   // Hubkasten (Gruppe 'lift', fährt hoch) mit Plattform ('plat', schiebt sich nach vorn) und Schere ('scis')
   const lk = new Kit();
   const bx0 = -h + 0.006, bx1 = h - 0.15;
-  lk.bx(bx0, bx1, 0, 0.13, 0.13, paint(0xf3f4f6, 30));
-  lk.pair(bx0, bx1, 0.03, 0.05, 0.0652, 0.002, teal);
-  lk.pair(bx0 + 0.02, bx0 + 0.09, 0.056, 0.12, 0.0652, 0.0024, matte(0xd1d5db));
-  lk.bx(bx0 - 0.002, bx1 + 0.002, 0.13, 0.136, 0.134, teal);
+  lk.rbx(bx0, bx1, 0, 0.13, 0.13, paint(0xf3f4f6, 30), 0.012);
+  lk.side([[bx0 + 0.012, 0.03], [bx1 - 0.012, 0.03], [bx1 - 0.012, 0.05], [bx0 + 0.012, 0.05]], 0.0658, teal);
+  lk.side([[bx0 + 0.02, 0.056], [bx0 + 0.09, 0.056], [bx0 + 0.09, 0.118], [bx0 + 0.02, 0.118]], 0.0658, matte(0xd1d5db));
+  lk.rbx(bx0 - 0.002, bx1 + 0.002, 0.126, 0.137, 0.134, teal, 0.006);
   lk.bx(bx1, bx1 + 0.003, 0.012, 0.118, 0.1, matte(0xc7ccd2));
   tail(lk, bx0, 0.004, 0.13);
   const lift = lk.build();
+  // Aufschrift des Caterers auf dem Kasten (fährt mit hoch)
+  decal(g, 'cater', (bx0 + bx1) / 2 - 0.03, 0.088, 0.0662, 0.3, 0.06, logo('#f3f4f6', '#0f766e', T('KRANICH CATERING'), T('Bordverpflegung'), (c, w, h) => {
+    c.strokeStyle = '#0f766e';
+    c.lineWidth = h * 0.08;
+    c.beginPath();
+    c.moveTo(h * 0.2, h * 0.8);
+    c.quadraticCurveTo(h * 0.5, h * 0.1, h * 0.95, h * 0.35);
+    c.moveTo(h * 0.45, h * 0.5);
+    c.lineTo(h * 0.35, h * 0.9);
+    c.stroke();
+  }), lift);
   lift.name = 'lift';
   lift.position.y = 0.07;
   const pk = new Kit();
@@ -369,36 +561,46 @@ function catering(k, g, body) {
   g.add(lift, scis);
 }
 
-function van(k, g, body, h = 0.18, w = 0.1) {
-  const H = 0.122, xh = h - 0.068;
-  k.bx(-h, xh, 0.022, H, w, body);
-  k.bx(xh, h, 0.022, 0.066, w, body);
-  // Frontscheibe schräg mit Füllkeil dahinter
-  const a = Math.atan2(0.04, 0.056), len = Math.hypot(0.04, 0.056);
-  k.obox(xh + 0.02 - Math.cos(a) * 0.012, 0.094 - Math.sin(a) * 0.012, 0, 0.024, len, w, body, 0, 0, a);
-  k.obox(xh + 0.021, 0.0945, 0, 0.003, len - 0.006, w - 0.012, glass(), 0, 0, a);
-  k.pair(-h + 0.03, xh - 0.004, 0.078, H - 0.01, w / 2, 0.004, glass());
-  k.box(0.0, 0.004, 0.026, H - 0.01, w / 2 - 0.001, w / 2 + 0.002, matte(0x14532d));
-  k.bx(-h - 0.002, -h + 0.002, 0.03, H - 0.012, 0.004, matte(0x14532d));
-  k.bx(-h - 0.003, -h + 0.0005, 0.07, H - 0.012, w - 0.03, glass());
-  k.bx(-h + 0.01, xh - 0.01, H, H + 0.004, w - 0.01, paint(0xf8fafc));
-  for (const x of [-h + 0.03, -0.02, xh - 0.03]) k.bx(x, x + 0.006, H + 0.004, H + 0.014, w - 0.012, matte(0x2a2d33));
-  k.pair(-h + 0.03, xh - 0.03, H + 0.012, H + 0.016, w / 2 - 0.006, 0.004, matte(0x2a2d33));
-  k.bx(h, h + 0.008, 0.016, 0.034, w + 0.004, matte(DARK));
-  k.bx(h + 0.0005, h + 0.003, 0.036, 0.056, w * 0.5, matte(0x2f343b));
-  k.pair(h - 0.003, h + 0.003, 0.044, 0.054, w / 2 - 0.012, 0.02, lamp(0xfff4d6));
-  k.pair(xh - 0.006, xh + 0.004, 0.07, 0.088, w / 2 + 0.01, 0.004, matte(0x1c1f24));
-  k.pair(-h + 0.01, xh - 0.01, 0.034, 0.042, w / 2 + 0.0005, 0.002, paint(0xf8fafc));
+// Transporter (Reinigung, Standard): Karosserie aus einem Stück mit kurzer Haube, stark geneigter Frontscheibe und
+// hohem, rundem Dach; Fensterband, Schiebetür, Radhäuser, Dachträger
+function van(k, g, body) {
+  const h = 0.18, w = 0.1, H = 0.122, b = 0.013, dark = matte(0x1c1f24);
+  const ws0 = [h - 0.05, 0.078], ws1 = [h - 0.098, H];
+  k.prof([[-h, 0.018, 0.006], [h, 0.018, 0.008], [h + 0.003, 0.064, 0.018], ws0.concat(0.014), ws1.concat(0.026), [-h, H, 0.016]], w, body, b);
+  // Frontscheibe, Seitenfenster (Fahrertür, Fensterband hinten), Säulen, Heckscheiben
+  const L = Math.hypot(ws1[0] - ws0[0], ws1[1] - ws0[1]), nx = (ws1[1] - ws0[1]) / L, ny = (ws0[0] - ws1[0]) / L;
+  const at = (f) => [ws0[0] + (ws1[0] - ws0[0]) * f + nx * 0.0012, ws0[1] + (ws1[1] - ws0[1]) * f + ny * 0.0012];
+  k.slab(...at(0.1), ...at(0.86), 0.002, w - 2 * b - 0.002, glass());
+  const yt = H - b - 0.004;
+  k.side([[h - 0.124, 0.08], [h - 0.068, 0.08], [h - 0.068 - (0.048 * (yt - 0.08)) / 0.044, yt], [h - 0.124, yt]], w / 2 + 0.0008, glass());
+  k.side([[-h + b + 0.006, 0.08], [h - 0.134, 0.08], [h - 0.134, yt], [-h + b + 0.006, yt]], w / 2 + 0.0008, glass());
+  for (const x of [-0.07, 0.02]) k.side([[x, 0.079], [x + 0.007, 0.079], [x + 0.007, yt + 0.001], [x, yt + 0.001]], w / 2 + 0.0013, body);
+  k.side([[0.004, 0.026], [0.0055, 0.026], [0.0055, yt], [0.004, yt]], w / 2 + 0.0013, dark);
+  k.side([[-h + 0.016, 0.0745], [h - 0.06, 0.0745], [h - 0.06, 0.0775], [-h + 0.016, 0.0775]], w / 2 + 0.0009, paint(0xf8fafc));
+  k.bx(-h - 0.0012, -h + 0.002, 0.08, yt, w - 2 * b - 0.008, glass());
+  k.bx(-h - 0.0016, -h + 0.002, 0.026, yt, 0.0018, dark);
+  // Dachträger
+  for (const x of [-h + 0.03, -0.03, h - 0.13]) k.rbx(x, x + 0.007, H - 0.002, H + 0.012, w - 0.016, matte(0x2a2d33), 0.002);
+  k.pair(-h + 0.03, h - 0.123, H + 0.01, H + 0.014, w / 2 - 0.008, 0.004, matte(0x2a2d33));
+  // Front: Stoßfänger, Grill, Scheinwerfer, Spiegel
+  k.rbx(h - 0.008, h + 0.012, 0.013, 0.036, w + 0.002, matte(DARK), 0.008);
+  k.bx(h - 0.001, h + 0.004, 0.038, 0.054, w * 0.42, matte(0x2f343b));
+  k.pair(h - 0.002, h + 0.004, 0.044, 0.056, w / 2 - 0.016, 0.02, lamp(0xfff4d6));
+  k.pair(ws0[0] - 0.008, ws0[0] + 0.002, 0.078, 0.096, w / 2 + 0.01, 0.004, dark);
+  k.rbx(-h - 0.006, -h + 0.006, 0.014, 0.03, w + 0.002, matte(DARK), 0.005);
   tail(k, -h, 0.05, w);
-  k.axle(h - 0.045, w / 2 - 0.006, 0.021, 0.02);
-  k.axle(-h + 0.05, w / 2 - 0.006, 0.021, 0.02);
-  beacon(g, k, xh - 0.02, H + 0.004);
+  for (const x of [h - 0.045, -h + 0.05]) {
+    k.well(x, 0.021, w + 0.002);
+    k.axle(x, w / 2 - 0.006, 0.021, 0.02);
+  }
+  beacon(g, k, h - 0.12, H);
   lights(g, h, -h, 0.048, w / 2 - 0.012);
+  decal(g, 'clean', -0.045, 0.06, w / 2 + 0.0012, 0.17, 0.03, logo('#16a34a', '#f0fdf4', T('KABINENSERVICE'), null));
 }
 
 // moderner Vorfeldbus: Niederflur, umlaufendes Glasband mit schmalen Säulen, abgerundete Ecken, je Seite drei
 // Doppeltüren, blaue Schürze mit türkisem Zierstreifen, weißes Dach mit Klimaanlagen, Zielanzeige vorn
-// getöntes Glas mit Himmelsspiegelung oben und Sitzreihen-Schatten unten
+// getöntes Glas mit Himmelsspiegelung oben (Front, Heck)
 const busGlass = () => canvasMat('busglass', 8, 64, (c, w, h) => {
   const gr = c.createLinearGradient(0, 0, 0, h);
   gr.addColorStop(0, '#8fb0cc');
@@ -408,47 +610,263 @@ const busGlass = () => canvasMat('busglass', 8, 64, (c, w, h) => {
   c.fillStyle = gr;
   c.fillRect(0, 0, w, h);
 });
-function bus(k, g) {
-  const h = 0.36, w = 0.15, rr = 0.022, g0 = 0.043, g1 = 0.128, H = 0.15;
-  const white = paint(0xf8fafc, 40), blue = paint(0x1d4ed8, 60), teal = paint(0x14b8a6, 60), frame = metal(0xcbd5e1);
-  // Band mit runden Ecken von y0 bis y1
+
+// ---------- Vorfeldbus: Seitenbild mit Werbung und Fahrgästen ----------
+// Die Busse fahren in Flughafenfarben oder mit Werbung (fiktive Marken); hinter den Scheiben sieht man, ob er leer,
+// halb oder voll ist (load 0/1/2). Das Seitenbild ist eine Fläche je Seite über der Karosserie.
+export const BUS_ADS = 7;
+const BUS = { h: 0.36, w: 0.15, rr: 0.022, y0: 0.012, y1: 0.15, g0: 0.043, g1: 0.128, roof: 0.014, wr: 0.022 };
+const BUS_WHEELS = [0.125, -0.125]; // Achsen zwischen den Türen
+const TW = 1024, TH = 210;
+const ty = (y) => ((BUS.y1 - y) / (BUS.y1 - BUS.y0)) * TH; // Höhe -> Bildzeile
+const tx = (x) => ((x + BUS.h - BUS.rr) / (2 * (BUS.h - BUS.rr))) * TW; // Länge -> Bildspalte (hinten 0, vorn TW)
+const DOORS = [-0.24, 0, 0.24];
+function adDesign(g, ad) {
+  const big = (text, x, y, size, col, font = 'bold') => {
+    g.font = `${font} ${size}px "Segoe UI", Arial, sans-serif`;
+    g.textBaseline = 'middle';
+    g.textAlign = 'center';
+    g.fillStyle = col;
+    g.fillText(text, x, y);
+  };
+  const grad = (stops) => {
+    const gr = g.createLinearGradient(0, 0, TW, TH);
+    stops.forEach((c, i) => gr.addColorStop(i / (stops.length - 1), c));
+    g.fillStyle = gr;
+    g.fillRect(0, 0, TW, TH);
+  };
+  if (ad === 1) {
+    // Aurora Airways: Polarlicht-Schwung in Rot
+    grad(['#7f1d1d', '#e63946', '#f97316']);
+    g.fillStyle = 'rgba(255,255,255,0.18)';
+    for (let i = 0; i < 4; i++) {
+      g.beginPath();
+      g.moveTo(0, TH * (0.2 + i * 0.18));
+      g.bezierCurveTo(TW * 0.3, TH * (0.05 + i * 0.2), TW * 0.6, TH * (0.5 + i * 0.1), TW, TH * (0.15 + i * 0.18));
+      g.lineTo(TW, TH * (0.22 + i * 0.18));
+      g.bezierCurveTo(TW * 0.6, TH * (0.58 + i * 0.1), TW * 0.3, TH * (0.12 + i * 0.2), 0, TH * (0.27 + i * 0.18));
+      g.fill();
+    }
+    big('AURORA AIRWAYS', TW * 0.4, TH * 0.5, 64, '#ffffff', '900');
+    big(T('ab Planez nach New York'), TW * 0.4, TH * 0.82, 26, '#fde68a', '600');
+  } else if (ad === 2) {
+    // Nordstern: Sonne auf Lila
+    grad(['#4c1d95', '#7c3aed', '#a855f7']);
+    g.fillStyle = '#fde047';
+    g.beginPath();
+    g.arc(TW * 0.82, TH * 0.45, 70, 0, Math.PI * 2);
+    g.fill();
+    big('NORDSTERN', TW * 0.38, TH * 0.45, 70, '#fde047', '900');
+    big(T('Sonne ab 49 €'), TW * 0.38, TH * 0.8, 30, '#ffffff', '700');
+  } else if (ad === 3) {
+    // Waldbrunn Therme: Wellen in Türkis
+    grad(['#0e7490', '#14b8a6', '#99f6e4']);
+    g.strokeStyle = 'rgba(255,255,255,0.45)';
+    g.lineWidth = 6;
+    for (let k = 0; k < 4; k++) {
+      g.beginPath();
+      for (let x = 0; x <= TW; x += 16) g.lineTo(x, TH * (0.62 + k * 0.1) + Math.sin(x / 50 + k) * 6);
+      g.stroke();
+    }
+    big(T('Waldbrunn Therme'), TW * 0.5, TH * 0.36, 62, '#ffffff', '800');
+    big(T('Wellness am Waldrand · 15 Min. vom Flughafen'), TW * 0.5, TH * 0.6, 24, '#083344', '600');
+  } else if (ad === 4) {
+    // Kranich Kaffee: Tasse auf warmem Braun
+    grad(['#451a03', '#92400e', '#f59e0b']);
+    g.fillStyle = '#fef3c7';
+    g.beginPath();
+    g.ellipse(TW * 0.83, TH * 0.5, 62, 52, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#7c2d12';
+    g.beginPath();
+    g.ellipse(TW * 0.83, TH * 0.47, 44, 24, 0, 0, Math.PI * 2);
+    g.fill();
+    big(T('Kranich Kaffee'), TW * 0.4, TH * 0.42, 68, '#fef3c7', '800');
+    big(T('frisch gebrüht an jedem Gate'), TW * 0.4, TH * 0.72, 28, '#fde68a', '600');
+  } else if (ad === 5) {
+    // Duty Free: Schwarz und Gold
+    grad(['#0b0b0f', '#1f2937', '#0b0b0f']);
+    g.strokeStyle = '#d4af37';
+    g.lineWidth = 4;
+    g.strokeRect(14, 14, TW - 28, TH - 28);
+    big('DUTY FREE', TW * 0.5, TH * 0.42, 74, '#d4af37', '900');
+    big(T('Planez Airport · bis zu 30 % sparen'), TW * 0.5, TH * 0.73, 26, '#f8fafc', '600');
+  } else if (ad === 6) {
+    // Lumen Air: Lindgrün auf Indigo
+    grad(['#312e81', '#3730a3', '#4338ca']);
+    g.fillStyle = '#84cc16';
+    g.beginPath();
+    g.moveTo(TW * 0.62, TH);
+    g.lineTo(TW * 0.78, 0);
+    g.lineTo(TW, 0);
+    g.lineTo(TW, TH);
+    g.fill();
+    big('LUMEN AIR', TW * 0.33, TH * 0.44, 70, '#d9f99d', '900');
+    big(T('günstig in den Süden'), TW * 0.33, TH * 0.76, 28, '#ffffff', '600');
+  }
+}
+// Fahrgäste hinter den Scheiben: stehend, Köpfe und Schultern, fest verteilt
+function riders(g, load) {
+  if (!load) {
+    // leer: nur gelbe Haltestangen
+    g.fillStyle = 'rgba(250,204,21,0.55)';
+    for (let x = 60; x < TW; x += 120) g.fillRect(x, ty(BUS.g1) + 6, 4, ty(BUS.g0) - ty(BUS.g1) - 8);
+    return;
+  }
+  let n = 5;
+  const rnd = () => ((n = (n * 16807) % 2147483647) / 2147483647);
+  const COL = ['#0f172a', '#1e293b', '#3f1d1d', '#1e3a5f', '#334155', '#422006', '#0b3b2e'];
+  const step = load === 2 ? 26 : 30;
+  for (let x = 20; x < TW - 10; x += step) {
+    const p = rnd();
+    if (p > (load === 2 ? 0.95 : 0.42)) continue;
+    const head = ty(BUS.g0 + 0.072 + rnd() * 0.012);
+    const col = COL[Math.floor(rnd() * COL.length)];
+    g.fillStyle = col;
+    g.beginPath();
+    g.ellipse(x + rnd() * 8, head + 24, 14, 26, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillRect(x - 13, head + 24, 26, ty(BUS.g0) - head - 22);
+    g.fillStyle = '#c69c7c';
+    g.beginPath();
+    g.arc(x + rnd() * 6, head, 9, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#2b1d14';
+    g.beginPath();
+    g.arc(x, head - 3, 9, Math.PI, 0);
+    g.fill();
+  }
+}
+const busSideMat = (ad, load) => canvasMat(`bus${ad}|${load}`, TW, TH, (g) => {
+  const W0 = ty(BUS.g1), W1 = ty(BUS.g0);
+  if (ad) adDesign(g, ad);
+  else {
+    // Flughafenfarben: weißes Dach-Band mit Schriftzug, blaue Schürze mit türkisem Streifen
+    g.fillStyle = '#f8fafc';
+    g.fillRect(0, 0, TW, TH);
+    g.fillStyle = '#1d4ed8';
+    g.fillRect(0, ty(0.036), TW, TH);
+    g.fillStyle = '#14b8a6';
+    g.fillRect(0, ty(BUS.g0), TW, ty(0.036) - ty(BUS.g0));
+    g.font = 'bold 22px "Segoe UI", Arial, sans-serif';
+    g.textBaseline = 'middle';
+    g.fillStyle = '#1d4ed8';
+    g.fillText('PLANEZ AIRPORT', 24, W0 / 2 + 1);
+  }
+  // Fensterband: Glas, Fahrgäste dahinter, bei Werbung darüber die gelochte Folie (Motiv halb durchsichtig)
+  const ad0 = document.createElement('canvas');
+  ad0.width = TW;
+  ad0.height = TH;
+  ad0.getContext('2d').drawImage(g.canvas, 0, 0);
+  const gl = g.createLinearGradient(0, W0, 0, W1);
+  gl.addColorStop(0, '#9dbad3');
+  gl.addColorStop(0.3, '#4d6f8e');
+  gl.addColorStop(1, '#16222f');
+  g.fillStyle = gl;
+  g.fillRect(0, W0, TW, W1 - W0);
+  riders(g, load);
+  if (ad) {
+    g.globalAlpha = 0.5;
+    g.drawImage(ad0, 0, W0, TW, W1 - W0, 0, W0, TW, W1 - W0);
+    g.globalAlpha = 1;
+    g.fillStyle = 'rgba(0,0,0,0.12)';
+    for (let y = W0 + 2; y < W1; y += 5) for (let x = (y % 10) / 2; x < TW; x += 5) g.fillRect(x, y, 2, 2);
+  }
+  // Fenstersäulen
+  g.fillStyle = ad ? 'rgba(255,255,255,0.18)' : '#f8fafc';
+  for (let x = 0; x < TW; x += 92) g.fillRect(x, W0, 7, W1 - W0);
+  // Doppeltüren: silberner Rahmen, freies Glas bis fast zum Boden, Mittelfuge
+  for (const d of DOORS) {
+    const a = tx(d - 0.05), b = tx(d + 0.05), top = ty(0.13), bot = ty(0.015);
+    g.fillStyle = '#cbd5e1';
+    g.fillRect(a, top, b - a, bot - top);
+    const dg = g.createLinearGradient(0, top, 0, bot);
+    dg.addColorStop(0, '#9dbad3');
+    dg.addColorStop(0.35, '#3f5f7d');
+    dg.addColorStop(1, '#16222f');
+    g.fillStyle = dg;
+    g.fillRect(a + 6, top + 5, b - a - 12, bot - top - 9);
+    g.save();
+    g.beginPath();
+    g.rect(a + 6, top + 5, b - a - 12, bot - top - 9);
+    g.clip();
+    if (load) riders(g, load);
+    g.restore();
+    g.fillStyle = '#cbd5e1';
+    g.fillRect((a + b) / 2 - 2, top, 4, bot - top);
+  }
+  // Schmutz unten
+  const dirt = g.createLinearGradient(0, ty(0.04), 0, TH);
+  dirt.addColorStop(0, 'rgba(60,50,40,0)');
+  dirt.addColorStop(1, 'rgba(60,50,40,0.35)');
+  g.fillStyle = dirt;
+  g.fillRect(0, ty(0.04), TW, TH - ty(0.04));
+  // Radhäuser: dunkler Bogen mit hellem Rand über den Rädern
+  const ax = TW / (2 * (BUS.h - BUS.rr)), ay = TH / (BUS.y1 - BUS.y0);
+  for (const x of BUS_WHEELS) {
+    g.beginPath();
+    g.ellipse(tx(x), ty(BUS.wr), (BUS.wr + 0.005) * ax, (BUS.wr + 0.005) * ay, 0, Math.PI, 0);
+    g.closePath();
+    g.fillStyle = '#0d0f12';
+    g.fill();
+    g.lineWidth = 5;
+    g.strokeStyle = 'rgba(203,213,225,0.7)';
+    g.stroke();
+  }
+});
+// welches Motiv fährt dieser Bus? (fest je Fahrzeug; jeder dritte in Flughafenfarben)
+export function busAd(v) {
+  let h = 0;
+  for (const c of String(v.id || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return h % 3 === 0 ? 0 : 1 + (h % (BUS_ADS - 1));
+}
+// Fahrgäste im Bus austauschen (0 leer, 1 halb, 2 voll)
+export function setBusLoad(m, load) {
+  const P = vehParts(m);
+  if (P.load === load || !P.sides) return;
+  P.load = load;
+  for (const s of P.sides) s.material = busSideMat(P.ad, load);
+}
+
+// moderner Vorfeldbus: Niederflur, rundum gerundete Ecken und Dachkanten, weißes Dach mit Klimaanlagen, Zielanzeige
+// vorn, große Räder zwischen den Türen; die Seiten tragen das Bild aus busSideMat (Fenster, Türen, Radhäuser, Werbung,
+// Fahrgäste)
+function bus(k, g, body, ad = 0) {
+  const { h, w, rr, g1 } = BUS;
+  const H = BUS.y1, R = BUS.roof;
+  const white = paint(0xf8fafc, 40), blue = paint(0x1d4ed8, 60);
   const band = (y0, y1, m) => {
     k.bx(-h + rr, h - rr, y0, y1, w, m);
     k.box(-h, h, y0, y1, -w / 2 + rr, w / 2 - rr, m);
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.cyl(sx * (h - rr), (y0 + y1) / 2, sz * (w / 2 - rr), rr, y1 - y0, 'y', m, 12);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.cyl(sx * (h - rr), (y0 + y1) / 2, sz * (w / 2 - rr), rr, y1 - y0, 'y', m, 16);
   };
-  band(0.012, 0.036, blue);
-  band(0.036, g0, teal);
-  band(g0, g1, busGlass());
-  band(g1, H, white);
-  k.bx(-h + 0.012, h - 0.012, H, H + 0.005, w - 0.018, white);
-  // Fenstersäulen (zwischen den Türen)
-  for (let x = -h + rr + 0.03; x < h - rr - 0.02; x += 0.06) {
-    if ([-0.24, 0, 0.24].some((d) => Math.abs(x + 0.0035 - d) < 0.058)) continue;
-    k.pair(x, x + 0.007, g0, g1, w / 2 + 0.0008, 0.002, white);
-  }
-  // Doppeltüren: silberner Rahmen, Glas bis fast zum Boden, Mittelfuge
-  for (const x of [-0.24, 0, 0.24]) {
-    k.pair(x - 0.05, x + 0.05, 0.015, g1 + 0.002, w / 2 + 0.0012, 0.002, frame);
-    k.pair(x - 0.044, x + 0.044, 0.018, g1 - 0.003, w / 2 + 0.002, 0.002, busGlass());
-    k.pair(x - 0.002, x + 0.002, 0.018, g1 - 0.003, w / 2 + 0.0028, 0.002, frame);
-  }
+  band(0.012, 0.043, blue);
+  band(0.043, g1, busGlass());
+  // Dach: Ecken wie unten, Kanten oben rund
+  k.rbx(-h, h, g1 - rr, H + R, w, white, rr);
   // Front: Scheibe weit herunter, Zielanzeige, Scheinwerfer; Heck: Scheibe, Rückleuchten
   k.bx(h - 0.001, h + 0.0025, 0.028, g1, w - 2 * rr, busGlass());
   k.bx(h - 0.001, h + 0.003, 0.131, 0.146, w * 0.5, lamp(0xf59e0b));
   k.pair(h - 0.004, h + 0.002, 0.016, 0.027, w / 2 - rr - 0.012, 0.022, lamp(0xfff4d6));
-  k.bx(-h - 0.0025, -h + 0.001, 0.05, g1, w - 2 * rr, glass());
+  k.bx(-h - 0.0025, -h + 0.001, 0.05, g1, w - 2 * rr, busGlass());
   tail(k, -h, 0.018, w - 0.02);
   // Klimaanlagen auf dem Dach
   for (const x of [-0.17, 0.15]) {
-    k.bx(x - 0.07, x + 0.07, H + 0.005, H + 0.017, 0.09, paint(0xe5e7eb, 30));
-    k.bx(x - 0.055, x + 0.055, H + 0.017, H + 0.019, 0.066, matte(0x94a3b8));
+    k.rbx(x - 0.07, x + 0.07, H + R - 0.003, H + R + 0.011, 0.09, paint(0xe5e7eb, 30), 0.006);
+    k.bx(x - 0.055, x + 0.055, H + R + 0.011, H + R + 0.013, 0.066, matte(0x94a3b8));
   }
-  // kleine Räder (Niederflur)
-  k.axle(h - 0.1, w / 2 - 0.016, 0.017, 0.02);
-  k.axle(-h + 0.1, w / 2 - 0.016, 0.017, 0.02);
-  beacon(g, k, h - 0.06, H + 0.005);
+  for (const x of BUS_WHEELS) k.axle(x, w / 2 + 0.003 - 0.009, BUS.wr, 0.018);
+  beacon(g, k, h - 0.06, H + R);
   lights(g, h, -h, 0.022, w / 2 - rr - 0.012);
+  // Seitenbilder (eigene Netze, damit sich Fahrgäste und Motiv je Bus tauschen lassen)
+  const L = 2 * (h - rr), Hh = H - BUS.y0;
+  for (const s of [1, -1]) {
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(L, Hh), busSideMat(ad, 0));
+    pl.position.set(0, (H + BUS.y0) / 2, s * (w / 2 + 0.0015));
+    if (s < 0) pl.rotation.y = Math.PI;
+    pl.name = 'busSide';
+    g.add(pl);
+  }
 }
 
 // Treppenfahrzeug: Fahrgestell mit Warnstreifen, Fahrerkabine vorn links unter dem Podest, Treppe ('ramp') an der
@@ -457,16 +875,20 @@ export const STAIRS_3D = { hinge: -0.17, y: 0.052, len: 0.34 };
 function stairsTruck(k, g) {
   const h = 0.22, w = 0.12;
   const white = paint(0xf8fafc, 40), yellow = paint(0xfacc15, 50), grey = metal(0x9ca3af);
-  k.bx(-h, h, 0.018, 0.046, w, matte(0x334155));
-  k.pair(-h, h, 0.034, 0.042, w / 2 + 0.0008, 0.0015, hazard());
-  // Fahrerkabine vorn links
-  k.box(h - 0.11, h, 0.046, 0.102, -w / 2, -w / 2 + 0.058, white);
-  k.box(h - 0.003, h + 0.002, 0.07, 0.097, -w / 2 + 0.006, -w / 2 + 0.052, glass());
-  k.box(h - 0.1, h - 0.012, 0.07, 0.097, -w / 2 - 0.001, -w / 2 + 0.002, glass());
+  k.rbx(-h, h, 0.018, 0.046, w, matte(0x334155), 0.008);
+  k.side([[-h + 0.01, 0.034], [h - 0.01, 0.034], [h - 0.01, 0.042], [-h + 0.01, 0.042]], w / 2 + 0.0008, hazard());
+  // Fahrerkabine vorn links (runde Kanten, geneigte Scheibe)
+  const z0 = -w / 2, z1 = -w / 2 + 0.058;
+  k.prof([[h - 0.11, 0.044], [h, 0.044, 0.006], [h, 0.07, 0.01], [h - 0.012, 0.104, 0.014], [h - 0.11, 0.104, 0.01]], 0, white, 0.01, z0, z1);
+  k.box(h - 0.0035, h - 0.008, 0.074, 0.098, z0 + 0.01, z1 - 0.01, glass(), 0, 0, 0.33);
+  k.box(h - 0.1, h - 0.02, 0.072, 0.096, z0 - 0.0008, z0 + 0.001, glass());
+  k.box(h - 0.1, h - 0.02, 0.072, 0.096, z1 - 0.001, z1 + 0.0008, glass());
   k.pair(h - 0.002, h + 0.003, 0.05, 0.058, w / 2 - 0.016, 0.014, lamp(0xfff4d6));
   tail(k, -h, 0.03, w);
-  k.axle(h - 0.06, w / 2 - 0.006, 0.02, 0.018);
-  k.axle(-h + 0.06, w / 2 - 0.006, 0.02, 0.018);
+  for (const x of [h - 0.06, -h + 0.06]) {
+    k.well(x, 0.02, w + 0.002);
+    k.axle(x, w / 2 - 0.006, 0.02, 0.018);
+  }
   // Treppe als eigene Gruppe (Drehpunkt hinten, Länge entlang +x)
   const L = STAIRS_3D.len, hw = 0.042;
   const rk = new Kit();
@@ -483,11 +905,11 @@ function stairsTruck(k, g) {
   const pk = new Kit();
   pk.box(0, 0.06, -0.006, 0.004, -hw - 0.004, hw + 0.004, grey);
   for (const z of [-hw, hw]) pk.rod([0.002, 0.004, z], [0.002, 0.11, z], 0.004, yellow).rod([0.058, 0.004, z], [0.058, 0.11, z], 0.004, yellow).rod([0.002, 0.07, z], [0.058, 0.07, z], 0.004, yellow);
-  pk.box(-0.006, 0.066, 0.11, 0.116, -hw - 0.01, hw + 0.01, white);
+  pk.rbox(-0.006, 0.066, 0.108, 0.117, -hw - 0.01, hw + 0.01, white, 0.004);
   const stp = pk.build(new THREE.Group());
   stp.name = 'stp';
   g.add(stp);
-  beacon(g, k, h - 0.05, 0.102, -w / 2 + 0.03);
+  beacon(g, k, h - 0.05, 0.104, -w / 2 + 0.03);
   lights(g, h, -h, 0.054, w / 2 - 0.016);
 }
 
@@ -497,27 +919,27 @@ function deice(k, g, body) {
   cab(k, h - 0.15, h, 0.032, 0.158, w, body, { roof: paint(0xf8fafc) });
   // Flüssigkeitstank mit abgerundeten Kanten, Band, Pumpenkasten
   const tx0 = -h + 0.02, tx1 = h - 0.165, white = paint(0xf1f5f9, 40);
-  k.bx(tx0, tx1, 0.044, 0.13, 0.122, white);
-  k.bx(tx0, tx1, 0.13, 0.15, 0.08, white);
-  for (const s of [-1, 1]) k.cyl((tx0 + tx1) / 2, 0.13, s * 0.04, 0.02, tx1 - tx0, 'x', white, 12);
-  k.pair(tx0, tx1, 0.07, 0.085, 0.0612, 0.002, body);
-  k.pair(tx0 + 0.02, tx0 + 0.12, 0.09, 0.12, 0.0615, 0.002, matte(0x9ca3af));
-  k.pair(-h + 0.08, -h + 0.24, 0.056, 0.062, 0.056, 0.03, matte(DARK));
+  k.rbx(tx0, tx1, 0.044, 0.15, 0.122, white, 0.026);
+  k.side([[tx0 + 0.02, 0.07], [tx1 - 0.02, 0.07], [tx1 - 0.02, 0.085], [tx0 + 0.02, 0.085]], 0.0618, body);
+  k.side([[tx0 + 0.026, 0.09], [tx0 + 0.12, 0.09], [tx0 + 0.12, 0.122], [tx0 + 0.026, 0.122]], 0.0618, matte(0x9ca3af));
+  decal(g, 'deice', (tx0 + tx1) / 2 + 0.06, 0.1, 0.0625, 0.24, 0.04, logo('#f1f5f9', '#ea580c', 'DE-ICING', T('Typ I / Typ IV'), null));
+  for (const s of [-1, 1]) k.rbox(-h + 0.078, -h + 0.242, 0.054, 0.064, s * 0.041, s * 0.071, matte(DARK), 0.004);
+  k.well(h - 0.075, 0.027, w + 0.001);
   k.axle(h - 0.075, 0.052, 0.027, 0.026);
   k.axle(-h + 0.12, 0.052, 0.027, 0.026);
   k.axle(-h + 0.2, 0.052, 0.027, 0.026);
   tail(k, -h + 0.02, 0.05, 0.122);
-  beacon(g, k, h - 0.075, 0.165);
+  beacon(g, k, h - 0.075, 0.163);
   lights(g, h, -h + 0.02, 0.064, w / 2 - 0.02);
   // Drehkranz ('tur') mit Arm ('boom'), Korb ('bask', bleibt waagrecht) und Sprühstrahl ('spray')
   const tk = new Kit();
   tk.cyl(0, 0.01, 0, 0.034, 0.02, 'y', body, 16);
-  tk.bx(-0.02, 0.02, 0.02, 0.04, 0.03, body);
+  tk.rbx(-0.02, 0.02, 0.02, 0.04, 0.03, body, 0.006);
   const tur = tk.build();
   tur.name = 'tur';
   tur.position.set(-h + 0.1, 0.15, 0);
   const bk = new Kit();
-  bk.obox(0.2, 0, 0, 0.4, 0.022, 0.022, paint(0xf8fafc, 40));
+  bk.rbox(0, 0.4, -0.011, 0.011, -0.011, 0.011, paint(0xf8fafc, 40), 0.007);
   bk.obox(0.12, 0.014, 0, 0.16, 0.006, 0.018, body);
   bk.rod([0.02, -0.012, 0], [0.16, -0.004, 0], 0.012, metal(0xaeb6bf));
   const boom = bk.build();
@@ -525,9 +947,9 @@ function deice(k, g, body) {
   boom.position.y = 0.032;
   boom.rotation.z = -0.03;
   const ck = new Kit();
-  ck.bx(-0.032, 0.032, -0.03, 0.03, 0.064, glass());
-  ck.bx(-0.034, 0.034, 0.03, 0.036, 0.068, body);
-  ck.bx(-0.034, 0.034, -0.036, -0.028, 0.068, body);
+  ck.rbx(-0.032, 0.032, -0.03, 0.03, 0.064, glass(), 0.01);
+  ck.rbx(-0.034, 0.034, 0.027, 0.037, 0.068, body, 0.005);
+  ck.rbx(-0.034, 0.034, -0.037, -0.024, 0.068, body, 0.005);
   ck.cyl(0.04, -0.03, 0, 0.005, 0.03, 'x', metal(0x9ca3af), 8);
   const bask = ck.build();
   bask.name = 'bask';
@@ -548,13 +970,13 @@ function fire(k, g, body) {
   const h = 0.3, w = 0.15;
   k.bx(-h + 0.02, h - 0.02, 0.03, 0.05, 0.1, matte(DARK));
   cab(k, h - 0.13, h, 0.04, 0.165, w, body, { win: 0.4, roof: paint(0xf8fafc) });
-  k.bx(-h, h - 0.132, 0.04, 0.17, w, body);
+  k.rbx(-h, h - 0.128, 0.04, 0.17, w, body, 0.014);
   // Geräteräume mit Rollläden, Reflexstreifen, Dachgeländer, Dachwerfer und Frontwerfer
   for (const [a, b] of [[-h + 0.012, -h + 0.1], [-h + 0.11, -0.03], [-0.02, h - 0.145]]) {
-    k.pair(a, b, 0.066, 0.158, w / 2 + 0.0008, 0.002, metal(0xd1d5db));
-    for (let y = 0.07; y < 0.156; y += 0.012) k.pair(a, b, y, y + 0.002, w / 2 + 0.0018, 0.001, matte(0xa1a7ae));
+    k.side([[a + 0.004, 0.07], [b, 0.07], [b, 0.155], [a + 0.004, 0.155]], w / 2 + 0.0009, metal(0xd1d5db));
+    for (let y = 0.074; y < 0.153; y += 0.012) k.side([[a + 0.004, y], [b, y], [b, y + 0.002], [a + 0.004, y + 0.002]], w / 2 + 0.0016, matte(0xa1a7ae));
   }
-  k.pair(-h, h - 0.002, 0.048, 0.06, w / 2 + 0.0012, 0.002, redWhite());
+  k.side([[-h + 0.014, 0.056], [h - 0.014, 0.056], [h - 0.014, 0.066], [-h + 0.014, 0.066]], w / 2 + 0.0012, redWhite());
   for (const s of [-1, 1]) k.rod([-h + 0.02, 0.188, s * 0.06], [h - 0.15, 0.188, s * 0.06], 0.004, metal(0xcbd5e1));
   for (let x = -h + 0.02; x <= h - 0.15; x += 0.07) for (const s of [-1, 1]) k.rod([x, 0.17, s * 0.06], [x, 0.188, s * 0.06], 0.004, metal(0xcbd5e1));
   k.cyl(h - 0.055, 0.18, 0, 0.016, 0.018, 'y', metal(0xb8bec6), 12);
@@ -562,8 +984,8 @@ function fire(k, g, body) {
   k.cyl(h + 0.022, 0.03, 0, 0.006, 0.03, 'x', metal(0xd1d5db), 8);
   k.bx(h - 0.11, h - 0.09, 0.172, 0.18, 0.11, lamp(0x60a5fa));
   for (const x of [h - 0.075, -h + 0.13, -h + 0.21]) {
+    k.well(x, 0.034, w + 0.002);
     k.axle(x, 0.064, 0.034, 0.032);
-    k.pair(x - 0.04, x + 0.04, 0.072, 0.078, 0.068, 0.022, matte(DARK));
   }
   tail(k, -h, 0.06, w);
   beacon(g, k, h - 0.1, 0.18, 0, 0x3b82f6);
@@ -574,8 +996,8 @@ function plow(k, g, body) {
   const h = 0.3, w = 0.13;
   k.bx(-h + 0.02, h - 0.02, 0.026, 0.046, 0.085, matte(DARK));
   cab(k, h - 0.13, h, 0.034, 0.16, w, body);
-  k.bx(-h, h - 0.135, 0.046, 0.13, w - 0.004, body);
-  k.pair(-h, h - 0.135, 0.06, 0.07, w / 2, 0.002, hazard());
+  k.rbx(-h, h - 0.13, 0.046, 0.13, w - 0.004, body, 0.014);
+  k.side([[-h + 0.014, 0.06], [h - 0.144, 0.06], [h - 0.144, 0.07], [-h + 0.014, 0.07]], w / 2 - 0.001, hazard());
   // Schild vorn (schräg, mit Gummikante), Kehrwalze in der Mitte mit Haube, Gebläse hinten
   k.obox(h + 0.05, 0.05, 0, 0.012, 0.06, 0.32, body, 0, 0.32, 0);
   k.obox(h + 0.048, 0.018, 0, 0.014, 0.008, 0.32, matte(0x111111), 0, 0.32, 0);
@@ -583,9 +1005,10 @@ function plow(k, g, body) {
   k.rod([h, 0.04, -0.03], [h + 0.044, 0.05, -0.02], 0.008, matte(DARK));
   k.rod([h, 0.04, 0.03], [h + 0.044, 0.05, 0.02], 0.008, matte(DARK));
   k.cyl(-0.03, 0.03, 0, 0.03, 0.2, 'z', matte(0x1e3a8a), 14);
-  k.obox(-0.03, 0.062, 0, 0.07, 0.008, 0.21, body, 0, 0, 0);
+  k.rbox(-0.065, 0.005, 0.058, 0.066, -0.105, 0.105, body, 0.004);
   k.cyl(-h + 0.04, 0.16, 0, 0.022, 0.06, 'y', body, 12);
   k.rod([-h + 0.04, 0.19, 0], [-h + 0.07, 0.205, 0.04], 0.012, body);
+  k.well(h - 0.07, 0.03, w + 0.002);
   k.axle(h - 0.07, 0.058, 0.03, 0.028);
   k.axle(-h + 0.1, 0.058, 0.03, 0.028);
   tail(k, -h, 0.05, w);
@@ -594,42 +1017,186 @@ function plow(k, g, body) {
   lights(g, h, -h, 0.064, w / 2 - 0.02);
 }
 
+// Follow-me-Auto: Kombi mit Haube, geneigter Frontscheibe, Glaskabine, Dach in Wagenfarbe, Schachbrettband
 function followMe(k, g) {
   const h = 0.12, w = 0.092, body = paint(0xfacc15, 70);
-  k.bx(-h, h, 0.018, 0.05, w, body);
-  k.bx(-h + 0.035, h - 0.06, 0.05, 0.084, w - 0.008, glass());
-  k.bx(-h + 0.03, h - 0.055, 0.084, 0.09, w - 0.004, body);
-  for (const x of [-h + 0.035, -0.005, h - 0.066]) k.bx(x, x + 0.006, 0.05, 0.084, w - 0.004, body);
-  k.pair(-h + 0.004, h - 0.004, 0.03, 0.042, w / 2 + 0.0008, 0.002, checker());
-  k.bx(h, h + 0.006, 0.014, 0.03, w, matte(DARK));
-  k.bx(-h - 0.006, -h, 0.014, 0.03, w, matte(DARK));
-  k.pair(h - 0.001, h + 0.002, 0.036, 0.044, w / 2 - 0.012, 0.018, lamp(0xfff4d6));
-  tail(k, -h, 0.036, w);
+  k.prof([[-h, 0.016, 0.006], [h, 0.016, 0.008], [h + 0.002, 0.05, 0.014], [h - 0.045, 0.06, 0.012], [-h + 0.003, 0.062, 0.01]], w, body, 0.012);
+  // Kabine: Glas etwas schmaler (eingezogene Seiten), Dach, B- und C-Säule
+  const gw = w - 0.01, yr = 0.088;
+  k.prof([[h - 0.043, 0.058], [h - 0.078, yr, 0.01], [-h + 0.02, yr, 0.01], [-h + 0.005, 0.06]], gw, glass(), 0.007);
+  k.rbox(-h + 0.018, h - 0.075, yr - 0.003, yr + 0.004, -gw / 2 - 0.001, gw / 2 + 0.001, body, 0.0035);
+  k.side([[-0.006, 0.059], [0.003, 0.059], [0.001, yr - 0.002], [-0.006, yr - 0.002]], gw / 2 + 0.0004, body);
+  k.side([[-h + 0.006, 0.06], [-h + 0.03, 0.06], [-h + 0.024, yr - 0.002], [-h + 0.018, yr - 0.002]], gw / 2 + 0.0004, body);
+  k.side([[-h + 0.016, 0.04], [h - 0.045, 0.04], [h - 0.045, 0.05], [-h + 0.016, 0.05]], w / 2 + 0.0009, checker());
+  // Stoßfänger, Scheinwerfer, Rückleuchten
+  k.rbx(h - 0.006, h + 0.008, 0.012, 0.03, w + 0.002, matte(DARK), 0.006);
+  k.rbx(-h - 0.008, -h + 0.006, 0.012, 0.03, w + 0.002, matte(DARK), 0.006);
+  k.pair(h - 0.0015, h + 0.003, 0.036, 0.044, w / 2 - 0.014, 0.018, lamp(0xfff4d6));
+  tail(k, -h, 0.04, w);
   // Dachschild „FOLLOW ME“ (leuchtet)
-  k.bx(-0.03, 0.03, 0.09, 0.094, 0.05, matte(DARK));
-  k.box(-0.032, 0.032, 0.094, 0.118, -0.003, 0.003, plate('fm', 'FOLLOW ME', '#111111', '#facc15', true), 0, Math.PI / 2, 0);
-  k.axle(h - 0.035, w / 2 - 0.004, 0.017, 0.016);
-  k.axle(-h + 0.035, w / 2 - 0.004, 0.017, 0.016);
-  for (const s of [-1, 1]) beacon(g, k, -0.01, 0.118, s * 0.028);
+  k.rbx(-0.03, 0.03, yr + 0.003, yr + 0.008, 0.05, matte(DARK), 0.002);
+  k.box(-0.032, 0.032, yr + 0.008, yr + 0.032, -0.003, 0.003, plate('fm', 'FOLLOW ME', '#111111', '#facc15', true), 0, Math.PI / 2, 0);
+  for (const x of [h - 0.035, -h + 0.035]) {
+    k.well(x, 0.017, w + 0.002);
+    k.axle(x, w / 2 - 0.004, 0.017, 0.016);
+  }
+  for (const s of [-1, 1]) beacon(g, k, -0.01, yr + 0.032, s * 0.028);
   lights(g, h, -h, 0.04, w / 2 - 0.014);
 }
 
 const BUILD = { tug, baggage, fuel, catering, bus, stairs: stairsTruck, deice, cleaning: van, fire, plow, followme: followMe };
 const BODY = { fire: 0xc81e1e, plow: 0xea6a0c, followme: 0xfacc15 };
 
+// große Nummer auf dem Dach (wie auf echten Vorfeldern, damit der Tower die Fahrzeuge erkennt): Buchstabe je Typ + Nummer
+const ROOF = { tug: [-0.12, 0.0952, 0.08], baggage: [0.36, 0.1302, 0.07], fuel: [0.312, 0.1642, 0.09], catering: [0.238, 0.1562, 0.09], cleaning: [-0.03, 0.1272, 0.08], bus: [-0.01, 0.1652, 0.12], stairs: [0.165, 0.1052, 0.05, -0.031], deice: [0.332, 0.1642, 0.09] };
+const LETTER = { tug: 'T', baggage: 'G', fuel: 'F', catering: 'C', cleaning: 'R', bus: 'B', stairs: 'S', deice: 'E' };
+const numMat = (text) => cached(`num${text}`, () => {
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 64;
+  const g = c.getContext('2d');
+  g.font = '900 50px "Segoe UI", Arial, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.lineWidth = 8;
+  g.strokeStyle = '#111827';
+  g.strokeText(text, 64, 34);
+  g.fillStyle = '#ffffff';
+  g.fillText(text, 64, 34);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return new THREE.MeshLambertMaterial({ map: t, transparent: true, alphaTest: 0.4, depthWrite: false });
+});
+const PLANE = new THREE.PlaneGeometry(1, 1);
+function roofNumber(m, v) {
+  const R = ROOF[v.type];
+  const num = String(v.name || '').match(/\d+/);
+  if (!R || !num) return;
+  const pl = new THREE.Mesh(PLANE, numMat(LETTER[v.type] + num[0]));
+  pl.scale.set(R[2], R[2] / 2, 1);
+  pl.rotation.x = -Math.PI / 2;
+  pl.position.set(R[0], R[1], R[3] || 0);
+  m.add(pl);
+}
+// Firmenaufschrift als Fläche (eigene Textur), beidseitig an z = ±zs
+function decal(g, key, x, y, zs, w, h, draw, parent = g) {
+  const m = canvasMat(`dec${key}`, 512, Math.round((512 * h) / w), draw);
+  for (const s of [1, -1]) {
+    const pl = new THREE.Mesh(PLANE, m);
+    pl.scale.set(w, h, 1);
+    pl.position.set(x, y, s * zs);
+    if (s < 0) pl.rotation.y = Math.PI;
+    parent.add(pl);
+  }
+}
+const logo = (bg, fg, text, sub, icon) => (c, w, h) => {
+  c.fillStyle = bg;
+  c.fillRect(0, 0, w, h);
+  if (icon) icon(c, w, h);
+  c.textBaseline = 'middle';
+  c.fillStyle = fg;
+  const x0 = icon ? h * 1.1 : 10, room = w - x0 - 10;
+  // Schrift so groß wie möglich, aber ganz auf der Fläche
+  const fit = (t, weight, size) => {
+    c.font = `${weight} ${size}px "Segoe UI", Arial, sans-serif`;
+    const k = Math.min(1, room / Math.max(1, c.measureText(t).width));
+    c.font = `${weight} ${Math.floor(size * k)}px "Segoe UI", Arial, sans-serif`;
+  };
+  fit(text, 900, Math.round(h * 0.46));
+  c.fillText(text, x0, sub ? h * 0.38 : h * 0.52);
+  if (sub) {
+    fit(sub, 600, Math.round(h * 0.22));
+    c.fillText(sub, x0, h * 0.78);
+  }
+};
+
+// ---------- Pkw (Parkplätze, Straßen, Karte) ----------
+// Limousine mit Haube, geneigter Front- und Heckscheibe, Glaskabine (eingezogene Seiten), Dach und B-Säule in Wagenfarbe,
+// Stoßfängern, Radhäusern, Rädern mit Felgen und Lichtern. Zwei Netze: Karosserie (Farbe je Auto) und Details (Eckenfarben).
+let CAR = null;
+export function carGeos() {
+  if (CAR) return CAR;
+  const h = 0.11, w = 0.096, gw = w - 0.012, yr = 0.074, M = matte(0xffffff);
+  const body = new Kit(), det = new Map();
+  const d = (hex) => det.get(hex) || (det.set(hex, new Kit()), det.get(hex));
+  body.prof([[-h, 0.014, 0.008], [h, 0.014, 0.008], [h + 0.002, 0.036, 0.014], [0.046, 0.047, 0.012], [-0.068, 0.048, 0.01], [-h + 0.002, 0.045, 0.012]], w, M, 0.014);
+  // Kabine in Wagenfarbe (Säulen, Dach), Scheiben darauf: Front- und Heckscheibe geneigt, je Seite zwei Fenster
+  const F0 = [0.05, 0.045], F1 = [0.006, yr], B0 = [-0.084, 0.046], B1 = [-0.046, yr];
+  body.prof([F0, F1.concat(0.014), B1.concat(0.014), B0], gw, M, 0.01);
+  const win = (A, B, f0, f1, o) => {
+    const L = Math.hypot(B[0] - A[0], B[1] - A[1]), nx = ((B[1] - A[1]) / L) * o, ny = ((A[0] - B[0]) / L) * o;
+    const P = (f) => [A[0] + (B[0] - A[0]) * f + nx * 0.001, A[1] + (B[1] - A[1]) * f + ny * 0.001];
+    d(0x22303d).slab(...P(f0), ...P(f1), 0.0016, gw - 0.018, M);
+  };
+  win(F0, F1, 0.12, 0.84, 1);
+  win(B0, B1, 0.14, 0.84, -1);
+  d(0x22303d).side([[0.024, 0.049], [-0.019, 0.049], [-0.019, 0.0635], [0.002, 0.0635]], gw / 2 + 0.0007, M);
+  d(0x22303d).side([[-0.023, 0.049], [-0.06, 0.049], [-0.042, 0.0635], [-0.023, 0.0635]], gw / 2 + 0.0007, M);
+  // Schürzen, Grill, Kennzeichen
+  d(0x16181b).rbx(h - 0.012, h + 0.004, 0.011, 0.02, w - 0.002, M, 0.004).rbx(-h - 0.004, -h + 0.012, 0.011, 0.02, w - 0.002, M, 0.004);
+  d(0x2a2e33).bx(h - 0.001, h + 0.0032, 0.022, 0.031, w * 0.42, M);
+  d(0xe5e7eb).bx(h + 0.001, h + 0.0045, 0.014, 0.02, 0.026, M).bx(-h - 0.0035, -h + 0.001, 0.026, 0.032, 0.026, M);
+  for (const x of [0.07, -0.07]) {
+    d(0x0d0f12).well(x, 0.016, w + 0.001);
+    for (const s of [-1, 1]) {
+      d(0x111214).cyl(x, 0.016, s * (w / 2 - 0.004), 0.016, 0.012, 'z', M, 14);
+      d(0xb9c0c8).cyl(x, 0.016, s * (w / 2 - 0.0035), 0.0095, 0.0115, 'z', M, 10);
+    }
+  }
+  d(0xfff4d6).pair(h - 0.001, h + 0.003, 0.031, 0.037, w / 2 - 0.015, 0.016, M);
+  d(0xb91c1c).pair(-h - 0.003, -h + 0.002, 0.034, 0.041, w / 2 - 0.013, 0.018, M);
+  const all = (k) => merge([...k.by.values()].flat());
+  const parts = [...det].map(([hex, k]) => {
+    const g = all(k), c = new THREE.Color(hex), n = g.attributes.position.count, a = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3);
+    g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+    return g;
+  });
+  CAR = { body: all(body), detail: mergeGeometries(parts), mats: [new THREE.MeshPhongMaterial({ color: 0xffffff, map: wearTex(), shininess: 80, specular: 0x4a4a4a }), new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 110, specular: 0x6a7684 })] };
+  return CAR;
+}
+// viele Pkw als Instanzen: set(i, Matrix), color(i, Farbe), update() nach dem Setzen
+export function carInstances(n) {
+  const G = carGeos();
+  const body = new THREE.InstancedMesh(G.body, G.mats[0], n), det = new THREE.InstancedMesh(G.detail, G.mats[1], n);
+  const group = new THREE.Group();
+  for (const m of [body, det]) (m.frustumCulled = false), group.add(m);
+  return {
+    group,
+    set(i, mx) {
+      body.setMatrixAt(i, mx);
+      det.setMatrixAt(i, mx);
+    },
+    color(i, c) {
+      body.setColorAt(i, c);
+    },
+    update() {
+      body.instanceMatrix.needsUpdate = det.instanceMatrix.needsUpdate = true;
+      if (body.instanceColor) body.instanceColor.needsUpdate = true;
+    },
+  };
+}
+
 const VT = new Map();
-function vehTemplate(type) {
+function vehTemplate(type, variant) {
   const g = new THREE.Group();
   const k = new Kit();
   const vt = VEH_TYPES[type] || {};
   const body = paint(BODY[type] ?? new THREE.Color(vt.color || '#facc15').getHex(), 55);
-  (BUILD[type] || van)(k, g, body);
+  (BUILD[type] || van)(k, g, body, variant);
   k.build(g);
   return g;
 }
 export function buildVehicle(v) {
-  if (!VT.has(v.type)) VT.set(v.type, vehTemplate(v.type));
-  return VT.get(v.type).clone();
+  const variant = v.type === 'bus' ? busAd(v) : 0;
+  const key = `${v.type}|${variant}`;
+  if (!VT.has(key)) VT.set(key, vehTemplate(v.type, variant));
+  const m = VT.get(key).clone();
+  const P = vehParts(m);
+  P.ad = variant;
+  roofNumber(m, v);
+  return m;
 }
 // bewegliche Teile eines geklonten Fahrzeugs (einmal nachschlagen)
 export function vehParts(m) {
@@ -637,7 +1204,52 @@ export function vehParts(m) {
     const n = (s) => m.getObjectByName(s) || null;
     const bcn = [];
     m.traverse((o) => o.name === 'bcn' && bcn.push(o));
-    m.__parts = { bcn, hl: n('hl'), tl: n('tl'), lift: n('lift'), scis: n('scis'), plat: n('plat'), tur: n('tur'), boom: n('boom'), bask: n('bask'), spray: n('spray'), ramp: n('ramp'), stp: n('stp'), u: 0, yaw: 0, top: 0.12 };
+    const sides = [];
+    m.traverse((o) => o.name === 'busSide' && sides.push(o));
+    m.__parts = { sides: sides.length ? sides : null, load: 0, bcn, hl: n('hl'), tl: n('tl'), lift: n('lift'), scis: n('scis'), plat: n('plat'), tur: n('tur'), boom: n('boom'), bask: n('bask'), spray: n('spray'), ramp: n('ramp'), stp: n('stp'), u: 0, yaw: 0, top: 0.12 };
   }
   return m.__parts;
+}
+
+// bewegliche Teile einstellen (Hubkasten, Enteiser-Arm, Treppe) und Fahrgäste im Bus – für 3D-Ansicht und Karte.
+// Gibt einen Schlüssel des Zustands zurück (die Karte rendert ein Fahrzeug nur neu, wenn er sich ändert)
+export function poseVehicle(state, v, m, dt, now) {
+  const P = vehParts(m);
+  const ease = (tgt, rate) => (P.u += Math.sign(tgt - P.u) * Math.min(Math.abs(tgt - P.u), dt * rate));
+  if (P.lift) {
+    ease(v.st === 'work' ? 1 : 0, 0.45);
+    const hgt = P.u * 0.11;
+    P.lift.position.y = 0.07 + hgt;
+    P.scis.visible = hgt > 0.004;
+    P.scis.scale.y = Math.max(0.001, hgt);
+    P.plat.visible = P.u > 0.6;
+    P.plat.scale.x = Math.max(0.02, (P.u - 0.6) / 0.4);
+  }
+  if (P.boom) {
+    const ac = v.st === 'work' && v.job ? state.acs.find((a) => a.id === v.job.ac) : null;
+    ease(ac ? 1 : 0, 0.35);
+    let yaw = 0;
+    if (ac) {
+      yaw = (v.hdg || 0) - Math.atan2(ac.y - v.y, ac.x - v.x);
+      yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+    }
+    P.yaw += (yaw - P.yaw) * Math.min(1, dt * 1.5);
+    P.tur.rotation.y = P.yaw * Math.min(1, P.u * 2);
+    P.boom.rotation.z = -0.03 + P.u * 0.72;
+    P.bask.rotation.z = -P.boom.rotation.z;
+    P.spray.visible = !!ac && P.u > 0.97;
+    if (P.spray.visible) P.spray.scale.set(1, 0.85 + 0.15 * Math.sin(now * 23 + v.x), 1);
+  }
+  if (P.ramp) {
+    // Treppe: an der Tür bis zur Schwelle hochstellen, sonst flach zum Fahren; Podest bleibt waagerecht
+    const ac = v.st === 'docked' && v.job ? state.acs.find((a) => a.id === v.job.ac) : null;
+    const S = STAIRS_3D;
+    const tgt = ac ? Math.max(0.1, 0.085 * ac.len) : 0.12;
+    P.top += clamp(tgt - P.top, -dt * 0.02, dt * 0.02);
+    const th = Math.asin(clamp((P.top - S.y) / S.len, 0, 0.95));
+    P.ramp.rotation.z = th;
+    P.stp.position.set(S.hinge + Math.cos(th) * S.len, S.y + Math.sin(th) * S.len, 0);
+  }
+  if (P.sides) setBusLoad(m, busLoad(v, state.time));
+  return `${P.u.toFixed(2)}|${P.top.toFixed(3)}|${P.yaw.toFixed(2)}|${P.load}`;
 }

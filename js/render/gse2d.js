@@ -50,6 +50,11 @@ function tone(hex, k) {
   const c = (v) => Math.round(clamp(v * k, 0, 255));
   return `rgb(${c(n >> 16)},${c((n >> 8) & 255)},${c(n & 255)})`;
 }
+// Schatten eines Fahrzeugquaders (für Fahrzeuge ohne Draufsicht-Grafik)
+export function boxShadow(r, v, L, W, H) {
+  r.cam.setScreen(r.ctx);
+  shadow(r.ctx, r.cam, body(v.x, v.y, v.hdg), L, W, H);
+}
 function shadow(ctx, cam, P, L, W, H) {
   const o = { x: H * 0.55, y: H * 0.25 };
   const pts = [P(L / 2, W / 2), P(-L / 2, W / 2), P(-L / 2, -W / 2), P(L / 2, -W / 2)].map((p) => ({ x: p.x + o.x * 0.6, y: p.y + o.y * 0.6 }));

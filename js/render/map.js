@@ -6,7 +6,7 @@ import { Q } from './quality.js';
 import { Ambient, drawPerson } from './ambient.js';
 import { gaLifeItems } from './galife.js';
 import { busPaxItems } from './buspax.js';
-import { drawApronBus, drawStairsTruck } from './gse2d.js';
+import { drawApronBus, drawStairsTruck, boxShadow, stairsSize } from './gse2d.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { Polish } from './polish.js';
 import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowySprite } from './snow.js';
@@ -70,7 +70,7 @@ function bakeLot(level) {
       cam.setIso(g, 0);
       g.fillStyle = 'rgba(0,0,0,0.28)';
       g.fillRect(cx - 0.05, cy - 0.13, 0.13, 0.3);
-      drawCarBody(g, cam, cx, cy, Math.PI / 2 + (rnd() < 0.5 ? 0 : Math.PI), CAR_COLORS[Math.floor(rnd() * CAR_COLORS.length)], prism, carShades, false, 0.95, 0);
+      carBody(g, cam, cx, cy, Math.PI / 2 + (rnd() < 0.5 ? 0 : Math.PI), CAR_COLORS[Math.floor(rnd() * CAR_COLORS.length)], false, 0.95, 0, true);
     }
   }
   const f = cam.toScreen(x0, y0, 0);
@@ -133,7 +133,7 @@ function bakeGarage(b, level) {
     for (const ry of rows) {
       for (let x = x0 + 0.35; x < x1 - 0.25; x += 0.2) {
         if (rnd() < (roof ? 0.45 : 0.25)) continue;
-        drawCarBody(g, cam, x, ry, Math.PI / 2 + (rnd() < 0.5 ? 0 : Math.PI), CAR_COLORS[Math.floor(rnd() * CAR_COLORS.length)], prism, carShades, false, 0.95, z + 0.02);
+        carBody(g, cam, x, ry, Math.PI / 2 + (rnd() < 0.5 ? 0 : Math.PI), CAR_COLORS[Math.floor(rnd() * CAR_COLORS.length)], false, 0.95, z + 0.02, true);
       }
     }
     if (lv < decks) {
@@ -381,8 +381,9 @@ export class MapRenderer {
         const crab = this.crabOf(state, ac);
         list.push(crab ? { ...ac, hdg: ac.hdg + crab } : ac);
       }
-      IMP.prepare(this, list);
-    } else if (IMP) IMP.prepare(this, []);
+      const vl = state.vehicles.filter((v) => inView(view, v.x, v.y, 2));
+      IMP.prepare(this, state, list, vl, dtReal * (state.speed || 0) * TIME_SCALE);
+    } else if (IMP) IMP.prepare(this, state, [], []);
     // Fahrzeuge unter Flügel oder Heck eines stehenden Flugzeugs vor dem Flugzeug zeichnen (sonst liegen sie obendrauf)
     const parked = state.acs.filter((a) => a.mode === 'map' && a.z < 0.05);
     for (const v of state.vehicles) {
@@ -876,7 +877,7 @@ export class MapRenderer {
   drawLot(state) {
     const ctx = this.ctx, cam = this.cam;
     const lvl = state.upgrades.parking || 0;
-    if (!this.lot || this.lot.lvl !== lvl) this.lot = { lvl, ...bakeLot(lvl) };
+    if (!this.lot || this.lot.lvl !== lvl || this.lot.imp !== !!IMP) this.lot = { lvl, imp: !!IMP, ...bakeLot(lvl) }; // mit 3D-Autos neu, sobald geladen
     const L = this.lot;
     cam.setScreen(ctx);
     const k = cam.zoom / L.Z;
@@ -888,7 +889,7 @@ export class MapRenderer {
   drawGarage(b) {
     const ctx = this.ctx, cam = this.cam;
     const lvl = this.garageLevel || 0;
-    const key = 'g' + lvl;
+    const key = 'g' + lvl + (IMP ? 'i' : '');
     if (!this.garage || this.garage.key !== key) this.garage = { key, ...bakeGarage(b, lvl) };
     const G = this.garage;
     this.topZ.garage = (3 + lvl) * 0.3 + 0.08;
@@ -1048,7 +1049,7 @@ export class MapRenderer {
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.fillRect(-0.16, -0.07, 0.32, 0.14);
     ctx.restore();
-    drawCarBody(ctx, cam, p.x, p.y, p.h, car.c, prism, carShades, cam.zoom < 0.7);
+    carBody(ctx, cam, p.x, p.y, p.h, car.c, cam.zoom < 0.7);
     if (night > 0.2) {
       lights.push({ x: p.x + Math.cos(p.h) * 0.3, y: p.y + Math.sin(p.h) * 0.3, z: 0.03, c: '#fff4d0', s: 14, a: 0.7 });
       lights.push({ x: p.x - Math.cos(p.h) * 0.18, y: p.y - Math.sin(p.h) * 0.18, z: 0.03, c: '#ff3020', s: 8, a: 0.7 });
@@ -1140,7 +1141,7 @@ export class MapRenderer {
       rect(-0.3, 0.1, 0.085, 0.03, 0.13, [120, 110, 100], [96, 88, 80], [70, 64, 58]);
       rect(-0.26, 0.06, 0.07, 0.13, 0.15, [150, 120, 80], [120, 96, 64], [96, 76, 50]);
     } else {
-      drawCarBody(ctx, cam, p.x, p.y, p.h, c.col, prism, carShades, cam.zoom < 0.7);
+      carBody(ctx, cam, p.x, p.y, p.h, c.col, cam.zoom < 0.7);
       if (c.kind === 'taxi') rect(-0.02, 0.03, 0.02, 0.095, 0.11, [255, 255, 255], [220, 220, 220], [190, 190, 190]);
       if (c.kind === 'police') {
         rect(-0.03, 0.05, 0.05, 0.095, 0.11, [30, 64, 175], [30, 58, 138], [23, 37, 84]);
@@ -1261,7 +1262,7 @@ export class MapRenderer {
       ctx.lineDashOffset = 0;
     }
     // echtes 3D-Modell aus dem Atlas (render/acimp.js); sonst gezeichneter Körper mit Volumen und Leitwerk
-    if (IMP && IMP.draw(this, ac)) {
+    if (IMP && IMP.draw(this, ac.id, ac.x, ac.y, ac.z || 0)) {
       this.acLights(state, ac, aircraftDims(ac, type.sprite, Wd), L, Wd, lights, night);
       return;
     }
@@ -1383,6 +1384,19 @@ export class MapRenderer {
   drawVehicle(state, v, lights) {
     const ctx = this.ctx, cam = this.cam;
     const vt = VEH_TYPES[v.type];
+    if (IMP && !Q.perf && IMP.has(v.id)) {
+      // 3D-Modell mit Texturen, Werbung, Dachnummer (render/acimp.js): Schatten, Bild, Rundumleuchte
+      const img = IMG[vt.sprite];
+      const L = vt.len * 1.15, H = VEH_H[v.type] || 0.12;
+      if (img) this.vehShadow(vt.sprite, v.x, v.y, v.hdg, L, (L * img.width) / img.height, H);
+      else if (v.type === 'stairs') boxShadow(this, v, stairsSize().L, stairsSize().W, 0.14);
+      IMP.draw(this, v.id, v.x, v.y, 0);
+      const broken = v.brokenUntil > state.time;
+      if ((v.st !== 'idle' && (this.time * 2 + v.x) % 1 < 0.35) || broken) lights.push({ x: v.x, y: v.y, z: H + 0.05, c: broken ? '#ff3030' : '#ffae00', s: 16, a: 0.9, day: true });
+      const sp = cam.toScreen(v.x, v.y, 0.1);
+      this.picks.push({ type: 'veh', id: v.id, x: sp.x, y: sp.y, r: 10 });
+      return;
+    }
     if (v.type === 'bus' || v.type === 'stairs') {
       // eigene Formen: Vorfeldbus mit Panoramafenstern, Treppenfahrzeug mit ausfahrender Treppe
       const broken = v.brokenUntil > state.time;
@@ -2364,6 +2378,11 @@ let IMP = null;
 let impLoad = null;
 function loadImp() {
   if (!impLoad) impLoad = import('./acimp.js').then((m) => (IMP = m.ready() ? m : null)).catch(() => (IMP = null));
+}
+// Pkw: als 3D-Modell (rund, mit Scheiben und Rädern), im Leistungsmodus, weit herausgezoomt oder vor dem Laden als Quader
+function carBody(ctx, cam, x, y, h, color, simple, sc = 1, zb = 0, force = false) {
+  if (IMP && !Q.perf && !simple && IMP.drawCar(ctx, cam, x, y, h, color, sc * 1.3, zb, force)) return;
+  drawCarBody(ctx, cam, x, y, h, color, prism, carShades, simple, sc, zb);
 }
 const VEH_H = { tug: 0.075, baggage: 0.07, fuel: 0.13, catering: 0.15, cleaning: 0.1, bus: 0.13, deice: 0.15 };
 // Lackfarbe -> Dach/Seiten + getönte Scheiben (gecacht)

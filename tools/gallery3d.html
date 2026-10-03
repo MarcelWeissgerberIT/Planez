@@ -4,7 +4,7 @@
 <style>html,body{margin:0;background:#9fb3c8;overflow:hidden}canvas{display:block}</style></head>
 <body><script type="module">
 import * as THREE from '../js/vendor/three.module.min.js';
-import { buildVehicle, vehParts, STAIRS_3D } from '../js/render/vehicles3d.js';
+import { buildVehicle, vehParts, STAIRS_3D, carInstances } from '../js/render/vehicles3d.js';
 import { buildAircraft } from '../js/render/model3d.js';
 import { AIRLINES } from '../js/config.js';
 const q = new URLSearchParams(location.search);
@@ -36,9 +36,22 @@ if (acs) acs.split(',').forEach((t, i, all) => {
   m.rotation.y = +(q.get('rot') || 0.6);
   sc.add(m);
 });
-const types = acs ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,stairs,deice,fire,plow,followme').split(',');
+// Pkw-Reihe (cars=1): Instanzen wie auf Parkplatz und Straße
+if (q.get('cars')) {
+  const CC = [0xe5e7eb, 0x1f2937, 0x991b1b, 0x1d4ed8, 0x9ca3af, 0x065f46, 0xf59e0b];
+  const ci = carInstances(CC.length), mx = new THREE.Matrix4(), col = new THREE.Color();
+  CC.forEach((c, i) => {
+    mx.makeRotationY(i % 2 ? Math.PI : 0);
+    mx.setPosition((i - 3) * 0.14, 0, (i % 2) * 0.28 - 0.14);
+    ci.set(i, mx);
+    ci.color(i, col.setHex(c));
+  });
+  ci.update();
+  sc.add(ci.group);
+}
+const types = acs || q.get('cars') ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,stairs,deice,fire,plow,followme').split(',');
 types.forEach((t, i) => {
-  const m = buildVehicle({ type: t });
+  const m = buildVehicle({ type: t, id: 'v' + (i * 7 + 3), name: `${t} ${i + 1}` }); // ID und Name: Werbung und Dachnummer
   const col = i % 5, row = Math.floor(i / 5);
   if (types.length > 1) m.position.set((col - 2) * 0.62, 0, (row - 0.5) * 0.62 - (col % 2) * 0.12);
   m.rotation.y = types.length > 1 ? 0.35 : +(q.get('rot') || 0.6);
@@ -62,6 +75,7 @@ if (view === 'top') cam.position.set(0, 4.2, 2.6);
 else if (one && acs) cam.position.set(0.9, 0.35, 2.0);
 else if (one) cam.position.set(0.25, 0.32, 1.05);
 else cam.position.set(0.2, 1.25, 2.9);
+if (q.get('cam')) cam.position.set(...q.get('cam').split(',').map(Number)); // eigene Kamera: cam=x,y,z
 cam.lookAt(0, one ? 0.06 : -0.05, 0);
 r.render(sc, cam);
 window.done = true;

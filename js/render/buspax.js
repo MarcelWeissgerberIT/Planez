@@ -118,3 +118,13 @@ function stairs(r, ac, g) {
     ctx.stroke();
   }
 }
+
+// Fahrgäste im Bus (0 leer, 1 halb, 2 voll) nach der Phase des Pendelverkehrs – für die Fenster in 3D und auf der Karte
+export function busLoad(v, now) {
+  const B = v.sh;
+  if (!B) return 0;
+  const u = (now - (B.t0 || now)) / (B.ph === 'ac' ? BUS_DWELL_AC : BUS_DWELL_STOP);
+  const fill = (u) => (u < 0.3 ? 0 : u < 0.7 ? 1 : 2), empty = (u) => (u < 0.35 ? 2 : u < 0.75 ? 1 : 0);
+  if (B.k === 'deboard') return B.ph === 'ac' ? fill(u) : B.ph === 'toStop' ? 2 : B.ph === 'stop' ? empty(u) : 0;
+  return B.ph === 'stop' ? fill(u) : B.ph === 'toAc' ? 2 : B.ph === 'ac' ? empty(u) : 0;
+}
