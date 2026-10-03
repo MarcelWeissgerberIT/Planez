@@ -10,7 +10,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // Parkhaus zeichnet die Karte selbst, Tower und Radar haben (noch) kein Modell
 const IDS = process.argv.slice(2).length ? process.argv.slice(2) : ['club', 'gahangar', 'avgas', 'sterm', 'stower', 'hall', 'hangar', 'cargo', 'depot', 'fire', 'fuel', 'hotel'];
 const SPRITE = { club: 'clubhouse', gahangar: 'ga_hangar', avgas: 'avgas', sterm: 'small_terminal', stower: 'small_tower', hall: 'terminal_hall', hangar: 'hangar', cargo: 'cargo', depot: 'gse_depot', fire: 'fire_station', fuel: 'fuel_farm', hotel: 'hotel' };
-const MAXPX = 900; // längste Kante der Grafik
+const MAXPX = 1800; // längste Kante der Grafik (scharf bis zur größten Zoomstufe)
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.glb': 'model/gltf-binary' };
 const srv = http.createServer((req, res) => {

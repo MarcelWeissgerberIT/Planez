@@ -12,7 +12,7 @@ const EL = Math.PI / 6;
 const K1 = 32 * Math.SQRT2; // Bildpunkte je Welteinheit bei Zoom 1 (Kameraraum)
 const ZFIX = 32 / (K1 * Math.cos(EL));
 const DIR = new THREE.Vector3(Math.cos(EL) * Math.SQRT1_2, Math.sin(EL), Math.cos(EL) * Math.SQRT1_2);
-const MAX_CELL = 900;
+const MAX_CELL = 2400; // größtes Einzelbild (Großraumjet ganz nah auf Retina), darüber wird gestreckt
 const HIDE = ['landing', 'taxi', 'gse', 'stairs', 'navL', 'navR', 'navT', 'bcnT', 'bcnB', 'strL', 'strR', 'strT', 'spoilers', 'reverse'];
 const BUDGET = { ac: 10, veh: 10 }; // Neu-Renderings je Bild
 
@@ -76,7 +76,7 @@ function shoot(obj, rad, hgt, K, x, cz, y, cv) {
   const q = Math.min(1, MAX_CELL / px); // sehr groß gezoomt: kleiner rendern, beim Zeichnen strecken
   px = Math.max(8, Math.ceil(px * q));
   if (px > rsize) {
-    rsize = Math.min(1024, Math.ceil(px / 128) * 128);
+    rsize = Math.min(2560, Math.ceil(px / 128) * 128);
     R.setSize(rsize, rsize, false);
   }
   const tgt = new THREE.Vector3(x, cz * ZFIX, y);

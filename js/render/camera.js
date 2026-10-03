@@ -5,6 +5,7 @@ import { W, H } from '../layout.js';
 
 export const HALF_W = 32; // halbe Kachelbreite in px bei Zoom 1
 export const HALF_H = 16;
+export const MAX_ZOOM = 4.5; // nah heran: Boden, Flugzeuge, Fahrzeuge und Gebäude werden dafür schärfer gezeichnet
 
 export class Camera {
   constructor() {
@@ -42,7 +43,7 @@ export class Camera {
   }
   zoomAt(factor, sx, sy) {
     const before = this.toWorld(sx, sy);
-    this.zoom = clamp(this.zoom * factor, 0.22, 2.6);
+    this.zoom = clamp(this.zoom * factor, 0.22, MAX_ZOOM);
     const after = this.toWorld(sx, sy);
     this.x += before.x - after.x;
     this.y += before.y - after.y;

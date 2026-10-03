@@ -44,10 +44,15 @@ function pat(ctx, img, tiles) {
   if (p.setTransform) p.setTransform(new DOMMatrix().scale(tiles / img.width));
   return p;
 }
+// Maßstab der vorgerenderten Ebenen (Parkplatz, Parkhaus): nah herangezoomt feiner, damit nichts verschwimmt
+function bakeZ(cam) {
+  const z = cam.zoom * Math.min(cam.dpr || 1, 1.5);
+  return z > 4.2 ? 6.4 : z > 2.6 ? 4.2 : 2.4;
+}
 // Parkplatz: Stellplatzreihen und vorgerenderte 3D-Autos (maßstabsgerecht)
 const LOT_ROWS = [2.1, 2.48, 3.56, 3.94, 5.02, 5.4, 6.16];
-function bakeLot(level) {
-  const Z = 2.4, pw = 12.5 + level * 2;
+function bakeLot(level, Z = 2.4) {
+  const pw = 12.5 + level * 2;
   const x0 = 56, y0 = 2.0, x1 = 56 + pw, y1 = 6.6, top = 0.2, pad = 6;
   const c = document.createElement('canvas');
   c.width = Math.ceil((x1 - x0 + y1 - y0) * HALF_W * Z) + pad * 2;
@@ -79,8 +84,7 @@ function bakeLot(level) {
 }
 
 // Parkhaus vorrendern: Decks mit Stützen, Brüstungen, kleinen 3D-Autos, Treppenhaus mit P-Schild
-function bakeGarage(b, level) {
-  const Z = 2.4;
+function bakeGarage(b, level, Z = 2.4) {
   const decks = 3 + level; // Parkebenen über dem Erdgeschoss
   const DH = 0.3;
   const x0 = b.fx - b.w, y0 = b.fy - b.d, x1 = b.fx, y1 = b.fy;
@@ -254,6 +258,35 @@ export class MapRenderer {
     this.cacheKey = this.groundKey(state);
   }
 
+  // Nah herangezoomt: sichtbarer Ausschnitt (mit Rand) in voller Schärfe über dem groben Boden-Cache. Neu gezeichnet wird
+  // erst, wenn die Kamera kurz stillsteht (beim Zoomen und Schieben nicht jedes Bild); bis dahin bleibt der alte Ausschnitt
+  // liegen, soweit er passt, der Rest kommt aus dem groben Cache.
+  groundDetail(state) {
+    const cam = this.cam, k = this.cache;
+    const sd = Math.min(cam.dpr, 1.5), Z = cam.zoom * sd; // Bildpunkte je Bildschirmpunkt im Ausschnitt
+    if (Q.perf || Z < k.cs * 2) return (this.detail = null);
+    let d = this.detail;
+    if (d && (d.zoom !== cam.zoom || d.sd !== sd || d.key !== this.cacheKey)) d = this.detail = null;
+    const covered = d && Math.abs(cam.ox - d.ox) <= d.pw * 0.6 && Math.abs(cam.oy - d.oy) <= d.ph * 0.6;
+    if (!covered) {
+      const want = `${cam.zoom}|${Math.round(cam.ox)}|${Math.round(cam.oy)}|${this.cacheKey}`;
+      const now = performance.now();
+      if (this.detailWant !== want) (this.detailWant = want), (this.detailT = now);
+      else if (now - this.detailT > 160) {
+        const pw = Math.round(cam.w * 0.18), ph = Math.round(cam.h * 0.18);
+        const c = d && d.c.width === Math.ceil((cam.w + 2 * pw) * sd) && d.c.height === Math.ceil((cam.h + 2 * ph) * sd) ? d.c : document.createElement('canvas');
+        c.width = Math.ceil((cam.w + 2 * pw) * sd);
+        c.height = Math.ceil((cam.h + 2 * ph) * sd);
+        const g = c.getContext('2d');
+        g.setTransform(HALF_W * Z, HALF_H * Z, -HALF_W * Z, HALF_H * Z, (cam.ox + pw) * sd, (cam.oy + ph) * sd);
+        drawGround(g, state, this.trees);
+        d = this.detail = { c, zoom: cam.zoom, sd, ox: cam.ox, oy: cam.oy, pw, ph, key: this.cacheKey };
+      }
+    }
+    if (d) d.full = Math.abs(cam.ox - d.ox) <= d.pw && Math.abs(cam.oy - d.oy) <= d.ph;
+    return d;
+  }
+
   // ---------- Hauptzeichnen ----------
   render(state, dtReal, ui) {
     const ctx = this.ctx;
@@ -299,7 +332,17 @@ export class MapRenderer {
     cam.setScreen(ctx);
     const sx0 = Math.max(0, -dx / sc), sy0 = Math.max(0, -dy / sc);
     const sx1 = Math.min(k.c.width, (cam.w - dx) / sc), sy1 = Math.min(k.c.height, (cam.h - dy) / sc);
-    if (sx1 > sx0 && sy1 > sy0) ctx.drawImage(k.c, sx0, sy0, sx1 - sx0, sy1 - sy0, dx + sx0 * sc, dy + sy0 * sc, (sx1 - sx0) * sc, (sy1 - sy0) * sc);
+    // nah herangezoomt deckt der scharfe Ausschnitt meist alles ab – dann den groben Cache gar nicht erst zeichnen
+    const det = this.groundDetail(state);
+    if (!det || !det.full) {
+      if (sx1 > sx0 && sy1 > sy0) ctx.drawImage(k.c, sx0, sy0, sx1 - sx0, sy1 - sy0, dx + sx0 * sc, dy + sy0 * sc, (sx1 - sx0) * sc, (sy1 - sy0) * sc);
+    }
+    if (det) {
+      const f = cam.dpr / det.sd;
+      ctx.setTransform(f, 0, 0, f, (cam.ox - det.ox - det.pw) * cam.dpr, (cam.oy - det.oy - det.ph) * cam.dpr);
+      ctx.drawImage(det.c, 0, 0);
+      cam.setScreen(ctx);
+    }
 
     // Winter: Schneedecke und verschneite Pisten
     drawSnowCover(this, state);
@@ -878,7 +921,8 @@ export class MapRenderer {
   drawLot(state) {
     const ctx = this.ctx, cam = this.cam;
     const lvl = state.upgrades.parking || 0;
-    if (!this.lot || this.lot.lvl !== lvl || this.lot.imp !== !!IMP) this.lot = { lvl, imp: !!IMP, ...bakeLot(lvl) }; // mit 3D-Autos neu, sobald geladen
+    const bz = bakeZ(cam);
+    if (!this.lot || this.lot.lvl !== lvl || this.lot.imp !== !!IMP || this.lot.bz !== bz) this.lot = { lvl, imp: !!IMP, bz, ...bakeLot(lvl, bz) }; // mit 3D-Autos neu, sobald geladen
     const L = this.lot;
     cam.setScreen(ctx);
     const k = cam.zoom / L.Z;
@@ -890,8 +934,9 @@ export class MapRenderer {
   drawGarage(b) {
     const ctx = this.ctx, cam = this.cam;
     const lvl = this.garageLevel || 0;
-    const key = 'g' + lvl + (IMP ? 'i' : '');
-    if (!this.garage || this.garage.key !== key) this.garage = { key, ...bakeGarage(b, lvl) };
+    const bz = bakeZ(cam);
+    const key = 'g' + lvl + (IMP ? 'i' : '') + bz;
+    if (!this.garage || this.garage.key !== key) this.garage = { key, ...bakeGarage(b, lvl, bz) };
     const G = this.garage;
     this.topZ.garage = (3 + lvl) * 0.3 + 0.08;
     this.topZ.garageCorners = [[b.fx - b.w, b.fy - b.d], [b.fx, b.fy - b.d], [b.fx, b.fy], [b.fx - b.w, b.fy]];

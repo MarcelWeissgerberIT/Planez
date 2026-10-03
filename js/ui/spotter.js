@@ -1,7 +1,7 @@
 // Spotterbuch-Oberfläche: Foto aufnehmen (Ausschnitt der Karte ohne Beschriftungen), Polaroid mit Punkten,
 // Sammlung mit Album, Typen, Airlines/Lackierungen und Momenten. Hinweise auf seltene Fotomotive.
 import { AC_TYPES, AIRLINES } from '../config.js';
-import { HALF_W } from '../render/camera.js';
+import { HALF_W, MAX_ZOOM } from '../render/camera.js';
 import { spotAircraft, spotBonus, spotBook, spotStats, spotWorth, momentsOf, SPECIALS, SPECIAL_KEYS, MOMENTS, RARITY, RARITY_DE, assignLook, motifOf, motifDone, MOTIF_PTS } from '../sim/spotter.js';
 import { fmtClock, esc, clamp } from '../util.js';
 import { toast } from './dom.js';
@@ -87,7 +87,7 @@ export class SpotterUi {
       const len = AC_TYPES[ac.type].len;
       const wCss = Math.min(360, cam.w * 0.9);
       const hCss = wCss * 0.625;
-      cam.zoom = clamp((wCss * 0.52) / (len * HALF_W * 1.15), 0.5, 2.6);
+      cam.zoom = clamp((wCss * 0.52) / (len * HALF_W * 1.15), 0.5, MAX_ZOOM);
       cam.x = ac.x + (ac.z || 0) * 0.5;
       cam.y = ac.y + (ac.z || 0) * 0.5;
       cam.tx = null;
