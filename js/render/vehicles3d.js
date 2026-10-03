@@ -13,6 +13,7 @@ import { T } from '../i18n.js';
 import { busLoad } from './buspax.js';
 import { toCreasedNormals, mergeGeometries } from '../vendor/BufferGeometryUtils.js';
 import { carKind, carPaint, POLICE_BLUE } from './cars.js';
+import { glassMat } from './glassenv.js';
 import { STAIRS, stairsTop, stairsGeom } from '../acshape.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -170,7 +171,7 @@ const paint = (c, shin = 50) => cached(`p${c}|${shin}`, () => new THREE.MeshPhon
 const metal = (c) => cached(`m${c}`, () => new THREE.MeshPhongMaterial({ color: c, map: brushedTex(), shininess: 95, specular: 0x9aa6b4 }));
 const matte = (c) => cached(`l${c}`, () => new THREE.MeshLambertMaterial({ color: c, map: grainTex() }));
 const lamp = (c) => cached(`b${c}`, () => new THREE.MeshBasicMaterial({ color: c }));
-const glass = () => cached('glass', () => new THREE.MeshPhongMaterial({ color: 0x1a2735, shininess: 130, specular: 0xc4d6ea }));
+const glass = glassMat; // getönt, spiegelt Himmel und Horizont (glassenv.js)
 const TIRE = 0x15171a, DARK = 0x24272c, RIM = 0xb9c0c8;
 
 function canvasMat(key, w, h, draw, basic = false) {
@@ -1115,7 +1116,7 @@ function policeCar(k, g) {
     m.color.set(POLICE_BLUE);
     return m;
   });
-  for (const m of [new THREE.Mesh(G.body, bm), new THREE.Mesh(G.detail, G.mats[1]), new THREE.Mesh(G.decal, G.decalMat)]) {
+  for (const m of [new THREE.Mesh(G.body, bm), new THREE.Mesh(G.detail, G.mats[1]), new THREE.Mesh(G.glass, G.glassMat), new THREE.Mesh(G.decal, G.decalMat)]) {
     m.castShadow = true;
     g.add(m);
   }
@@ -1351,6 +1352,8 @@ export function carGeos(kind = 'sedan') {
   if (S.livery === 'police') decal = policeLivery(S, d, M, base, gw);
   if (S.bed) d(0x2a2d33).rbox(-h + 0.008, B0[0] - 0.007, yT - 0.012, yT + 0.0004, -w / 2 + 0.007, w / 2 - 0.007, M, 0.002);
   const all = (k) => merge([...k.by.values()].flat());
+  const glassGeo = det.has(GL) ? all(det.get(GL)) : null;
+  det.delete(GL);
   const parts = [...det].map(([hex, k]) => {
     const g = all(k), c = new THREE.Color(hex), n = g.attributes.position.count, a = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3);
@@ -1358,7 +1361,7 @@ export function carGeos(kind = 'sedan') {
     return g;
   });
   if (!CAR_MATS) CAR_MATS = [new THREE.MeshPhongMaterial({ color: 0xffffff, map: wearTex(), shininess: 80, specular: 0x4a4a4a }), new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 90, specular: 0x47515c })];
-  const out = { body: all(body), detail: mergeGeometries(parts), mats: CAR_MATS, len: 2 * h, hgt: Math.max(F1[1], B1[1]), decal, decalMat: decal && policeText() };
+  const out = { body: all(body), detail: mergeGeometries(parts), glass: glassGeo, glassMat: glassMat(), mats: CAR_MATS, len: 2 * h, hgt: Math.max(F1[1], B1[1]), decal, decalMat: decal && policeText() };
   CARS.set(kind, out);
   return out;
 }
@@ -1371,8 +1374,8 @@ export function carInstances(n, rnd = Math.random, kinds = null) {
   const M = {};
   for (const [k, cnt] of by) {
     const G = carGeos(k);
-    M[k] = { body: new THREE.InstancedMesh(G.body, G.mats[0], cnt), det: new THREE.InstancedMesh(G.detail, G.mats[1], cnt), dec: G.decal ? new THREE.InstancedMesh(G.decal, G.decalMat, cnt) : null, n: 0 };
-    for (const m of [M[k].body, M[k].det, M[k].dec]) if (m) (m.frustumCulled = false), group.add(m);
+    M[k] = { body: new THREE.InstancedMesh(G.body, G.mats[0], cnt), det: new THREE.InstancedMesh(G.detail, G.mats[1], cnt), gl: G.glass ? new THREE.InstancedMesh(G.glass, G.glassMat, cnt) : null, dec: G.decal ? new THREE.InstancedMesh(G.decal, G.decalMat, cnt) : null, n: 0 };
+    for (const m of [M[k].body, M[k].det, M[k].gl, M[k].dec]) if (m) (m.frustumCulled = false), group.add(m);
   }
   const col = new THREE.Color();
   pick.forEach((p, i) => {
@@ -1386,11 +1389,13 @@ export function carInstances(n, rnd = Math.random, kinds = null) {
       const [X, j] = slot[i];
       X.body.setMatrixAt(j, mx);
       X.det.setMatrixAt(j, mx);
+      if (X.gl) X.gl.setMatrixAt(j, mx);
       if (X.dec) X.dec.setMatrixAt(j, mx);
     },
     update() {
       for (const X of Object.values(M)) {
         X.body.instanceMatrix.needsUpdate = X.det.instanceMatrix.needsUpdate = true;
+        if (X.gl) X.gl.instanceMatrix.needsUpdate = true;
         if (X.dec) X.dec.instanceMatrix.needsUpdate = true;
         if (X.body.instanceColor) X.body.instanceColor.needsUpdate = true;
       }

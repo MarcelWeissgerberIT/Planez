@@ -127,6 +127,7 @@ function carModel(kind) {
     const G = carGeos(kind);
     g = new THREE.Group();
     g.add(new THREE.Mesh(G.body, G.mats[0].clone()), new THREE.Mesh(G.detail, G.mats[1]));
+    if (G.glass) g.add(new THREE.Mesh(G.glass, G.glassMat));
     if (G.decal) g.add(new THREE.Mesh(G.decal, G.decalMat));
     g.userData = { len: G.len, hgt: G.hgt };
   }

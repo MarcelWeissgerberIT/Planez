@@ -8,6 +8,7 @@ import * as THREE from '../vendor/three.module.min.js';
 import { AC_TYPES, AIRLINES } from '../config.js';
 import { SPECIALS } from '../sim/spotter.js';
 import { SHAPE, SHAPE_OF, R_OF } from '../acshape.js';
+import { glassEnv, glassMat, reflective, setReflNight } from './glassenv.js';
 
 const DEG = Math.PI / 180;
 
@@ -189,10 +190,19 @@ function livery(type, al, L, k) {
   const e = ec.getContext('2d');
   e.fillStyle = '#000';
   e.fillRect(0, 0, 1024, 256);
+  // Glanzkarte: Lack spiegelt schwach, Fenster stark (Spiegelung der Umgebung, siehe glassenv.js)
+  const sc = document.createElement('canvas');
+  sc.width = 1024;
+  sc.height = 256;
+  const sg = sc.getContext('2d');
+  sg.fillStyle = PAINT_GLOSS;
+  sg.fillRect(0, 0, 1024, 256);
+  sg.fillStyle = '#ffffff';
   let n = 7;
   const lit = () => ((n = (n * 16807) % 2147483647) / 2147483647) > 0.18;
   const win = (x, y, w, h) => {
     g.fillRect(x, y, w, h);
+    sg.fillRect(x, y, w, h);
     if (lit()) (e.fillStyle = '#ffd59a', e.fillRect(x, y, w, h));
   };
   g.fillStyle = '#1e293b';
@@ -220,7 +230,7 @@ function livery(type, al, L, k) {
   if (!cargo && L > 3) door(560);
   if (cargo) door(860), g.strokeRect(300, 36, 60, 34), g.strokeRect(300, 186, 60, 34);
   // Cockpit: durchgehende Scheibenfront rund um die Nase (beim Jumbo oben im Buckel, siehe humpTex)
-  if (!k.hump) cockpitBand(g, e, k);
+  if (!k.hump) cockpitBand(g, e, k, sg);
   // Schriftzug über den Fenstern
   const name = al.name || '';
   g.fillStyle = col;
@@ -245,7 +255,9 @@ function livery(type, al, L, k) {
   const et = new THREE.CanvasTexture(ec);
   et.flipY = false;
   et.colorSpace = THREE.SRGBColorSpace;
-  return { map: t, glow: et };
+  const st = new THREE.CanvasTexture(sc);
+  st.flipY = false;
+  return { map: t, glow: et, spec: st };
 }
 
 // Cockpitfenster wie bei Airbus und Boeing: ein waagerechtes Fensterband läuft um die Nase herum – vorn zwei große
@@ -261,7 +273,7 @@ function noseRing(sn) {
   const R = (x) => Math.sqrt(Math.max(0, 1 - x * x)), Y = (x) => -0.18 * x * x;
   return { r: R(a) + (R(b) - R(a)) * t, yc: Y(a) + (Y(b) - Y(a)) * t };
 }
-function cockpitBand(g, e, k) {
+function cockpitBand(g, e, k, sg) {
   const nf = k.prop ? 0.16 : 0.19;
   const sOf = (u) => ((u / 1024) * (0.8 + nf) - 0.8) / nf;
   const YB = 0.27, YT = 0.6; // Unter- und Oberkante (Rumpfradien über der Achse)
@@ -284,8 +296,8 @@ function cockpitBand(g, e, k) {
   };
   const u0 = Math.floor((1024 * (0.8 + nf * (SD - 0.02))) / (0.8 + nf)), u1 = Math.ceil((1024 * (0.8 + nf * 0.97)) / (0.8 + nf));
   const W = u1 - u0;
-  const img = g.getImageData(u0, 0, W, 256), glow = e.getImageData(u0, 0, W, 256);
-  const D = img.data, G = glow.data;
+  const img = g.getImageData(u0, 0, W, 256), glow = e.getImageData(u0, 0, W, 256), spec = sg.getImageData(u0, 0, W, 256);
+  const D = img.data, G = glow.data, SP = spec.data;
   const N = 3;
   for (let py = 0; py < 256; py++)
     for (let px = 0; px < W; px++) {
@@ -311,12 +323,18 @@ function cockpitBand(g, e, k) {
       };
       mixc([6, 9, 15], cr);
       mixc([16 + 40 * t, 28 + 52 * t, 44 + 66 * t], ci);
-      for (let j = 0; j < 3; j++) G[i + j] = G[i + j] + ([59, 74, 102][j] - G[i + j]) * ci;
+      for (let j = 0; j < 3; j++) {
+        G[i + j] = G[i + j] + ([59, 74, 102][j] - G[i + j]) * ci;
+        SP[i + j] = SP[i + j] + (255 - SP[i + j]) * ci;
+      }
     }
   g.putImageData(img, u0, 0);
   e.putImageData(glow, u0, 0);
+  sg.putImageData(spec, u0, 0);
 }
 
+// Spiegelung: Stärke für Fenster (Glanzkarte weiß); der Lack hat nur PAINT_GLOSS davon (leichter Glanz, Glanzlicht)
+const GLASS_REFL = 0.42, PAINT_GLOSS = '#3a3a3a';
 // Oberdeck-Buckel: Ringe [x, Mitte, Höhe, Breite] in L bzw. Rumpfradien, von hinten nach vorn
 const HUMP = [[-0.03, 0.48, 0.4, 0.3], [0.0, 0.54, 0.44, 0.5], [0.05, 0.6, 0.5, 0.64], [0.1, 0.67, 0.61, 0.7], [0.16, 0.7, 0.66, 0.72], [0.34, 0.7, 0.66, 0.7], [0.375, 0.67, 0.62, 0.62], [0.4, 0.62, 0.52, 0.5], [0.42, 0.55, 0.33, 0.4], [0.435, 0.48, 0.17, 0.26], [0.448, 0.42, 0.04, 0.06]];
 const humpAt = (x) => {
@@ -336,6 +354,12 @@ function humpTex(L) {
   g.fillRect(0, 0, W, Hh);
   e.fillStyle = '#000';
   e.fillRect(0, 0, W, Hh);
+  const sc = document.createElement('canvas');
+  sc.width = W;
+  sc.height = Hh;
+  const sg = sc.getContext('2d');
+  sg.fillStyle = PAINT_GLOSS;
+  sg.fillRect(0, 0, W, Hh);
   const x0 = HUMP[0][0], x1 = HUMP[HUMP.length - 1][0];
   const YB = 0.7, XE = 0.39; // Unterkante (Rumpfradien über der Achse), hinteres Ende der Seitenfenster (L)
   const glass = (x, a, m) => {
@@ -349,8 +373,8 @@ function humpTex(L) {
     return 1;
   };
   const u0 = Math.floor(((XE - 0.004 - x0) / (x1 - x0)) * W), u1 = Math.ceil(((0.44 - x0) / (x1 - x0)) * W);
-  const img = g.getImageData(u0, 0, u1 - u0, Hh), glow = e.getImageData(u0, 0, u1 - u0, Hh);
-  const D = img.data, G = glow.data, N = 3;
+  const img = g.getImageData(u0, 0, u1 - u0, Hh), glow = e.getImageData(u0, 0, u1 - u0, Hh), spec = sg.getImageData(u0, 0, u1 - u0, Hh);
+  const D = img.data, G = glow.data, SP = spec.data, N = 3;
   for (let py = 0; py < Hh; py++)
     for (let px = 0; px < u1 - u0; px++) {
       let rim = 0, in_ = 0, ys = 0;
@@ -371,22 +395,26 @@ function humpTex(L) {
         D[i + j] += ([6, 9, 15][j] - D[i + j]) * cr;
         D[i + j] += ([16 + 40 * t, 28 + 52 * t, 44 + 66 * t][j] - D[i + j]) * ci;
         G[i + j] += ([59, 74, 102][j] - G[i + j]) * ci;
+        SP[i + j] += (255 - SP[i + j]) * ci;
       }
     }
   g.putImageData(img, u0, 0);
   e.putImageData(glow, u0, 0);
+  sg.putImageData(spec, u0, 0);
   const tex = (cv) => {
     const t = new THREE.CanvasTexture(cv);
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = 4;
     return t;
   };
-  return { map: tex(c), emissiveMap: tex(ec) };
+  const st = new THREE.CanvasTexture(sc);
+  return { map: tex(c), emissiveMap: tex(ec), specularMap: st };
 }
 
 // Nachtbeleuchtung aller Modelle: Kabinenfenster und angestrahlte Leitwerke (0 = Tag, 1 = Nacht)
 const NIGHT = { fus: [], tail: [] };
 export function setNight(k) {
+  setReflNight(k); // Spiegelungen in Scheiben und Lack nachts schwach
   for (const m of NIGHT.fus) m.emissiveIntensity = k * 1.1;
   for (const m of NIGHT.tail) m.emissiveIntensity = k * 0.35;
 }
@@ -456,7 +484,7 @@ function template(type, airline, special = '') {
     rings.push([0.3 * L + s * noseL, -0.18 * ry * s * s, Math.max(0.001, r * ry), Math.max(0.001, r * rz)]);
   }
   const lv = livery(type, al, L, k);
-  const fusMat = new THREE.MeshPhongMaterial({ map: lv.map, emissiveMap: lv.glow, emissive: 0xffffff, emissiveIntensity: 0, shininess: 55, specular: 0x666666 });
+  const fusMat = reflective(new THREE.MeshPhongMaterial({ map: lv.map, emissiveMap: lv.glow, emissive: 0xffffff, emissiveIntensity: 0, shininess: 55, specular: 0xffffff, specularMap: lv.spec, envMap: glassEnv(), combine: THREE.MixOperation, reflectivity: GLASS_REFL }));
   NIGHT.fus.push(fusMat);
   const fus = new THREE.Mesh(tube(rings, 24), fusMat);
   fus.castShadow = true;
@@ -465,7 +493,7 @@ function template(type, airline, special = '') {
   // Buckel (Oberdeck wie beim Jumbo): steigt direkt hinter der Nase an, langes Oberdeck, läuft über der Flügelwurzel aus;
   // vorn sitzt das Cockpit mit eigener Scheibenfront (die Nase darunter bleibt ohne Fenster)
   if (k.hump) {
-    const hm = new THREE.MeshPhongMaterial({ ...humpTex(L), emissive: 0xffffff, emissiveIntensity: 0, shininess: 55, specular: 0x666666 });
+    const hm = reflective(new THREE.MeshPhongMaterial({ ...humpTex(L), emissive: 0xffffff, emissiveIntensity: 0, shininess: 55, specular: 0xffffff, envMap: glassEnv(), combine: THREE.MixOperation, reflectivity: GLASS_REFL }));
     NIGHT.fus.push(hm);
     const hump = new THREE.Mesh(tube(HUMP.map(([x, yc, rv, rh]) => [x * L, yc * ry, rv * ry, rh * rz]), 40), hm);
     hump.castShadow = true;
@@ -849,7 +877,7 @@ export function buildHeli() {
   };
   add(body, phong(0xe11d48, 50));
   add(dark, lamb(0x1f2937));
-  add(glass, phong(0x1e293b, 90));
+  add(glass, glassMat(true));
   // Hauptrotor (zwei Blätter + Unschärfe-Scheibe) und Heckrotor
   const rot = new THREE.Group();
   rot.name = 'rotor';
@@ -937,7 +965,7 @@ function lightTemplate(type, airline) {
   add(white, phong(0xf8fafc, 60));
   add(trim, phong(trimCol, 40));
   add(dark, lamb(0x1f2937));
-  add(glass, phong(0x1e293b, 95));
+  add(glass, glassMat(true));
   // Propeller (dreht sich bei laufendem Motor)
   const pg = new THREE.Group();
   pg.name = 'prop';
