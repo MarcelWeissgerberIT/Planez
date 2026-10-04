@@ -14,6 +14,7 @@ import { jetBridges } from './jetbridge.js';
 import { drawApronBus, drawStairsTruck, boxShadow, stairsSize } from './gse2d.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { Polish } from './polish.js';
+import { crabAngle, gustRoll } from './windfx.js';
 import { paintHeliBase, heliBaseLights } from './helibase.js';
 import { heliOnMap } from '../sim/heli.js';
 import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowySprite } from './snow.js';
@@ -432,8 +433,8 @@ export class MapRenderer {
       const list = [];
       for (const ac of state.acs) {
         if (ac.mode !== 'map' || this.hideAc === ac.id || !inView(view, ac.x, ac.y, 6 + ac.z * 2)) continue;
-        const crab = this.crabOf(state, ac);
-        list.push(crab ? { ...ac, hdg: ac.hdg + crab } : ac);
+        const crab = this.crabOf(state, ac), roll = gustRoll(state, ac, this.time);
+        list.push(crab || roll ? { ...ac, hdg: ac.hdg + crab, roll } : ac);
       }
       const vl = state.vehicles.filter((v) => inView(view, v.x, v.y, 2));
       for (const t of fireTrucks(state)) if (inView(view, t.x, t.y, 2)) vl.push(t);
@@ -1299,24 +1300,10 @@ export class MapRenderer {
   }
 
   // ---------- Flugzeuge ----------
-  // Seitenwind: Im Endanflug, beim Durchstarten und nach dem Abheben fliegt das Flugzeug schräg mit der Nase in
-  // den Wind („Crab“) und richtet sich erst im Abfangbogen kurz vor dem Aufsetzen auf die Bahn aus. Böen lassen es
-  // leicht pendeln. Nur Darstellung – die Bahnführung der Simulation bleibt unverändert.
+  // Seitenwind: Vorhaltewinkel und Schaukeln in Böen (render/windfx.js) – nur Darstellung, die Bahnführung der
+  // Simulation bleibt unverändert
   crabOf(state, ac) {
-    if (ac.mode !== 'map' || ac.z < 0.05 || !state.wind || !state.wind.spd) return 0;
-    const ph = ac.phase;
-    let k;
-    if (ph === PH.FINAL) k = clamp((ac.z - 0.08) / 0.45, 0, 1);
-    else if (ph === PH.MISSED || ph === PH.TAKEOFF) k = clamp((ac.z - 0.05) / 0.6, 0, 1);
-    else return 0;
-    if (!k) return 0;
-    const track = (ac.hdg * 180) / Math.PI + 90; // Kartenwinkel -> Kompasskurs
-    const xw = state.wind.spd * Math.sin(((state.wind.dir - track) * Math.PI) / 180); // + = Wind von rechts
-    const tas = (AC_TYPES[ac.type] && AC_TYPES[ac.type].vapp) || 140;
-    let c = clamp((xw / tas) * 1.6, -0.3, 0.3);
-    const g = state.wind.gust || 0;
-    if (g) c += Math.sin(this.time * 1.7 + (ac.id.length % 5)) * Math.min(0.05, g * 0.004);
-    return c * k;
+    return crabAngle(state, ac, this.time);
   }
 
   drawAircraft(state, ac, lights, night, ui) {

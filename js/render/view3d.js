@@ -16,6 +16,7 @@ import { soundscape } from '../soundscape.js';
 import { buildAircraft, buildCessna, buildHeli, glowTex, spriteMat, setNight } from './model3d.js';
 import { buildHeliBase, buildHeliBaseGround, HB_CENTER } from './helibase3d.js';
 import { heliOnMap } from '../sim/heli.js';
+import { crabAngle, gustRoll, flapStage, spoilersOut } from './windfx.js';
 import { buildVehicle, vehParts, poseVehicle, carInstances } from './vehicles3d.js';
 import { followMeCars } from './followme.js';
 import { beltLoaders } from './beltloader.js';
@@ -32,7 +33,6 @@ const DEG = Math.PI / 180;
 const FT_PER_TILE = 318 * NM_PER_TILE; // 3°-Gleitpfad: Fuß Höhe je Kachel Abstand
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
-const FLAP_PH = new Set([PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAKEOFF, PH.FINAL, PH.ROLLOUT, PH.MISSED]);
 const ON_RWY = new Set([PH.TAKEOFF, PH.ROLLOUT, PH.LINED, PH.LINEUP, PH.FINAL, PH.MISSED]);
 
 // Himmelskuppel: Verlauf Zenit -> Horizont, Sonnenscheibe und Lichthof
@@ -1108,7 +1108,7 @@ export class View3D {
         this.acs.set(ac.id, g);
         // Teile einmal nachschlagen statt jeden Frame zu suchen
         const R = {};
-        for (const n of ['gear', 'landing', 'taxi', 'gse', 'stairs', 'navL', 'navR', 'navT', 'bcnT', 'bcnB', 'strL', 'strR', 'strT', 'flapsDn', 'spoilers', 'reverse']) R[n] = g.getObjectByName(n);
+        for (const n of ['gear', 'landing', 'taxi', 'gse', 'stairs', 'navL', 'navR', 'navT', 'bcnT', 'bcnB', 'strL', 'strR', 'strT', 'flapsDn', 'flapsTo', 'slats', 'spoilers', 'reverse']) R[n] = g.getObjectByName(n);
         R.props = [];
         R.discs = [];
         g.traverse((o) => (o.name === 'prop' ? R.props.push(o) : o.name === 'disc' ? R.discs.push(o) : null));
@@ -1149,7 +1149,8 @@ export class View3D {
       v.z = p.z;
       v.hdg = p.hdg;
       g.position.set(p.x, v.y + u.H, p.z);
-      g.rotation.set(-v.bank, -p.hdg, v.pitch, 'YXZ');
+      // Seitenwind: Vorhaltewinkel und Schaukeln in Böen (wie auf der Karte)
+      g.rotation.set(-v.bank + gustRoll(state, ac, now), -(p.hdg + crabAngle(state, ac, now)), v.pitch, 'YXZ');
       // Aufsetzen: Reifenrauch an beiden Hauptfahrwerken
       if (v.ph === PH.FINAL && ac.phase === PH.ROLLOUT) this.touch(g, u);
       v.ph = ac.phase;
@@ -1165,10 +1166,12 @@ export class View3D {
       gear.visible = ac.mode === 'map' ? v.y < 2.5 || ac.phase === PH.FINAL : (ac.alt || 0) < 2000;
       const running = ac.phase !== PH.STAND && ac.phase !== PH.PUSH;
       // Landeklappen beim Rollen zum Start, Start und Landung; Störklappen und Schubumkehr beim Ausrollen
-      const FLAP = ac.mode === 'map' ? FLAP_PH.has(ac.phase) && v.y < 3 : !!(ac.arr && (ac.alt || 0) < 3500);
-      if (R.flapsDn) R.flapsDn.visible = FLAP;
-      if (R.spoilers) R.spoilers.visible = ac.phase === PH.ROLLOUT && (ac.v || 0) > 0.05;
-      if (R.reverse) R.reverse.visible = ac.phase === PH.ROLLOUT && (ac.v || 0) > 0.17;
+      const fs = flapStage(ac); // Start klein, Landung voll; Vorflügel bei beiden
+      if (R.flapsDn) R.flapsDn.visible = fs === 2;
+      if (R.flapsTo) R.flapsTo.visible = fs === 1;
+      if (R.slats) R.slats.visible = fs > 0;
+      if (R.spoilers) R.spoilers.visible = spoilersOut(ac);
+      if (R.reverse) R.reverse.visible = ac.phase === PH.ROLLOUT && !ac.vacated && (ac.v || 0) > 0.17;
       if (running) for (const o of R.props) o.rotation.x += dt * 40;
       for (const o of R.discs) o.visible = running;
       const air = ac.mode === 'air' || v.y > 0.05;

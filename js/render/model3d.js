@@ -471,7 +471,7 @@ function template(type, airline, special = '') {
   const rz = k.r * L, ry = rz * k.kh;
   const H = k.h * ry; // Rumpfachse über dem Boden
   const root = new THREE.Group();
-  const white = [], gray = [], dark = [], tailc = [], metal = [], flaps = [], flapsDn = [], spoil = [], rev = [];
+  const white = [], gray = [], dark = [], tailc = [], metal = [], flaps = [], flapsDn = [], flapsTo = [], slats = [], spoil = [], rev = [];
 
   // Rumpf: Heck hochgezogen und verjüngt, zylindrische Mitte, runder Bug
   const rings = [];
@@ -520,11 +520,22 @@ function template(type, airline, special = '') {
       return slab([[a.te + (a.le - a.te) * depth, a.y + lift, s * a.z], [c.te + (c.le - c.te) * depth, c.y + lift * 0.7, s * c.z], [c.te, c.y + lift * 0.5, s * c.z], [a.te, a.y + lift * 0.6, s * a.z]], k.cr * L * 0.012, k.ct * L * 0.01);
     };
     flaps.push([flap(0.04, 0.68, 0.28), M4()], [flap(0.7, 0.94, 0.24), M4()]);
-    // ausgefahrene Landeklappen (Start/Landung): nach hinten unten aus der Hinterkante; Störklappen (nach dem Aufsetzen)
+    // ausgefahrene Landeklappen (Fowler): fahren nach hinten aus der Hinterkante und kippen nach unten, dazwischen ein
+    // Spalt – zum Start ein Stück (flapsTo), zur Landung voll (flapsDn); Vorflügel an der Vorderkante (slats) fahren
+    // nach vorn unten. Störklappen (nach dem Aufsetzen) stellen sich auf der Oberseite auf
     {
       const a = at(0.04), c = at(0.68);
       const ca = a.le - a.te, cc = c.le - c.te;
-      flapsDn.push([slab([[a.te + ca * 0.06, a.y - ca * 0.03, s * a.z], [c.te + cc * 0.06, c.y - cc * 0.03, s * c.z], [c.te - cc * 0.26, c.y - cc * 0.16, s * c.z], [a.te - ca * 0.26, a.y - ca * 0.16, s * a.z]], ca * 0.03, cc * 0.03), M4()]);
+      const fowler = (back, drop, chord) => slab([[a.te - ca * back, a.y - ca * drop * 0.35, s * a.z], [c.te - cc * back, c.y - cc * drop * 0.35, s * c.z], [c.te - cc * (back + chord), c.y - cc * drop, s * c.z], [a.te - ca * (back + chord), a.y - ca * drop, s * a.z]], ca * 0.03, cc * 0.026);
+      flapsDn.push([fowler(0.05, 0.2, 0.3), M4()]);
+      flapsTo.push([fowler(0.025, 0.07, 0.22), M4()]);
+      if (!k.high) {
+        // äußerer Klappenabschnitt hinter den Triebwerken bis vor die Querruder
+        const o = at(0.68), q = at(0.76), co = o.le - o.te, cq = q.le - q.te;
+        flapsDn.push([slab([[o.te - co * 0.04, o.y - co * 0.06, s * o.z], [q.te - cq * 0.04, q.y - cq * 0.06, s * q.z], [q.te - cq * 0.28, q.y - cq * 0.17, s * q.z], [o.te - co * 0.28, o.y - co * 0.17, s * o.z]], co * 0.026, cq * 0.024), M4()]);
+        const e = at(0.08), f = at(0.95), ce = e.le - e.te, cf = f.le - f.te;
+        slats.push([slab([[e.le + ce * 0.07, e.y - ce * 0.05, s * e.z], [f.le + cf * 0.07, f.y - cf * 0.05, s * f.z], [f.le - cf * 0.06, f.y + cf * 0.01, s * f.z], [e.le - ce * 0.06, e.y + ce * 0.01, s * e.z]], ce * 0.022, cf * 0.02), M4()]);
+      }
       const p = at(0.14), q = at(0.66);
       const cp = p.le - p.te, cq = q.le - q.te;
       const top = k.cr * L * 0.055;
@@ -649,7 +660,9 @@ function template(type, airline, special = '') {
     mesh.castShadow = true;
     root.add(mesh);
   };
-  part(flapsDn, phong(0xb8c0c9, 30), 'flapsDn');
+  part(flapsDn, phong(0xc2c9d1, 35), 'flapsDn');
+  part(flapsTo, phong(0xc2c9d1, 35), 'flapsTo');
+  part(slats, phong(0xc9d0d8, 60), 'slats');
   part(spoil, phong(0xc7ced6, 30), 'spoilers');
   part(rev, lamb(0x0b0f17), 'reverse');
   add(dark, lamb(0x111827));

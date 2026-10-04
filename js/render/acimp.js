@@ -8,13 +8,14 @@ import { buildAircraft, buildHeli } from './model3d.js';
 import { buildHeliBase, HB_CENTER } from './helibase3d.js';
 import { buildVehicle, poseVehicle, carGeos } from './vehicles3d.js';
 import { PH } from '../sim/aircraft.js';
+import { flapStage, spoilersOut } from './windfx.js';
 
 const EL = Math.PI / 6;
 const K1 = 32 * Math.SQRT2; // Bildpunkte je Welteinheit bei Zoom 1 (Kameraraum)
 const ZFIX = 32 / (K1 * Math.cos(EL));
 const DIR = new THREE.Vector3(Math.cos(EL) * Math.SQRT1_2, Math.sin(EL), Math.cos(EL) * Math.SQRT1_2);
 const MAX_CELL = 2400; // größtes Einzelbild (Großraumjet ganz nah auf Retina), darüber wird gestreckt
-const HIDE = ['landing', 'taxi', 'gse', 'stairs', 'navL', 'navR', 'navT', 'bcnT', 'bcnB', 'strL', 'strR', 'strT', 'spoilers', 'reverse'];
+const HIDE = ['landing', 'taxi', 'gse', 'stairs', 'navL', 'navR', 'navT', 'bcnT', 'bcnB', 'strL', 'strR', 'strT', 'reverse'];
 const BUDGET = { ac: 10, veh: 10 }; // Neu-Renderings je Bild
 
 let R = null, scene = null, world = null, cam = null, failed = false;
@@ -55,7 +56,8 @@ function modelFor(id, key, make) {
   if (m) world.remove(m.g);
   const g = make();
   const parts = {};
-  for (const n of [...HIDE, 'gear', 'flapsDn']) parts[n] = g.getObjectByName(n);
+  for (const n of [...HIDE, 'gear', 'flapsDn', 'flapsTo', 'slats', 'spoilers']) parts[n] = g.getObjectByName(n);
+  for (const n of ['flapsDn', 'flapsTo', 'slats', 'spoilers']) if (parts[n]) parts[n].visible = false;
   for (const n of HIDE) if (parts[n]) parts[n].visible = false;
   g.traverse((o) => {
     if (o.isSprite) o.visible = false; // Lichtpunkte zeichnet die Karte selbst
@@ -180,19 +182,23 @@ export function prepare(r, state, acs, vehs = [], dt = 0) {
     const m = modelFor(ac.id, `${ac.type}|${ac.airline}|${ac.special || ''}`, () => buildAircraft(ac));
     const air = ac.mode === 'air' || ac.z > 0.05;
     const gear = !air || ac.z < 1.2 || ac.phase === PH.FINAL;
-    const flaps = ac.phase === PH.FINAL || (ac.phase === PH.TAKEOFF && ac.z < 1);
+    const fs = flapStage(ac), spl = spoilersOut(ac); // Klappen 0/1/2, Störklappen
     const pitch = ac.phase === PH.TAKEOFF && ac.z > 0.02 ? 0.12 : 0;
-    const key = `${K.toFixed(2)}|${Math.round(ac.hdg * 360)}|${gear}|${flaps}|${pitch}`;
+    const roll = Math.round((ac.roll || 0) * 100) / 100; // Schaukeln in Böen
+    const key = `${K.toFixed(2)}|${Math.round(ac.hdg * 360)}|${gear}|${fs}|${spl}|${pitch}|${roll}`;
     const c = cache.get(ac.id);
     if (c) c.seen = frame;
     if (c && c.key === key) continue;
     if (c && budget <= 0) continue; // später neu rendern, bis dahin das alte Bild (passend skaliert)
     budget--;
     if (m.parts.gear) m.parts.gear.visible = gear;
-    if (m.parts.flapsDn) m.parts.flapsDn.visible = flaps;
+    if (m.parts.flapsDn) m.parts.flapsDn.visible = fs === 2;
+    if (m.parts.flapsTo) m.parts.flapsTo.visible = fs === 1;
+    if (m.parts.slats) m.parts.slats.visible = fs > 0;
+    if (m.parts.spoilers) m.parts.spoilers.visible = spl;
     const z = m.H + (ac.z || 0);
     m.g.position.set(ac.x, z, ac.y);
-    m.g.rotation.set(0, -ac.hdg, pitch, 'YXZ');
+    m.g.rotation.set(roll, -ac.hdg, pitch, 'YXZ');
     render(ac.id, m, key, K, ac.x, z, ac.y, ac.z || 0);
   }
   budget = BUDGET.veh;

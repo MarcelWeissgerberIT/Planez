@@ -36,6 +36,9 @@ const acs = q.get('acs');
 if (acs) acs.split(',').forEach((t, i, all) => {
   const al = q.get('al') || Object.keys(AIRLINES).find((k) => !AIRLINES[k].ga) ;
   const m = buildAircraft({ type: t, airline: al });
+  // Klappen zeigen: flaps=1 Start, flaps=2 Landung (mit Vorflügeln), spoil=1 Störklappen
+  const fs = +(q.get('flaps') || 0);
+  for (const [n, on] of [['flapsTo', fs === 1], ['flapsDn', fs === 2], ['slats', fs > 0], ['spoilers', q.get('spoil') === '1']]) { const o = m.getObjectByName(n); if (o) o.visible = on; }
   m.position.set((i - (all.length - 1) / 2) * 1.6, m.userData.H || 0.1, 0);
   m.rotation.y = +(q.get('rot') || 0.6);
   sc.add(m);
