@@ -2422,3 +2422,26 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
   #game.tw-layout { --rail-h: 168px; }
   #ticker { height: 26px; }
 }
+/* Mitfliegen am Handy: die Leiste liegt als schmaler Streifen in voller Breite am Rand, statt sich über das ganze
+   Bild zu ziehen (oben und unten gleichzeitig gesetzt); Cockpit, Drohne und Einwinken oben, sonst unten */
+@media (max-width: 760px) {
+  #ride .rd-bar { left: 8px; right: 8px; transform: none; max-width: none; flex-wrap: wrap; justify-content: center; gap: 6px 8px; padding: 6px 8px; top: auto; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  #ride .rd-t { flex: 1 1 calc(100% - 40px); min-width: 0; text-align: left; font-size: 12px; line-height: 1.35; }
+  /* Turmblick: Spiel-Oberfläche bleibt sichtbar (Ticker, Panel-Knopf, Streifen unten) – Leiste oben unter dem Funk */
+  #ride.tower .rd-bar { top: calc(var(--hud-h, 56px) + 48px); bottom: auto; right: 52px; }
+  #game.towerview #toasts { top: calc(var(--hud-h) + 118px); }
+  #ride.cine3d .rd-bar { top: calc(9vh + 8px); bottom: auto; }
+  #ride.cockpit .rd-bar, #ride.drone .rd-bar, #ride.marshal .rd-bar { top: calc(var(--hud-h, 56px) + 6px); bottom: auto; }
+  /* Fensterplatz im Hochformat: größeres Fenster in Flugzeugform */
+  #ride.window .rd-win, #ride.v3d.window .rd-win { top: 46%; width: min(78vw, 340px); height: min(calc(min(78vw, 340px) * 1.38), 56vh); }
+}
+/* Mitfliegen im Querformat am Handy: Leiste einzeilig (Text gekürzt), Fenster passt zwischen Kopfleiste und Leiste */
+@media (max-height: 500px) and (min-width: 761px) {
+  #ride .rd-bar { left: 8px; right: 8px; transform: none; max-width: none; flex-wrap: nowrap; gap: 8px; padding: 5px 8px; top: auto; bottom: 8px; }
+  #ride .rd-t { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+  #ride .rd-help { display: none; }
+  #ride.cockpit .rd-bar, #ride.drone .rd-bar, #ride.marshal .rd-bar { top: calc(var(--hud-h, 44px) + 6px); bottom: auto; }
+  #ride.tower .rd-bar { top: calc(var(--hud-h, 44px) + 8px); bottom: auto; left: 356px; right: 56px; }
+  #ride.cine3d .rd-bar { top: calc(9vh + 8px); bottom: auto; }
+  #ride.window .rd-win, #ride.v3d.window .rd-win { top: calc((var(--hud-h, 44px) + 100vh - 48px) / 2); height: calc(100vh - var(--hud-h, 44px) - 100px); width: calc((100vh - var(--hud-h, 44px) - 100px) / 1.38); }
+}
