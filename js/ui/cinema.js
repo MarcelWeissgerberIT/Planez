@@ -99,6 +99,7 @@ export class Cinema {
     this.prevLabels = this.game.ui.labels;
     this.game.ui.labels = false;
     document.getElementById('game').classList.add('cinema');
+    this.el.querySelector('.cn-brand').textContent = `${s.name || AIRPORT.name} · LIVE`; // Name des eigenen Flughafens
     this.el.classList.toggle('lite', !!Q.perf); // Leistungsmodus: ohne Tilt-Shift und Farbfilter
     document.getElementById('game').classList.toggle('lite', !!Q.perf);
     this.el.classList.remove('hidden');

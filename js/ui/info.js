@@ -77,7 +77,7 @@ export function renderInfo(el, state, ui) {
     const fol = ui.follow && ui.follow.id === ac.id;
     h += `<i class="i-stripe" style="background:${al.color}"></i><div class="i-head"><div><div class="i-cs"><i class="al-dot" style="background:${al.color}"></i>${esc(ac.cs)}${ac.emergency ? ' 🚨' : ''}${ac.protocol ? ' 🎖️' : ''}</div><div class="i-sub">${al.name} · ${t.name} · ${T`Wirbelschleppe ${wakeTag(t.wake)} ${WAKE_DE[t.wake]}`}</div></div><div class="i-btns">${ac.mode === 'map' ? T`<button class="mini i-spot${ac.spotted && ac.spotted.includes('_') ? ' done' : ''}" data-spot="${ac.id}" title="Foto fürs Spotterbuch${state.role !== 'tower' ? ' (F)' : ''}">${icon('photo')} Spotten</button>` : ''}${(ac.mode === 'map' || (ac.arr && ac.mode === 'air')) && (state.role === 'observer' || state.role === 'manager') ? T`<button class="mini i-ride" data-ride="window:${ac.id}" title="Als Passagier am Fensterplatz mitfahren">${icon('eye')} Fenster</button><button class="mini i-ride" data-ride="cockpit:${ac.id}" title="Im Cockpit mitfliegen">${icon('plane')} Cockpit</button>` : ''}${ac.mode === 'map' && ac.phase === PH.TAXI_IN && ac.stand ? T`<button class="mini i-ride" data-marshal="${ac.id}" title="Als Einwinker an der Position: STOPP, wenn die Bugnase die Haltemarke erreicht">${icon('vest')} Einwinken</button>` : ''}<button class="mini i-follow ${fol ? 'on' : ''}" data-follow="ac:${ac.id}" title="${T('Kamera folgt diesem Flugzeug (auch über den ganzen Umlauf)')}">${icon('follow')} ${fol ? T('folgt') : T('Folgen')}</button><button class="icon-btn i-close" data-close>✕</button></div></div>`;
     // Handy eingeklappt: eine Kurzzeile statt der Datentabelle (Details per Knopf unten)
-    h += `<div class="i-brief">${PHASE_DE[ac.phase] || ac.phase} · ${esc(acRoute(state, ac))}${rot ? ` · ${fmtClock(dep ? rot.std : rot.sta)}${delay ? ` (${delay})` : ''}` : ''}${ac.mode === 'map' && ac.stand ? ` · P${ac.stand}` : ''}</div>`;
+    h += `<div class="i-brief">${PHASE_DE[ac.phase] || ac.phase} · ${esc(acRoute(state, ac, true))}${rot ? ` · ${fmtClock(dep ? rot.std : rot.sta)}${delay ? ` (${delay})` : ''}` : ''}${ac.mode === 'map' && ac.stand ? ` · P${ac.stand}` : ''}</div>`;
     if (ac.tdFpm && [PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN, PH.STAND].includes(ac.phase)) {
       const g = gradeOf(ac.tdFpm);
       h += T`<div class="i-reg">Aufgesetzt mit <b>${ac.tdFpm} ft/min</b> · ${g[2] ? g[2] + ' ' : ''}${g[1]}${ac.tdLate ? T(' (späte Landefreigabe)') : ''}</div>`;
@@ -98,7 +98,7 @@ export function renderInfo(el, state, ui) {
     }
     h += `<div class="i-sec i-secdata">${T('Flugdaten')}</div><div class="i-grid i-gmain">`;
     h += T`<div><span>Status</span><b>${PHASE_DE[ac.phase] || ac.phase}</b></div>`;
-    h += T`<div><span>Strecke</span><b>${esc(acRoute(state, ac))}</b></div>`;
+    h += T`<div><span>Strecke</span><b>${esc(acRoute(state, ac, true))}</b></div>`;
     if (rot) h += T`<div><span>${dep ? T('Abflug (STD)') : T('Ankunft (STA)')}</span><b>${fmtClock(dep ? rot.std : rot.sta)}</b></div><div><span>Verspätung</span><b>${delay}</b></div>`;
     if (ac.mode === 'air') h += T`<div><span>Höhe</span><b>${fmtAlt(ac.alt)}</b></div><div><span>Geschw.</span><b>${Math.round(ac.spd)} kt</b></div><div><span>Kurs</span><b>${String(Math.round(ac.crs)).padStart(3, '0')}°</b></div><div><span>Squawk</span><b>${ac.squawk}</b></div>`;
     else h += T`<div><span>Position</span><b>${ac.stand ? 'P' + ac.stand : '—'}</b></div><div><span>Passagiere</span><b>${rot ? (dep ? rot.paxOut : rot.paxIn) : '—'}</b></div>`;

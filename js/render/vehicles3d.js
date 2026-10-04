@@ -764,7 +764,7 @@ function adDesign(g, ad) {
       g.fill();
     }
     big('AURORA AIRWAYS', TW * 0.4, TH * 0.5, 64, '#ffffff', '900');
-    big(T('ab Planez nach New York'), TW * 0.4, TH * 0.82, 26, '#fde68a', '600');
+    big(T('Nonstop nach New York'), TW * 0.4, TH * 0.82, 26, '#fde68a', '600');
   } else if (ad === 2) {
     // Nordstern: Sonne auf Lila
     grad(['#4c1d95', '#7c3aed', '#a855f7']);

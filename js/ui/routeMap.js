@@ -1,6 +1,6 @@
 // Streckennetz: polare Karte um den eigenen Flughafen (Peilung wie im Spiel, Entfernung logarithmisch),
 // Routen je Vertrag in Airline-Farbe, fliegende Punkte, Angebote gestrichelt, Tooltip je Ziel
-import { CITIES, AIRLINES, AC_TYPES } from '../config.js';
+import { CITIES, AIRLINES, AC_TYPES, AIRPORT } from '../config.js';
 import { esc } from '../util.js';
 import { T, LOCALE, EN } from '../i18n.js';
 
@@ -263,7 +263,7 @@ export class RouteMap {
     g.fill();
     g.fillStyle = '#fff';
     g.font = 'bold 11px Chakra Petch, sans-serif';
-    g.fillText('PLZ', cx + 8, cy + 14);
+    g.fillText(AIRPORT.city, cx + 8, cy + 14);
     // Legende
     const flights = s.contracts.reduce((a, c) => a + c.perDay, 0);
     const als = new Set(s.contracts.map((c) => c.airline));

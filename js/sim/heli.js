@@ -12,6 +12,7 @@ import { penalize, earn, rescueLandingFee } from './economy.js';
 import { scoreHeli } from './score.js';
 import { hasRwy2 } from './runway.js';
 import { clamp } from '../util.js';
+import { AIRPORT } from '../config.js';
 import { pushNews } from './news.js';
 import { T } from '../i18n.js';
 import { HELIBASE, heliBaseOn } from '../layout.js';
@@ -105,8 +106,8 @@ function request(state, dir) {
   const north = dir > 0;
   // von der Klinik kommend taucht er über der Landseite auf (gleich lange bis zur Warteposition wie von Süden)
   S.h = { x: X + (hash01(state.time) - 0.5) * 6, y: north ? 2 : Y_START, z: 1.3, hdg: north ? Math.PI / 2 : -Math.PI / 2, st: 'req', t: state.time, rot: 0, dir, rpm: 1 };
-  if (north) radio(state, HELI, `Planez Tower, Rescue 7, helicopter, three miles north, returning to the rescue station, request crossing your runways at midfield southbound.`, 'pilot');
-  else radio(state, HELI, `Planez Tower, Rescue 7, helicopter, five miles south, request crossing your runways at midfield northbound, priority patient transport.`, 'pilot');
+  if (north) radio(state, HELI, `${AIRPORT.tower}, Rescue 7, helicopter, three miles north, returning to the rescue station, request crossing your runways at midfield southbound.`, 'pilot');
+  else radio(state, HELI, `${AIRPORT.tower}, Rescue 7, helicopter, five miles south, request crossing your runways at midfield northbound, priority patient transport.`, 'pilot');
   if (humanTower(state)) notify(state, north ? T('🚁 Rettungshubschrauber bittet, auf dem Rückweg zur Station die Bahnen zu queren – Lücke im Verkehr abpassen') : T('🚁 Rettungshubschrauber bittet, die Bahnen zu queren – Lücke im Verkehr abpassen'), 'info');
 }
 
@@ -137,7 +138,7 @@ export function updateHeli(state, dt) {
     // Alarm: Crew läuft zum Hubschrauber, Rotor läuft an
     S.park = false;
     S.h = { x: pad.x, y: pad.y, z: 0, hdg: HELIBASE.hdg, st: 'spin', t: state.time, rot: 0, dir: 0, rpm: 0 };
-    radio(state, HELI, `Planez Tower, Rescue 7, at the rescue station, starting up for an emergency mission, departing southbound.`, 'pilot');
+    radio(state, HELI, `${AIRPORT.tower}, Rescue 7, at the rescue station, starting up for an emergency mission, departing southbound.`, 'pilot');
     radio(state, 'TWR', `Rescue 7, depart southbound at your discretion, report leaving the control zone.`, 'atc');
     log(state, 'sys', T('🚁 Alarm an der Luftrettungsstation – Rescue 7 startet zum Einsatz.'));
     return;

@@ -9,7 +9,8 @@ export const DEFAULT_SPEED = { tower: 1, ground: 1, manager: 20, observer: 20 };
 export const NM_PER_TILE = 20 / 1852; // 1 Kachel = 20 m
 export const ZS = 32; // Pixel pro Kachel Höhe (bei Zoom 1)
 
-export const AIRPORT = { name: 'Planez International', code: 'PLZ', tower: 'Planez Tower', freq: '118.705' };
+// city, code und tower setzt applyCity (sim/city.js) je Spielstand – Vorgabe: Planez (PNZ)
+export const AIRPORT = { name: 'Planez International', city: 'Planez', code: 'PNZ', tower: 'Planez Tower', freq: '118.705' };
 
 // size: S < M < L  (Parkpositions-Klasse)
 // Flugzeugtypen: Hersteller und Modelle sind frei erfunden (Aviora, Halvard, Ventis …); `code` ist das Typkürzel für

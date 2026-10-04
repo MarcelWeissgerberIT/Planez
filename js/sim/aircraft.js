@@ -103,7 +103,7 @@ export function spawnArrival(state, rot, force = false) {
   rot.ac = ac.id;
   rot.status = 'inbound';
   state.acs.push(ac);
-  radio(state, ac.cs, `${AIRPORT.name.split(' ')[0]} ${slow ? 'Information' : 'Approach'}, ${greet(state, ac)}${tel(ac)}, ${slow ? fmtAlt(alt) : 'FL' + Math.round(alt / 100)}${rot.special === 'diversion' ? ', diverting from Nordhafen' : ''}, information ${atis(state)}.`);
+  radio(state, ac.cs, `${AIRPORT.city} ${slow ? 'Information' : 'Approach'}, ${greet(state, ac)}${tel(ac)}, ${slow ? fmtAlt(alt) : 'FL' + Math.round(alt / 100)}${rot.special === 'diversion' ? ', diverting from Nordhafen' : ''}, information ${atis(state)}.`);
   ac.telShort = true;
   if (state.auto.ground || state.settings.standAuto) assignStandAuto(state, ac);
   return ac;

@@ -110,7 +110,7 @@ export const GLOSSARY = [
   E('STD', 'Scheduled Time of Departure', T('Planmäßige Abflugzeit laut Flugplan (Off-Block).'), T('Einheiten & Kennungen')),
   E('ETA', 'Estimated Time of Arrival', T('Voraussichtliche Ankunftszeit.'), T('Einheiten & Kennungen')),
   E('XP', T('Erfahrungspunkte'), T('Für erreichte Ziele und gute Tage. Mehr XP = höherer Flughafen-Rang = mehr Airline-Interesse.'), T('Einheiten & Kennungen')),
-  E(AIRPORT.code, AIRPORT.name, T('IATA-Code dieses Flughafens.'), T('Einheiten & Kennungen')),
+  { ...E(AIRPORT.code, AIRPORT.name, T('IATA-Code dieses Flughafens.'), T('Einheiten & Kennungen')), home: true },
 ];
 
 // Dynamische Einträge: Flugzeugtypen, Airlines, Flughäfen
@@ -308,4 +308,16 @@ export function glossaryHtml(filter = '') {
     h += `</dl>`;
   }
   return h || T('<p class="empty">Kein Eintrag gefunden.</p>');
+}
+
+// Heimatflughafen je Spielstand (fiktive Stadt): Kürzel im Glossar austauschen
+export function setHomeAirport(code, city, name) {
+  const h = GLOSSARY.find((g) => g.home);
+  if (!h || (h.t === code && h.long === name)) return;
+  BY_T.delete(h.t);
+  h.t = code;
+  h.long = name;
+  h.desc = T`Kürzel des Heimatflughafens in ${city} (fiktive Stadt) – steht in Strecken, Flugstreifen und auf der Anzeigetafel.`;
+  BY_T.set(code, h);
+  RE = null;
 }

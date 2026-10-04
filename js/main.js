@@ -9,7 +9,7 @@ import { Radar, seqChips } from './render/radar.js';
 import { newGame, loadGame, saveGame, hasSave, setRole, ROLES } from './state.js';
 import { run, hooks } from './sim/sim.js';
 import { listeners } from './sim/messages.js';
-import { SPEEDS, AC_TYPES, dayMinutes, typeCode } from './config.js';
+import { SPEEDS, AC_TYPES, dayMinutes, typeCode, AIRPORT } from './config.js';
 import { TowerPanel, REQ_DE, fixReadback, guardedCommand } from './ui/tower.js';
 import { boardMeetingHtml } from './ui/board.js';
 import { playIntro } from './ui/intro.js';
@@ -50,13 +50,14 @@ import { dispatch, assignStand, standFits, standFree } from './sim/ground.js';
 import * as EC from './sim/economy.js';
 import { fmtClock, fmtMoney, dayOf, esc, clamp, hourOf } from './util.js';
 import { showWeather } from './ui/weather.js';
+import { makeCity, cityCode, applyCity, DEFAULT_CITY } from './sim/city.js';
 import { WEATHER, forecastInfo } from './sim/events.js';
 import { windShort } from './sim/gusts.js';
 import { PH } from './sim/aircraft.js';
 import * as LY from './layout.js';
 import { seqColor } from './ui/tower.js';
 import { siteGeom } from './render/sites.js';
-import { initGlossary, setGlossaryEnabled, glossify, glossaryHtml } from './ui/glossary.js';
+import { initGlossary, setGlossaryEnabled, glossify, glossaryHtml, setHomeAirport } from './ui/glossary.js';
 import { goalsState, activeGoals, goalProgress, goalText, goalFraction, RANKS, GOAL_DEFS, rankName } from './sim/goals.js';
 import { fuelState } from './sim/fuel.js';
 import { initMainMenu, refreshMainMenu, showPauseMenu, loadPrefs, savePrefs, applyA11y } from './ui/menus.js';
@@ -279,10 +280,17 @@ scenarioListeners.push((s, def, res) => {
   }
 });
 
+// Vorschlag für den Flughafennamen nach der Stadt (Aufbau: „Flugplatz …“, sonst „… International“)
+function autoName(city, grass = (($('#inp-start') || {}).value || 'grass') === 'grass') {
+  return grass ? T`Flugplatz ${city}` : `${city} International`;
+}
+
 function wireMenu() {
   const start = (role, fromNew = true) => {
     unlock();
-    const name = $('#inp-name').value.trim() || 'Planez International';
+    const cityName = ($('#inp-city').value || '').trim().slice(0, 24) || DEFAULT_CITY.name;
+    const city = { name: cityName, code: cityCode(cityName) };
+    const name = $('#inp-name').value.trim() || autoName(cityName);
     const density = Number($('#inp-density').value) || 1;
     const slot = Number(($('#inp-slot') || {}).value) || 1;
     const difficulty = ($('#inp-diff') || {}).value || 'normal';
@@ -290,7 +298,7 @@ function wireMenu() {
     const cash = Number(($('#inp-cash') || {}).value) || 5000000;
     const events = (($('#inp-events') || {}).value || '1') !== '0';
     const career = fromNew && (($('#inp-start') || {}).value || 'grass') === 'grass';
-    const st = applyPrefs(newGame({ role, name, density, slot, difficulty, seasonOffset, cash, events, career }));
+    const st = applyPrefs(newGame({ role, name, city, density, slot, difficulty, seasonOffset, cash, events, career }));
     game.introNext = !loadPrefs().calm; // Kino-Intro für neue Spiele (nicht bei „Bewegung reduzieren“)
     startGame(st);
     try {
@@ -298,11 +306,27 @@ function wireMenu() {
     } catch (e) {}
   };
   document.querySelectorAll('.role-card').forEach((b) => b.addEventListener('click', () => start(b.dataset.role)));
+  // fiktive Heimatstadt: beim Öffnen gewürfelt, per 🎲 neu; der Flughafenname folgt ihr, bis man ihn selbst ändert
+  let nameAuto = true;
+  const cityIn = $('#inp-city');
+  const roll = () => {
+    let c;
+    do c = makeCity();
+    while (c.name === cityIn.value);
+    cityIn.value = c.name;
+  };
+  roll();
+  $('#city-dice').addEventListener('click', () => {
+    roll();
+    syncStart();
+  });
+  cityIn.addEventListener('input', () => syncStart());
+  $('#inp-name').addEventListener('input', () => (nameAuto = false));
   // Aufbau (Grasplatz) oder freies Spiel: Name und Startkapital passend vorbelegen
   const syncStart = () => {
     const grass = ($('#inp-start') || {}).value === 'grass';
     const nm = $('#inp-name');
-    if (nm && (nm.value === 'Planez International' || nm.value === 'Flugplatz Planez' || nm.value === T('Flugplatz Planez'))) nm.value = grass ? T('Flugplatz Planez') : 'Planez International';
+    if (nm && nameAuto) nm.value = autoName(cityIn.value.trim() || DEFAULT_CITY.name, grass);
     const cs = document.querySelector('.mm-cash');
     if (cs) cs.classList.toggle('hidden', grass);
   };
@@ -345,6 +369,8 @@ function startGame(state) {
   if (IS_DEMO && !state.career && !state.scenario && dayOf(state.time) > DEMO.freeDays) state.demoOver = true;
   if (!IS_DEMO) delete state.demoOver; // Vollversion: Demo-Spielstände laufen einfach weiter
   applyStage(state); // Pisten-/Rollweg-Geometrie der Ausbaustufe (Aufbau-Modus) bzw. voller Flughafen
+  applyCity(state); // Heimatstadt: Funk, Tower, Kürzel in Strecken
+  setHomeAirport(AIRPORT.code, AIRPORT.city, state.name);
   soundscape.unlock();
   // 3D-Ansicht im Leerlauf vorladen, damit Turmblick und Mitfliegen sofort starten
   setTimeout(() => (window.requestIdleCallback || ((f) => setTimeout(f, 1)))(() => preload3d().then((m) => game.state && m.preloadBuildings(game.state)).catch(() => {})), 20000);

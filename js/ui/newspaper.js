@@ -1,10 +1,11 @@
-// „Planezer Kurier“: Zeitungsseite im Tagesbericht – Schlagzeile aus dem Tagesgeschehen (Zwischenfälle, Rekorde,
+// Lokalzeitung („Velmarauer Kurier“, nach der Heimatstadt): Zeitungsseite im Tagesbericht – Schlagzeile aus dem Tagesgeschehen (Zwischenfälle, Rekorde,
 // Notlandung, Superjumbo, Ausweichlandungen, Wetter, Pünktlichkeit), Vorspann mit den Zahlen des Tages,
 // Kurzmeldungen aus dem Nachrichtenticker, eine Leserstimme und der Wetterausblick.
 import { newsState } from '../sim/news.js';
 import { forecastInfo } from '../sim/events.js';
 import { fmtMoney, esc } from '../util.js';
 import { AIRLINES, CITIES } from '../config.js';
+import { paperName } from '../sim/city.js';
 import { T, LOCALE } from '../i18n.js';
 
 const DAY = 86400;
@@ -37,7 +38,7 @@ export function newspaperHtml(state, rec) {
   const shorts = items.filter((i) => i !== used && !seen.has(i.icon) && seen.add(i.icon)).slice(0, 3); // je Thema eine Meldung
   const q = N.quotes.find((x) => x.t >= dayStart - 600);
   const fc = forecastInfo(state);
-  return T`<div class="paper ${tone}"><div class="pp-mast"><span>Ausgabe Tag ${rec.day + 1}</span><b>Planezer Kurier</b><span>2,50 €</span></div>
+  return T`<div class="paper ${tone}"><div class="pp-mast"><span>Ausgabe Tag ${rec.day + 1}</span><b>${esc(paperName(state))}</b><span>2,50 €</span></div>
     <div class="pp-grid"><div class="pp-main"><small>${esc(kick)}</small><h3>${esc(head)}</h3><p>${esc(lead)}</p></div>
     <div class="pp-side">${shorts.map((i) => `<div>${i.icon} ${esc(i.text)}</div>`).join('') || T('<div>Keine besonderen Vorkommnisse.</div>')}
     ${q ? `<div class="pp-q">„${esc(q.text)}“<i>– ${esc(q.who)}</i></div>` : ''}

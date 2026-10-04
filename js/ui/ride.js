@@ -3,7 +3,7 @@
 // Tragfläche und Boden, Anschnallzeichen, Kapitänsdurchsage) oder im Cockpit (Kamera schaut voraus, Instrumente
 // mit Geschwindigkeit, Höhe, Kurs, Steig-/Sinkrate und Höhenansagen im Endanflug). Die Kamera fährt mit, bis das
 // Flugzeug an der Position steht oder die Karte verlässt. Esc oder ✕ beendet. Nur Darstellung.
-import { AC_TYPES, AIRLINES, CITIES, typeCode, typeName } from '../config.js';
+import { AC_TYPES, AIRLINES, CITIES, AIRPORT, typeCode, typeName } from '../config.js';
 import { PH, PHASE_DE, takeoffPerf } from '../sim/aircraft.js';
 import { clamp, esc } from '../util.js';
 import { voice } from '../voice.js';
@@ -254,7 +254,7 @@ export class Ride {
     const dep = !ARR_PH.has(ac.phase);
     this.arriving = !dep;
     if (mode === 'window' && s.settings.tts && voice.on && voice.announce) {
-      voice.announce(dep ? T`Meine Damen und Herren, hier spricht Ihr Kapitän. Willkommen an Bord von ${al ? al.name : ''}${city ? T` nach ${city}` : ''}. Bitte schnallen Sie sich an, wir starten in Kürze.` : T`Meine Damen und Herren, wir befinden uns im Landeanflug auf Planez. Bitte bleiben Sie angeschnallt, bis wir die Parkposition erreicht haben.`);
+      voice.announce(dep ? T`Meine Damen und Herren, hier spricht Ihr Kapitän. Willkommen an Bord von ${al ? al.name : ''}${city ? T` nach ${city}` : ''}. Bitte schnallen Sie sich an, wir starten in Kürze.` : T`Meine Damen und Herren, wir befinden uns im Landeanflug auf ${AIRPORT.city}. Bitte bleiben Sie angeschnallt, bis wir die Parkposition erreicht haben.`);
     }
   }
 

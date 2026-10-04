@@ -150,11 +150,13 @@ export function cmdButtons(state, ac, compact = false, showSpd = true) {
   return h;
 }
 
-export function acRoute(state, ac) {
+// Strecke: kurz mit dem Kürzel des Heimatflughafens (Streifen), lang mit dem Stadtnamen (Info-Karte)
+export function acRoute(state, ac, long = false) {
   const rot = state.rots[ac.rot];
   if (!rot) return '';
   const city = CITIES[rot.city]?.name || rot.city;
-  return ac.arr && ac.phase !== PH.STAND && !['PUSHBACK', 'STARTUP', 'TAXI_OUT', 'HOLDING', 'LINEUP', 'LINED_UP', 'TAKEOFF', 'DEPARTURE'].includes(ac.phase) ? `${city} → ${AIRPORT.code}` : `${AIRPORT.code} → ${city}`;
+  const home = long ? AIRPORT.city : AIRPORT.code;
+  return ac.arr && ac.phase !== PH.STAND && !['PUSHBACK', 'STARTUP', 'TAXI_OUT', 'HOLDING', 'LINEUP', 'LINED_UP', 'TAKEOFF', 'DEPARTURE'].includes(ac.phase) ? `${city} → ${home}` : `${home} → ${city}`;
 }
 
 // Hauptbefehl je Anfrage (für die kleinen Karten)

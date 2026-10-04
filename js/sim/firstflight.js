@@ -2,7 +2,7 @@
 // der Flughafenfeuerwehr stellen sich beidseits des Rollwegs auf und schießen einen Wasserbogen, durch den das
 // Flugzeug zur Position rollt. Bringt etwas Ansehen, eine Schlagzeile im Kurier und Jubel im Livestream.
 import { PH, tel } from './aircraft.js';
-import { AIRLINES, CITIES } from '../config.js';
+import { AIRLINES, CITIES, AIRPORT } from '../config.js';
 import { radio, log, notify } from './messages.js';
 import { clamp } from '../util.js';
 import { pushNews } from './news.js';
@@ -49,7 +49,7 @@ export function updateFirstFlight(state) {
         if (c) c.firstFlight = false;
         state.saluteLast = { airline: S.airline, city: S.city };
         const city = CITIES[S.city] ? CITIES[S.city].name : '…';
-        radio(state, 'TWR', T`${tel(ac)}, welcome to Planez on your first flight from ${city}, the fire brigade has a little surprise for you on the way in.`, 'atc');
+        radio(state, 'TWR', T`${tel(ac)}, welcome to ${AIRPORT.city} on your first flight from ${city}, the fire brigade has a little surprise for you on the way in.`, 'atc');
         radio(state, ac.cs, `Thank you very much, we'll enjoy it, ${tel(ac)}.`, 'pilot');
         notify(state, T`💦 Erstflug: ${AIRLINES[S.airline].name} aus ${city} – die Feuerwehr gibt die Wassertaufe`, 'good');
         S.off = Math.max(1.7, ac.len * 0.6 + 0.4);

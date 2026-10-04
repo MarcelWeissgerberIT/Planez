@@ -30,6 +30,7 @@ export function newGame(opts = {}) {
     version: 1,
     seed: opts.seed ?? (Date.now() & 0x7fffffff),
     name: (opts.name || AIRPORT.name).slice(0, 40),
+    city: opts.city || undefined, // Heimatstadt (sim/city.js); fehlt sie, gilt Planez
     role,
     time: (opts.hour ?? 6) * 3600,
     slot: opts.slot || 1,
