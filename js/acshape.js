@@ -78,3 +78,7 @@ export function stairsGeom(top) {
 export function stairsOffset(ac) {
   return fuselage(ac.type, ac.len).rz + stairsGeom(stairsTop(ac)).reach + 0.004;
 }
+
+// Rettungs-/Polizeihubschrauber (render/model3d.js buildHeli): Rotormast (Abstand vor der Mitte, Höhe über dem
+// Modellursprung), Rotorradius und Höhe des Ursprungs über den Kufen – Karte und 3D-Modell gemeinsam
+export const HELI_DIM = { mastX: 0.005, mastY: 0.132, rotorR: 0.255, H: 0.067 };

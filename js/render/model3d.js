@@ -7,7 +7,7 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { AC_TYPES, AIRLINES } from '../config.js';
 import { SPECIALS } from '../sim/spotter.js';
-import { SHAPE, SHAPE_OF, R_OF } from '../acshape.js';
+import { SHAPE, SHAPE_OF, R_OF, HELI_DIM } from '../acshape.js';
 import { glassEnv, glassMat, reflective, setReflNight } from './glassenv.js';
 
 const DEG = Math.PI / 180;
@@ -856,51 +856,180 @@ export function buildCessna() {
   return g;
 }
 
-export function buildHeli() {
-  const g = new THREE.Group();
-  const L = 0.6, R = 0.07;
-  const body = [], dark = [], glass = [];
-  body.push([tube([[-L * 0.12, R * 0.3, R * 0.55, R * 0.45], [L * 0.05, R * 0.1, R, R * 0.8], [L * 0.22, 0, R, R * 0.8], [L * 0.32, -R * 0.15, R * 0.7, R * 0.6], [L * 0.37, -R * 0.2, 0.001, 0.001]], 14), M4()]);
-  // Heckausleger und Seitenleitwerk
-  body.push([tube([[-L * 0.62, R * 0.6, R * 0.12, R * 0.12], [-L * 0.12, R * 0.35, R * 0.28, R * 0.24]], 10), M4()]);
-  body.push([slab([[-L * 0.55, R * 0.6, 0], [-L * 0.62, R * 1.8, 0], [-L * 0.68, R * 1.8, 0], [-L * 0.64, R * 0.6, 0]], 0.01, 0.006, 'z'), M4()]);
-  glass.push([tube([[L * 0.18, R * 0.35, R * 0.62, R * 0.78], [L * 0.33, R * 0.05, R * 0.5, R * 0.62]], 12), M4()]);
-  // Kufen
-  for (const s of [-1, 1]) {
-    dark.push([new THREE.CylinderGeometry(0.006, 0.006, L * 0.6, 6), M4(L * 0.05, -R * 1.3, s * R * 0.9, 0, 0, Math.PI / 2)]);
-    for (const x of [-L * 0.05, L * 0.18]) dark.push([new THREE.CylinderGeometry(0.004, 0.004, R * 0.6, 4), M4(x, -R * 1.0, s * R * 0.85)]);
+// Teil-Röhre: nur der Winkelbereich a0..a1 jedes Rings (0 = oben, π/2 = rechts), z. B. für Scheiben oder Zierstreifen
+function ptube(rings, a0, a1, seg = 16, k = 1) {
+  const pos = [], idx = [];
+  for (const [x, yc, ry, rz] of rings)
+    for (let j = 0; j <= seg; j++) {
+      const a = a0 + ((a1 - a0) * j) / seg;
+      pos.push(x, yc + Math.cos(a) * ry * k, Math.sin(a) * rz * k);
+    }
+  for (let i = 0; i < rings.length - 1; i++)
+    for (let j = 0; j < seg; j++) {
+      const p = i * (seg + 1) + j, q = p + seg + 1;
+      idx.push(p, p + 1, q, p + 1, q + 1, q);
+    }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+// Schriftzug als Textur (Heckausleger der Hubschrauber); spiegeln = für die linke Seite
+const HELI_TXT = {};
+function heliText(mirror, text, col) {
+  const k = `${text}|${col}|${mirror}`;
+  if (HELI_TXT[k]) return HELI_TXT[k];
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 48;
+  const g = c.getContext('2d');
+  if (mirror) {
+    g.translate(512, 0);
+    g.scale(-1, 1);
   }
+  g.fillStyle = col;
+  g.font = '900 38px Arial, Helvetica, sans-serif';
+  g.textBaseline = 'middle';
+  g.fillText(text, 6, 26);
+  const w = g.measureText(text).width;
+  if (w < 440) g.fillRect(w + 24, 18, 480 - w - 24, 14);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return (HELI_TXT[k] = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+}
+
+// Rettungshubschrauber (moderner leichter Zweimotoriger wie im Luftrettungsdienst): rundliche Kabine mit großer
+// Glaskanzel und Kinnfenstern, Triebwerks- und Getriebeverkleidung auf dem Dach, Vierblatt-Hauptrotor, schlanker
+// Heckausleger mit Höhenleitwerk und Endscheiben, ummantelter Heckrotor im Seitenleitwerk, Kufen mit Querrohren.
+// Lackierung: Luftrettung gelb mit dunklem Bauchstreifen, Polizei silberweiß mit blauem Bauch. Teile 'rotor' (Hauptrotor
+// mit Unschärfe-Scheibe 'disc'), 'tail' (Heckrotor-Lüfter, dreht um z) und 'bcn' (Blitzlicht) bewegt die 3D-Ansicht; die
+// Karte zeichnet den Hauptrotor selbst.
+const HELI_LIVERY = {
+  rescue: { body: 0xf3c316, belly: 0x2a2e35, text: 'LUFTRETTUNG', ink: '#16181c' },
+  police: { body: 0xe8ecf1, belly: 0x1d3f8a, text: 'POLIZEI', ink: '#1d3f8a' },
+};
+export function buildHeli(kind = 'rescue') {
+  const LV = HELI_LIVERY[kind] || HELI_LIVERY.rescue;
+  const g = new THREE.Group();
+  const yellow = [], dark = [], belly = [], glass = [], inner = [], metal = [], heads = [], tint = [];
+  // Kabine: [x, Mitte y, Halbhöhe, Halbbreite]
+  const cab = [
+    [0.215, 0.002, 0.001, 0.001],
+    [0.207, 0.005, 0.02, 0.019],
+    [0.19, 0.01, 0.038, 0.033],
+    [0.16, 0.016, 0.052, 0.04],
+    [0.12, 0.019, 0.059, 0.043],
+    [0.06, 0.021, 0.062, 0.044],
+    [0.0, 0.022, 0.062, 0.044],
+    [-0.05, 0.024, 0.058, 0.042],
+    [-0.095, 0.03, 0.047, 0.036],
+    [-0.125, 0.038, 0.031, 0.025],
+    [-0.138, 0.043, 0.019, 0.017],
+  ];
+  const front = cab.slice(0, 5), rear = cab.slice(4);
+  // vorn: dunkler Innenraum unter der Glaskanzel, unten gelbe Nase (Avionikfach) mit Kinnfenstern
+  inner.push([tube(front.map(([x, y, ry, rz]) => [x, y, ry * 0.97, rz * 0.97]), 18), M4()]);
+  glass.push([ptube(front, -1.95, 1.95, 22, 1.012), M4()]);
+  yellow.push([ptube(front, 2.25, 2 * Math.PI - 2.25, 10, 1.006), M4()]);
+  for (const sd of [-1, 1]) glass.push([ptube(front.slice(1, 4), sd * 1.95, sd * 2.25, 3, 1.012), M4()]); // Kinnfenster
+  yellow.push([tube(rear, 22), M4()]);
+  // dunkler Bauchstreifen über die ganze Kabine
+  belly.push([ptube(cab.slice(2), 2.2, 2 * Math.PI - 2.2, 12, 1.01), M4()]);
+  // Schiebetür- und Seitenfenster (dunkler Grund, Glas davor)
+  const win = [[0.105, 0.024, 0.059, 0.043], [0.06, 0.025, 0.062, 0.044], [0.035, 0.025, 0.062, 0.044]];
+  const win2 = [[0.0, 0.026, 0.062, 0.044], [-0.04, 0.027, 0.058, 0.042], [-0.062, 0.028, 0.055, 0.041]];
+  for (const sd of [-1, 1]) for (const w of [win, win2]) tint.push([ptube(w, sd * 0.55, sd * 1.45, 4, 1.01), M4()]);
+  // Piloten mit Helm hinter der Kanzel
+  for (const z of [-0.017, 0.017]) heads.push([new THREE.SphereGeometry(0.0095, 10, 8), M4(0.118, 0.05, z)]);
+  // Triebwerks- und Getriebeverkleidung, Rotormast
+  yellow.push([tube([[0.09, 0.07, 0.003, 0.012], [0.065, 0.08, 0.02, 0.03], [0.0, 0.088, 0.028, 0.034], [-0.07, 0.086, 0.024, 0.03], [-0.115, 0.074, 0.012, 0.018], [-0.13, 0.068, 0.002, 0.006]], 18), M4()]);
+  for (const sd of [-1, 1]) dark.push([new THREE.BoxGeometry(0.022, 0.007, 0.002), M4(-0.055, 0.092, sd * 0.031)]); // Lufteinlässe
+  dark.push([new THREE.BoxGeometry(0.018, 0.008, 0.024), M4(-0.11, 0.088, 0)]); // Abgasöffnungen
+  metal.push([new THREE.CylinderGeometry(0.006, 0.008, 0.02, 10), M4(HELI_DIM.mastX, 0.12, 0)]);
+  // Heckausleger, Höhenleitwerk mit Endscheiben
+  yellow.push([tube([[-0.13, 0.05, 0.021, 0.019], [-0.22, 0.057, 0.015, 0.014], [-0.32, 0.064, 0.011, 0.011], [-0.405, 0.07, 0.009, 0.009]], 14), M4()]);
+  yellow.push([slab([[-0.312, 0.064, 0], [-0.318, 0.064, 0.056], [-0.345, 0.064, 0.056], [-0.345, 0.064, 0]], 0.004, 0.003), M4()]);
+  yellow.push([slab([[-0.312, 0.064, 0], [-0.318, 0.064, -0.056], [-0.345, 0.064, -0.056], [-0.345, 0.064, 0]], 0.004, 0.003), M4()]);
+  for (const sd of [-1, 1]) yellow.push([slab([[-0.322, 0.054, sd * 0.057], [-0.328, 0.076, sd * 0.057], [-0.346, 0.076, sd * 0.057], [-0.346, 0.054, sd * 0.057]], 0.003, 0.003, 'z'), M4()]);
+  // ummantelter Heckrotor: Gehäuse (Scheibe quer), dunkler Kanal, darüber das Seitenleitwerk, darunter der Sporn
+  const fx = -0.432, fy = 0.078;
+  yellow.push([new THREE.CylinderGeometry(0.038, 0.038, 0.014, 24), M4(fx, fy, 0, Math.PI / 2)]);
+  for (const sd of [-1, 1]) dark.push([new THREE.CircleGeometry(0.026, 22), M4(fx, fy, sd * 0.0072, 0, sd > 0 ? 0 : Math.PI)]);
+  yellow.push([new THREE.TorusGeometry(0.0265, 0.004, 6, 22), M4(fx, fy, 0)]);
+  yellow.push([slab([[-0.41, 0.105, 0], [-0.448, 0.165, 0], [-0.474, 0.165, 0], [-0.47, 0.1, 0]], 0.009, 0.006, 'z'), M4()]);
+  dark.push([slab([[-0.446, 0.158, 0], [-0.448, 0.166, 0], [-0.474, 0.166, 0], [-0.473, 0.158, 0]], 0.0095, 0.007, 'z'), M4()]);
+  yellow.push([slab([[-0.415, 0.05, 0], [-0.44, 0.035, 0], [-0.455, 0.035, 0], [-0.452, 0.05, 0]], 0.006, 0.004, 'z'), M4()]);
+  // Kufen mit Querrohren (Bügel unter der Kabine)
+  const sy = -0.064, sz = 0.05;
+  for (const sd of [-1, 1]) {
+    metal.push([new THREE.CylinderGeometry(0.0035, 0.0035, 0.235, 8), M4(0.015, sy, sd * sz, 0, 0, Math.PI / 2)]);
+    metal.push([new THREE.CylinderGeometry(0.0035, 0.0035, 0.032, 8), M4(0.146, sy + 0.009, sd * sz, 0, 0, 0.62 - Math.PI / 2)]); // vorn hochgebogen
+    for (const x of [0.085, -0.055]) {
+      const dy = -0.036 - sy, dz = 0.028 - sz; // vom Kufenrohr schräg nach innen oben zum Rumpf
+      metal.push([new THREE.CylinderGeometry(0.003, 0.003, Math.hypot(dy, dz), 6), M4(x, sy + dy / 2, sd * (sz + dz / 2), sd * Math.atan2(dz, dy), 0, 0)]);
+    }
+  }
+  for (const x of [0.085, -0.055]) metal.push([new THREE.CylinderGeometry(0.003, 0.003, 0.058, 6), M4(x, -0.036, 0, Math.PI / 2)]);
+  // Suchscheinwerfer unter der Nase, Antennen
+  metal.push([new THREE.CylinderGeometry(0.006, 0.007, 0.01, 10), M4(0.16, -0.04, 0.016, 0.4)]);
+  dark.push([new THREE.BoxGeometry(0.012, 0.012, 0.0015), M4(-0.02, -0.044, 0)]);
   const add = (arr, m) => {
+    if (!arr.length) return;
     const mesh = new THREE.Mesh(merge(arr), m);
     mesh.castShadow = true;
     g.add(mesh);
   };
-  add(body, phong(0xe11d48, 50));
-  add(dark, lamb(0x1f2937));
+  add(yellow, phong(LV.body, 70));
+  add(belly, phong(LV.belly, 30));
+  add(dark, lamb(0x1b1e23));
+  add(inner, lamb(0x15171b));
+  add(metal, phong(0x8a9099, 50));
+  add(heads, phong(0xe8e9ec, 60));
+  add(tint, phong(0x27303c, 90));
   add(glass, glassMat(true));
-  // Hauptrotor (zwei Blätter + Unschärfe-Scheibe) und Heckrotor
+  // Schriftzug auf dem Heckausleger (beide Seiten lesbar)
+  for (const sd of [-1, 1]) {
+    const d = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.014), heliText(sd < 0, LV.text, LV.ink));
+    d.position.set(-0.23, 0.058, sd * 0.0158);
+    g.add(d);
+  }
+  // Hauptrotor: Nabe, vier schlanke Blätter, Unschärfe-Scheibe
   const rot = new THREE.Group();
   rot.name = 'rotor';
-  rot.position.set(L * 0.05, R * 1.25, 0);
+  rot.position.set(HELI_DIM.mastX, HELI_DIM.mastY, 0);
+  rot.add(new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.011, 0.009, 12), phong(0x3a3f47, 30)));
+  const R = HELI_DIM.rotorR;
   for (let i = 0; i < 4; i++) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(L * 0.95, 0.003, 0.025), phong(0x1f2937, 10));
-    m.rotation.y = (i / 4) * Math.PI;
-    rot.add(m);
+    const bl = new THREE.Mesh(new THREE.BoxGeometry(R - 0.012, 0.0022, 0.012), phong(0x2b2f36, 20));
+    bl.position.set(Math.cos((i * Math.PI) / 2) * (R / 2 + 0.006), 0.001, -Math.sin((i * Math.PI) / 2) * (R / 2 + 0.006));
+    bl.rotation.y = (i * Math.PI) / 2;
+    rot.add(bl);
   }
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(L * 0.48, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }));
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(R, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3a4250, transparent: true, opacity: 0.13, depthWrite: false, side: THREE.DoubleSide }));
+  disc.name = 'disc';
   rot.add(disc);
   g.add(rot);
+  // Heckrotor-Lüfter im Kanal (zehn Blätter)
   const tr = new THREE.Group();
   tr.name = 'tail';
-  tr.position.set(-L * 0.64, R * 1.5, R * 0.12);
-  tr.add(new THREE.Mesh(new THREE.BoxGeometry(0.004, L * 0.18, 0.012), phong(0x1f2937, 10)));
+  tr.position.set(fx, fy, 0);
+  for (let i = 0; i < 10; i++) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.0035, 0.022, 0.002), phong(0x9aa1ab, 30));
+    const a = (i / 10) * Math.PI * 2;
+    b.position.set(Math.sin(a) * 0.012, Math.cos(a) * 0.012, 0);
+    b.rotation.z = -a;
+    tr.add(b);
+  }
   g.add(tr);
   const bc = new THREE.Sprite(spriteMat(0xff3020));
   bc.name = 'bcn';
-  bc.position.set(0, R * 1.05, 0);
-  bc.scale.setScalar(0.18);
+  bc.position.set(-0.462, 0.172, 0);
+  bc.scale.setScalar(0.12);
   g.add(bc);
-  g.userData = { H: R * 1.3 + 0.006, L, R, ry: R, eye: { cockpitX: L * 0.22, cockpitY: R * 0.45, winX: L * 0.12, winY: R * 0.4, winZ: R * 0.85 } };
+  g.userData = { H: HELI_DIM.H, L: 0.6, R: 0.044, ry: 0.06, eye: { cockpitX: 0.13, cockpitY: 0.052, winX: 0.0, winY: 0.042, winZ: 0.047 } };
   return g;
 }
 

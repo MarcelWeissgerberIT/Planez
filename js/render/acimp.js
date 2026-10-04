@@ -4,7 +4,8 @@
 // sich etwas sichtbar ändert (Kurs, Fahrwerk, Klappen, bewegliche Teile, Zoom) – sonst kommt das Bild aus dem Speicher.
 // Projektion: Blickhöhe 30° von Südost ergibt das 2:1-Raster, Höhen werden wie auf der Karte (32 px je Kachel) gestaucht.
 import * as THREE from '../vendor/three.module.min.js';
-import { buildAircraft } from './model3d.js';
+import { buildAircraft, buildHeli } from './model3d.js';
+import { buildHeliBase, HB_CENTER } from './helibase3d.js';
 import { buildVehicle, poseVehicle, carGeos } from './vehicles3d.js';
 import { PH } from '../sim/aircraft.js';
 
@@ -213,6 +214,44 @@ export function prepare(r, state, acs, vehs = [], dt = 0) {
     for (const [id, c] of cache) if (frame - c.seen > 240) cache.delete(id);
     for (const [id, m] of models) if (!cache.has(id)) (world.remove(m.g), models.delete(id));
   }
+}
+
+// Hubschrauber (Rettung, Polizei): ein Bild je Kurs und Längsneigung, ohne Hauptrotor (den zeichnet die Karte mit
+// Bewegungsunschärfe darüber). z = Höhe über Grund. false = (noch) kein Bild
+export function drawHeli(r, id, kind, x, y, z, hdg, pitch = 0) {
+  if (!ready()) return false;
+  const K = K1 * r.cam.zoom * (r.cam.dpr || 1);
+  const m = modelFor(id, `heli|${kind}`, () => {
+    const g = buildHeli(kind);
+    g.getObjectByName('rotor').visible = false;
+    return g;
+  });
+  const key = `${K.toFixed(2)}|${Math.round(hdg * 120)}|${Math.round(pitch * 50)}`;
+  let c = cache.get(id);
+  if (!c || c.key !== key) {
+    m.g.position.set(x, m.H, y);
+    m.g.rotation.set(0, -hdg, pitch, 'YXZ');
+    render(id, m, key, K, x, m.H, y, 0);
+    c = cache.get(id);
+  }
+  c.seen = frame;
+  return draw(r, id, x, y, z);
+}
+
+// Luftrettungsstation (Hangar, Stationsgebäude, Tank): ein Bild je Zoomstufe
+export function drawHeliBase(r) {
+  if (!ready()) return false;
+  const K = K1 * r.cam.zoom * (r.cam.dpr || 1);
+  const m = modelFor('heliBase', 'heliBase', buildHeliBase);
+  const key = K.toFixed(2);
+  let c = cache.get('heliBase');
+  if (!c || c.key !== key) {
+    m.g.position.set(HB_CENTER.x, 0, HB_CENTER.y);
+    render('heliBase', m, key, K, HB_CENTER.x, m.hgt / 2, HB_CENTER.y, 0);
+    c = cache.get('heliBase');
+  }
+  c.seen = frame;
+  return draw(r, 'heliBase', HB_CENTER.x, HB_CENTER.y, 0);
 }
 
 // gibt es für dieses Bild ein fertiges Bild?

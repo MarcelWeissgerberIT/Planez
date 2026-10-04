@@ -14,6 +14,8 @@ import { NM_PER_TILE } from '../config.js';
 import { Q } from './quality.js';
 import { soundscape } from '../soundscape.js';
 import { buildAircraft, buildCessna, buildHeli, glowTex, spriteMat, setNight } from './model3d.js';
+import { buildHeliBase, buildHeliBaseGround, HB_CENTER } from './helibase3d.js';
+import { heliOnMap } from '../sim/heli.js';
 import { buildVehicle, vehParts, poseVehicle, carInstances } from './vehicles3d.js';
 import { followMeCars } from './followme.js';
 import { beltLoaders } from './beltloader.js';
@@ -598,6 +600,12 @@ export class View3D {
       pool.rotation.x = -Math.PI / 2;
       pool.position.set(x, 0.02, y - 3.4);
       this.static.add(pool);
+    }
+    // Luftrettungsstation neben der Feuerwache: Boden mit Landeplatz, Hangar, Stationsgebäude, Tank
+    if (LY.heliBaseOn()) {
+      const hb = buildHeliBase();
+      hb.position.set(HB_CENTER.x, 0, HB_CENTER.y);
+      this.static.add(hb, buildHeliBaseGround());
     }
     // übrige Gebäude
     const H = { hall: 1.4, hangar: 1.4, cargo: 0.9, depot: 0.6, fire: 0.55, fuel: 0.5, parking: 0.8, hotel: 2.2, radar: 0.2 };
@@ -1214,7 +1222,7 @@ export class View3D {
       c.getObjectByName('prop').rotation.x += dt * 45;
       c.getObjectByName('strobe').visible = Math.floor(now * 1.1) % 2 === 0 && (now % 1) < 0.08;
     } else if (this.cessna) this.cessna.visible = false;
-    const h = state.heli && state.heli.h;
+    const h = heliOnMap(state); // im Flug oder auf der Station abgestellt
     if (h) {
       if (!this.heli) this.scene.add((this.heli = buildHeli()));
       const c = this.heli;
@@ -1224,9 +1232,11 @@ export class View3D {
       const bank = this.gaBank('heli', h.hdg || 0, dt, y > 0.05);
       c.rotation.set(-bank * 0.6, -(h.hdg || 0), y > 0.05 ? -0.08 : 0, 'YXZ');
       c.visible = !(this.gaRide === 'heli' && this.gaMode === 'cockpit');
-      c.getObjectByName('rotor').rotation.y += dt * 30;
-      c.getObjectByName('tail').rotation.z += dt * 50;
-      c.getObjectByName('bcn').visible = Math.floor(now * 1.4) % 2 === 0;
+      const rpm = h.rpm ?? 1;
+      c.getObjectByName('rotor').rotation.y += dt * 30 * rpm;
+      c.getObjectByName('disc').visible = rpm > 0.6;
+      c.getObjectByName('tail').rotation.z += dt * 50 * rpm;
+      c.getObjectByName('bcn').visible = rpm > 0.05 && Math.floor(now * 1.4) % 2 === 0;
     } else if (this.heli) this.heli.visible = false;
     void lightsOn;
   }

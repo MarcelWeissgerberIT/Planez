@@ -181,7 +181,7 @@ export function initPTT(game) {
       show(`${name}: ${ok ? T('nichts freizugeben') : T('wartet bereits')}`, 'info');
       return hide(2200);
     }
-    const label = { heli: ok ? T('Querung frei') : T('warten südlich'), vfr: ok ? T('Touch and Go frei') : T('Gegenanflug verlängern'), insp: ok ? T('Bahn frei zur Kontrolle') : T('vor der Bahn warten') }[sd.side];
+    const label = { heli: ok ? T('Querung frei') : s.heli && s.heli.h && s.heli.h.dir > 0 ? T('warten nördlich') : T('warten südlich'), vfr: ok ? T('Touch and Go frei') : T('Gegenanflug verlängern'), insp: ok ? T('Bahn frei zur Kontrolle') : T('vor der Bahn warten') }[sd.side];
     if (r.bad) show(T`⚠ ${name} · ${label} – Konflikt mit dem Linienverkehr!`, 'bad');
     else show(`✓ ${name} · ${label}${r.soft ? T` – knapp, ${r.soft.ac.cs} ist ${r.soft.why}` : ''}`, 'ok');
     s.life = s.life || {};

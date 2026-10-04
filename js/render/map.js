@@ -7,13 +7,15 @@ import { Ambient, drawPerson } from './ambient.js';
 import { gaLifeItems } from './galife.js';
 import { busPaxItems } from './buspax.js';
 import { carPaint, carKind, hash01, POLICE_BLUE } from './cars.js';
-import { stairsTop as doorTop } from '../acshape.js';
+import { stairsTop as doorTop, HELI_DIM } from '../acshape.js';
 import { vehVsAc, vehOrder, acParts, personBox } from './occlude.js';
 import { beltLoaders } from './beltloader.js';
 import { jetBridges } from './jetbridge.js';
 import { drawApronBus, drawStairsTruck, boxShadow, stairsSize } from './gse2d.js';
 import { drawRailGround, infraItems, treeBlocked } from './infra.js';
 import { Polish } from './polish.js';
+import { paintHeliBase, heliBaseLights } from './helibase.js';
+import { heliOnMap } from '../sim/heli.js';
 import { drawSnowCover, drawRunwaySnow, plowItems, deiceFx, drawSnowfall, snowySprite } from './snow.js';
 import { updateWetness, drawWetGround, drawWetReflections } from './wet.js';
 import { Wildlife } from './wildlife.js';
@@ -356,7 +358,7 @@ export class MapRenderer {
     drawWetGround(this);
 
     // Wolkenschatten
-    if (state.weather.kind !== 'clear' && state.weather.kind !== 'fog') this.cloudShadows(ctx, state);
+    if (state.weather.kind !== 'clear' && state.weather.kind !== 'fog') this.polish.drawCloudShadows(this, state);
     if (ui && ui.noise) this.drawNoise(ctx, state);
 
     // Baustellen (Boden)
@@ -373,6 +375,7 @@ export class MapRenderer {
     this.siteLights = [];
     for (const s of sites) drawSiteGround(this, state, s.p, s.g);
     this.drawRunwayWorkGround(state);
+    this.polish.drawMarks(this);
 
     // Objekte sammeln
     const items = [];
@@ -456,6 +459,7 @@ export class MapRenderer {
       items.push({ d: vehDepth(c, parked), f: () => this.drawAmbientCar(car, { x: c.x, y: c.y, h: c.hdg, moving: c.st === 'drive' }, night, lights) });
     }
     items.push({ d: 66 + 35.6, f: () => this.drawWindsock(state) });
+    if (LY.heliBaseOn() && inView(view, 43.2, 45.8, 3)) this.heliBaseItems(state, items, lights, night);
     this.runwayWorkItems(state, items, lights);
     this.followMeItems(state, items, lights);
     this.stateVisitItems(state, items, lights, night);
@@ -474,7 +478,8 @@ export class MapRenderer {
     for (const it of items) it.f();
     this.drawFireSpray(state);
     if (sal && sal.spray) this.drawSalute(sal);
-    if (state.heli && state.heli.h) this.drawHeli(state.heli.h, lights);
+    const heli = heliOnMap(state);
+    if (heli) this.drawHeli({ ...heli, pitch: HELI_PITCH[heli.st] ?? 0 }, lights);
     if (state.vfr && state.vfr.p) this.drawCessna(state.vfr.p, lights);
     flying.sort((a, b) => a.x + a.y - (b.x + b.y));
     for (const ac of flying) this.drawAircraft(state, ac, lights, night, ui);
@@ -1244,10 +1249,31 @@ export class MapRenderer {
     }
   }
 
-  drawWindsock(state) {
+  // Luftrettungsstation: Gebäude als 3D-Bild (sonst einfache Quader), Windsack, Autos der Crew, Landeplatzbefeuerung
+  heliBaseItems(state, items, lights, night) {
+    const B = LY.HELIBASE;
+    items.push({
+      d: 88.6,
+      f: () => {
+        if (IMP && !Q.perf && IMP.drawHeliBase(this)) return;
+        const { ctx, cam } = this;
+        const rp = (r) => [{ x: r.x0, y: r.y0 }, { x: r.x1, y: r.y0 }, { x: r.x1, y: r.y1 }, { x: r.x0, y: r.y1 }];
+        prism(ctx, cam, rp(B.station), 0, B.station.h, [236, 238, 240], [200, 204, 208], [170, 174, 180]);
+        prism(ctx, cam, rp(B.hangar), 0, B.hangar.h, [150, 158, 168], [208, 214, 220], [178, 184, 192]);
+      },
+    });
+    items.push({ d: B.sock.x + B.sock.y, f: () => this.drawWindsock(state, B.sock.x, B.sock.y, 0) });
+    B.cars.forEach((c, i) => {
+      const car = i ? { kind: 'car', col: '#1e3a5f', body: 'estate' } : { kind: 'ambulance', col: '#f8fafc' };
+      items.push({ d: c.x + c.y, f: () => this.drawAmbientCar(car, { x: c.x, y: c.y, h: c.hdg }, night, lights) });
+    });
+    heliBaseLights(lights);
+  }
+
+  drawWindsock(state, x = 66, y = 35.4, dy = 0.2) {
     const ctx = this.ctx, cam = this.cam;
     cam.setScreen(ctx);
-    const base = cam.toScreen(66, 35.4, 0), top = cam.toScreen(66, 35.4, 0.5);
+    const base = cam.toScreen(x, y, 0), top = cam.toScreen(x, y, 0.5);
     ctx.strokeStyle = '#d9d9d9';
     ctx.lineWidth = Math.max(1, 1.6 * cam.zoom);
     ctx.beginPath();
@@ -1260,8 +1286,8 @@ export class MapRenderer {
     const segs = 4;
     for (let i = 0; i < segs; i++) {
       const a = i / segs, b = (i + 1) / segs;
-      const p0 = cam.toScreen(66 + Math.cos(to) * L * a, 35.6 + Math.sin(to) * L * a, 0.5 - droop * a);
-      const p1 = cam.toScreen(66 + Math.cos(to) * L * b, 35.6 + Math.sin(to) * L * b, 0.5 - droop * b);
+      const p0 = cam.toScreen(x + Math.cos(to) * L * a, y + dy + Math.sin(to) * L * a, 0.5 - droop * a);
+      const p1 = cam.toScreen(x + Math.cos(to) * L * b, y + dy + Math.sin(to) * L * b, 0.5 - droop * b);
       ctx.strokeStyle = i % 2 ? '#f5f5f5' : '#ff6a00';
       ctx.lineWidth = Math.max(1, (4.5 - i * 0.8) * cam.zoom);
       ctx.beginPath();
@@ -1984,8 +2010,104 @@ export class MapRenderer {
     if ((this.time * 1.1) % 1 < 0.1) lights.push({ x: c.x, y: c.y, z: c.z + 0.1, c: '#ffffff', s: 10, a: 0.9, day: true });
   }
 
-  // Rettungshubschrauber: Schatten, Rumpf mit Kanzel, Heckausleger, Kufen, Rotorkreis mit Blättern, Blitzlicht
-  drawHeli(h, lights) {
+  // Hubschrauber (Luftrettung gelb, Polizei silber-blau): weicher Schatten am Boden, Rumpf als 3D-Modell, darüber der
+  // Hauptrotor – bei voller Drehzahl als Unschärfe-Scheibe mit verwischten Blättern, beim An- und Auslaufen als einzelne
+  // Blätter, abgestellt stehend. h: x, y, z, hdg, rpm (0…1, Standard 1), pitch (Längsneigung, vorwärts nach unten)
+  drawHeli(h, lights, kind = 'rescue', id = 'heli') {
+    const { ctx, cam } = this;
+    const z0 = cam.zoom;
+    const fx = Math.cos(h.hdg), fy = Math.sin(h.hdg);
+    const rpm = h.rpm ?? 1;
+    const D = HELI_DIM;
+    const imp = IMP && !Q.perf;
+    if (!imp && kind !== 'rescue') return false; // ohne 3D-Bild zeichnet der Aufrufer selbst
+    // Schatten: Rumpf, Heckausleger und (bei laufendem Rotor) ein Hauch Rotorscheibe; mit der Höhe versetzt und blasser
+    const z = h.z || 0, fade = clamp(1 - z / 8, 0.25, 1);
+    cam.setIso(ctx, 0);
+    ctx.save();
+    ctx.translate(h.x + z * 0.35, h.y + z * 0.15);
+    ctx.rotate(h.hdg);
+    ctx.fillStyle = `rgba(0,0,0,${(0.24 * fade).toFixed(3)})`;
+    ctx.beginPath();
+    ctx.ellipse(0.04, 0, 0.18, 0.05, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(-0.45, -0.012, 0.32, 0.024);
+    ctx.beginPath();
+    ctx.arc(-0.432, 0, 0.032, 0, Math.PI * 2);
+    ctx.fill();
+    if (rpm > 0.3) {
+      ctx.fillStyle = `rgba(0,0,0,${(0.07 * fade * rpm).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(D.mastX, 0, D.rotorR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    if (!(imp && IMP.drawHeli(this, id, kind, h.x, h.y, z, h.hdg, h.pitch || 0))) {
+      if (kind === 'rescue') this.drawHeliFlat(h, lights || []);
+      return kind === 'rescue';
+    }
+    // Hauptrotor über dem Modell (Echtzeit-Winkel je Hubschrauber)
+    const st = (this.rotors ||= {})[id] || (this.rotors[id] = { a: Math.random() * 6, t: this.time });
+    st.a += (this.time - st.t) * 42 * rpm;
+    st.t = this.time;
+    const hx = h.x + fx * D.mastX, hy = h.y + fy * D.mastX, hz = z + D.H + D.mastY;
+    cam.setScreen(ctx);
+    const hub = cam.toScreen(hx, hy, hz);
+    const R = D.rotorR, rx = R * 32 * Math.SQRT2 * z0;
+    const blur = clamp((rpm - 0.35) / 0.45, 0, 1); // 0 = einzelne Blätter, 1 = Scheibe
+    if (blur > 0) {
+      ctx.save();
+      ctx.translate(hub.x, hub.y);
+      ctx.scale(1, 0.5);
+      const g = ctx.createRadialGradient(0, 0, rx * 0.08, 0, 0, rx);
+      g.addColorStop(0, `rgba(34,40,50,${(0.08 * blur).toFixed(3)})`);
+      g.addColorStop(0.75, `rgba(34,40,50,${(0.2 * blur).toFixed(3)})`);
+      g.addColorStop(0.95, `rgba(34,40,50,${(0.3 * blur).toFixed(3)})`);
+      g.addColorStop(1, 'rgba(34,40,50,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, 0, rx, 0, Math.PI * 2);
+      ctx.fill();
+      // Blattspitzen-Kreis: heller Ring, damit die Scheibe auch über Gras und Asphalt zu erkennen ist
+      ctx.strokeStyle = `rgba(226,232,240,${(0.32 * blur).toFixed(3)})`;
+      ctx.lineWidth = Math.max(1, 0.9 * z0) / 0.75;
+      ctx.beginPath();
+      ctx.arc(0, 0, rx * 0.97, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(1.4, 0.95 * z0);
+    const ghosts = blur > 0 ? 3 : 1;
+    for (let gI = 0; gI < ghosts; gI++) {
+      const al = (blur > 0 ? 0.55 * (1 - blur * 0.3) : 0.95) * (gI ? 0.45 / gI : 1);
+      ctx.strokeStyle = `rgba(36,40,47,${al.toFixed(3)})`;
+      ctx.beginPath();
+      for (let i = 0; i < 4; i++) {
+        const a = st.a - gI * 0.16 + (i * Math.PI) / 2;
+        const tip = cam.toScreen(hx + Math.cos(a) * R, hy + Math.sin(a) * R, hz);
+        const root = cam.toScreen(hx + Math.cos(a) * 0.014, hy + Math.sin(a) * 0.014, hz);
+        ctx.moveTo(root.x, root.y);
+        ctx.lineTo(tip.x, tip.y);
+      }
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+    ctx.fillStyle = '#2b3038';
+    ctx.beginPath();
+    ctx.ellipse(hub.x, hub.y, Math.max(1.5, 0.014 * 45 * z0), Math.max(1, 0.014 * 22 * z0), 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Blitzlicht auf dem Seitenleitwerk (nur bei laufendem Rotor), rotes Positionslicht am Heck
+    if (lights) {
+      const tx = h.x - fx * 0.462, ty = h.y - fy * 0.462;
+      if (rpm > 0.05 && (this.time * 1.3) % 1 < 0.12) lights.push({ x: tx, y: ty, z: z + D.H + 0.17, c: '#ffffff', s: 14, a: 0.95, day: true });
+      if (rpm > 0.05) lights.push({ x: tx, y: ty, z: z + D.H + 0.16, c: '#ff3030', s: 7, a: 0.8 });
+    }
+    return true;
+  }
+
+  // einfache Zeichnung, falls kein 3D-Bild möglich ist (ohne WebGL oder im Leistungsmodus)
+  drawHeliFlat(h, lights) {
     const { ctx, cam } = this;
     const z0 = cam.zoom;
     const fx = Math.cos(h.hdg), fy = Math.sin(h.hdg);
@@ -2107,23 +2229,6 @@ export class MapRenderer {
     if (t.st !== 'home') {
       const on = (this.time * 3 + t.x) % 1 < 0.5;
       lights.push({ x: t.x, y: t.y, z: 0.22, c: on ? '#3060ff' : '#ff2020', s: 22, a: 1, day: true });
-    }
-  }
-
-  cloudShadows(ctx, state) {
-    const cam = this.cam;
-    cam.setIso(ctx, 0);
-    const n = state.weather.kind === 'clouds' ? 5 : 8;
-    const t = this.time * 0.25 + state.time * 0.002;
-    const wd = ((state.wind.dir + 180 - 90) * Math.PI) / 180;
-    ctx.fillStyle = state.weather.kind === 'clouds' ? 'rgba(20,30,40,0.10)' : 'rgba(20,30,40,0.14)';
-    for (let i = 0; i < n; i++) {
-      const bx = ((i * 37.7 + Math.cos(wd) * t * 3) % 120) - 20;
-      const by = ((i * 23.3 + Math.sin(wd) * t * 3) % 70) - 14;
-      const x = ((bx % 120) + 120) % 120 - 20, y = ((by % 70) + 70) % 70 - 14;
-      ctx.beginPath();
-      ctx.ellipse(x, y, 7 + (i % 3) * 3, 4 + (i % 2) * 2, i, 0, Math.PI * 2);
-      ctx.fill();
     }
   }
 
@@ -2499,6 +2604,8 @@ function fireTrucks(state) {
   });
   return out;
 }
+// Hubschrauber: Nase im zügigen Vorwärtsflug leicht nach unten
+const HELI_PITCH = { out: -0.07, cross: -0.07, around: -0.07, home: -0.05, lift: -0.02 };
 let IMP = null;
 let impLoad = null;
 function loadImp() {
@@ -2632,6 +2739,7 @@ function drawGround(g, state, trees) {
   g.fillRect(49.5, 9.6, 25, 11.4); // Fracht/Depot
   g.fillRect(0.6, 21.2, 10.2, 5.8); // Hangar-Vorfeld
   g.fillRect(36.9, 43.7, 2.7, 3.1); // Feuerwache mit Vorplatz vor den Toren
+  if (LY.heliBaseOn()) paintHeliBase(g); // Luftrettungsstation daneben
   g.fillRect(74.4, 12.6, 6, 4.4); // Tanklager
   // Dehnfugen etwas dunkler an Vorfeldkante
   g.strokeStyle = 'rgba(240,200,40,0.9)';

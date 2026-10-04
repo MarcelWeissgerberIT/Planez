@@ -4,7 +4,7 @@ import { correctReadback, RB_WINDOW, RB_HINT } from '../sim/readback.js';
 import { SIDS } from '../sim/sid.js';
 import { WX_WINDOW } from '../sim/wxdev.js';
 import { inspState, inspConflict, approveInspection, deferInspection, INSP_MIN } from '../sim/inspect.js';
-import { heliConflict, approveHeli, holdHeli } from '../sim/heli.js';
+import { heliConflict, approveHeli, holdHeli, heliOverRunways } from '../sim/heli.js';
 import { vfrConflict, clearVfr, extendVfr } from '../sim/vfr.js';
 import { PH, PHASE_DE, runwayOccupants, fmtAlt } from '../sim/aircraft.js';
 import * as AS from '../sim/airspace.js';
@@ -82,7 +82,7 @@ export function runwayStatusHtml(state) {
     const c = heliConflict(state);
     const wait = Math.max(0, Math.round((state.time - HH.t) / 60));
     h += T`<div class="insp-rq heli${c ? (c.hard ? ' hard' : ' soft') : ' ok'}">🚁 <b>Rescue 7</b> bittet, die Bahnen in der Mitte zu queren${wait ? T` · wartet seit ${wait} min` : ''}<small>${c ? `⚠ ${esc(c.ac.cs)} ${esc(c.why)}` : T('✓ frei – jetzt queren lassen')}</small></div><div class="insp-b"><button class="cmd ${c && c.hard ? '' : 'big'}" data-heli="ok" title="Taste Y">Querung frei</button>${HH.told ? '' : T('<button class="cmd" data-heli="hold">Warten</button>')}</div>`;
-  } else if (HH && HH.st === 'cross' && HH.y > 26) h += T`<div class="insp-rq act heli">🚁 Rescue 7 quert die Bahnen</div><div></div>`;
+  } else if (heliOverRunways(state)) h += T`<div class="insp-rq act heli">🚁 Rescue 7 quert die Bahnen</div><div></div>`;
   // Platzrunden: Touch-and-Go-Anfrage mit Lücken-Check
   const VP = state.vfr && state.vfr.p;
   if (VP && VP.req && !VP.clr && !state.auto.atc && !state.settings.inspAuto) {

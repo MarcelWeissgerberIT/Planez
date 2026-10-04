@@ -182,7 +182,9 @@ function thunder(strength = 1) {
   src.start(t);
 }
 
-// Reifen beim Aufsetzen: kurzes Quietschen (zwei, drei Hauptfahrwerksräder nacheinander), je härter, desto lauter
+// Reifen beim Aufsetzen: die stehenden Räder werden schlagartig auf Tempo gebracht – je Fahrwerk ein kurzes, nach unten
+// gleitendes Quietschen (Ton mit Flattern plus raues Rauschen im selben Band), zwei oder drei Räder nacheinander;
+// je härter die Landung, desto lauter und länger
 let squealBuf = null;
 function squeal(strength, pan) {
   if (!squealBuf) squealBuf = noiseBuf(A, 0.6);
@@ -191,25 +193,52 @@ function squeal(strength, pan) {
     out.pan.value = pan;
     out.connect(bus);
   }
+  const dst = out || bus;
   const n = strength > 0.7 ? 3 : 2;
   let t = A.currentTime + 0.02;
   for (let i = 0; i < n; i++) {
-    const src = A.createBufferSource();
-    src.buffer = squealBuf;
+    const dur = 0.16 + 0.22 * strength + Math.random() * 0.06;
+    const f0 = 900 + Math.random() * 260;
+    const v = 0.05 + 0.2 * strength;
+    // Ton: Sägezahn durch ein Bandpass, Tonhöhe fällt, schnelles Flattern (Gummi springt auf dem Asphalt)
+    const o = A.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f0 * 0.66, t + dur);
+    const lfo = A.createOscillator();
+    lfo.frequency.value = 32 + Math.random() * 22;
+    const lg = A.createGain();
+    lg.gain.value = f0 * 0.035;
+    lfo.connect(lg).connect(o.frequency);
     const bp = A.createBiquadFilter();
     bp.type = 'bandpass';
-    bp.frequency.value = 1500 + Math.random() * 500;
-    bp.Q.value = 7;
+    bp.frequency.value = f0 * 1.9;
+    bp.Q.value = 2.2;
     const g = A.createGain();
-    const v = 0.05 + 0.2 * strength;
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(v, t + 0.015);
-    g.gain.exponentialRampToValueAtTime(v * 0.35, t + 0.09);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28 + strength * 0.15);
-    src.connect(bp).connect(g).connect(out || bus);
+    g.gain.exponentialRampToValueAtTime(v * 0.55, t + 0.012);
+    g.gain.setValueAtTime(v * 0.5, t + dur * 0.45);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(bp).connect(g).connect(dst);
+    // Rauschen im selben Band: das „Radieren“ des Gummis
+    const src = A.createBufferSource();
+    src.buffer = squealBuf;
+    const nb = A.createBiquadFilter();
+    nb.type = 'bandpass';
+    nb.frequency.value = f0 * 2.1;
+    nb.Q.value = 9;
+    const ng = A.createGain();
+    ng.gain.setValueAtTime(0.0001, t);
+    ng.gain.exponentialRampToValueAtTime(v * 0.9, t + 0.01);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.85);
+    src.connect(nb).connect(ng).connect(dst);
+    o.start(t);
+    lfo.start(t);
     src.start(t, Math.random() * 0.2);
-    src.stop(t + 0.5);
-    t += 0.06 + Math.random() * 0.05;
+    o.stop(t + dur + 0.05);
+    lfo.stop(t + dur + 0.05);
+    src.stop(t + dur + 0.05);
+    t += 0.05 + Math.random() * 0.06;
   }
 }
 const prevPhase = new Map();
@@ -316,8 +345,10 @@ export const soundscape = {
       prevPhase.set(ac.id, ac.phase);
       if (p !== PH.FINAL || ac.phase !== PH.ROLLOUT || paused) continue;
       const d = Math.hypot(ac.x - cam.x, ac.y - cam.y);
-      const nr = clamp(1 - d / (16 / Math.max(0.4, cam.zoom)), 0, 1) * zoomF;
-      if (nr > 0.05) squeal(clamp(nr * (0.35 + (ac.tdFpm || 200) / 700), 0.1, 1), clamp((ac.x - ac.y - (cam.x - cam.y)) * 0.06, -0.8, 0.8));
+      const nr = clamp(1 - d / (22 / Math.max(0.4, cam.zoom)), 0, 1) * zoomF;
+      const pan = clamp((ac.x - ac.y - (cam.x - cam.y)) * 0.06, -0.8, 0.8);
+      if (nr > 0.04) squeal(clamp(nr * (0.45 + (ac.tdFpm || 200) / 600), 0.12, 1), pan);
+      if (nr > 0.1 && (ac.tdFpm || 0) > 330) thud(clamp(nr * 0.5 * ((ac.tdFpm || 0) / 500), 0.08, 0.6), 110, 0.4);
     }
     if (prevPhase.size > 300) prevPhase.clear();
     // Cessna der Platzrunden und Rettungshubschrauber
@@ -325,7 +356,7 @@ export const soundscape = {
     const vp = state.vfr && state.vfr.p;
     if (vp) prop += near(vp.x, vp.y) * (vp.z < 0.6 ? 1.1 : 0.7);
     const hh = state.heli && state.heli.h;
-    const rotor = hh ? clamp(near(hh.x, hh.y) * 1.3 * zoomF, 0, 1) : 0;
+    const rotor = hh ? clamp(near(hh.x, hh.y) * 1.3 * zoomF, 0, 1) * (hh.rpm ?? 1) : 0;
     set(L.rotor.g.gain, 0.09 * rotor, 0.4);
     set(L.rotorLfo.gain, 0.085 * rotor, 0.4);
     if (L.rotor.pan && hh) set(L.rotor.pan.pan, clamp((hh.x - hh.y - (cam.x - cam.y)) * 0.06, -0.8, 0.8));

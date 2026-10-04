@@ -97,6 +97,22 @@ export function buildingOn(state, b) {
   return st >= (b.minStage || 0);
 }
 
+// Luftrettungsstation südlich der Bahnen neben der Feuerwache (ab Regionalflughafen): Landeplatz (TLOF) mit „H“, Hangar
+// für den Hubschrauber mit Tor zum Landeplatz, Stationsgebäude der Crew, Tank, Windsack, Vorplatz mit Zufahrt von der
+// Feuerwache. Alle Gebäude liegen hinter (nordwestlich) dem Landeplatz, damit der abgestellte Hubschrauber davor steht.
+export const HELIBASE = {
+  pad: { x: 44.3, y: 46.55, hw: 0.62 },
+  hdg: 0.62, // Abstellrichtung auf dem Landeplatz
+  apron: { x0: 41.0, x1: 45.6, y0: 44.5, y1: 47.6 },
+  road: { x0: 39.6, x1: 41.0, y: 45.9, w: 0.5 },
+  hangar: { x0: 43.3, x1: 44.9, y0: 44.55, y1: 45.55, h: 0.42 },
+  station: { x0: 41.2, x1: 42.6, y0: 44.7, y1: 45.6, h: 0.3 },
+  tank: { x: 41.75, y: 46.6 },
+  sock: { x: 45.95, y: 45.0 },
+  cars: [{ x: 41.5, y: 47.15, hdg: -Math.PI / 2 }, { x: 41.85, y: 47.15, hdg: -Math.PI / 2 }],
+};
+export const heliBaseOn = () => GEO.stage >= 2;
+
 // Solarpark südlich der Piste, Bahnhof im Westen der Landseite
 export const SOLAR = { x0: 47.5, x1: 62.5, y0: 45.3, y1: 49.6 };
 export const RAIL = { y: 5.15, x0: -16, x1: 10.2, station: { x0: 2.0, x1: 8.0, y0: 1.9, y1: 3.7 }, platform: { y0: 4.1, y1: 4.78 } };
@@ -132,6 +148,7 @@ export function makeTrees() {
       const x = z.x0 + r() * (z.x1 - z.x0);
       const y = z.y0 + r() * (z.y1 - z.y0);
       if (x > 32 && x < 42 && y > 43 && y < 49.6) continue; // Feuerwache
+      if (x > 40.5 && x < 47.2 && y > 44 && y < 49.6) continue; // Luftrettungsstation
       if (x > 2 && x < 7.5 && y > 45.3 && y < 49.5) continue; // Radar
       if (x > 64 && x < 68 && y > 43.6 && y < 46) continue; // Windsack
       trees.push({ x, y, t: r() < 0.55 ? 'tree1' : 'tree2', s: 0.8 + r() * 0.5 });

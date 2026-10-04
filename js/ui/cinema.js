@@ -260,7 +260,7 @@ export class Cinema {
       const sp = tourSpots(s).find((q) => q.id === sh.id);
       if (sp) return set(sp.k, sp.title, sp.sub);
     }
-    if (sh.kind === 'heli') return set(tr_('RETTUNGSFLUG'), 'Rescue 7', s.heli.h && s.heli.h.st === 'req' ? tr_('wartet auf die Querung der Bahnen') : tr_('quert die Bahnen zur Klinik'));
+    if (sh.kind === 'heli') return set(tr_('RETTUNGSFLUG'), 'Rescue 7', heliDoing(s.heli.h));
     if (sh.kind === 'vfr' && s.vfr.p) return set(tr_('PLATZRUNDE'), s.vfr.p.cs, tr_`Alcedo AL-4 · Runde ${Math.min(s.vfr.p.laps + 1, s.vfr.p.lapsMax)} von ${s.vfr.p.lapsMax}`);
     if (sh.kind === 'land-side') return set(tr_('LANDSEITE'), tr_('Terminal-Vorfahrt'), tr_('Taxis, Busse und Reisende'));
     if (sh.kind === 'night') return set(tr_('NACHT'), s.name, tr_('Befeuerung und Nachtbetrieb'));
@@ -416,4 +416,15 @@ function commentary(s, sh, ac) {
   const t = s.stats.today;
   const d = t.onTime + t.delayed;
   return pickC([tr_`Ein Blick über ${s.name}: ${s.acs.filter((a) => a.mode === 'map').length} Flugzeuge am Platz.`, tr_`${t.mov} Bewegungen bisher heute${d ? tr_`, ${Math.round((t.onTime / d) * 100)} Prozent pünktlich` : ''}.`]);
+}
+
+// Untertitel zum Rettungshubschrauber je nach Flugabschnitt
+function heliDoing(h) {
+  if (!h) return '';
+  if (h.st === 'spin' || h.st === 'lift') return tr_('startet an der Luftrettungsstation');
+  if (h.st === 'out') return tr_('fliegt zum Einsatz');
+  if (h.st === 'home' || h.st === 'land' || h.st === 'down') return tr_('landet an der Luftrettungsstation');
+  if (h.st === 'req') return tr_('wartet auf die Querung der Bahnen');
+  if (h.st === 'around') return tr_('fliegt um die Kontrollzone herum');
+  return h.dir > 0 ? tr_('quert die Bahnen zurück zur Station') : tr_('quert die Bahnen zur Klinik');
 }

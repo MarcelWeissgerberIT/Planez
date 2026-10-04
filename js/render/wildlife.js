@@ -189,6 +189,8 @@ export class Wildlife {
       }
     }
     const hc = this.heli;
+    // Polizeihubschrauber auf Streife: 3D-Modell mit Rotor (sonst die einfache Zeichnung)
+    if (hc && r.drawHeli({ x: hc.x, y: hc.y, z: hc.z, hdg: hc.hdg || 0, rpm: 1, pitch: -0.07 }, null, 'police', 'heliP')) return;
     if (hc) {
       // Schatten am Boden
       cam.setIso(ctx, 0);

@@ -6,7 +6,7 @@
 import * as THREE from '../js/vendor/three.module.min.js';
 import { buildVehicle, vehParts, poseVehicle, STAIRS_3D, carInstances } from '../js/render/vehicles3d.js';
 import { servicePoint } from '../js/layout.js';
-import { buildAircraft } from '../js/render/model3d.js';
+import { buildAircraft, buildHeli } from '../js/render/model3d.js';
 import { AIRLINES, AC_TYPES } from '../js/config.js';
 import { stairsGeom, beltDoor } from '../js/acshape.js';
 import { jetBridges } from '../js/render/jetbridge.js';
@@ -133,7 +133,17 @@ if (q.get('beltat')) {
     sc.add(vm);
   }
 }
-const types = acs || q.get('cars') || q.get('stairsat') || q.get('busat') || q.get('jbat') || q.get('tugat') || q.get('beltat') ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,stairs,deice,fire,plow,followme').split(',');
+// Rettungshubschrauber (heli=1): Rotor steht (spin=1: Unschärfe-Scheibe sichtbar)
+if (q.get('heli')) {
+  const m = buildHeli();
+  m.position.set(0, m.userData.H, 0);
+  m.rotation.y = +(q.get('rot') || 0.6);
+  const rot = m.getObjectByName('rotor');
+  rot.rotation.y = 0.4;
+  m.getObjectByName('disc').visible = q.get('spin') === '1';
+  sc.add(m);
+}
+const types = q.get('heli') || acs || q.get('cars') || q.get('stairsat') || q.get('busat') || q.get('jbat') || q.get('tugat') || q.get('beltat') ? [] : (q.get('types') || 'tug,baggage,fuel,catering,cleaning,bus,stairs,deice,fire,plow,followme').split(',');
 types.forEach((t, i) => {
   const m = buildVehicle({ type: t, id: 'v' + (i * 7 + 3), name: `${t} ${i + 1}` }); // ID und Name: Werbung und Dachnummer
   const col = i % 5, row = Math.floor(i / 5);

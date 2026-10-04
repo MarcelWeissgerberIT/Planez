@@ -966,7 +966,8 @@ Ride.prototype.startGA = function (kind) {
     toast(T('Mitfliegen in 3D braucht WebGL'), 'warn', 2600);
     this.stop();
   });
-  toast(kind === 'heli' ? T('Willkommen an Bord von Rescue 7 – es geht zur Klinik') : T`Rundflug mit ${o.cs}: Platzrunden über ${s.name}`, 'good', 2600);
+  const leg = kind === 'heli' ? (['spin', 'lift', 'out'].includes(o.st) ? T('Willkommen an Bord von Rescue 7 – es geht zum Einsatz') : o.dir > 0 || o.st === 'home' || o.st === 'land' ? T('Willkommen an Bord von Rescue 7 – es geht zurück zur Station') : T('Willkommen an Bord von Rescue 7 – es geht zur Klinik')) : '';
+  toast(kind === 'heli' ? leg : T`Rundflug mit ${o.cs}: Platzrunden über ${s.name}`, 'good', 2600);
 };
 
 Ride.prototype.updateGA = function (dt) {
@@ -974,7 +975,7 @@ Ride.prototype.updateGA = function (dt) {
   const heli = this.ga === 'heli';
   const o = heli ? s.heli && s.heli.h : s.vfr && s.vfr.p;
   if (!o) {
-    toast(heli ? T('Rescue 7 ist außer Sicht – danke fürs Mitfliegen') : T('Gelandet und abgestellt – danke für den Rundflug'), 'good', 2600);
+    toast(heli ? (s.heli && s.heli.park ? T('Rescue 7 steht wieder an der Station – danke fürs Mitfliegen') : T('Rescue 7 ist außer Sicht – danke fürs Mitfliegen')) : T('Gelandet und abgestellt – danke für den Rundflug'), 'good', 2600);
     const back = this.gaBack;
     this.stop();
     if (back === 'tower') this.startTower();
@@ -986,7 +987,7 @@ Ride.prototype.updateGA = function (dt) {
   this.game.cam.y = o.y;
   this.game.cam.tx = null;
   const alt = Math.round(((o.z || 0) * 500) / 10) * 10;
-  const kt = heli ? (o.st === 'hold' ? 0 : 110) : (o.z || 0) > 0.05 ? 90 : 45;
+  const kt = heli ? (o.st === 'spin' || o.st === 'down' ? 0 : o.st === 'land' || o.st === 'lift' ? 25 : 110) : (o.z || 0) > 0.05 ? 90 : 45;
   const air = (o.z || 0) > 0.03;
   const phase = !air ? PH.TAXI_OUT : (this.lastAlt ?? alt) < alt - 1 ? PH.TAKEOFF : PH.FINAL;
   this.lastAlt = alt;
@@ -995,7 +996,7 @@ Ride.prototype.updateGA = function (dt) {
   this.v3d.render(s, this, null);
   this.windshield(dt, s.weather.kind, kt);
   const hdg = Math.round((((o.hdg || 0) * 180) / Math.PI + 90 + 360) % 360);
-  const what = heli ? T`Rescue 7 · Rettungshubschrauber${o.st === 'hold' ? T(' · wartet auf Querungsfreigabe') : o.st === 'cross' ? T(' · quert die Bahnen') : ''}` : `${esc(o.cs)} · Alcedo AL-4 · ${{ join: T('Einflug in die Platzrunde'), circuit: T('Platzrunde'), ga: T('Durchstarten'), orbit: T('Warteschleife'), leave: T('Abflug aus der Kontrollzone') }[o.mode] || T('Platzrunde')}`;
+  const what = heli ? T`Rescue 7 · Rettungshubschrauber${{ req: T(' · wartet auf Querungsfreigabe'), cross: T(' · quert die Bahnen'), spin: T(' · Rotor läuft an'), lift: T(' · startet zum Einsatz'), out: T(' · startet zum Einsatz'), home: T(' · Landung an der Station'), land: T(' · Landung an der Station'), down: T(' · Rotor läuft aus') }[o.st] || ''}` : `${esc(o.cs)} · Alcedo AL-4 · ${{ join: T('Einflug in die Platzrunde'), circuit: T('Platzrunde'), ga: T('Durchstarten'), orbit: T('Warteschleife'), leave: T('Abflug aus der Kontrollzone') }[o.mode] || T('Platzrunde')}`;
   const txt = `${this.mode === 'chase' ? T('Außenkamera') : heli ? T('Rettungsflug') : T('Rundflug')} · ${what}${alt > 0 ? ` · ${alt} ft` : ''}`;
   if (this.tEl.innerHTML !== txt) this.tEl.innerHTML = txt;
   this.el.querySelector('.rd-belt').classList.toggle('on', true);
@@ -1006,7 +1007,7 @@ Ride.prototype.updateGA = function (dt) {
     this.R.hdg.textContent = String(hdg).padStart(3, '0');
     this.R.rose.style.transform = `rotate(${-hdg}deg)`;
     this.R.fma.textContent = heli ? 'HOVER · NAV' : air ? 'VFR' : 'TAXI';
-    this.R.nd.textContent = heli ? 'Klinik Nord' : `RWY ${o.rwy || s.rwy}`;
+    this.R.nd.textContent = heli ? (o.dir > 0 || ['home', 'land', 'down', 'spin'].includes(o.st) ? 'Station' : o.st === 'lift' || o.st === 'out' ? 'Einsatz' : 'Klinik Nord') : `RWY ${o.rwy || s.rwy}`;
   }
 };
 
