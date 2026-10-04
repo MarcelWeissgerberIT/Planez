@@ -37,6 +37,7 @@
         <button class="mm-item" data-mm="new" data-side="new"><span class="n"></span><span class="l"><b>Neues Spiel</b><small>Vom Grasplatz zum Drehkreuz – oder gleich als Regionalflughafen</small></span></button>
         <button class="mm-item" data-mm="slots" data-side="slots"><span class="n"></span><span class="l"><b>Spielstände</b><small>Drei Speicherplätze – laden oder löschen</small></span></button>
         <button class="mm-item" data-mm="scn" data-side="scnall"><span class="n"></span><span class="l"><b>Kampagne &amp; Szenarien</b><small>10 Kapitel mit Story · Herausforderungen mit Sternen · täglich neu</small></span></button>
+        <button class="mm-item" data-mm="hubs" data-side="hubs"><span class="n"></span><span class="l"><b>Großflughäfen</b><small>Fünf Drehkreuze nach echtem Vorbild – Tower im Hochbetrieb</small></span></button>
         <button class="mm-item" data-mm="career" data-side="career"><span class="n"></span><span class="l"><b>Karriere</b><small id="career-info">Rang, Bestwerte und Statistik über alle Spielstände</small></span></button>
         <button class="mm-item" data-role-start="observer" data-side="observer"><span class="n"></span><span class="l"><b>Nur zuschauen</b></span></button>
         <button class="mm-item" data-mm="whatsnew" data-side="whatsnew"><span class="n"></span><span class="l"><b>Neu</b><small>Was sich im Flughafen getan hat</small></span></button>
@@ -103,6 +104,8 @@
       <nav class="mm-list hidden" id="mm-scn" aria-label="Herausforderungen"></nav>
 
       <nav class="mm-list hidden" id="mm-slots" aria-label="Spielstände"></nav>
+
+      <nav class="mm-list hidden" id="mm-hubs" aria-label="Großflughäfen"></nav>
 
       <nav class="mm-list hidden" id="mm-settings" aria-label="Einstellungen">
         <button class="mm-back" data-mm="back">← Zurück</button>
@@ -201,6 +204,7 @@
     <div id="tooltip"></div>
   </div>
 
+  <div id="hub" class="hidden"></div>
   <div id="modal" class="hidden"><div class="modal-box" id="modal-box"></div></div>
 
   <script type="module" src="js/main.js"></script>

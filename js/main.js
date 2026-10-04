@@ -60,7 +60,7 @@ import { siteGeom } from './render/sites.js';
 import { initGlossary, setGlossaryEnabled, glossify, glossaryHtml, setHomeAirport } from './ui/glossary.js';
 import { goalsState, activeGoals, goalProgress, goalText, goalFraction, RANKS, GOAL_DEFS, rankName } from './sim/goals.js';
 import { fuelState } from './sim/fuel.js';
-import { initMainMenu, refreshMainMenu, showPauseMenu, loadPrefs, savePrefs, applyA11y } from './ui/menus.js';
+import { initMainMenu, refreshMainMenu, showPauseMenu, loadPrefs, savePrefs, applyA11y, openHubMenu } from './ui/menus.js';
 import { ManagementPage } from './ui/mgmtPage.js';
 import { ManagerDock } from './ui/managerDock.js';
 import { projects, cancelProject } from './sim/construction.js';
@@ -188,6 +188,7 @@ async function boot() {
   initMainMenu({
     gloss: () => showHelp(false, 'gloss'),
     scenario: (id) => startScenario(id),
+    hub: (id) => startHubMode(id),
     loadSlot: (n) => {
       unlock();
       const st = loadGame(n);
@@ -1825,6 +1826,20 @@ function showGameMenu() {
 function toggleStream() {
   if (!game.stream) game.stream = new Stream(game);
   game.stream.toggle();
+}
+
+// Großflughäfen: eigener Spielmodus (js/hub), lädt erst beim Start
+async function startHubMode(id) {
+  unlock();
+  menuMusic.stop();
+  gameMusic.stop();
+  const m = await import('./hub/ui.js');
+  m.startHub(id, {
+    onExit: () => {
+      showMenu();
+      openHubMenu(id.split('-')[0]); // zurück zur Einsatzliste dieses Platzes
+    },
+  });
 }
 
 function quitToMenu() {
