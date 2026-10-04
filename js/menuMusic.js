@@ -29,10 +29,15 @@ function init() {
   const lp = A.createBiquadFilter();
   lp.type = 'lowpass';
   lp.frequency.value = 1800;
-  out.connect(A.destination);
+  // Hochpass: kein Tiefbass-Brummen auf Kopfhörern und kein Dröhnen auf Handy-Lautsprechern
+  const hp = A.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 90;
+  hp.connect(A.destination);
+  out.connect(hp);
   out.connect(delay);
   delay.connect(lp).connect(fb).connect(delay);
-  lp.connect(A.destination);
+  lp.connect(hp);
   return true;
 }
 

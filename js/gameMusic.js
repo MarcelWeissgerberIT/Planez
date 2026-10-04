@@ -33,10 +33,15 @@ function init() {
   const lp = A.createBiquadFilter();
   lp.type = 'lowpass';
   lp.frequency.value = 1600;
-  out.connect(A.destination);
+  // Hochpass: kein Tiefbass-Brummen auf Kopfhörern und kein Dröhnen auf Handy-Lautsprechern
+  const hp = A.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 90;
+  hp.connect(A.destination);
+  out.connect(hp);
   out.connect(delay);
   delay.connect(lp).connect(fb).connect(delay);
-  lp.connect(A.destination);
+  lp.connect(hp);
   return true;
 }
 
@@ -96,8 +101,8 @@ function pluck(freq, t, v = 0.022) {
 function thump(t, v = 0.11) {
   const o = A.createOscillator();
   o.type = 'sine';
-  o.frequency.setValueAtTime(70, t);
-  o.frequency.exponentialRampToValueAtTime(38, t + 0.25);
+  o.frequency.setValueAtTime(140, t);
+  o.frequency.exponentialRampToValueAtTime(76, t + 0.25);
   const g = A.createGain();
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(v, t + 0.015);

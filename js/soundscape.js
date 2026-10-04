@@ -20,6 +20,11 @@ function noiseBuf(a, sec, brown = false) {
         d[i] = last * 3.5;
       } else d[i] = w;
     }
+    // Schleife ohne Sprung: Ende und Anfang auf denselben Wert ziehen (sonst ein tiefes Klopfen alle paar Sekunden)
+    if (brown) {
+      const n = d.length - 1, jump = d[n] - d[0];
+      for (let i = 0; i <= n; i++) d[i] -= (jump * i) / n;
+    }
   }
   return b;
 }
@@ -62,7 +67,7 @@ function init() {
   bus.gain.value = 0;
   bus.connect(A.destination);
   const white = noiseBuf(A, 3), brown = noiseBuf(A, 4, true);
-  L.rumble = loop(A, brown, [filt(A, 'lowpass', 260)]);
+  L.rumble = loop(A, brown, [filt(A, 'highpass', 38), filt(A, 'lowpass', 260)]);
   L.jet = loop(A, white, [filt(A, 'bandpass', 900, 0.6), filt(A, 'lowpass', 2600)]);
   // Turbinenpfeifen
   const o = A.createOscillator();
@@ -92,7 +97,7 @@ function init() {
   po.start();
   plfo.start();
   L.prop = { o: po, lfo: plfo, g: pg };
-  L.roar = loop(A, brown, [filt(A, 'lowpass', 520), filt(A, 'peaking', 140, 1)]);
+  L.roar = loop(A, brown, [filt(A, 'highpass', 38), filt(A, 'lowpass', 520), filt(A, 'peaking', 140, 1)]);
   L.wind = loop(A, white, [filt(A, 'bandpass', 480, 0.4)]);
   L.rain = loop(A, white, [filt(A, 'highpass', 1800), filt(A, 'lowpass', 9000)]);
   L.crickets = loop(A, white, [filt(A, 'bandpass', 4600, 14)]);
@@ -105,7 +110,7 @@ function init() {
   lfo.start();
   L.cricketLfo = lg;
   // Hubschrauber-Rotor: tiefes Rauschen, mit der Blattfrequenz „gehackt“ (wop-wop)
-  L.rotor = loop(A, brown, [filt(A, 'lowpass', 420), filt(A, 'peaking', 95, 1.2)]);
+  L.rotor = loop(A, brown, [filt(A, 'highpass', 38), filt(A, 'lowpass', 420), filt(A, 'peaking', 95, 1.2)]);
   const rl = A.createOscillator();
   rl.frequency.value = 11;
   const rlg = A.createGain();
@@ -126,7 +131,7 @@ function init() {
   so.start();
   L.siren = { o: so, g: sg, pan: sp };
   // Hubschrauber: tiefes Rauschen, rhythmisch moduliert (Rotorschlag)
-  L.heli = loop(A, brown, [filt(A, 'lowpass', 380)]);
+  L.heli = loop(A, brown, [filt(A, 'highpass', 38), filt(A, 'lowpass', 380)]);
   const hl = A.createOscillator();
   hl.frequency.value = 17;
   const hg = A.createGain();
@@ -364,7 +369,7 @@ export const soundscape = {
     roar = clamp(roar * zoomF, 0, 1.6);
     this.levels = { jet, roar, ctx: A.state };
     set(L.jet.g.gain, 0.07 * jet);
-    set(L.rumble.g.gain, 0.12 * jet + 0.02);
+    set(L.rumble.g.gain, 0.12 * jet + 0.005);
     set(L.whine.g.gain, 0.0035 * Math.min(1, jet));
     set(L.roar.g.gain, 0.22 * roar, 0.5);
     prop = clamp(prop * zoomF, 0, 1.5);
