@@ -21,6 +21,7 @@ import { rwyCond, brakingAction, BRAKE_DE, runwayClosed, isWet, hasRwy2, rwyName
 import { isNight } from '../sim/finance.js';
 import { temperature } from '../sim/winter.js';
 import { T } from '../i18n.js';
+import { windShort, gustXw } from '../sim/gusts.js';
 
 const WAKE_KEY = { L: 'Light', M: 'Medium', H: 'Heavy' };
 export const wakeTag = (w) => glTag(WAKE_KEY[w] || 'WTC', w);
@@ -38,7 +39,9 @@ export function runwayStatusHtml(state) {
   const tw = tailwind(state, state.rwy);
   const pref = preferredRunway(state);
   const other = state.rwy === '27' ? '09' : '27';
-  let h = T`<div>Betriebsrichtung <b style="font-family:var(--mono)">${state.rwy}</b> · Wind ${Math.round(state.wind.dir / 10) * 10}°/${Math.round(state.wind.spd)} kt <small style="color:var(--muted)">(${tw > 0 ? T('Rückenwind') : T('Gegenwind')} ${Math.abs(tw).toFixed(0)} kt)</small></div>`;
+  const xw = Math.round(gustXw(state));
+  let h = T`<div>Betriebsrichtung <b style="font-family:var(--mono)">${state.rwy}</b> · Wind ${windShort(state)} <small style="color:var(--muted)">(${tw > 0 ? T('Rückenwind') : T('Gegenwind')} ${Math.abs(tw).toFixed(0)} kt${xw >= 15 ? T` · Seitenwind in Böen <b style="color:${xw > 32 ? 'var(--bad)' : xw > 24 ? 'var(--warn)' : 'inherit'}">${xw} kt</b>` : ''})</small></div>`;
+  if (state.gustFront) h += T`<div class="rwy-cond" style="color:var(--bad)">⛈️ <b>Böenfront</b> – Starts warten, Anflüge können durchstarten (Seitenwindlimits mit Böen: Turboprop 32 kt, Mittelstrecke 38 kt, Großraum 40 kt)</div>`;
   if (state.rwyPending) h += T`<button class="cmd" data-rwy="${state.rwy}">Abbrechen</button><div style="color:var(--warn)">Wechsel auf ${state.rwyPending} ausstehend – ${drainCount(state)} Bewegungen laufen noch</div><div></div>`;
   else h += `<button class="cmd ${pref !== state.rwy ? 'big' : ''}" data-rwy="${other}" title="${pref !== state.rwy ? T('Rückenwind – Wechsel empfohlen') : T('Betriebsrichtung wechseln')}">→ ${other}</button>`;
   for (const strip of hasRwy2(state) ? ['N', 'S'] : ['N']) {

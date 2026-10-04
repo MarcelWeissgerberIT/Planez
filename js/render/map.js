@@ -1280,9 +1280,10 @@ export class MapRenderer {
     ctx.moveTo(base.x, base.y);
     ctx.lineTo(top.x, top.y);
     ctx.stroke();
-    const to = ((state.wind.dir + 180 - 90) * Math.PI) / 180; // Weltwinkel, in den der Wind weht
-    const L = 0.18 + 0.3 * clamp(state.wind.spd / 15, 0, 1);
-    const droop = 0.12 * (1 - clamp(state.wind.spd / 15, 0, 1));
+    const g = state.wind.gust || 0, ws = state.wind.spd + g; // in Böen streckt er sich und flattert
+    const to = ((state.wind.dir + 180 - 90) * Math.PI) / 180 + Math.sin(this.time * 7.3) * Math.min(0.25, g * 0.015); // Weltwinkel, in den der Wind weht
+    const L = 0.18 + 0.3 * clamp(ws / 15, 0, 1);
+    const droop = 0.12 * (1 - clamp(ws / 15, 0, 1));
     const segs = 4;
     for (let i = 0; i < segs; i++) {
       const a = i / segs, b = (i + 1) / segs;

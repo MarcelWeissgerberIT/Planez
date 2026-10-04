@@ -4,6 +4,7 @@ import { AC_TYPES } from '../config.js';
 import { dist, degNorm, pathLength } from '../util.js';
 import * as AS from './airspace.js';
 import * as LY from '../layout.js';
+import { overXw, gustXw, xwLimit } from './gusts.js';
 import { PH, tel, windStr, goAround, startTaxiIn, startPushback, startTaxiOut, startLineUp, runwayBlocker, runwayOccupants, setReq, fmtAlt, crossingSafe, takeoffExtraNm, takeoffPerf } from './aircraft.js';
 import { radio, log, notify, fx } from './messages.js';
 import { penalize } from './economy.js';
@@ -166,6 +167,7 @@ export const CMDS = {
     label: 'Line up & wait', key: 'U',
     valid: (s, ac) => (ac.phase === PH.HOLDING || ac.phase === PH.TAXI_OUT) && !ac.clr.lineup && !ac.clr.takeoff && !runwayClosed(s),
     run: (s, ac) => {
+      if (overXw(s, ac)) return unableXw(s, ac);
       ac.clr.lineup = true;
       ac.req = null;
       const rn = rwyName(s, 'N', ac.rwy);
@@ -176,6 +178,7 @@ export const CMDS = {
     label: T('Startfreigabe'), key: 'T', big: true,
     valid: (s, ac) => [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(ac.phase) && !ac.clr.takeoff && !runwayClosed(s),
     run: (s, ac) => {
+      if (ac.phase !== PH.LINED && ac.phase !== PH.LINEUP && overXw(s, ac)) return unableXw(s, ac);
       ac.clr.takeoff = true;
       ac.req = null;
       const rn = rwyName(s, 'N', ac.rwy);
@@ -237,6 +240,16 @@ function setSpeed(s, ac, v) {
   ac.autoSpd = false;
   const w = v < ac.spd ? 'reduce' : 'increase';
   say(s, ac, `${tel(ac)}, ${w} speed ${v} knots.`, `Speed ${v}, ${tel(ac)}.`);
+}
+
+// Seitenwind mit Böen über dem Limit: der Pilot lehnt Aufrollen bzw. Start ab und wartet am Rollhalt
+function unableXw(s, ac) {
+  const xw = Math.round(gustXw(s, ac.rwy));
+  if (!ac.xwSaid || s.time - ac.xwSaid > 180) {
+    ac.xwSaid = s.time;
+    radio(s, ac.cs, `${tel(ac)}, unable, crosswind ${xw} knots in gusts exceeds our limit of ${xwLimit(ac.type)}, we'll hold short.`, 'pilot');
+  }
+  return { ok: false, msg: T`${ac.cs}: Seitenwind ${xw} kt in Böen über dem Limit (${xwLimit(ac.type)} kt) – wartet am Rollhalt` };
 }
 
 export function command(state, ac, key) {
@@ -573,7 +586,8 @@ function autoArrivals(state) {
   }
 
   if (!state.rwyPending) {
-    const cands = state.acs.filter((a) => [PH.INBOUND, PH.HOLD].includes(a.phase));
+    // bei Seitenwind über dem Limit bleiben die betroffenen Muster in der Warteschleife (Notfälle ausgenommen)
+    const cands = state.acs.filter((a) => [PH.INBOUND, PH.HOLD].includes(a.phase) && (a.emergency || a.minFuel || !overXw(state, a)));
     clearNextApproach(state, cands, distCleared, departuresWaiting, null, depExtra);
   }
   // Geschwindigkeit: Aufholen verhindern (einfach)
@@ -634,7 +648,7 @@ function autoDepartures(state) {
   };
   const queue = state.acs.filter((a) => a.phase === PH.HOLDING && a.rwy === rwy && slotOpen(state, a, 60)).sort((a, b) => key(a) - key(b));
   const head = queue[0];
-  if (!head) return;
+  if (!head || overXw(state, head)) return; // Seitenwind mit Böen über dem Limit: der Start wartet am Rollhalt
   const wakeGap = depGap(state, head).sec, ext = takeoffExtraNm(head);
   const need = lineupSec(head) + Math.max(0, wakeGap - sinceTo) + takeoffPerf(head.type).occ + 20;
   if (!occupants.length && nextArr > 5.2 + ext && arrSec > need && sinceTo > wakeGap - 20) command(state, head, 'takeoff');

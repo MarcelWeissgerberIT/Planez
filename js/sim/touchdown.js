@@ -34,7 +34,7 @@ export function touchdown(state, ac) {
   const t = AC_TYPES[ac.type];
   const wk = state.weather.kind;
   let fpm = 60 + 240 * Math.pow(h, 1.7);
-  fpm += crosswind(state) * 6 + Math.abs(state.wind.gust || 0) * 25;
+  fpm += crosswind(state) * 6 + (state.wind.gust || 0) * 4 + (state.wind.gk || 0) * 1.5;
   fpm += { rain: 30, snow: 60, storm: 130 }[wk] || 0;
   const since = ac.clr && ac.clr.landT ? state.time - ac.clr.landT : 999;
   const late = since < 30 ? 200 : since < 60 ? 110 : 0; // Freigabe erst kurz vor der Schwelle: unruhiger Endanflug

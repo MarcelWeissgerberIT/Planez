@@ -2,6 +2,7 @@
 // rollenspezifische Lage (Tower / Vorfeld / Management) und die Ziele der Schicht.
 import { AC_TYPES, AIRLINES, CITIES } from '../config.js';
 import { WEATHER, forecastInfo } from '../sim/events.js';
+import { windShort } from '../sim/gusts.js';
 import { temperature, season } from '../sim/winter.js';
 import { preferredRunway } from '../sim/atc.js';
 import { activeGoals, goalText } from '../sim/goals.js';
@@ -112,7 +113,7 @@ export function briefingHtml(state) {
   return tr_`<div class="brief">
     <div class="br-top"><div class="br-kick">${ROLES[role].icon} Schichtbriefing · ${esc(ROLES[role].name)}</div><h2>Tag ${day} · ${esc(season(state).name || '')}</h2><div class="br-stamp">${esc(state.name)}</div></div>
     <div class="br-cols">
-      <div class="br-wx"><div class="br-h">Wetter</div><div class="br-now"><span class="ic">${w.icon}</span><div><b>${esc(w.name)} · ${temp} °C</b><small>Wind ${String(Math.round(state.wind.dir)).padStart(3, '0')}° / ${Math.round(state.wind.spd)} kt</small></div></div>
+      <div class="br-wx"><div class="br-h">Wetter</div><div class="br-now"><span class="ic">${w.icon}</span><div><b>${esc(w.name)} · ${temp} °C</b><small>Wind ${windShort(state)}</small></div></div>
         ${fc.change ? tr_`<div class="br-fc">${fc.icon} ab ${fmtClock(fc.at)}: <b>${esc(fc.name)}</b>${fc.rvr ? ` · RVR ${fc.rvr} m` : ''}</div>` : tr_('<div class="br-fc">keine Wetteränderung in Sicht</div>')}</div>
       <div class="br-traffic"><div class="br-h">Verkehr heute <span>${sum} Bewegungen · Spitze ${String(peak).padStart(2, '0')}:00</span></div>${chart(T.arrH, T.depH, nowH)}<div class="br-leg"><span><i style="background:#2dd4bf"></i>Landungen</span><span><i style="background:#fbbf24"></i>Starts</span></div></div>
     </div>

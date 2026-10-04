@@ -1476,7 +1476,8 @@ export class View3D {
     const wind = state.wind || { dir: 270, spd: 5 };
     const to = ((wind.dir + 180) % 360) * DEG;
     for (const s of this.socks) {
-      s.rotation.set(0, -(Math.atan2(-Math.cos(to), Math.sin(to))), -(1 - clamp(wind.spd / 15, 0.05, 1)) * 1.2, 'YXZ');
+      const g = wind.gust || 0;
+      s.rotation.set(0, -(Math.atan2(-Math.cos(to), Math.sin(to))) + Math.sin(now * 7.3) * Math.min(0.25, g * 0.015), -(1 - clamp((wind.spd + g) / 15, 0.05, 1)) * 1.2, 'YXZ');
     }
     // Lauffeuer der aktiven Landebahn und PAPI
     for (const [k, list] of Object.entries(this.rabbits)) {

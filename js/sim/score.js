@@ -51,7 +51,7 @@ export function scoreTakeoff(state, ac) {
 }
 export function scoreGoAround(state, ac, reason) {
   if (!active(state, 'tower')) return;
-  if (['Windscherung', 'Laserblendung', 'Laserblendung (Anweisung)'].some((k) => (reason || '').includes(k) || (reason || '').includes(T(k)))) return; // Wetter bzw. Laser – nicht die Schuld des Lotsen
+  if (['Windscherung', 'Seitenwind über dem Limit', 'Böen im kurzen Endanflug', 'Laserblendung', 'Laserblendung (Anweisung)'].some((k) => (reason || '').includes(k) || (reason || '').includes(T(k)))) return; // Wetter bzw. Laser – nicht die Schuld des Lotsen
   fail(state, ac, 150, T('Durchstarten'));
 }
 export function scoreIncident(state, ac) {

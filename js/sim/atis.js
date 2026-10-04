@@ -1,4 +1,5 @@
 // ATIS: automatische Platzinformation mit Kennbuchstabe, neu bei Wetter-/Pistenwechsel und stündlich
+import { gustPeak } from './gusts.js';
 import { AIRPORT } from '../config.js';
 import { radio } from './messages.js';
 import { atis } from './aircraft.js';
@@ -24,11 +25,11 @@ export function atisText(state) {
   if (state.vfr && state.vfr.p) notes.push(T('caution, VFR traffic in the circuit north of the runway'));
   if (state.birdRisk && state.time < state.birdRisk) notes.push(T('caution, bird activity in the vicinity of the airport'));
   if (state.rwySnow && state.rwySnow.N > 0.15) notes.push('runway contaminated with snow');
-  return T`${AIRPORT.name.split(' ')[0]} information ${atis(state)}, time ${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}, ${rwy}, wind ${String(Math.round(w.dir / 10) * 10).padStart(3, '0')} degrees ${Math.round(w.spd)} knots, ${vis}, temperature ${Math.round(temperature(state))}, QNH ${qnh(state)}${notes.length ? `, ${notes.join(', ')}` : ''}. Advise on initial contact you have information ${atis(state)}.`;
+  return T`${AIRPORT.name.split(' ')[0]} information ${atis(state)}, time ${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}, ${rwy}, wind ${String(Math.round(w.dir / 10) * 10).padStart(3, '0')} degrees ${Math.round(w.spd)} knots${gustPeak(state) ? ` gusting ${gustPeak(state)}` : ''}, ${vis}, temperature ${Math.round(temperature(state))}, QNH ${qnh(state)}${notes.length ? `, ${notes.join(', ')}` : ''}. Advise on initial contact you have information ${atis(state)}.`;
 }
 
 export function updateAtis(state) {
-  const key = `${state.rwy}|${state.weather.kind}|${Math.round(state.wind.dir / 30)}|${state.rwyMode || ''}|${Math.floor(state.time / 3600)}|${state.vfr && state.vfr.p ? 'v' : ''}`;
+  const key = `${state.rwy}|${state.weather.kind}|${Math.round(state.wind.dir / 30)}|${state.rwyMode || ''}|${Math.floor(state.time / 3600)}|${state.vfr && state.vfr.p ? 'v' : ''}|${Math.round(gustPeak(state) / 5)}`;
   if (state.atisKey === key) return;
   const first = state.atisKey === undefined;
   state.atisKey = key;

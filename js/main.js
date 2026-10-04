@@ -50,6 +50,7 @@ import { dispatch, assignStand, standFits, standFree } from './sim/ground.js';
 import * as EC from './sim/economy.js';
 import { fmtClock, fmtMoney, dayOf, esc, clamp, hourOf } from './util.js';
 import { WEATHER, forecastInfo } from './sim/events.js';
+import { windShort } from './sim/gusts.js';
 import { PH } from './sim/aircraft.js';
 import * as LY from './layout.js';
 import { seqColor } from './ui/tower.js';
@@ -642,7 +643,7 @@ function updateHUD(force) {
   const soon = fc.change && fc.at - s.time < 2 * 3600;
   const WX_ICO = { clear: 'sun', clouds: 'clouds', rain: 'rain', fog: 'fog', storm: 'storm', snow: 'snow' };
   const SE_ICO = { autumn: 'leaf', winter: 'snow', spring: 'sprout', summer: 'sun' };
-  setHTML($('#hud-wx'), `<span title="${se.name}">${icon(SE_ICO[se.id] || 'leaf', 'se')}</span> ${icon(WX_ICO[s.weather.kind] || 'sun')} ${w.name} · ${temperature(s).toFixed(0)} °C · ${Math.round(s.wind.dir / 10) * 10}°/${Math.round(s.wind.spd)} kt${soon ? ` <span class="wx-next ${['storm', 'fog', 'snow'].includes(fc.kind) ? 'warn' : ''}" title="${T`Vorhersage: ab ${fmtClock(fc.at)} ${fc.name} (bis etwa ${fmtClock(fc.until)})`}">→ ${icon(WX_ICO[fc.kind] || 'clouds')} ${fmtClock(fc.at)}</span>` : ''}`);
+  setHTML($('#hud-wx'), `<span title="${se.name}">${icon(SE_ICO[se.id] || 'leaf', 'se')}</span> ${icon(WX_ICO[s.weather.kind] || 'sun')} ${w.name} · ${temperature(s).toFixed(0)} °C · ${windShort(s)}${soon ? ` <span class="wx-next ${['storm', 'fog', 'snow'].includes(fc.kind) ? 'warn' : ''}" title="${T`Vorhersage: ab ${fmtClock(fc.at)} ${fc.name} (bis etwa ${fmtClock(fc.until)})`}">→ ${icon(WX_ICO[fc.kind] || 'clouds')} ${fmtClock(fc.at)}</span>` : ''}`);
   setHTML($('#hud-rwy'), `RWY <b>${s.rwy}</b>${s.rwyPending ? ` <span class="pend">→ ${s.rwyPending}</span>` : ''}`);
   const cash = $('#hud-cash');
   setHTML(cash, fmtMoney(s.cash));

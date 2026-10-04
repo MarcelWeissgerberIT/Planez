@@ -14,6 +14,7 @@ import { fodRisk } from './inspect.js';
 import { winterWeather, isWinter } from './winter.js';
 import { isCareer, typeAllowed, stageOf } from './career.js';
 import { T } from '../i18n.js';
+import { updateGusts } from './gusts.js';
 
 export const WEATHER = {
   clear: { name: T('Klar'), icon: '☀️' },
@@ -40,7 +41,8 @@ export function updateEvents(state, dt) {
   const dd = ((w.tDir - w.dir + 540) % 360) - 180;
   w.dir = degNorm(w.dir + clamp(dd, -0.01 * dt, 0.01 * dt));
   w.spd += clamp(w.tSpd - w.spd, -0.002 * dt, 0.002 * dt);
-  w.gust = (w.gust || 0) * 0.98 + (rand(state) - 0.5) * 0.4;
+  rand(state); // Zufallsfolge wie vor den Böen beibehalten (Böen haben ihren eigenen Zufall)
+  updateGusts(state, dt);
 
   // Wetterlagen: die nächste Lage steht schon fest (Vorhersage/TAF) und wird rechtzeitig angekündigt
   const wx = state.weather;
@@ -63,7 +65,7 @@ export function updateEvents(state, dt) {
     wx.kind = kind;
     if (kind === 'fog') state.stats.today.hadFog = true;
     wx.until = state.time + dur * 3600;
-    wx.cells = kind === 'storm' ? makeCells(state) : kind === 'rain' ? showerCells(state) : [];
+    wx.cells = kind === 'storm' ? makeCells(state, dur) : kind === 'rain' ? showerCells(state) : [];
     wx.next = null;
     forecast(state);
   }
@@ -164,10 +166,18 @@ function showerCells(state) {
   return cells;
 }
 
-function makeCells(state) {
+function makeCells(state, dur = 1) {
   const cells = [];
   const n = randInt(state, 2, 4);
   for (let i = 0; i < n; i++) cells.push({ x: randRange(state, -35, 35), y: randRange(state, -35, 35), r: randRange(state, 3, 7) });
+  // meist zieht eine Zelle mitten in der Gewitterzeit über den Platz (Böenfront, Windscherung): sie startet in
+  // Windrichtung vor dem Flughafen und treibt mit 0,004 NM/s heran
+  let h = (Math.floor(state.time / 60) * 2246822519) >>> 0; // eigener Zufall: verschiebt den übrigen Spielablauf nicht
+  const r01 = () => ((h = (Math.imul(h ^ (h >>> 15), 2654435761) + 0x9e3779b9) >>> 0) / 4294967296);
+  if (r01() < 0.45) {
+    const d = 0.004 * dur * 3600 * (0.3 + r01() * 0.25), b = (state.wind.dir * Math.PI) / 180, side = -2 + r01() * 4;
+    cells.push({ x: Math.sin(b) * d + Math.cos(b) * side, y: -Math.cos(b) * d + Math.sin(b) * side, r: 3 + r01() * 1.5 });
+  }
   return cells;
 }
 

@@ -1,4 +1,5 @@
 // Flugzeuge: Lebenszyklus, Navigation im Luftraum, Bewegung auf der Karte
+import { windGoAround, gustPeak } from './gusts.js';
 import { AC_TYPES, AIRLINES, CITIES, AIRPORT } from '../config.js';
 import { touchdown } from './touchdown.js';
 import { assignLook } from './spotter.js';
@@ -58,7 +59,7 @@ export function tel(ac) {
 const ATIS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const atisName = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliett', 'Kilo', 'Lima', 'Mike', 'November', 'Oscar', 'Papa', 'Quebec', 'Romeo', 'Sierra', 'Tango', 'Uniform', 'Victor', 'Whiskey', 'X-ray', 'Yankee', 'Zulu'];
 export const atis = (state) => atisName[(state.atisN ?? Math.floor(state.time / 3600)) % 26];
-export const windStr = (state) => T`wind ${String(Math.round(state.wind.dir / 10) * 10).padStart(3, '0')} degrees ${Math.round(state.wind.spd)} knots`;
+export const windStr = (state) => T`wind ${String(Math.round(state.wind.dir / 10) * 10).padStart(3, '0')} degrees ${Math.round(state.wind.spd)} knots` + (gustPeak(state) ? ` gusting ${gustPeak(state)}` : '');
 
 export function getRot(state, ac) {
   return state.rots[ac.rot];
@@ -537,6 +538,12 @@ function updateMap(state, ac, dt) {
         }
         if (closed) {
           goAround(state, ac, T`Piste gesperrt – ${closed}`);
+          return;
+        }
+        // Seitenwind mit Böen über dem Limit des Musters bzw. kräftige Böe im kurzen Endanflug
+        const wv = !ac.emergency && windGoAround(state, ac);
+        if (wv) {
+          goAround(state, ac, wv);
           return;
         }
       }

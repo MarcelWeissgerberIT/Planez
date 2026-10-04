@@ -401,7 +401,7 @@ export const soundscape = {
     set(L.heliLfo.gain, 0.045 * hv, 0.4);
     // Wetter
     const w = state.weather.kind;
-    const windSpd = state.wind ? state.wind.spd : 8;
+    const windSpd = state.wind ? state.wind.spd + (state.wind.gust || 0) * 0.8 : 8; // Böen hörbar
     set(L.wind.g.gain, 0.012 + 0.0022 * windSpd + (w === 'storm' ? 0.03 : 0), 1);
     set(L.rain.g.gain, w === 'rain' ? 0.035 : w === 'storm' ? 0.06 : 0, 1.2);
     // Donner, wenn die Karte blitzt

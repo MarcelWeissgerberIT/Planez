@@ -129,7 +129,7 @@ export function updateVfr(state, dt) {
   if (state.scenario && !state.scenario.side) return; // in Herausforderungen nur, wenn das Drehbuch es vorsieht
   const S = vfrState(state);
   const hr = (state.time / 3600) % 24;
-  const wxOk = ['clear', 'clouds'].includes(state.weather.kind);
+  const wxOk = ['clear', 'clouds'].includes(state.weather.kind) && (state.wind.gk || 0) < 10 && !state.gustFront; // Sportflieger bleiben bei Böen am Boden
   let p = S.p;
   if (!p) {
     state.vfrOcc = null;

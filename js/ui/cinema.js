@@ -14,6 +14,7 @@ import { secState } from '../sim/security.js';
 import { fuelState } from '../sim/fuel.js';
 import { Q } from '../render/quality.js';
 import { T as tr_, LOCALE } from '../i18n.js';
+import { gustPeak } from '../sim/gusts.js';
 
 // Rundgang: Gebäude und Anlagen mit Live-Zahlen im Kommentar
 function tourSpots(s) {
@@ -349,7 +350,7 @@ export class Cinema {
     if (this.infoT <= 0) {
       this.infoT = 0.25;
       const w = WEATHER[s.weather.kind];
-      const clock = tr_`TAG ${dayOf(s.time)} · ${fmtClock(s.time)} · ${w.icon} ${Math.round(temperature(s))} °C · WIND ${String(Math.round(s.wind.dir / 10) * 10).padStart(3, '0')}/${Math.round(s.wind.spd)}`;
+      const clock = tr_`TAG ${dayOf(s.time)} · ${fmtClock(s.time)} · ${w.icon} ${Math.round(temperature(s))} °C · WIND ${String(Math.round(s.wind.dir / 10) * 10).padStart(3, '0')}/${Math.round(s.wind.spd)}${gustPeak(s) ? 'G' + gustPeak(s) : ''}`;
       if (this.clockEl.textContent !== clock) this.clockEl.textContent = clock;
       let data = '';
       if (ac && ac.mode === 'map') {

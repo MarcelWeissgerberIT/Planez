@@ -19,8 +19,12 @@ import { isCareer, careerFixedCosts, gaTakeoffRevenue, hourlyCareer, autoCareer,
 import * as LY from '../layout.js';
 import { T, DEC, EN } from '../i18n.js';
 
-export const REV_CATS = { landing: T('Landegebühren'), pax: T('Passagierentgelte'), parking: T('Parkpositionen'), handling: T('Abfertigung'), fuel: T('Kerosinverkauf (Marge)'), retail: T('Shops & Gastro'), carpark: T('Parken (Landseite)'), cargo: T('Fracht'), hotel: 'Hotel', night: T('Nacht-/Lärmentgelte'), deice: T('Enteisung'), energy: T('Stromverkauf (Solar)'), rail: T('Bahnhof'), other: T('Sonstiges') };
+export const REV_CATS = { landing: T('Landegebühren'), pax: T('Passagierentgelte'), parking: T('Parkpositionen'), handling: T('Abfertigung'), fuel: T('Kerosinverkauf (Marge)'), retail: T('Shops & Gastro'), carpark: T('Parken (Landseite)'), cargo: T('Fracht'), hotel: 'Hotel', night: T('Nacht-/Lärmentgelte'), deice: T('Enteisung'), energy: T('Stromverkauf (Solar)'), rail: T('Bahnhof'), rescue: T('Luftrettung (Pacht & Landungen)'), other: T('Sonstiges') };
 export const COST_CATS = { staff: T('Personal Boden'), atc: T('Flugsicherung'), infra: T('Instandhaltung'), vehicles: T('Fahrzeuge'), admin: T('Verwaltung'), utilities: T('Energie & Betrieb'), penalties: T('Vertragsstrafen & Bußgelder'), incidents: T('Vorfälle'), marketing: 'Marketing', interest: T('Kreditzinsen') };
+
+export const RESCUE_LEASE = 450; // Pacht der Luftrettungsstation je Tag
+// Landeentgelt des Rettungshubschraubers (≈ 3 t Höchstabfluggewicht, Mindestentgelt wie für Kleinflugzeuge)
+export const rescueLandingFee = (state) => Math.max(75, Math.round((state.fees.landing ?? 7.5) * 3));
 
 export function earn(state, cat, amount) {
   if (!amount) return;
@@ -221,6 +225,8 @@ function hourly(state) {
   const hh = (state.time / 3600) % 24;
   if (state.upgrades.solar && hh > 7 && hh < 19) earn(state, 'energy', (9000 / 12) * (state.weather.kind === 'clear' ? 1.3 : state.weather.kind === 'clouds' ? 0.8 : 0.45));
   if (state.upgrades.rail) earn(state, 'rail', 7000 / 24);
+  // Luftrettungsstation: der Betreiber pachtet Gelände und Hangar (Landeentgelte zahlt er je Landung, sim/heli.js)
+  if (LY.heliBaseOn()) earn(state, 'rescue', RESCUE_LEASE / 24);
   hourlyCareer(state);
   // Airline-Zufriedenheit driftet mit Gebühren/Ansehen
   const fi = feeIndex(state);

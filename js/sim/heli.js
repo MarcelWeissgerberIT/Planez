@@ -8,7 +8,7 @@
 import { PH } from './aircraft.js';
 import * as AS from './airspace.js';
 import { radio, log, notify } from './messages.js';
-import { penalize } from './economy.js';
+import { penalize, earn, rescueLandingFee } from './economy.js';
 import { scoreHeli } from './score.js';
 import { hasRwy2 } from './runway.js';
 import { clamp } from '../util.js';
@@ -186,6 +186,7 @@ export function updateHeli(state, dt) {
     if (H.z <= 0) {
       H.st = 'down';
       radio(state, HELI, `Tower, Rescue 7, landed at the rescue station.`, 'pilot');
+      earn(state, 'rescue', rescueLandingFee(state)); // Landeentgelt der Luftrettung
     }
     return;
   }
