@@ -213,7 +213,7 @@ export class ManagementPage {
     if (force) this.body._html = null;
     // Eingaben (Schieberegler) nicht während der Bedienung neu aufbauen
     if (document.activeElement && this.body.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
-    setHTML(this.body, this.panel.section(this.cat, s));
+    setHTML(this.body, `<div class="mg-flow">${this.panel.section(this.cat, s)}</div>`);
     // Streckennetz-Karte bleibt als eigenes Element erhalten und wird in den Platzhalter gehängt
     const slot = this.body.querySelector('.rm-slot');
     if (slot) {

@@ -611,14 +611,17 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .mg-kick { color: var(--mm-cyan); font-size: 11px; font-weight: 700; letter-spacing: .28em; text-transform: uppercase; }
 .mg-head h2 { margin: 4px 0 2px; font-size: 30px; letter-spacing: .1em; text-transform: uppercase; color: #fff; }
 .mg-head p { margin: 0; font-family: var(--sans); color: rgba(203,213,225,.8); font-size: 13.5px; }
-.mg-body { flex: 1; overflow-y: auto; padding: 4px 30px 30px; column-width: 380px; column-gap: 22px; font-family: var(--sans); }
-.mg-body > * { break-inside: avoid; }
-.mg-body > .p-sec, .rm-wrap > .p-sec { column-span: all; margin-top: 18px; font-size: 12px; color: var(--mm-cyan); font-family: var(--mm-font); font-weight: 700; letter-spacing: .2em; }
-.mg-body > .p-sec:first-child, .mg-body > .rm-wrap:first-child > .p-sec { margin-top: 4px; }
-.mg-body > .kpis { column-span: all; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-.mg-body > .kpis .k b { font-size: 18px; }
-.mg-body > .chart, .mg-body > svg.chart { column-span: all; max-width: 900px; }
-.mg-body > .legend, .mg-body > .ledger, .mg-body > table { column-span: none; }
+/* Scrollen und Spalten getrennt: .mg-body scrollt, darin trägt .mg-flow die Spalten mit natürlicher Höhe (ein
+   Spaltencontainer mit fester Höhe schiebt Inhalt sonst je nach Browser in unsichtbare Spalten nach rechts) */
+.mg-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 30px 30px; font-family: var(--sans); }
+.mg-flow { column-width: 380px; column-gap: 22px; }
+.mg-flow > * { break-inside: avoid; }
+.mg-flow > .p-sec, .rm-wrap > .p-sec { column-span: all; margin-top: 18px; font-size: 12px; color: var(--mm-cyan); font-family: var(--mm-font); font-weight: 700; letter-spacing: .2em; }
+.mg-flow > .p-sec:first-child, .mg-flow > .rm-wrap:first-child > .p-sec { margin-top: 4px; }
+.mg-flow > .kpis { column-span: all; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.mg-flow > .kpis .k b { font-size: 18px; }
+.mg-flow > .chart, .mg-flow > svg.chart { column-span: all; max-width: 900px; }
+.mg-flow > .legend, .mg-flow > .ledger, .mg-flow > table { column-span: none; }
 .mg-body .card { margin: 0 0 12px; background: rgba(12,20,34,.72); border-color: rgba(148,163,184,.2); }
 .mg-body .card.bigcard { column-span: all; border-color: rgba(56,214,245,.35); background: linear-gradient(135deg, rgba(56,214,245,.1), rgba(12,20,34,.75)); }
 .mg-body .card.bigcard .t { font-size: 16px; }
@@ -656,7 +659,8 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
   .mg-nav .mm-item small, .mg-name, .mg-foot .mm-toggle small { display: none; }
   .mg-head { padding: 12px 14px 4px; }
   .mg-head h2 { font-size: 20px; }
-  .mg-body { padding: 4px 14px 20px; column-width: auto; columns: 1; }
+  .mg-body { padding: 4px 14px 20px; }
+  .mg-flow { column-width: auto; columns: 1; }
 }
 .rwy-line { font-size: 12.5px; }
 .rwy-line .rwy-id { font-family: var(--mono); background: rgba(255,255,255,.08); border-radius: 4px; padding: 0 5px; margin-right: 4px; }
@@ -2232,7 +2236,7 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 @media (max-width: 900px) { .cr-now, .cr-up { grid-template-columns: 1fr; } .cr-up-b { padding: 0 12px; } .cr-line { grid-template-columns: repeat(5, minmax(90px, 1fr)); overflow-x: auto; } }
 @media (prefers-reduced-motion: reduce) { .cr-hero-img, .cr-now-pic > i, .cr-go { animation: none !important; } }
 .rk-stage { font-size: 15px; }
-.mg-body > .cr-line, .mg-body > .cr-now, .mg-body > .cr-up, .mg-body > .cr-acts, .mg-body > .cr-partners { column-span: all; }
+.mg-flow > .cr-line, .mg-flow > .cr-now, .mg-flow > .cr-up, .mg-flow > .cr-acts, .mg-flow > .cr-partners { column-span: all; }
 
 /* Aufbau-Modus: Wiesenplätze als Raster, gesperrte Ausbauten, langsam bewegte Bilder */
 .ga-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; margin: 8px 0 4px; }
@@ -2610,4 +2614,23 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 @container (min-width: 380px) {
   #game #ctx > #info.acinfo .i-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   #game #ctx > #info.acinfo .i-gmain > div:nth-child(2) { grid-column: span 2; }
+}
+
+/* Verträge als kompakte Zeilen (Airline-Farbe links, Strecke, Zufriedenheit, Restlaufzeit, Kündigen) */
+.ct-list { column-span: all; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr)); gap: 6px 14px; margin-bottom: 14px; }
+.ct-row { display: grid; grid-template-columns: minmax(0, 1fr) 92px 64px auto; align-items: center; gap: 10px; padding: 7px 10px 7px 12px; background: rgba(12, 20, 34, 0.66); border-left: 3px solid var(--al, #64748b); border-radius: 0 4px 4px 0; font-size: 13px; }
+.ct-row:hover { background: rgba(22, 34, 56, 0.8); }
+.ct-main { min-width: 0; }
+.ct-main b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #f1f5f9; }
+.ct-main small { display: block; color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ct-sat { display: flex; flex-direction: column; gap: 3px; }
+.ct-sat .bar { margin: 0; }
+.ct-sat small { font-size: 10.5px; color: var(--muted); }
+.ct-days { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; }
+.ct-days.warn { color: var(--warn); }
+.ct-row .mini { white-space: nowrap; }
+@media (max-width: 760px) {
+  .ct-list { grid-template-columns: 1fr; }
+  .ct-row { grid-template-columns: minmax(0, 1fr) 64px auto; }
+  .ct-sat { display: none; }
 }

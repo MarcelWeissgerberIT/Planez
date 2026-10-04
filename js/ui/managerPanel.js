@@ -364,14 +364,14 @@ export class ManagerPanel {
     }
     h += T`<div class="p-sec"><span>Laufende Verträge</span><span class="cnt">${s.contracts.length}</span></div>`;
     const sorted = [...s.contracts].sort((a, b) => a.days - b.days);
+    // kompakte Zeilen: auch 20+ Verträge bleiben überschaubar (zuerst die, die bald auslaufen)
+    h += '<div class="ct-list">';
     for (const c of sorted) {
       const al = AIRLINES[c.airline];
       const col = c.sat < 45 ? 'var(--bad)' : c.sat < 65 ? 'var(--warn)' : 'var(--good)';
-      h += T`<div class="card"><div class="row"><span class="t"><i class="al-dot" style="background:${al.color}"></i>${al.name} → ${CITIES[c.city].name}${c.feeMult > 1 ? ` <small class="prem">+${Math.round((c.feeMult - 1) * 100)} %</small>` : ''}</span><span style="font-size:12px;color:${c.days <= 3 ? 'var(--warn)' : 'var(--muted)'}">${c.days} Tage</span></div>
-        <div class="s">${c.perDay}× täglich · ${AC_TYPES[c.type].name} · Zufriedenheit ${Math.round(c.sat)} %</div>
-        <div class="bar"><i style="width:${c.sat}%;background:${col}"></i></div>
-        <div class="acts"><button class="mini" data-act="cancel" data-v="${c.id}">Kündigen</button></div></div>`;
+      h += T`<div class="ct-row" style="--al:${al.color}"><div class="ct-main"><b>${al.name} → ${CITIES[c.city].name}${c.feeMult > 1 ? ` <small class="prem">+${Math.round((c.feeMult - 1) * 100)} %</small>` : ''}</b><small>${c.perDay}× täglich · ${AC_TYPES[c.type].name}</small></div><div class="ct-sat" title="Zufriedenheit der Airline"><span class="bar"><i style="width:${c.sat}%;background:${col}"></i></span><small>zufrieden ${Math.round(c.sat)} %</small></div><span class="ct-days${c.days <= 3 ? ' warn' : ''}">${c.days} Tage</span><button class="mini" data-act="cancel" data-v="${c.id}">Kündigen</button></div>`;
     }
+    h += '</div>';
     return h;
   }
 

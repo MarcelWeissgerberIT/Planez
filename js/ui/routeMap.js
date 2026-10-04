@@ -98,7 +98,7 @@ export class RouteMap {
   draw(t) {
     const s = this.game.state;
     const cv = this.cv;
-    const W = this.el.clientWidth || 600, H = Math.max(320, Math.min(520, W * 0.42));
+    const W = this.el.clientWidth || 600, H = Math.round(Math.max(240, Math.min(520, W * 0.42, window.innerHeight * 0.42)));
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) {
       cv.width = Math.round(W * dpr);
