@@ -936,12 +936,27 @@ export class MapRenderer {
     this.picks.push({ type: 'building', id: b.id, x: fc.x, y: fc.y - dh * 0.45, r: dw * 0.35 });
   }
 
+  // vorberechnete Ebene (Parkplatz, Parkhaus): neu, wenn sich der Schlüssel ändert. Je Bild kommen nur einige neue
+  // 3D-Autos dazu (sonst stockt das Spiel) – fehlen noch welche, wird nach kurzer Pause nachgebacken; bis dahin bleibt
+  // die letzte vollständige Ebene stehen (passend skaliert)
+  baked(name, key, make) {
+    const now = performance.now();
+    let B = this[name];
+    if (!B || B.key !== key || (B.miss && now - B.t > 250)) {
+      if (B && !B.miss) this[name + 'Ok'] = B;
+      if (IMP) IMP.takeBakeMiss();
+      B = this[name] = { key, ...make(), t: now };
+      B.miss = IMP ? IMP.takeBakeMiss() : 0;
+    }
+    const ok = this[name + 'Ok'];
+    return B.miss && ok ? ok : B;
+  }
+
   drawLot(state) {
     const ctx = this.ctx, cam = this.cam;
     const lvl = state.upgrades.parking || 0;
     const bz = bakeZ(cam);
-    if (!this.lot || this.lot.lvl !== lvl || this.lot.imp !== !!IMP || this.lot.bz !== bz) this.lot = { lvl, imp: !!IMP, bz, ...bakeLot(lvl, bz) }; // mit 3D-Autos neu, sobald geladen
-    const L = this.lot;
+    const L = this.baked('lot', `${lvl}|${!!IMP}|${bz}`, () => bakeLot(lvl, bz)); // mit 3D-Autos neu, sobald geladen
     cam.setScreen(ctx);
     const k = cam.zoom / L.Z;
     const p = cam.toScreen(56, 2.0);
@@ -953,9 +968,7 @@ export class MapRenderer {
     const ctx = this.ctx, cam = this.cam;
     const lvl = this.garageLevel || 0;
     const bz = bakeZ(cam);
-    const key = 'g' + lvl + (IMP ? 'i' : '') + bz;
-    if (!this.garage || this.garage.key !== key) this.garage = { key, ...bakeGarage(b, lvl, bz) };
-    const G = this.garage;
+    const G = this.baked('garage', 'g' + lvl + (IMP ? 'i' : '') + bz, () => bakeGarage(b, lvl, bz));
     this.topZ.garage = (3 + lvl) * 0.3 + 0.08;
     this.topZ.garageCorners = [[b.fx - b.w, b.fy - b.d], [b.fx, b.fy - b.d], [b.fx, b.fy], [b.fx - b.w, b.fy]];
     cam.setScreen(ctx);
