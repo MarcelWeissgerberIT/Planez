@@ -380,7 +380,7 @@ function startGame(state) {
   spotter().hinted = new Set();
   setGlossaryEnabled(state.settings.glossary !== false);
   resize();
-  const narrow = window.innerWidth < 760;
+  const narrow = narrowUi();
   game.cam.x = 36;
   game.cam.y = 21;
   game.cam.zoom = narrow ? 0.4 : window.innerWidth > 1700 ? 0.62 : 0.52;
@@ -442,7 +442,7 @@ function applyRole() {
     });
     head.after(h);
   }
-  $('#btn-role').innerHTML = `${icon({ tower: 'headset', ground: 'vest', manager: 'briefcase', observer: 'eye' }[s.role] || 'eye')} ${ROLES[s.role].short} ▾`;
+  $('#btn-role').innerHTML = `${icon({ tower: 'headset', ground: 'vest', manager: 'briefcase', observer: 'eye' }[s.role] || 'eye')} <span class="rb-t">${ROLES[s.role].short}</span> ▾`;
   toggleRadar(s.role === 'tower');
   if (game.syncVoice) game.syncVoice();
   if (game.tutorial && game.tutorial.on) game.tutorial.stop();
@@ -635,15 +635,17 @@ function updateHUD(force) {
   const s = game.state;
   setHTML($('#hud-day'), T`Tag ${dayOf(s.time)}`);
   setHTML($('#hud-time'), fmtClock(s.time));
-  const sp = SPEEDS.map((v, i) => `<button data-speed="${v}" class="${s.speed === v ? 'on' : ''}" title="${v ? T`${v}-fach – ein Tag dauert ca. ${Math.round(dayMinutes(v))} Minuten` : T('Pause')}${T` (Taste ${i})`}">${v === 0 ? '❚❚' : v + '×'}</button>`).join('');
+  const sp = SPEEDS.map((v, i) => `<button data-speed="${v}" class="${s.speed === v ? 'on' : !s.speed && v === lastSpeed ? 'last' : ''}" title="${v ? T`${v}-fach – ein Tag dauert ca. ${Math.round(dayMinutes(v))} Minuten` : T('Pause')}${T` (Taste ${i})`}">${v === 0 ? '❚❚' : v + '×'}</button>`).join('');
   setHTML($('#speeds'), sp);
+  const spPop = $('#speeds-pop');
+  if (spPop && !spPop.classList.contains('hidden')) setHTML(spPop, sp);
   const w = WEATHER[s.weather.kind];
   const se = season(s);
   const fc = forecastInfo(s);
   const soon = fc.change && fc.at - s.time < 2 * 3600;
   const WX_ICO = { clear: 'sun', clouds: 'clouds', rain: 'rain', fog: 'fog', storm: 'storm', snow: 'snow' };
   const SE_ICO = { autumn: 'leaf', winter: 'snow', spring: 'sprout', summer: 'sun' };
-  setHTML($('#hud-wx'), `<span title="${se.name}">${icon(SE_ICO[se.id] || 'leaf', 'se')}</span> ${icon(WX_ICO[s.weather.kind] || 'sun')} ${w.name} · ${temperature(s).toFixed(0)} °C · ${windShort(s)}${soon ? ` <span class="wx-next ${['storm', 'fog', 'snow'].includes(fc.kind) ? 'warn' : ''}" title="${T`Vorhersage: ab ${fmtClock(fc.at)} ${fc.name} (bis etwa ${fmtClock(fc.until)})`}">→ ${icon(WX_ICO[fc.kind] || 'clouds')} ${fmtClock(fc.at)}</span>` : ''}`);
+  setHTML($('#hud-wx'), `<span title="${se.name}">${icon(SE_ICO[se.id] || 'leaf', 'se')}</span> ${icon(WX_ICO[s.weather.kind] || 'sun')} <span class="wx-n">${w.name} · ${temperature(s).toFixed(0)} °C · </span>${windShort(s)}${soon ? ` <span class="wx-next ${['storm', 'fog', 'snow'].includes(fc.kind) ? 'warn' : ''}" title="${T`Vorhersage: ab ${fmtClock(fc.at)} ${fc.name} (bis etwa ${fmtClock(fc.until)})`}">→ ${icon(WX_ICO[fc.kind] || 'clouds')} ${fmtClock(fc.at)}</span>` : ''}`);
   setHTML($('#hud-rwy'), `RWY <b>${s.rwy}</b>${s.rwyPending ? ` <span class="pend">→ ${s.rwyPending}</span>` : ''}`);
   const cash = $('#hud-cash');
   setHTML(cash, fmtMoney(s.cash));
@@ -1084,9 +1086,44 @@ function wireGame() {
   });
 
   // HUD
+  // Handy: nur Pause und das aktuelle Tempo – ein Tipp darauf klappt alle Stufen unter der Kopfleiste auf
+  const spPop = document.createElement('div');
+  spPop.id = 'speeds-pop';
+  spPop.className = 'speeds hidden';
+  $('#hud').appendChild(spPop);
+  const closeSpeeds = () => spPop.classList.add('hidden');
   $('#speeds').addEventListener('click', (e) => {
     const b = e.target.closest('[data-speed]');
-    if (b) setSpeed(Number(b.dataset.speed));
+    if (!b) return;
+    const v = Number(b.dataset.speed);
+    if (narrowUi()) {
+      if (v === 0 && game.state.speed === 0) return setSpeed(lastSpeed);
+      if (v > 0 && v === game.state.speed) {
+        spPop.classList.toggle('hidden');
+        return updateHUD();
+      }
+    }
+    closeSpeeds();
+    setSpeed(v);
+  });
+  spPop.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-speed]');
+    if (!b) return;
+    closeSpeeds();
+    setSpeed(Number(b.dataset.speed));
+  });
+  window.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('#speeds, #speeds-pop')) closeSpeeds();
+    if (!e.target.closest('#map-ctrls')) $('#map-ctrls').classList.remove('open');
+  });
+  // Handy: Werkzeugleiste eingeklappt, „Mehr“ zeigt alle Werkzeuge; nach der Wahl klappt sie wieder zu
+  $('#map-more').addEventListener('click', () => $('#map-ctrls').classList.toggle('open'));
+  $('#map-ctrls').addEventListener('click', (e) => {
+    if (e.target.closest('.icon-btn:not(#map-more)')) $('#map-ctrls').classList.remove('open');
+  });
+  // eingeklappter Funk zeigt am Handy die letzte Meldung – antippen klappt ihn auf
+  $('#log').addEventListener('click', () => {
+    if (narrowUi() && $('#log-wrap').classList.contains('min')) $('#log-toggle').click();
   });
   $('#btn-role').addEventListener('click', showRoleModal);
   $('#btn-menu').addEventListener('click', showGameMenu);
@@ -1548,6 +1585,10 @@ function clickMap(x, y) {
 
 // ---------------- Layout ----------------
 // auf schmalen Bildschirmen bricht die Kopfleiste um – dann ihre echte Höhe für alles darunter übernehmen
+// Handy (Hochformat schmal oder Querformat flach) – gleiche Grenzen wie die Handy-Regeln im Stylesheet
+function narrowUi() {
+  return window.matchMedia('(max-width: 760px), (max-height: 500px)').matches;
+}
 function syncHudHeight() {
   const g = document.getElementById('game'), h = document.getElementById('hud');
   if (!g || !h) return;

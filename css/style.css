@@ -2329,3 +2329,96 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .pk-own span { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-right: 4px; }
 .pk-own em { font-style: normal; padding: 3px 9px; border-radius: 999px; background: rgba(56,214,245,.12); border: 1px solid rgba(56,214,245,.3); }
 @media (max-width: 760px) { .pk-grid { grid-template-columns: 1fr; } }
+
+/* ======================================================================================================
+   HANDY: kompakte Kopfleiste (Hochformat zwei Zeilen, Querformat eine), Tempo als Pause + aktuelle Stufe,
+   Funk eingeklappt als eine Zeile mit der letzten Meldung, Werkzeugleiste eingeklappt hinter „Mehr“,
+   Zoom per Fingergeste statt Knöpfen.
+   ====================================================================================================== */
+#map-more, #speeds-pop { display: none; }
+@media (max-width: 760px), (max-height: 500px) {
+  /* Kopfleiste: Menü · Uhr · Tempo · Wetter · Bahn | Kasse · Ansehen · Punkte · KI · Rang · Rolle */
+  #hud { flex-wrap: wrap; justify-content: flex-start; align-items: center; column-gap: 6px; row-gap: 5px; padding: 5px 8px 6px; height: auto; min-height: 0; }
+  .hud-l, .hud-c, .hud-r { display: contents; }
+  .hud-logo, .hud-name, .kpi.hide-sm { display: none; }
+  #hud::before { content: ''; order: 6; flex: 0 0 100%; height: 0; }
+  #btn-menu { order: 1; width: 32px; height: 32px; }
+  .clock { order: 2; min-width: 0; padding: 0 2px; }
+  .clock span { font-size: 8.5px; letter-spacing: 0.12em; }
+  .clock b { font-size: 17px; }
+  .speeds { order: 3; }
+  .speeds button { padding: 5px 7px; font-size: 11px; min-width: 30px; }
+  #speeds button:not(.on):not(.last):not([data-speed="0"]) { display: none; }
+  #speeds button.on:not([data-speed="0"])::after { content: ' ▾'; font-size: 9px; opacity: 0.8; }
+  #speeds button.last { color: var(--txt); }
+  #speeds button.last::before { content: '▶ '; font-size: 9px; }
+  #speeds-pop:not(.hidden) { display: flex; position: absolute; left: 8px; right: 8px; top: calc(100% + 6px); z-index: 30; justify-content: space-between; padding: 4px; box-shadow: var(--ui-edge), 0 10px 26px rgba(0, 0, 0, 0.5); background: linear-gradient(180deg, rgba(20, 30, 50, 0.97), rgba(9, 14, 26, 0.97)); }
+  #speeds-pop button { flex: 1; padding: 9px 0; font-size: 13px; }
+  .wx { order: 4; margin-left: auto; padding: 4px 7px; font-size: 11.5px; }
+  .wx .se, .wx .wx-n, .wx .wx-next { display: none; }
+  .rwy { order: 5; padding: 4px 7px; font-size: 11.5px; }
+  .kpi { order: 7; padding: 0 7px; }
+  .kpi:first-child { padding-left: 2px; }
+  .hud-r > .kpi:nth-child(2) { margin-right: auto; }
+  .kpi span { font-size: 8.5px; letter-spacing: 0.12em; }
+  .kpi b { font-size: 13px; }
+  .score-chip { order: 8; }
+  .ai-btn { order: 9; padding: 5px 7px; }
+  .rank-btn { order: 10; padding: 3px 6px; }
+  .role-btn { order: 11; padding: 5px 8px; gap: 3px; font-size: 11px; }
+  .role-btn .rb-t { display: none; }
+
+  /* Funk eingeklappt: eine Zeile mit der neuesten Meldung – antippen klappt ihn auf */
+  #log-wrap.min { flex-direction: row; align-items: center; }
+  #log-wrap.min .log-head { order: 2; flex: 0 0 auto; border: 0; padding: 3px 5px 3px 0; background: none; }
+  #log-wrap.min .log-head > span:first-child, #log-wrap.min #ptt-btn { display: none; }
+  #log-wrap.min #log { order: 1; display: block; flex: 1; min-width: 0; overflow: hidden; padding: 6px 4px 6px 9px; cursor: pointer; }
+  #log-wrap.min .lg { display: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 0; padding-left: 0; }
+  #log-wrap.min .lg:last-child { display: block; }
+
+  /* Werkzeugleiste: eingeklappt nur „Mehr“ und Beschriftungen, aufgeklappt als Raster */
+  #map-ctrls { padding: 4px; gap: 4px; border-radius: 12px; }
+  #map-ctrls .icon-btn { width: 36px; height: 36px; }
+  #map-more { display: inline-flex; order: -1; }
+  #map-ctrls #z-in, #map-ctrls #z-out { display: none; }
+  #map-ctrls #z-out::after, #map-ctrls #t-noise::after { display: none; }
+  #map-ctrls #z-out, #map-ctrls #t-noise { margin-bottom: 0; }
+  #map-ctrls:not(.open) .icon-btn:not(#map-more):not(#t-labels) { display: none; }
+  #map-ctrls.open { display: grid; grid-template-columns: repeat(3, 36px); }
+  #map-ctrls.open #map-more { color: #fff; background: color-mix(in srgb, var(--role) 22%, transparent); }
+  .tk-l { padding: 0 8px; letter-spacing: 0.1em; font-size: 10px; }
+}
+/* Hochformat: zweite Zeile der Kopfleiste, Werkzeugleiste oben rechts, Panel als Blatt von unten */
+@media (max-width: 760px) {
+  #log-wrap { left: 6px; right: 52px; width: auto; top: calc(var(--hud-h) + 6px); max-height: 38vh; }
+  #game #map-ctrls, #game.tw-layout #map-ctrls, #game.role-manager #map-ctrls, #game.role-observer #map-ctrls { top: calc(var(--hud-h) + 6px); bottom: auto; right: 6px; }
+  /* Meldungen unter dem Funkstreifen, nicht über der Werkzeugleiste */
+  #toasts { left: 8px; right: 52px; width: auto; transform: none; top: calc(var(--hud-h) + 50px); }
+  #game.tw-layout #toasts { top: calc(var(--hud-h) + 10px); }
+  /* unten: Panel-Knopf als Pfeil nach oben/unten, Ticker lässt ihm Platz */
+  #panel-toggle { transform: rotate(90deg); }
+  #game.tw-layout #panel-toggle.collapsed { bottom: calc(var(--rail-h) + 12px); }
+  #ticker { left: 6px; right: 6px; bottom: 6px; height: 28px; }
+  #panel.collapsed ~ #ticker { right: 52px; }
+  #game.tw-layout { --rail-h: 262px; }
+  .lane-h { padding-top: 3px; }
+  .lane-cards { padding: 4px 10px 6px; }
+  /* beide Spuren untereinander in voller Breite (die Inhaltsgewichtung nebeneinander gilt nur am großen Bildschirm) */
+  .rail-lanes[data-f=both] { grid-template-columns: 1fr !important; grid-template-rows: 1fr 1fr; }
+}
+/* kleine Handys (iPhone SE, Mini): enger setzen, damit die zweite Zeile nicht umbricht */
+@media (max-width: 400px) {
+  #hud { column-gap: 4px; padding-left: 6px; padding-right: 6px; }
+  .kpi { padding: 0 5px; }
+  .score-chip { gap: 4px; padding: 2px 5px; }
+}
+/* Querformat am Handy: Kopfleiste in einer Zeile, flachere Streifenleiste, schmaler Funk */
+@media (max-height: 500px) and (min-width: 761px) {
+  #hud::before { display: none; }
+  .wx { margin-left: 0; }
+  .hud-r > .kpi:nth-child(2) { margin-right: 0; }
+  .hud-r > .kpi:first-child { margin-left: auto; }
+  #log-wrap { width: 340px; max-height: 46vh; }
+  #game.tw-layout { --rail-h: 168px; }
+  #ticker { height: 26px; }
+}

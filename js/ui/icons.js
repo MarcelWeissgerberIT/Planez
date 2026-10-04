@@ -17,6 +17,7 @@ const P = {
   gloss: '<path d="M12 6.5c-2-1.5-5-2-8-1.5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V5c-3-.5-6 0-8 1.5z"/><path d="M12 6.5v13"/>',
   help: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .9-1 1.6v.6"/><circle class="a" cx="12" cy="16.8" r="1.1"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  apps: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect class="a" x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/>',
   tower: '<path d="M9 21l1-10h4l1 10M7.5 11h9M8 11l-1-4h10l-1 4"/><path d="M12 7V3.5"/><circle class="a" cx="12" cy="3.2" r="1.2"/>',
   headset: '<path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"/><rect x="3.5" y="13" width="4" height="6" rx="1.5"/><rect x="16.5" y="13" width="4" height="6" rx="1.5"/><path d="M18.5 19c0 1.5-2 2.5-5 2.5"/><circle class="a" cx="12.5" cy="21.4" r="1.1"/>',
   vest: '<path d="M8 3.5l4 4 4-4 3.5 2.5-1.5 4v10.5H6V10L4.5 6z"/><path class="a" d="M6.2 13.5h11.6" /><path d="M12 7.5v13"/>',
