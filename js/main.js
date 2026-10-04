@@ -3,7 +3,7 @@ import { Ride, preload3d } from './ui/ride.js';
 import { setAiPlay, aiAvailable, MANUAL_HOLD } from './sim/aiplay.js';
 import { icon, hydrateIcons } from './ui/icons.js';
 import { loadAssets } from './assets.js';
-import { Camera } from './render/camera.js';
+import { Camera, HALF_H } from './render/camera.js';
 import { MapRenderer } from './render/map.js';
 import { Radar, seqChips } from './render/radar.js';
 import { newGame, loadGame, saveGame, hasSave, setRole, ROLES } from './state.js';
@@ -49,6 +49,7 @@ import { command } from './sim/atc.js';
 import { dispatch, assignStand, standFits, standFree } from './sim/ground.js';
 import * as EC from './sim/economy.js';
 import { fmtClock, fmtMoney, dayOf, esc, clamp, hourOf } from './util.js';
+import { showWeather } from './ui/weather.js';
 import { WEATHER, forecastInfo } from './sim/events.js';
 import { windShort } from './sim/gusts.js';
 import { PH } from './sim/aircraft.js';
@@ -583,6 +584,7 @@ function loop(ts) {
     if (game.ui.radarOn) setHTML($('#radar-seq'), seqChips(s));
     if (!game.panelHold && !(document.activeElement && document.activeElement.tagName === 'SELECT')) game.panel.update(s);
     if (!(document.activeElement && document.activeElement.tagName === 'SELECT' && document.activeElement.closest('#info'))) renderInfo($('#info'), s, game.ui);
+    keepSelVisible();
     if (game.mgmt && game.mgmt.isOpen()) game.mgmt.update(s);
     if (!game.decision) game.decision = new DecisionCard(game);
     game.decision.update(s);
@@ -625,9 +627,41 @@ function followCam(s, dt) {
   if (f.type === 'ac' && o.mode !== 'map') return;
   const cam = game.cam;
   const k = 1 - Math.pow(0.02, dt);
-  cam.x += (o.x - cam.x) * k;
-  cam.y += (o.y - cam.y) * k;
+  const v = viewShift();
+  cam.x += (o.x + v - cam.x) * k;
+  cam.y += (o.y + v - cam.y) * k;
   cam.tx = null;
+}
+
+// Handy: Mitte des freien Kartenbereichs zwischen Kopfleiste/Funk und Info-Karte statt Bildschirmmitte. Liefert den
+// Versatz in Kacheln (auf x und y gleich), um den die Kamera hinter das Ziel rückt, damit es dort erscheint.
+function viewBand() {
+  const info = $('#info');
+  if (!narrowUi() || !info.classList.contains('show')) return null;
+  const top = $('#hud').getBoundingClientRect().bottom + 50;
+  const bottom = info.getBoundingClientRect().top - 10;
+  return bottom - top > 90 ? { top, bottom } : null;
+}
+function viewShift() {
+  const b = viewBand();
+  if (!b) return 0;
+  return (game.cam.h / 2 - (b.top + b.bottom) / 2) / (HALF_H * game.cam.zoom) / 2;
+}
+// Handy: ein frisch gewähltes Flugzeug, das unter der Info-Karte oder der Kopfleiste liegt, einmal sanft in den
+// freien Bereich holen (danach nicht gegen das Ziehen des Spielers arbeiten)
+function keepSelVisible() {
+  const id = game.ui.selected;
+  if (!id || game.ui.follow) return void (game.selShown = id);
+  if (game.selShown === id) return;
+  const ac = game.state.acs.find((a) => a.id === id);
+  const b = viewBand();
+  if (!ac || ac.mode !== 'map' || !b) return;
+  game.selShown = id;
+  const v = viewShift();
+  if (game.cam.tx) return game.cam.focus(ac.x + v, ac.y + v); // Schwenk aufs Flugzeug läuft schon: Ziel nur versetzen
+  const p = game.cam.toScreen(ac.x, ac.y, ac.z || 0);
+  if (p.y > b.top + 24 && p.y < b.bottom - 24 && p.x > 24 && p.x < game.cam.w - 24) return;
+  game.cam.focus(ac.x + v, ac.y + v);
 }
 
 // ---------------- HUD ----------------
@@ -1126,6 +1160,8 @@ function wireGame() {
     if (narrowUi() && $('#log-wrap').classList.contains('min')) $('#log-toggle').click();
   });
   $('#btn-role').addEventListener('click', showRoleModal);
+  $('#hud-wx').addEventListener('click', () => showWeather(game));
+  $('#hud-wx').addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), showWeather(game)));
   $('#btn-menu').addEventListener('click', showGameMenu);
   $('#panel-toggle').addEventListener('click', togglePanel);
   $('#z-in').addEventListener('click', () => game.cam.zoomAt(1.25, game.cam.w / 2, game.cam.h / 2));
@@ -1240,6 +1276,11 @@ function wireGame() {
   info.addEventListener('click', (e) => {
     const s = game.state;
     if (e.target.closest('[data-close]')) return game.select(null);
+    if (e.target.closest('[data-imore]')) {
+      game.ui.infoMore = !game.ui.infoMore;
+      renderInfo(info, s, game.ui);
+      return;
+    }
     const fo = e.target.closest('[data-follow]');
     if (fo) {
       const [type, id] = fo.dataset.follow.split(':');

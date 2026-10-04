@@ -2445,3 +2445,76 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
   #ride.cine3d .rd-bar { top: calc(9vh + 8px); bottom: auto; }
   #ride.window .rd-win, #ride.v3d.window .rd-win { top: calc((var(--hud-h, 44px) + 100vh - 48px) / 2); height: calc(100vh - var(--hud-h, 44px) - 100px); width: calc((100vh - var(--hud-h, 44px) - 100px) / 1.38); }
 }
+
+/* Wettermenü (Tipp auf die Wetteranzeige) */
+#hud-wx { cursor: pointer; }
+#hud-wx:hover { border-color: rgba(148, 178, 214, 0.4); background: rgba(148, 178, 214, 0.1); }
+.wxm { font-size: 13px; color: #d5deea; }
+.wxm-top { display: grid; grid-template-columns: 1fr 1.3fr; gap: 12px; align-items: stretch; }
+.wxm-now, .wxm-wind { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: rgba(148, 178, 214, 0.06); box-shadow: inset 0 0 0 1px rgba(148, 178, 214, 0.14); }
+.wxm-now > div, .wxm-wind > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wxm-now b { font: 700 22px var(--ui-font, inherit); color: #f8fafc; }
+.wxm-wind b { font: 700 18px var(--mono); color: #f8fafc; }
+.wxm-now span, .wxm-wind span { color: #cbd5e1; }
+.wxm small { color: #8ea3bd; font-size: 12px; line-height: 1.35; }
+.wxm .wxm-cells { color: #fca5a5; }
+.wxm-ico { width: 46px; height: 46px; flex-shrink: 0; color: #e2e8f0; }
+.wxm-ico .a { fill: #fcd34d; stroke: #fcd34d; }
+.wr { width: 118px; height: 118px; flex-shrink: 0; }
+.wr-ring { fill: rgba(4, 8, 16, 0.5); stroke: rgba(148, 178, 214, 0.28); stroke-width: 1; }
+.wr-tick { stroke: rgba(148, 178, 214, 0.5); stroke-width: 1.2; }
+.wr-l { fill: #8ea3bd; font: 700 9px var(--ui-font, sans-serif); text-anchor: middle; }
+.wr-cell { fill: rgba(239, 68, 68, 0.35); stroke: rgba(248, 113, 113, 0.8); stroke-width: 1; }
+.wr-shower { fill: rgba(56, 189, 248, 0.22); stroke: rgba(125, 211, 252, 0.6); stroke-width: 1; }
+.wr-rwy { fill: #334155; stroke: #64748b; stroke-width: 0.8; }
+.wr-cl { stroke: #e2e8f0; stroke-width: 0.8; stroke-dasharray: 3 2.5; }
+.wr-rn { fill: #8ea3bd; font: 700 8.5px var(--mono, monospace); text-anchor: middle; }
+.wr-rn.on { fill: var(--role, #38d6f5); }
+.wr-arrow { stroke: #38d6f5; stroke-width: 3; stroke-linecap: round; }
+.wr-head { fill: #38d6f5; }
+.wxm-warn { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 10px; background: rgba(251, 191, 36, 0.1); box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.4); color: #fde68a; font-size: 12.5px; line-height: 1.4; }
+.wxm-tab { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.wxm-tab th { text-align: left; font: 600 10px var(--ui-font, inherit); letter-spacing: 0.12em; text-transform: uppercase; color: #8ea3bd; padding: 0 8px 4px 0; }
+.wxm-tab td { padding: 6px 8px 6px 0; border-top: 1px solid rgba(148, 178, 214, 0.1); font-family: var(--mono); white-space: nowrap; }
+.wxm-tab td:first-child { font-family: inherit; white-space: normal; }
+.wxm-tab tr.on td { color: #f8fafc; }
+.wxm-tab tr.on td:first-child b { color: var(--role, #38d6f5); }
+.wxm-tab small { color: #8ea3bd; }
+.wxm-tab td.bad { color: #fca5a5; }
+.wxm-lims { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.wxm-lim { display: flex; flex-direction: column; gap: 2px; padding: 7px 9px; border-radius: 9px; background: rgba(148, 178, 214, 0.06); box-shadow: inset 0 0 0 1px rgba(148, 178, 214, 0.14); }
+.wxm-lim span { font-size: 11px; color: #8ea3bd; line-height: 1.2; }
+.wxm-lim b { font-family: var(--mono); font-size: 14px; color: #f1f5f9; }
+.wxm-lim i { font-style: normal; font-size: 11px; font-weight: 700; }
+.wxm-lim.good i { color: var(--good, #4ade80); }
+.wxm-lim.warn { box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.5); }
+.wxm-lim.warn i { color: #fcd34d; }
+.wxm-lim.bad { box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.6); background: rgba(248, 113, 113, 0.08); }
+.wxm-lim.bad i { color: #fca5a5; }
+.wxm-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; }
+.wxm-grid .wide { grid-column: 1 / -1; }
+.wxm-grid span { display: block; font: 600 10px var(--ui-font, inherit); letter-spacing: 0.12em; text-transform: uppercase; color: #8ea3bd; }
+.wxm-grid b { font-size: 13.5px; color: #f1f5f9; }
+.modal-box p.wxm-atis { font-family: var(--mono); font-size: 12px; line-height: 1.5; color: #a7f3d0; background: rgba(4, 8, 16, 0.5); border-radius: 8px; padding: 8px 10px; margin: 0; }
+@media (max-width: 760px) {
+  .wxm-top { grid-template-columns: 1fr; gap: 8px; }
+  .wxm-lims { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wr { width: 104px; height: 104px; }
+  .wxm-tab { font-size: 11.5px; }
+  .wxm-tab td { padding-right: 6px; }
+}
+
+/* Info-Karte am Handy: eingeklappt Kopf, Kurzzeile und Aktionen – Daten, Kennzeichen und Markieren unter „Details“ */
+.i-brief, .i-moreb { display: none; }
+@media (max-width: 760px), (max-height: 500px) {
+  #game #info.acinfo:not(.more) .i-reg, #game #info.acinfo:not(.more) .i-grid, #game #info.acinfo:not(.more) .i-slot, #game #info.acinfo:not(.more) .i-marks, #game #info.acinfo:not(.more) .i-fee, #game #info.acinfo:not(.more) .i-folnote { display: none; }
+  #game #info.acinfo:not(.more) .i-brief { display: block; margin-top: 6px; font-size: 12.5px; line-height: 1.35; color: #dbe4ef; }
+  #game #info.acinfo .i-moreb { display: block; width: 100%; margin-top: 8px; padding: 5px 0 1px; border: 0; border-top: 1px solid rgba(148, 178, 214, 0.14); background: none; color: #8ea3bd; font: 600 11.5px var(--ui-font, inherit); letter-spacing: 0.08em; }
+  #game #ctx > #info.acinfo:not(.more) { min-height: 0; }
+  #game #info.acinfo .i-head .i-sub { font-size: 11.5px; }
+  #game #info.acinfo .i-cs { font-size: 17px; }
+  /* Schließen oben rechts in der Ecke statt in einer eigenen Zeile */
+  #game #info.acinfo .i-close { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; }
+  #game #info.acinfo .i-head > div:first-child { padding-right: 34px; }
+  #game #info.acinfo .i-btns { flex-basis: 100%; }
+}

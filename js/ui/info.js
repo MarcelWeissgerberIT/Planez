@@ -76,12 +76,14 @@ export function renderInfo(el, state, ui) {
     }
     const fol = ui.follow && ui.follow.id === ac.id;
     h += `<i class="i-stripe" style="background:${al.color}"></i><div class="i-head"><div><div class="i-cs"><i class="al-dot" style="background:${al.color}"></i>${esc(ac.cs)}${ac.emergency ? ' 🚨' : ''}${ac.protocol ? ' 🎖️' : ''}</div><div class="i-sub">${al.name} · ${t.name} · ${T`Wirbelschleppe ${wakeTag(t.wake)} ${WAKE_DE[t.wake]}`}</div></div><div class="i-btns">${ac.mode === 'map' ? T`<button class="mini i-spot${ac.spotted && ac.spotted.includes('_') ? ' done' : ''}" data-spot="${ac.id}" title="Foto fürs Spotterbuch${state.role !== 'tower' ? ' (F)' : ''}">${icon('photo')} Spotten</button>` : ''}${(ac.mode === 'map' || (ac.arr && ac.mode === 'air')) && (state.role === 'observer' || state.role === 'manager') ? T`<button class="mini i-ride" data-ride="window:${ac.id}" title="Als Passagier am Fensterplatz mitfahren">${icon('eye')} Fenster</button><button class="mini i-ride" data-ride="cockpit:${ac.id}" title="Im Cockpit mitfliegen">${icon('plane')} Cockpit</button>` : ''}${ac.mode === 'map' && ac.phase === PH.TAXI_IN && ac.stand ? T`<button class="mini i-ride" data-marshal="${ac.id}" title="Als Einwinker an der Position: STOPP, wenn die Bugnase die Haltemarke erreicht">${icon('vest')} Einwinken</button>` : ''}<button class="mini i-follow ${fol ? 'on' : ''}" data-follow="ac:${ac.id}" title="${T('Kamera folgt diesem Flugzeug (auch über den ganzen Umlauf)')}">${icon('follow')} ${fol ? T('folgt') : T('Folgen')}</button><button class="icon-btn i-close" data-close>✕</button></div></div>`;
+    // Handy eingeklappt: eine Kurzzeile statt der Datentabelle (Details per Knopf unten)
+    h += `<div class="i-brief">${PHASE_DE[ac.phase] || ac.phase} · ${esc(acRoute(state, ac))}${rot ? ` · ${fmtClock(dep ? rot.std : rot.sta)}${delay ? ` (${delay})` : ''}` : ''}${ac.mode === 'map' && ac.stand ? ` · P${ac.stand}` : ''}</div>`;
     if (ac.tdFpm && [PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN, PH.STAND].includes(ac.phase)) {
       const g = gradeOf(ac.tdFpm);
       h += T`<div class="i-reg">Aufgesetzt mit <b>${ac.tdFpm} ft/min</b> · ${g[2] ? g[2] + ' ' : ''}${g[1]}${ac.tdLate ? T(' (späte Landefreigabe)') : ''}</div>`;
     }
     if (ac.reg) h += T`<div class="i-reg">Kennzeichen <b>${esc(ac.reg)}</b>${ac.special ? T` · <span class="i-special">${SPECIALS[ac.special].icon} Sonderlackierung „${esc(SPECIALS[ac.special].name)}“</span>` : ''}</div>`;
-    if (fol && ac.mode === 'air') h += T`<div class="i-sub" style="margin:2px 0 6px">🎥 Im Luftraum – die Kamera übernimmt, sobald ${esc(ac.cs)} im Endanflug auf der Karte erscheint.</div>`;
+    if (fol && ac.mode === 'air') h += T`<div class="i-sub i-folnote" style="margin:2px 0 6px">🎥 Im Luftraum – die Kamera übernimmt, sobald ${esc(ac.cs)} im Endanflug auf der Karte erscheint.</div>`;
     h += `<div class="i-grid">`;
     h += T`<div><span>Status</span><b>${PHASE_DE[ac.phase] || ac.phase}</b></div>`;
     h += T`<div><span>Strecke</span><b>${esc(acRoute(state, ac))}</b></div>`;
@@ -116,8 +118,9 @@ export function renderInfo(el, state, ui) {
     }
     if (role === 'manager' && rot) {
       const est = state.fees.landing * t.mtow + rot.paxOut * state.fees.pax;
-      h += T`<div class="i-sub" style="margin-top:6px">Entgelte dieses Umlaufs ≈ ${fmtMoney(est)} · Vertrag ${rot.contract ? T('regulär') : T('Sonderflug')}</div>`;
+      h += T`<div class="i-sub i-fee" style="margin-top:6px">Entgelte dieses Umlaufs ≈ ${fmtMoney(est)} · Vertrag ${rot.contract ? T('regulär') : T('Sonderflug')}</div>`;
     }
+    h += `<button class="i-moreb" data-imore>${ui.infoMore ? T('Weniger anzeigen ▴') : T('Details ▾')}</button>`;
   } else if (sel.type === 'stand') {
     const st = state.stands.find((s) => s.id === sel.id);
     if (!st) return;
@@ -173,5 +176,7 @@ export function renderInfo(el, state, ui) {
     }
   }
   el.classList.add('show');
+  el.classList.toggle('acinfo', sel.type === 'ac');
+  el.classList.toggle('more', !!ui.infoMore);
   setHTML(el, h);
 }
