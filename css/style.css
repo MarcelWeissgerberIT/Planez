@@ -2546,3 +2546,68 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
   .wxc-row { grid-template-columns: 58px 1fr 54px; gap: 8px; }
   .wxc-h b { font-size: 12px; letter-spacing: 0.06em; }
 }
+
+/* ======================================================================================================
+   RECHTE SEITE IM MENÜ-STIL: Panel, Auswahl und Entscheidung wie die Karten im Hauptmenü – dunkle Fläche mit
+   feiner Kante, leuchtender Akzentbalken oben links, Abschnitte in gesperrten Großbuchstaben mit auslaufender
+   Linie, Werte als Kacheln mit Akzentkante. Desktop: eine Auswahl ersetzt das Panel als eigene Ansicht über die
+   volle Höhe („‹ Zurück“ führt zum Leitstand), statt als Karte darüber zu liegen.
+   ====================================================================================================== */
+#panel, #game #ctx > #info, #game #ctx > #decision { border-radius: 6px; }
+#panel, #game #ctx > #info { background: linear-gradient(180deg, rgba(10, 18, 32, 0.96), rgba(6, 12, 22, 0.95)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--role) 24%, rgba(148, 178, 214, 0.1)), 0 20px 60px rgba(0, 0, 0, 0.5); }
+#panel::before { right: auto; width: 96px; height: 3px; background: var(--role); box-shadow: 0 0 12px var(--role); opacity: 1; }
+#game #ctx > #info::before { content: ''; position: absolute; left: 0; top: 0; width: 96px; height: 3px; background: var(--role); box-shadow: 0 0 12px var(--role); z-index: 2; pointer-events: none; }
+#panel-toggle { border-radius: 6px; }
+/* Kopf und Abschnitte */
+.p-head { padding: 14px 16px 11px; background: none; border-bottom: 1px solid rgba(148, 178, 214, 0.1); }
+.p-title { font-family: var(--mm-font); font-weight: 700; font-size: 16px; letter-spacing: 0.14em; }
+.p-title small { letter-spacing: 0.02em; }
+.p-sec { font-family: var(--mm-font); font-weight: 700; font-size: 10.5px; letter-spacing: 0.24em; color: var(--role); margin: 16px 2px 8px; align-items: center; }
+.p-sec::before { display: none; }
+.p-sec::after { content: ''; order: 1; flex: 1 1 auto; height: 1px; margin-left: 10px; background: linear-gradient(90deg, color-mix(in srgb, var(--role) 55%, transparent), transparent); }
+.p-sec > :not(:first-child) { order: 2; margin-left: 8px; }
+.p-sec > :last-child:not(:first-child), .p-sec > .cnt { margin-left: 8px; }
+/* Kacheln und Karten: eckiger, Akzentkante links */
+.kpis .k { background: rgba(255, 255, 255, 0.04); border: 0; border-left: 2px solid color-mix(in srgb, var(--role) 65%, transparent); border-radius: 0 4px 4px 0; box-shadow: none; }
+.kpis .k span { font-family: var(--mm-font); letter-spacing: 0.18em; }
+#panel .card, #panel .cr-hero, #panel .dock-open, #panel .sl, #panel .dk-radar, #panel .rwy-box, #panel .stand-row, #panel .fleet-item, #panel .hint, #panel #hint { border-radius: 4px; }
+#panel .btn, #game #ctx .btn { border-radius: 4px; }
+
+/* Auswahl: Titel wie im Menü, Abschnitte, Datenkacheln */
+.i-top { display: none; }
+#info .i-cs { font-family: var(--mm-font); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.i-sec { display: flex; align-items: center; gap: 10px; margin: 14px 0 7px; font: 700 10.5px var(--mm-font); letter-spacing: 0.24em; text-transform: uppercase; color: var(--role); }
+.i-sec::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, color-mix(in srgb, var(--role) 50%, transparent), transparent); }
+#info .i-grid { border-top: 0; padding-top: 0; gap: 6px; }
+#info .i-sec + .i-grid { margin-top: 0; }
+#info .i-grid > div { background: rgba(255, 255, 255, 0.04); border-left: 2px solid color-mix(in srgb, var(--role) 60%, transparent); padding: 6px 9px; min-width: 0; }
+#info .i-marks { margin-top: 12px; }
+@media (max-width: 760px), (max-height: 500px) {
+  #game #info.acinfo:not(.more) .i-sec { display: none; }
+}
+@media (min-width: 1001px) {
+  /* Kopfzeile wie im Menü (Art der Auswahl, Schließen), das ✕ im Kopf entfällt */
+  #game #ctx > #info .i-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 10px; padding: 2px 0 8px; border-bottom: 1px solid rgba(148, 178, 214, 0.12); }
+  .i-back { background: none; border: 0; padding: 2px 0; color: var(--role); font: 700 12px var(--mm-font); letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; }
+  .i-back:hover { color: #fff; text-shadow: 0 0 10px var(--role); }
+  .i-kind { font: 600 10.5px var(--mm-font); letter-spacing: 0.24em; text-transform: uppercase; color: rgba(203, 213, 225, 0.6); }
+  #game #ctx > #info .i-close { display: none; }
+  #game #ctx > #info { padding: 14px 16px 14px 18px; background: linear-gradient(180deg, rgb(12, 20, 35), rgb(7, 12, 22)); }
+  #game #ctx > #info .i-cs { font-size: 22px; }
+  #game #ctx > #info .i-grid > div { padding: 5px 8px; }
+  #game #ctx > #info .i-grid b { font-size: 12.5px; }
+  #game #ctx { container-type: inline-size; }
+  /* Auswahl und Entscheidung oben in der rechten Spalte, das Panel rückt darunter (nichts liegt verdeckt darunter);
+     das Panel behält mindestens 260 px, die Auswahl scrollt bei Bedarf in sich */
+  #game.ctx-on #panel { top: calc(var(--hud-h) + 16px + var(--ctx-h, 0px)); transition: transform 0.25s, top 0.18s; }
+  #game #ctx { max-height: calc(100vh - var(--hud-h) - 16px - 268px); }
+  #game.no-panel #ctx, #game:has(#panel.collapsed) #ctx { max-height: calc(100vh - var(--hud-h) - 16px); }
+  /* eingeklapptes Panel: Werkzeuge, Ticker und Streifen rücken neben die Auswahl */
+  #game.ctx-on #map-ctrls.full { right: calc(var(--panel-w) + 16px); }
+  #game.ctx-on #panel.collapsed ~ #ticker, #game.ctx-on #panel.collapsed ~ #rail { right: calc(var(--panel-w) + 16px); }
+}
+/* breite rechte Spalte (Tower): Flugdaten in drei Spalten, Strecke doppelt breit – mehr Platz fürs Panel darunter */
+@container (min-width: 380px) {
+  #game #ctx > #info.acinfo .i-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #game #ctx > #info.acinfo .i-gmain > div:nth-child(2) { grid-column: span 2; }
+}

@@ -1638,6 +1638,15 @@ function syncHudHeight() {
   else g.style.removeProperty('--hud-h');
 }
 if (window.ResizeObserver) new ResizeObserver(syncHudHeight).observe(document.getElementById('hud'));
+// rechte Spalte: Auswahl und Entscheidung oben, das Panel rückt um ihre Höhe nach unten (siehe #game.ctx-on)
+function syncCtxHeight() {
+  const g = document.getElementById('game'), c = document.getElementById('ctx');
+  if (!g || !c) return;
+  const h = c.offsetHeight;
+  g.style.setProperty('--ctx-h', `${h}px`);
+  g.classList.toggle('ctx-on', h > 4);
+}
+if (window.ResizeObserver) new ResizeObserver(syncCtxHeight).observe(document.getElementById('ctx'));
 function resize() {
   syncHudHeight();
   const dpr = Math.min(Q.dprCap, window.devicePixelRatio || 1);

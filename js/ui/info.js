@@ -84,7 +84,19 @@ export function renderInfo(el, state, ui) {
     }
     if (ac.reg) h += T`<div class="i-reg">Kennzeichen <b>${esc(ac.reg)}</b>${ac.special ? T` · <span class="i-special">${SPECIALS[ac.special].icon} Sonderlackierung „${esc(SPECIALS[ac.special].name)}“</span>` : ''}</div>`;
     if (fol && ac.mode === 'air') h += T`<div class="i-sub i-folnote" style="margin:2px 0 6px">🎥 Im Luftraum – die Kamera übernimmt, sobald ${esc(ac.cs)} im Endanflug auf der Karte erscheint.</div>`;
-    h += `<div class="i-grid">`;
+    // dann, was man tun kann (Anfrage, Freigaben, Abfertigung), danach die Daten
+    if (ac.req) h += `<div style="margin-top:6px;color:var(--warn);font-size:12px;font-weight:700">● ${REQ_DE[ac.req] || ac.req}</div>`;
+    const role = state.role;
+    if (role === 'tower' && ac.rbErr && ac.rbErr.age >= rbHintDelay(state)) h += T`<div class="i-rb">⚠ Falsch zurückgelesen – „${esc(ac.rbErr.wrong)}“ <button class="btn btn-warn" data-rbfix="${ac.id}">Korrigieren <kbd>Q</kbd></button></div>`;
+    if (role === 'tower') {
+      const b = cmdButtons(state, ac, true);
+      if (b) h += `<div class="i-sec">${T('Freigaben')}</div><div class="i-acts" data-part="cmds">${b}</div>`;
+    }
+    if (role === 'ground' || role === 'observer' || role === 'manager') {
+      if (ac.ta) h += `<div class="i-sec">${T('Abfertigung')}</div><div class="tasks">${taskChips(state, ac, role === 'ground')}</div>`;
+      if (role === 'ground' && ac.arr && !ac.ta && ac.phase !== PH.TAXI_IN) h += `<div class="i-acts"><select data-assign="${ac.id}">${standOptions(state, ac)}</select></div>`;
+    }
+    h += `<div class="i-sec i-secdata">${T('Flugdaten')}</div><div class="i-grid i-gmain">`;
     h += T`<div><span>Status</span><b>${PHASE_DE[ac.phase] || ac.phase}</b></div>`;
     h += T`<div><span>Strecke</span><b>${esc(acRoute(state, ac))}</b></div>`;
     if (rot) h += T`<div><span>${dep ? T('Abflug (STD)') : T('Ankunft (STA)')}</span><b>${fmtClock(dep ? rot.std : rot.sta)}</b></div><div><span>Verspätung</span><b>${delay}</b></div>`;
@@ -104,18 +116,7 @@ export function renderInfo(el, state, ui) {
       if (si) h += `</div><div class="i-slot"><span class="slot ${si.cls}">${si.txt}</span>${rot.ctotReason ? T` · Grund: ${esc(rot.ctotReason)}` : ''}</div><div class="i-grid">`;
     }
     h += `</div>`;
-    if (ac.req) h += `<div style="margin-top:6px;color:var(--warn);font-size:12px;font-weight:700">● ${REQ_DE[ac.req] || ac.req}</div>`;
     h += T`<div class="i-marks"><span>⚑ Markieren</span>${MARK_KEYS.map((k) => `<button data-imark="${k}" data-ac="${ac.id}" class="${ac.mark && ac.mark.c === k ? 'cur' : ''}" style="--m:${MARKS[k].hex}" title="${MARKS[k].name}" aria-label="${MARKS[k].name}"></button>`).join('')}<button class="mini" data-imarkmenu="${ac.id}">Notiz…</button>${ac.mark ? `<button class="mini" data-imark="x" data-ac="${ac.id}">✕</button>` : ''}${flagHtml(ac)}</div>`;
-    const role = state.role;
-    if (role === 'tower' && ac.rbErr && ac.rbErr.age >= rbHintDelay(state)) h += T`<div class="i-rb">⚠ Falsch zurückgelesen – „${esc(ac.rbErr.wrong)}“ <button class="btn btn-warn" data-rbfix="${ac.id}">Korrigieren <kbd>Q</kbd></button></div>`;
-    if (role === 'tower') {
-      const b = cmdButtons(state, ac, true);
-      if (b) h += `<div class="i-acts" data-part="cmds">${b}</div>`;
-    }
-    if (role === 'ground' || role === 'observer' || role === 'manager') {
-      if (ac.ta) h += `<div class="tasks" style="margin-top:8px">${taskChips(state, ac, role === 'ground')}</div>`;
-      if (role === 'ground' && ac.arr && !ac.ta && ac.phase !== PH.TAXI_IN) h += `<div class="i-acts"><select data-assign="${ac.id}">${standOptions(state, ac)}</select></div>`;
-    }
     if (role === 'manager' && rot) {
       const est = state.fees.landing * t.mtow + rot.paxOut * state.fees.pax;
       h += T`<div class="i-sub i-fee" style="margin-top:6px">Entgelte dieses Umlaufs ≈ ${fmtMoney(est)} · Vertrag ${rot.contract ? T('regulär') : T('Sonderflug')}</div>`;
@@ -175,6 +176,9 @@ export function renderInfo(el, state, ui) {
       h += `<div class="i-acts"><button class="btn${armed ? ' btn-bad' : ''}" data-act="pcancel" data-v="${p.id}">${armed ? T`Wirklich abbrechen? +${fmtMoney(projectRefund(p))}` : T`Abbrechen (Erstattung ${fmtMoney(projectRefund(p))})`}</button></div>`;
     }
   }
+  // Kopfzeile der Auswahl (Desktop: Art der Auswahl und Schließen, im Stil des Hauptmenüs)
+  const KIND = { ac: T('Flugzeug'), stand: T('Parkposition'), veh: T('Fahrzeug'), building: T('Gebäude'), site: T('Baustelle') };
+  h = `<div class="i-top"><span class="i-kind">${KIND[sel.type] || ''}</span><button class="i-back" data-close>${T('Schließen ✕')}</button></div>` + h;
   el.classList.add('show');
   el.classList.toggle('acinfo', sel.type === 'ac');
   el.classList.toggle('more', !!ui.infoMore);
