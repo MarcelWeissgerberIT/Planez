@@ -31,7 +31,7 @@ export const lvp = (state) => state.weather.kind === 'fog';
 export function updateEvents(state, dt) {
   // Wind: langsame Drift Richtung Ziel
   const w = state.wind;
-  if (state.time > (w.nextChange || 0)) {
+  if (!w.hold && state.time > (w.nextChange || 0)) {
     w.nextChange = state.time + randRange(state, 4, 9) * 3600;
     const flip = rand(state) < 0.3;
     w.tDir = flip ? degNorm(w.dir + 180 + randRange(state, -40, 40)) : degNorm(w.dir + randRange(state, -50, 50));
@@ -46,22 +46,18 @@ export function updateEvents(state, dt) {
 
   // Wetterlagen: die nächste Lage steht schon fest (Vorhersage/TAF) und wird rechtzeitig angekündigt
   const wx = state.weather;
+  // von Hand festgelegt (Wettermenü): Lage halten, ein Gewitter bekommt neue Zellen, wenn die alten abgezogen sind
+  if (wx.hold && wx.until - state.time < 3600) {
+    wx.until = state.time + 2 * 3600;
+    if (wx.kind === 'storm' && !(wx.cells || []).some((c) => !c.shower && Math.hypot(c.x, c.y) < 45)) wx.cells = makeCells(state, 1);
+  }
   if (state.time > wx.until) {
     const nx = forecast(state);
     const kind = winterWeather(state, nx.kind);
     const dur = nx.dur;
     // Pistensichtweite (RVR) im Nebel; unter 550 m reicht ILS CAT I nicht mehr
     wx.rvr = kind === 'fog' ? nx.rvr ?? Math.round(randRange(state, 200, 1300) / 25) * 25 : null;
-    if (kind !== wx.kind) {
-      if (kind === 'fog') {
-        const dense = wx.rvr < 550;
-        notify(state, T`🌫️ Nebel, RVR ${wx.rvr} m – ${!dense ? T('LVP aktiv, Landungen mit CAT I möglich (mehr Abstand).') : state.upgrades.ils3 ? T('ILS CAT III aktiv – Landungen möglich.') : T('unter CAT-I-Minimum: ohne ILS CAT III müssen Anflüge ausweichen.')}`, dense && !state.upgrades.ils3 ? 'bad' : 'warn');
-      }
-      if (kind === 'storm') notify(state, T('⛈️ Gewitter – Vorfeld gesperrt, Abfertigung pausiert'), 'warn');
-      if (kind === 'snow') notify(state, T('🌨️ Schneefall – Abflüge müssen enteist werden, Pisten werden regelmäßig geräumt'), 'warn');
-      if (wx.kind === 'storm') notify(state, T('Gewitter vorbei – Vorfeld wieder frei'), 'good');
-      log(state, 'sys', T`Wetter: ${WEATHER[kind].name}.`);
-    }
+    if (kind !== wx.kind) announceWeather(state, wx.kind, kind);
     wx.kind = kind;
     if (kind === 'fog') state.stats.today.hadFog = true;
     wx.until = state.time + dur * 3600;
@@ -120,6 +116,58 @@ export function updateEvents(state, dt) {
   if (state.eventTimer <= 0) {
     state.eventTimer = randRange(state, 2.5, 6) * 3600 * diff(state).events;
     if (state.settings.events !== false) randomEvent(state);
+  }
+}
+
+// Wetterwechsel melden (Nebel mit Sichtweite, Gewitter sperrt das Vorfeld, Schnee braucht Enteisung)
+function announceWeather(state, prev, kind) {
+  const wx = state.weather;
+  if (kind === 'fog') {
+    const dense = wx.rvr < 550;
+    notify(state, T`🌫️ Nebel, RVR ${wx.rvr} m – ${!dense ? T('LVP aktiv, Landungen mit CAT I möglich (mehr Abstand).') : state.upgrades.ils3 ? T('ILS CAT III aktiv – Landungen möglich.') : T('unter CAT-I-Minimum: ohne ILS CAT III müssen Anflüge ausweichen.')}`, dense && !state.upgrades.ils3 ? 'bad' : 'warn');
+  }
+  if (kind === 'storm') notify(state, T('⛈️ Gewitter – Vorfeld gesperrt, Abfertigung pausiert'), 'warn');
+  if (kind === 'snow') notify(state, T('🌨️ Schneefall – Abflüge müssen enteist werden, Pisten werden regelmäßig geräumt'), 'warn');
+  if (prev === 'storm') notify(state, T('Gewitter vorbei – Vorfeld wieder frei'), 'good');
+  log(state, 'sys', T`Wetter: ${WEATHER[kind].name}.`);
+}
+
+// Wetter von Hand (Wettermenü): Lage sofort setzen und halten, bis wieder „Automatisch“ gewählt wird. Nicht in
+// Herausforderungen – dort gehört das Wetter zum Drehbuch.
+export const weatherLocked = (state) => !!(state.scenario && !state.scenario.done);
+export function holdWeather(state, kind, rvr) {
+  if (weatherLocked(state) || !WEATHER[kind]) return;
+  const wx = state.weather;
+  const prev = wx.kind;
+  wx.hold = true;
+  wx.rvr = kind === 'fog' ? rvr || (prev === 'fog' && wx.rvr) || 600 : null;
+  if (kind !== prev) {
+    announceWeather(state, prev, kind);
+    wx.cells = kind === 'storm' ? makeCells(state, 1) : kind === 'rain' ? showerCells(state) : [];
+  } else if (kind === 'fog') log(state, 'sys', T`Wetter: Nebel, RVR ${wx.rvr} m.`);
+  wx.kind = kind;
+  if (kind === 'fog') state.stats.today.hadFog = true;
+  wx.until = state.time + 2 * 3600;
+  wx.next = null;
+}
+export function holdWind(state, dir, spd) {
+  if (weatherLocked(state)) return;
+  const w = state.wind;
+  w.hold = true;
+  w.dir = w.tDir = degNorm(Math.round(dir));
+  w.spd = w.tSpd = clamp(spd, 0, 40);
+}
+// zurück zum Wetterdienst: in einer halben Stunde wird neu gewürfelt (mit Vorhersage im Kopfbereich)
+export function autoWeather(state) {
+  const wx = state.weather, w = state.wind;
+  if (wx.hold) {
+    wx.hold = false;
+    wx.until = state.time + 1800;
+    wx.next = null;
+  }
+  if (w.hold) {
+    w.hold = false;
+    w.nextChange = state.time + 1800;
   }
 }
 

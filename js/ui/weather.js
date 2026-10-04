@@ -1,7 +1,9 @@
 // Wettermenü: Tipp auf die Wetteranzeige in der Kopfleiste öffnet die Wetterlage am Platz – Wind mit Böen und
 // Windrose (Bahn, Gewitter- und Schauerzellen im Umkreis), Gegen-/Rücken- und Seitenwind je Betriebsrichtung,
 // Seitenwindgrenzen je Flugzeugklasse, Sicht, QNH, Bahnzustand, Vorhersage und ATIS. Aktualisiert sich, solange es offen ist.
-import { WEATHER, forecastInfo, lvp, belowMinima } from '../sim/events.js';
+// Dazwischen „Wetter bestimmen“: Lage per Knopf, Sicht im Nebel, Wind per Schieberegler – gilt, bis „Automatisch“
+// gedrückt wird (nicht in Herausforderungen).
+import { WEATHER, forecastInfo, lvp, belowMinima, holdWeather, holdWind, autoWeather, weatherLocked } from '../sim/events.js';
 import { gustPeak, windShort } from '../sim/gusts.js';
 import { tailwind, preferredRunway } from '../sim/atc.js';
 import { qnh, atisText } from '../sim/atis.js';
@@ -64,7 +66,8 @@ function roseSvg(s) {
 
 const kt = (v) => `${Math.round(v)} kt`;
 
-export function weatherHtml(s) {
+// Live-Teile: oben die Lage (mit Windrose und Warnungen), unten Bahn, Grenzen, Sicht, Vorhersage, ATIS
+export function weatherParts(s) {
   const wx = s.weather, w = s.wind;
   const name = WEATHER[wx.kind].name;
   const se = season(s);
@@ -96,12 +99,14 @@ export function weatherHtml(s) {
     const st = act.xg > l.kt ? 'bad' : act.xg > l.kt * 0.8 ? 'warn' : 'good';
     return `<div class="wxm-lim ${st}"><span>${l.name}</span><b>${l.kt} kt</b><i>${st === 'bad' ? T('über Limit') : st === 'warn' ? T('knapp') : T('ok')}</i></div>`;
   });
-  return `<div class="wxm">
+  const top = `<div class="wxm">
     <div class="wxm-top">
-      <div class="wxm-now">${icon(WX_ICO[wx.kind] || 'sun', 'wxm-ico')}<div><b>${name}</b><span>${temperature(s).toFixed(0)} °C · ${se.icon} ${se.name}</span><small>${T`Lage bis etwa ${fmtClock(wx.until)}`}</small></div></div>
+      <div class="wxm-now">${icon(WX_ICO[wx.kind] || 'sun', 'wxm-ico')}<div><b>${name}</b><span>${temperature(s).toFixed(0)} °C · ${se.icon} ${se.name}</span><small>${wx.hold ? T('von Hand festgelegt') : T`Lage bis etwa ${fmtClock(wx.until)}`}</small></div></div>
       <div class="wxm-wind">${roseSvg(s)}<div><b>${windShort(s)}</b><span>${T`Wind aus ${Math.round(w.dir / 10) * 10}°, ${Math.round(w.spd)} kt`}${gp ? T`, Böen bis ${gp} kt` : ''}</span>${trend ? `<small>${trend}</small>` : ''}${cells.length ? `<small class="wxm-cells">${T`⛈ ${cells.length} Gewitterzelle(n)`}${near ? (near.d < 1 ? T(' – über dem Platz') : T` – nächste ${near.d.toFixed(0)} NM in ${Math.round(near.brg / 10) * 10}°`) : ''}</small>` : ''}</div></div>
     </div>
     ${warn.length ? `<div class="wxm-warn">${warn.map((x) => `<div>⚠ ${x}</div>`).join('')}</div>` : ''}
+  </div>`;
+  const rest = `<div class="wxm">
     <h3>${T('Wind auf der Bahn')}</h3>
     <table class="wxm-tab"><tr><th>${T('Richtung')}</th><th>${T('Längs')}</th><th>${T('Seitenwind')}</th></tr>${rows.join('')}</table>
     <h3>${T`Seitenwindgrenzen mit Böen · ${esc(s.rwy)}`}</h3>
@@ -110,10 +115,32 @@ export function weatherHtml(s) {
     <div class="wxm-grid">
       <div><span>${T('Sicht')}</span><b>${wx.kind === 'fog' ? T`RVR ${wx.rvr ?? 600} m` : VIS[wx.kind] || '—'}</b></div>
       <div><span>QNH</span><b>${qnh(s)} hPa</b></div>
-      <div class="wide"><span>${T('Vorhersage')}</span><b>${fc.change ? T`ab ${fmtClock(fc.at)} ${fc.icon} ${fc.name}${fc.rvr ? ` (RVR ${fc.rvr} m)` : ''} bis etwa ${fmtClock(fc.until)}` : T`${name} hält an`}</b></div>
+      <div class="wide"><span>${T('Vorhersage')}</span><b>${wx.hold ? T('keine – Wetter von Hand festgelegt') : fc.change ? T`ab ${fmtClock(fc.at)} ${fc.icon} ${fc.name}${fc.rvr ? ` (RVR ${fc.rvr} m)` : ''} bis etwa ${fmtClock(fc.until)}` : T`${name} hält an`}</b></div>
     </div>
     <h3>ATIS ${atis(s)}</h3>
     <p class="wxm-atis">${esc(atisText(s))}</p>
+  </div>`;
+  return { top, rest };
+}
+
+// Kopfzeile: automatisch oder von Hand, dann mit Knopf zurück zum Wetterdienst
+function headHtml(s) {
+  const manual = s.weather.hold || s.wind.hold;
+  return `<div class="wxc-h"><b>${T('Wetter bestimmen')}</b><span class="wxc-mode${manual ? ' man' : ''}">${manual ? T('von Hand') : T('automatisch')}</span>${manual ? `<button class="mini" data-wauto>${T('Automatisch')}</button>` : ''}</div>`;
+}
+// Wetter bestimmen: Lage, Sicht im Nebel, Windrichtung und -stärke
+function controlsHtml(s) {
+  const wx = s.weather, w = s.wind;
+  if (weatherLocked(s)) return `<div class="wxc locked">${T('🔒 In Herausforderungen gehört das Wetter zum Drehbuch – hier lässt es sich nicht ändern.')}</div>`;
+  const kinds = Object.keys(WEATHER).map((k) => `<button class="wxc-k${wx.hold && wx.kind === k ? ' on' : ''}" data-wk="${k}">${icon(WX_ICO[k])}<span>${WEATHER[k].name}</span></button>`).join('');
+  const rvr = wx.hold && wx.kind === 'fog' ? `<div class="wxc-rvr"><span>${T('Sicht im Nebel')}</span>${[300, 600, 1000].map((v) => `<button class="mini${wx.rvr === v ? ' on' : ''}" data-wrvr="${v}">RVR ${v} m</button>`).join('')}</div>` : '';
+  const dir = (Math.round(w.dir / 10) * 10) % 360, spd = Math.round(w.spd);
+  return `<div class="wxc">
+    ${headHtml(s)}
+    <div class="wxc-kinds">${kinds}</div>${rvr}
+    <label class="wxc-row"><span>${T('Wind aus')}</span><input type="range" min="0" max="350" step="10" value="${dir}" data-wdir aria-label="${T('Windrichtung')}" /><b data-wdirv>${String(dir).padStart(3, '0')}°</b></label>
+    <label class="wxc-row"><span>${T('Stärke')}</span><input type="range" min="0" max="40" step="1" value="${spd}" data-wspd aria-label="${T('Windstärke')}" /><b data-wspdv>${spd} kt</b></label>
+    <small>${T('Gilt, bis du „Automatisch“ drückst. Böen, Gewitterzellen und Böenfronten ergeben sich aus Wetter und Wind.')}</small>
   </div>`;
 }
 
@@ -122,13 +149,42 @@ export function showWeather(game) {
   const s = game.state;
   if (!s) return;
   clearInterval(timer);
-  openModal(`<h2>${T('Wetter am Platz')}</h2><div id="wxm-body">${weatherHtml(s)}</div><div class="modal-acts"><button class="btn" data-x>${T('Schließen')}</button></div>`, (box) => {
+  const parts = weatherParts(s);
+  const live = () => {
+    const st = game.state, p = weatherParts(st);
+    setHTML(document.getElementById('wxm-top'), p.top);
+    setHTML(document.getElementById('wxm-rest'), p.rest);
+  };
+  openModal(`<h2>${T('Wetter am Platz')}</h2><div id="wxm-top">${parts.top}</div><div id="wxm-ctl">${controlsHtml(s)}</div><div id="wxm-rest">${parts.rest}</div><div class="modal-acts"><button class="btn" data-x>${T('Schließen')}</button></div>`, (box) => {
     box.querySelector('[data-x]').addEventListener('click', closeModal);
+    const ctl = box.querySelector('#wxm-ctl');
+    const redo = () => {
+      ctl.innerHTML = controlsHtml(game.state);
+      live();
+    };
+    ctl.addEventListener('click', (e) => {
+      const st = game.state;
+      const k = e.target.closest('[data-wk]'), r = e.target.closest('[data-wrvr]');
+      if (k) holdWeather(st, k.dataset.wk);
+      else if (r) holdWeather(st, 'fog', Number(r.dataset.wrvr));
+      else if (e.target.closest('[data-wauto]')) autoWeather(st);
+      else return;
+      redo();
+    });
+    // Schieberegler: Wind sofort setzen, Anzeige mitziehen (der Regler selbst wird dabei nicht neu gezeichnet)
+    ctl.addEventListener('input', (e) => {
+      if (!e.target.matches('[data-wdir], [data-wspd]')) return;
+      const dir = Number(ctl.querySelector('[data-wdir]').value), spd = Number(ctl.querySelector('[data-wspd]').value);
+      holdWind(game.state, dir, spd);
+      ctl.querySelector('[data-wdirv]').textContent = `${String(dir).padStart(3, '0')}°`;
+      ctl.querySelector('[data-wspdv]').textContent = `${spd} kt`;
+      ctl.querySelector('.wxc-h').outerHTML = headHtml(game.state);
+      live();
+    });
   });
   // offen halten und live nachführen, bis ein anderes Fenster den Inhalt ersetzt oder es geschlossen wird
   timer = setInterval(() => {
-    const body = document.getElementById('wxm-body');
-    if (!body || !modalOpen() || !game.state) return clearInterval(timer);
-    setHTML(body, weatherHtml(game.state));
+    if (!document.getElementById('wxm-top') || !modalOpen() || !game.state) return clearInterval(timer);
+    live();
   }, 1000);
 }
