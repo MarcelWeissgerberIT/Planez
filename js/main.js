@@ -436,6 +436,8 @@ function startGame(state) {
   if (game.introNext && !state.scenario) playIntro(game, afterIntro);
   else afterIntro();
   game.introNext = false;
+  // Spielstand pausiert gespeichert (z. B. aus dem Pausenmenü): beim Laden weiterlaufen lassen, sonst steht alles
+  if (!state.speed && !state.scenario && !modalOpen()) state.speed = lastSpeed || 1;
   lastSpeed = state.speed || lastSpeed;
   game.running = true;
   game.lastTs = performance.now();
@@ -622,6 +624,7 @@ function loop(ts) {
   if (game.uiTimer <= 0) {
     game.uiTimer = 0.2;
     updateHUD();
+    syncPauseBadge(s);
     if (game.ui.radarOn) setHTML($('#radar-seq'), seqChips(s));
     // Sicherheitsnetz: länger als 4 s festgehalten (verlorenes Loslassen) – wieder aktualisieren
     if (game.panelHold) {
@@ -1460,6 +1463,22 @@ function keyPan(dt) {
   if (keys.has('ArrowDown')) game.cam.panBy(0, -v);
 }
 
+// Pause gut sichtbar: Hinweis über der Karte, ein Klick spielt weiter
+function syncPauseBadge(s) {
+  let el = document.getElementById('pause-badge');
+  const show = !!(game.running && s && s.speed === 0 && !modalOpen() && !(game.replay && game.replay.on) && !(game.mgmt && game.mgmt.isOpen()));
+  if (!el) {
+    if (!show) return;
+    el = document.createElement('button');
+    el.id = 'pause-badge';
+    el.type = 'button';
+    el.addEventListener('click', () => setSpeed(lastSpeed || 1));
+    $('#game').appendChild(el);
+  }
+  if (show) setHTML(el, T`<b>⏸ Pause</b><span>Weiterspielen: Leertaste oder hier klicken</span>`);
+  el.classList.toggle('hidden', !show);
+}
+
 let lastSpeed = 1;
 function setSpeed(v) {
   const s = game.state;
@@ -1920,7 +1939,7 @@ function helpGuide(first) {
       <li><b>🛡️ Sicherheitsnetz:</b> Wäre eine Freigabe gerade gefährlich – Landung auf eine belegte Bahn, Start oder Line-up, während jemand im kurzen Endanflug ist oder mit Landefreigabe kurz davor –, ist der Knopf rot mit ⚠ markiert (Grund im Tooltip). Der erste Druck gibt nur einen Warnton und Hinweis; erst ein zweiter Druck innerhalb von vier Sekunden erteilt die Freigabe trotzdem. Per Sprechtaste fragt der Pilot zurück („confirm cleared for take-off? We have traffic on short final.“) – erst die wiederholte Freigabe gilt.</li>
       <li><b>Echter Funk:</b> Lotse und Piloten sprechen (🔊 im Funkfenster, jedes Flugzeug mit eigener Stimme, Funkrauschen, eine Frequenz – niemand spricht gleichzeitig). <b>Sprechtaste:</b> <kbd>V</kbd> gedrückt halten (oder 🎙) und auf Englisch funken, z.&nbsp;B. „Aurora five four two, runway two seven, cleared to land“, „Rheinjet four one two, line up and wait“, „… cleared for take-off“, „… cleared ILS approach“, „… hold as published“, „… reduce speed one six zero“, „… taxi to stand“, „… pushback approved“. Auch der Nebenverkehr hört aufs Wort: „Rescue seven, cross runways“ / „… hold south“, die Alcedo mit ihrem abgekürzten Rufzeichen („Delta Lima Mike, cleared touch and go“ / „… extend downwind“) und die Pistenkontrolle („Check one, enter runway“ / „… hold short“). Funktioniert in Chrome und Edge (Mikrofon erlauben).</li>
       <li><b>Arbeitsplatz:</b> rechts Radar, Pistenstatus und Funk in einem Fenster, unten die <b>Streifentafel</b> wie im echten Tower: Buchten <b>Luft</b> (Warteliste, oben = als Nächstes), <b>Pistenfolge</b>, <b>Rollen</b> und <b>Vorfeld</b>. Anflüge haben orange, Abflüge blaue Streifen; die Kästchen rechts haken erteilte Freigaben ab (APP, LND, TX bzw. PB, TX, LU, TO), gelb = jetzt fällig. Der ausgewählte Streifen klappt auf und zeigt alle Daten und Befehle; sonst steht nur der fällige Befehl darunter. ⤢ bzw. <kbd>F</kbd> öffnet den <b>Arbeitsplatz groß</b>: großes Radar, rechts Übersicht (Minikarte), Pistenstatus und Funk, darunter die Streifentafel – <kbd>F</kbd>, <kbd>Esc</kbd> oder ✕ schließt ihn.</li>
-      <li><b>Reihenfolge &amp; Auto-Staffelung:</b> Streifen in der Pistenfolge <b>ziehen</b> (oder ▲ ▼, <kbd>W</kbd>/<kbd>S</kbd>) – die Staffelung passt sich an: Anflugfreigaben kommen in deiner Reihenfolge, Anflüge werden auf 180/160 kt gebremst, Vorgezogene bekommen „Direkt FAF“, notfalls geht einer in die Warteschleife; vor eine Landung gezogene Starts bekommen eine Lücke („Startfenster in …“). Aus der Warteliste in die Pistenfolge ziehen = Anflug frei. Du gibst weiter Lande- und Startfreigaben – jede Freigabe quittiert der Streifen mit grünem Stempel und einer Meldung zum Abstand dahinter; die Zahl ↕ auf dem Streifen und die Marken auf dem Radar zeigen Ist- gegen Sollabstand (grün, gelb, rot). <b>Warten</b> schickt einen Anflug in die Warteschleife: Rennbahnmuster am Fix mit eigener Höhe im Stapel, bis du den Anflug selbst freigibst (Knopf oder Streifen in die Pistenfolge ziehen). Am Handy: Streifen lange drücken und ziehen. <b>Rollverkehr steckt fest?</b> Der Streifen zeigt „⛔ … im Weg“ (auch auf der Karte) – <b>Vorbei</b> (<kbd>O</kbd>) gibt diesem Flugzeug Vorrang, es rollt am anderen vorbei. „Line up“ wartet am Rollhalt, bis die Bahn frei und der Slot offen ist. „⇅ zurücksetzen“ plant wieder automatisch. Farben auf Streifen, Karte und Radar: <span style="color:#fb923c">■ Landung</span> <span style="color:#fed7aa">■ Landung frei</span> <span style="color:#38bdf8">■ Start</span> <span style="color:#bae6fd">■ Startfreigabe</span>.</li>
+      <li><b>Reihenfolge &amp; Auto-Staffelung:</b> Streifen in der Pistenfolge <b>ziehen</b> (oder ▲ ▼, <kbd>W</kbd>/<kbd>S</kbd>) – die Staffelung passt sich an: Anflugfreigaben kommen in deiner Reihenfolge, Anflüge werden auf 180/160 kt gebremst, Vorgezogene bekommen „Direkt FAF“, notfalls geht einer in die Warteschleife; vor eine Landung gezogene Starts bekommen eine Lücke („Startfenster in …“). Aus der Warteliste in die Pistenfolge ziehen = Anflug frei. Du gibst weiter Lande- und Startfreigaben – jede Freigabe quittiert der Streifen mit grünem Stempel und einer Meldung zum Abstand dahinter; die Zahl ↕ auf dem Streifen und die Marken auf dem Radar zeigen Ist- gegen Sollabstand (grün, gelb, rot). <b>Warten</b> schickt einen Anflug in die Warteschleife: Rennbahnmuster am Fix mit eigener Höhe im Stapel, bis du den Anflug selbst freigibst (Knopf oder Streifen in die Pistenfolge ziehen). Am Handy: Streifen lange drücken und ziehen. <b>Rollverkehr steckt fest?</b> Der Streifen zeigt „⛔ … im Weg“ (auch auf der Karte) – <b>Vorrang</b> (<kbd>O</kbd>) gibt diesem Flugzeug Vorrang, es rollt am anderen vorbei. „Line up“ wartet am Rollhalt, bis die Bahn frei und der Slot offen ist. „⇅ zurücksetzen“ plant wieder automatisch. Farben auf Streifen, Karte und Radar: <span style="color:#fb923c">■ Landung</span> <span style="color:#fed7aa">■ Landung frei</span> <span style="color:#38bdf8">■ Start</span> <span style="color:#bae6fd">■ Startfreigabe</span>.</li>
       <li><b>Wetter & Piste:</b> Bremswirkung (gut/mittel/schlecht) hängt vom Gummiabrieb und von Nässe ab. Bei Nebel gelten LVP (mehr Abstand); unter 550 m RVR geht es nur mit ILS CAT III. Bei mehr als 5 kt Rückenwind die Betriebsrichtung wechseln.</li>
       <li><b>Markieren:</b> ⚑ auf dem Streifen, Rechtsklick/langes Drücken auf ein Flugzeug oder <kbd>M</kbd>. <kbd>N</kbd>/<kbd>Tab</kbd> springt zur nächsten Anfrage, <kbd>F</kbd> vergrößert das Radar, ⓘ im Radar erklärt die Anzeige.</li>
       <li><b>↗ Abflugrouten (SID):</b> Jeder Start fliegt je nach Ziel über NOLTA, SUDEN, RIMOS oder WELDA (farbig auf dem Streifen). Zwei Starts auf <b>derselben</b> Route brauchen 100 s statt 75 s Abstand – wechsle die Routen in der Pistenfolge ab, dann gehen die Starts schneller raus.</li>

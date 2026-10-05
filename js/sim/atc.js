@@ -219,8 +219,9 @@ export const CMDS = {
   },
   // Override bei verkeiltem Rollverkehr: dieses Flugzeug hat Vorrang und rollt am Hindernis vorbei
   pass: {
-    label: T('Vorrang: vorbeirollen'), short: T('Vorbei'), key: 'O',
-    valid: (s, ac) => ac.mode === 'map' && !!ac.blockedBy && ac.blockedT > 2 && ac.ghostUntil <= s.time && [PH.TAXI_IN, PH.TAXI_OUT, PH.TAXI_WAIT, PH.PUSH].includes(ac.phase),
+    label: T('Vorrang: rollt an allem vorbei, was im Weg steht (Override)'), short: T('Vorrang'), key: 'O',
+    // jederzeit für rollende Flugzeuge – nicht erst, wenn sie schon feststecken
+    valid: (s, ac) => ac.mode === 'map' && ac.ghostUntil <= s.time && [PH.TAXI_IN, PH.TAXI_OUT, PH.TAXI_WAIT, PH.PUSH].includes(ac.phase),
     run: (s, ac) => {
       const b = s.acs.find((o) => o.id === ac.blockedBy);
       ac.ghostUntil = s.time + 45;

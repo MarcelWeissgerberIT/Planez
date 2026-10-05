@@ -776,9 +776,9 @@ export class TowerPanel {
     const tk = ticks(ac, land).map(([k, on, due]) => `<i class="${on ? 'on' : due ? 'due' : ''}" title="${TICK_TITLE[k]}">${on ? '✓' : k}</i>`).join('');
     // Anfrage, Staffelungshinweis und Hauptbefehl
     const rq = ac.wxReq ? T`<span class="rq wx">⛈️ Umweg ${ac.wxReq.deg}° ${ac.wxReq.side === 'left' ? T('links') : T('rechts')}</span>` : ac.nordo ? T`<span class="rq nordo">📻✖ ${ac.clr.land ? T('Landung per Licht frei') : ac.mode === 'air' ? T('grünes Licht zum Landen') : T('Lichtsignal zum Rollen')}</span>` : ac.req ? `<span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
-    // Rollverkehr steht: wer im Weg ist (und worauf der wartet), dazu der Override-Knopf „Vorbei“
+    // Rollverkehr steht: wer im Weg ist (und worauf der wartet), dazu der Override-Knopf „Vorrang“
     const blkAc = ac.mode === 'map' && ac.blockedBy && ac.blockedT > 6 ? state.acs.find((o) => o.id === ac.blockedBy) : null;
-    const blk = blkAc ? T`<span class="rq blk" title="Steht seit ${Math.round(ac.blockedT)} s – „Vorbei“ (O) gibt Vorrang, „Halt“ beim anderen lässt ihn warten">⛔ ${esc(blkAc.cs)} im Weg${blkAc.req ? ` · ${REQ_DE[blkAc.req] || ''}` : blkAc.holdPos ? T(' · HALT') : ''}</span>` : ac.luWaitBy && ac.phase === PH.HOLDING ? T`<span class="rq">⏸ Line up nach ${esc(ac.luWaitBy)}</span>` : '';
+    const blk = blkAc ? T`<span class="rq blk" title="Steht seit ${Math.round(ac.blockedT)} s – „Vorrang“ (O) gibt Vorrang, „Halt“ beim anderen lässt ihn warten">⛔ ${esc(blkAc.cs)} im Weg${blkAc.req ? ` · ${REQ_DE[blkAc.req] || ''}` : blkAc.holdPos ? T(' · HALT') : ''}</span>` : ac.luWaitBy && ac.phase === PH.HOLDING ? T`<span class="rq">⏸ Line up nach ${esc(ac.luWaitBy)}</span>` : '';
     // Staffelungshinweis nur, wenn eine Anfrage ansteht oder der Streifen ausgewählt ist (sonst steht die Zeit rechts)
     let sp = '';
     if (plan && inSeq && (ac.req || sel)) {
@@ -880,7 +880,7 @@ export class TowerPanel {
         if (this.blkNote.has(a.id)) continue;
         this.blkNote.add(a.id);
         const b = state.acs.find((o) => o.id === a.blockedBy);
-        if (b) toast(T`⛔ ${a.cs} steht – ${b.cs} ist im Weg. „Vorbei“ (O) gibt ${a.cs} Vorrang, „Halt“ (X) lässt ${b.cs} warten.`, 'warn', 6500);
+        if (b) toast(T`⛔ ${a.cs} steht – ${b.cs} ist im Weg. „Vorrang“ (O) gibt ${a.cs} Vorrang, „Halt“ (X) lässt ${b.cs} warten.`, 'warn', 6500);
       } else if (!a.blockedBy) this.blkNote.delete(a.id);
     }
     const byId = new Map(state.acs.map((a) => [a.id, a]));
