@@ -2910,3 +2910,4 @@ input, textarea, select, [contenteditable="true"] { -webkit-user-select: text; u
 .stamp.hold { background: #fbbf24; color: #422006; }
 .drag-ghost { background: linear-gradient(90deg, rgba(30, 45, 70, 0.98), rgba(14, 22, 38, 0.98)) !important; }
 @media (max-width: 760px) { .bay-list { min-height: 30px; } }
+.fs-act .rq.blk { color: #fecaca; background: rgba(248, 113, 113, 0.22); padding: 0 6px; border-radius: 4px; }

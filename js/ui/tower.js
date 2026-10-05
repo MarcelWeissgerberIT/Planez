@@ -185,6 +185,7 @@ export function clearanceMsg(state, ac, key) {
     if (g) t += g.st === 'bad' ? T` Nur ${gapTxt(g)} hinter ${g.lead.cs}, Soll ${g.req} NM ⚠` : T` ${gapTxt(g)} hinter ${g.lead.cs}, Soll ${g.req} NM ✓`;
     return { t, lvl: g && g.st === 'bad' ? 'warn' : 'good' };
   }
+  if (key === 'pass') return { t: T`${ac.cs} hat Vorrang und rollt vorbei – der andere wartet`, lvl: 'info' };
   if (key === 'hold') {
     const f = ac.holdFix || (ac.route[0] && ac.route[0].iaf ? ac.route[0] : null);
     if (!f) return null;
@@ -775,6 +776,9 @@ export class TowerPanel {
     const tk = ticks(ac, land).map(([k, on, due]) => `<i class="${on ? 'on' : due ? 'due' : ''}" title="${TICK_TITLE[k]}">${on ? '✓' : k}</i>`).join('');
     // Anfrage, Staffelungshinweis und Hauptbefehl
     const rq = ac.wxReq ? T`<span class="rq wx">⛈️ Umweg ${ac.wxReq.deg}° ${ac.wxReq.side === 'left' ? T('links') : T('rechts')}</span>` : ac.nordo ? T`<span class="rq nordo">📻✖ ${ac.clr.land ? T('Landung per Licht frei') : ac.mode === 'air' ? T('grünes Licht zum Landen') : T('Lichtsignal zum Rollen')}</span>` : ac.req ? `<span class="rq">${REQ_DE[ac.req] || ac.req}</span>` : '';
+    // Rollverkehr steht: wer im Weg ist (und worauf der wartet), dazu der Override-Knopf „Vorbei“
+    const blkAc = ac.mode === 'map' && ac.blockedBy && ac.blockedT > 6 ? state.acs.find((o) => o.id === ac.blockedBy) : null;
+    const blk = blkAc ? T`<span class="rq blk" title="Steht seit ${Math.round(ac.blockedT)} s – „Vorbei“ (O) gibt Vorrang, „Halt“ beim anderen lässt ihn warten">⛔ ${esc(blkAc.cs)} im Weg${blkAc.req ? ` · ${REQ_DE[blkAc.req] || ''}` : blkAc.holdPos ? T(' · HALT') : ''}</span>` : ac.luWaitBy && ac.phase === PH.HOLDING ? T`<span class="rq">⏸ Line up nach ${esc(ac.luWaitBy)}</span>` : '';
     // Staffelungshinweis nur, wenn eine Anfrage ansteht oder der Streifen ausgewählt ist (sonst steht die Zeit rechts)
     let sp = '';
     if (plan && inSeq && (ac.req || sel)) {
@@ -801,13 +805,14 @@ export class TowerPanel {
         btns = T`<span class="cmd big wait" title="Startfreigabe erst, wenn die Piste sicher frei bleibt – über den ausgewählten Streifen oder T geht es trotzdem">${icon('hourglass')} ${esc(w.why)} · ~${mmss(w.sec)}</span>`;
       }
     }
+    if (!sel && blkAc && CMDS.pass.valid(state, ac)) btns = `<button class="cmd big" data-cmd="pass" data-ac="${ac.id}" title="${cmdTitle('pass')}">${cmdText('pass')} <kbd>O</kbd></button>`;
     if (ac.wxReq) {
       const left = Math.max(0, 1 - ac.wxReq.age / WX_WINDOW);
       btns = T`<button class="cmd big wxok" data-cmd="wxOk" data-ac="${ac.id}" title="Ausweichkurs um die Gewitterzelle genehmigen">⛈️ Umweg ok <kbd>Y</kbd><i style="--p:${left}"></i></button><button class="cmd wxno" data-cmd="wxNo" data-ac="${ac.id}" title="Ablehnen (Verkehr): das Flugzeug fliegt durch die Zelle – Turbulenz">Ablehnen</button>`;
     }
     if (ac.rbErr && ac.rbErr.age >= rbHintDelay(state)) btns = T`<button class="cmd big rbfix" data-rbfix="${ac.id}" title="Pilot hat falsch zurückgelesen: „${esc(ac.rbErr.wrong)}“">⚠ Readback korrigieren <kbd>Q</kbd><i style="--p:${Math.max(0, ac.rbErr.left / RB_WINDOW)}"></i></button>`;
     const fuel = fuelChip(ac);
-    const act = stamp || rq || btns || sp ? `${stamp}${rq}${sp}${fuel}` : fuel && land && ac.mode === 'air' ? fuel : '';
+    const act = stamp || blk || rq || btns || sp ? `${stamp}${blk}${rq}${sp}${fuel}` : fuel && land && ac.mode === 'air' ? fuel : '';
     // ausgewählt: alle Daten und Befehle
     let ext = '';
     let extB = '';

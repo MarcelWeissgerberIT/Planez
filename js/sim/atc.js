@@ -39,6 +39,7 @@ export const CMDS = {
     label: T('Anflug frei'), short: TC('cmd', 'Anflug'), key: 'A', air: true,
     valid: (s, ac) => [PH.INBOUND, PH.HOLD].includes(ac.phase) && !ac.missedPending,
     run: (s, ac) => {
+      const hf = ac.phase === PH.HOLD ? ac.holdFix : null;
       ac.rwy = s.rwy;
       ac.strip = stripForArrival(s);
       ac.route = AS.approachRoute(ac.pos, ac.rwy);
@@ -51,6 +52,7 @@ export const CMDS = {
       ac.stackAlt = ac.stackFix = null;
       ac.playerHold = false;
       ac.holdTo = null;
+      leaveStack(s, ac, hf);
       const rn = rwyName(s, ac.strip);
       // am Gras- und Verkehrslandeplatz gibt es kein ILS: Sichtanflug
       if (smallField(s)) say(s, ac, `${tel(ac)}, ${numTxt(s, ac)}cleared visual approach runway ${rn}, descend 2000 feet.`, `Cleared visual approach ${rn}, ${tel(ac)}.`);
@@ -61,6 +63,7 @@ export const CMDS = {
     label: T('Direkt FAF'), short: T('Direkt'), key: 'D', air: true,
     valid: (s, ac) => [PH.INBOUND, PH.HOLD].includes(ac.phase) || (ac.phase === PH.APPROACH && !onFinal(ac) && ac.route.length > 2),
     run: (s, ac) => {
+      const hf = ac.phase === PH.HOLD ? ac.holdFix : null;
       ac.rwy = s.rwy;
       if (ac.phase !== PH.APPROACH || !ac.strip) ac.strip = stripForArrival(s);
       ac.route = AS.directRoute(ac.pos, ac.rwy);
@@ -73,6 +76,7 @@ export const CMDS = {
       ac.stackAlt = ac.stackFix = null;
       ac.playerHold = false;
       ac.holdTo = null;
+      leaveStack(s, ac, hf);
       const rn = rwyName(s, ac.strip);
       if (smallField(s)) say(s, ac, `${tel(ac)}, proceed direct final, ${numTxt(s, ac)}cleared visual approach runway ${rn}.`, `Direct final, cleared visual ${rn}, ${tel(ac)}.`);
       else say(s, ac, `${tel(ac)}, turn direct final approach fix, ${numTxt(s, ac)}cleared ILS runway ${rn}.`, `Direct FAF, cleared ILS ${rn}, ${tel(ac)}.`);
@@ -213,6 +217,20 @@ export const CMDS = {
       say(s, ac, `${tel(ac)}, continue taxi.`, `Continue, ${tel(ac)}.`);
     },
   },
+  // Override bei verkeiltem Rollverkehr: dieses Flugzeug hat Vorrang und rollt am Hindernis vorbei
+  pass: {
+    label: T('Vorrang: vorbeirollen'), short: T('Vorbei'), key: 'O',
+    valid: (s, ac) => ac.mode === 'map' && !!ac.blockedBy && ac.blockedT > 2 && ac.ghostUntil <= s.time && [PH.TAXI_IN, PH.TAXI_OUT, PH.TAXI_WAIT, PH.PUSH].includes(ac.phase),
+    run: (s, ac) => {
+      const b = s.acs.find((o) => o.id === ac.blockedBy);
+      ac.ghostUntil = s.time + 45;
+      ac.blockedT = 0;
+      ac.blockedBy = null;
+      ac.holdPos = false;
+      if (b && [PH.TAXI_IN, PH.TAXI_OUT].includes(b.phase)) b.blockedT = 0;
+      say(s, ac, `${tel(ac)}, continue taxi, you have priority${b ? `, ${tel(b)} is holding` : ''}.`, `Continue taxi, ${tel(ac)}.`);
+    },
+  },
   // Wetterumflug um eine Gewitterzelle
   wxOk: {
     label: T('⛈️ Umweg genehmigen'), short: T('⛈️ Umweg ok'), key: 'Y', air: true, big: true,
@@ -264,6 +282,15 @@ function unableXw(s, ac) {
   return { ok: false, msg: T`${ac.cs}: Seitenwind ${xw} kt in Böen über dem Limit (${xwLimit(ac.type)} kt) – wartet am Rollhalt` };
 }
 
+// aus dem Stapel heraus: warten darunter noch andere, hält er seine Höhe, bis er 5 NM vom Fix weg ist
+function leaveStack(s, ac, hf) {
+  if (!hf) return;
+  const below = s.acs.some((o) => o !== ac && o.mode === 'air' && o.phase === PH.HOLD && o.holdFix && o.holdFix.name === hf.name && o.alt < ac.alt - 300);
+  if (below) {
+    ac.altRestr = Math.round(ac.alt / 100) * 100;
+    ac.leaveFix = { x: hf.x, y: hf.y };
+  }
+}
 export function command(state, ac, key) {
   const c = CMDS[key];
   if (ac && ac.nordo && c && !c.nordo) {
@@ -336,6 +363,11 @@ export function clearanceRisk(state, ac, key) {
 
 export function departureWait(state, ac) {
   const strip = ac.strip || 'N';
+  // Slot (CTOT) noch nicht offen: Startfreigabe hätte nur zur Folge, dass er am Rollhalt alle hinter sich aufhält
+  if (!slotOpen(state, ac, 45)) {
+    const rot = state.rots && state.rots[ac.rot];
+    return { sec: Math.max(30, Math.round(rot.ctot - 300 - 45 - state.time)), why: T`Slot ${fmtClock(rot.ctot)}`, slot: true };
+  }
   const occ = runwayOccupants(state, strip).filter((o) => o !== ac);
   if (occ.length) return { sec: 30, why: T`Piste belegt (${occ[0].cs})` };
   const arrs = state.acs.filter((a) => (a.phase === PH.APPROACH || a.phase === PH.FINAL) && a.rwy === state.rwy && (a.strip || 'N') === strip);

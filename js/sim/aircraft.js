@@ -237,8 +237,10 @@ function compactStacks(state) {
       if (a.phase !== PH.HOLD) continue;
       const L = lvl(a) - 1000;
       if (L < 7000 || used.has(L) || Math.abs(a.alt - a.tAlt) > 300) continue;
+      // der ganze Sinkweg muss frei sein: niemand in der Nähe, dessen Höhe (jetzt bis Ziel) in diesen Bereich fällt
       const fix = a.holdFix;
-      const busy = state.acs.some((o) => o !== a && o.mode === 'air' && Math.hypot(o.pos.x - fix.x, o.pos.y - fix.y) < 8 && Math.abs(o.alt - L) < 900);
+      const lo = L - 900, hi = a.alt + 900;
+      const busy = state.acs.some((o) => o !== a && o.mode === 'air' && Math.hypot(o.pos.x - fix.x, o.pos.y - fix.y) < 10 && Math.max(o.alt, o.tAlt) > lo && Math.min(o.alt, o.tAlt) < hi);
       if (busy) continue;
       used.delete(lvl(a));
       a.tAlt = L;
@@ -369,6 +371,10 @@ function updateAir(state, ac, dt) {
   }
 
   // Geschwindigkeit & Höhe je Phase
+  if (ac.leaveFix && (ac.phase !== PH.APPROACH || Math.hypot(ac.pos.x - ac.leaveFix.x, ac.pos.y - ac.leaveFix.y) > 5)) {
+    ac.leaveFix = null;
+    if (ac.phase === PH.APPROACH) ac.altRestr = undefined;
+  }
   if (ac.phase === PH.APPROACH) {
     const r0 = ac.route[0];
     const onFinal = r0 && r0.thr;
@@ -604,7 +610,7 @@ function updateMap(state, ac, dt) {
         const busy = (x) => {
           if (south) return false;
           const p = LY.pathRollout(ac.rwy, x, ac.len), e = p[p.length - 1];
-          return state.acs.some((o) => o !== ac && o.mode === 'map' && ((o.phase === PH.ROLLOUT && o.exitX === x) || ((o.phase === PH.VACATED || o.phase === PH.TAXI_IN) && Math.hypot(o.x - e.x, o.y - e.y) < 0.5 * (o.len + ac.len))));
+          return state.acs.some((o) => o !== ac && o.mode === 'map' && ((o.phase === PH.ROLLOUT && o.exitX === x) || ((o.phase === PH.VACATED || o.phase === PH.TAXI_IN || o.phase === PH.TAXI_OUT || o.phase === PH.HOLDING) && Math.hypot(o.x - e.x, o.y - e.y) < 0.5 * (o.len + ac.len) + 0.4)));
         };
         let ex = exits.find((x) => Math.abs(x - tdx) >= need && !busy(x)) ?? exits.find((x) => Math.abs(x - tdx) >= need) ?? exits[exits.length - 1];
         ac.exitX = ex;
@@ -768,9 +774,11 @@ function updateMap(state, ac, dt) {
         ac.phase = PH.HOLDING;
         ac.v = 0;
         ac.waitT = 0;
-        if (ac.clr.lineup || (ac.clr.takeoff && slotOpen(state, ac, 45))) startLineUp(state, ac);
-        else if (ac.clr.takeoff) holdForSlot(state, ac);
-        else {
+        if (ac.clr.lineup || ac.clr.takeoff) {
+          ac.luWaitBy = lineupWait(state, ac);
+          if (!ac.luWaitBy) startLineUp(state, ac);
+          else if (ac.clr.takeoff && !slotOpen(state, ac, 45)) holdForSlot(state, ac);
+        } else {
           setReq(state, ac, 'takeoff');
           radio(state, ac.cs, `${tel(ac)}, holding point runway ${rwyName(state, 'N', ac.rwy)}, ready for departure.`);
         }
@@ -779,8 +787,13 @@ function updateMap(state, ac, dt) {
     }
     case PH.HOLDING:
       ac.v = 0;
-      if (ac.clr.lineup || (ac.clr.takeoff && slotOpen(state, ac, 45))) startLineUp(state, ac);
-      else if (ac.clr.takeoff) holdForSlot(state, ac);
+      // Line up erst, wenn niemand mehr auf der Bahn aufrollt oder dort steht – sonst stehen zwei hintereinander und
+      // die ganze Schlange am Rollhalt blockiert
+      if (ac.clr.lineup || ac.clr.takeoff) {
+        ac.luWaitBy = lineupWait(state, ac);
+        if (!ac.luWaitBy) startLineUp(state, ac);
+        else if (ac.clr.takeoff && !slotOpen(state, ac, 45)) holdForSlot(state, ac);
+      }
       break;
     case PH.LINEUP: {
       if (followPath(state, ac, dt, 0.08)) {
@@ -951,7 +964,29 @@ export function startTaxiOut(state, ac) {
   ac.rev = false;
   ac.req = null;
 }
+// Wer steht der Auffahrt auf die Startbahn im Weg? (ein anderer Abflug beim Aufrollen, aufgerollt oder ganz am
+// Anfang seines Startlaufs)
+export function lineupBlocker(state, ac) {
+  for (const o of state.acs) {
+    if (o === ac || o.mode !== 'map') continue;
+    if (o.phase === PH.LINEUP || o.phase === PH.LINED) return o;
+    if (o.phase === PH.TAKEOFF && o.z === 0 && o.v < 0.12) return o;
+  }
+  return null;
+}
+// Grund, am Rollhalt zu bleiben: Bahn noch besetzt oder Slot (CTOT) noch nicht offen – mit Slot nicht auf die Piste,
+// sonst steht er dort minutenlang und blockiert Landungen und Starts
+function lineupWait(state, ac) {
+  const lb = lineupBlocker(state, ac);
+  if (lb) return lb.cs;
+  if (!slotOpen(state, ac, 90)) {
+    const rot = getRot(state, ac);
+    return rot && rot.ctot ? `Slot ${String(Math.floor((rot.ctot % 86400) / 3600)).padStart(2, '0')}:${String(Math.floor((rot.ctot % 3600) / 60)).padStart(2, '0')}` : 'Slot';
+  }
+  return null;
+}
 export function startLineUp(state, ac) {
+  ac.luWaitBy = null;
   ac.phase = PH.LINEUP;
   ac.path = LY.pathLineUp(ac.rwy, ac.len);
   ac.path[0] = { x: ac.x, y: ac.y };
@@ -1081,6 +1116,9 @@ function samplesAhead(ac, look, step = 0.35) {
 const COLLIDE_SKIP = new Set([PH.FINAL, PH.MISSED, PH.TAKEOFF]);
 function checkBlocked(state, ac, look) {
   if (ac.ghostUntil > state.time) return null;
+  // noch nicht von der Bahn: Abflüge in der Schlange vor dem Rollhalt halten ihn nicht auf der Piste fest (sonst wartet
+  // der vorderste Abflug auf die freie Bahn und die Bahn auf die Schlange – Patt)
+  const vacating = ac.phase === PH.ROLLOUT && !ac.vacated;
   const pts = samplesAhead(ac, look);
   if (!pts.length) return null;
   const la = pts[0];
@@ -1090,6 +1128,7 @@ function checkBlocked(state, ac, look) {
   mdy /= ml;
   for (const b of state.acs) {
     if (b === ac || b.mode !== 'map' || COLLIDE_SKIP.has(b.phase) || b.z > 0.3) continue;
+    if (vacating && (b.phase === PH.TAXI_OUT || b.phase === PH.HOLDING)) continue;
     const r = 0.45 * (ac.len + b.len) + 0.3;
     const dx = b.x - ac.x, dy = b.y - ac.y;
     const dd = Math.hypot(dx, dy);
@@ -1135,18 +1174,39 @@ function followPath(state, ac, dt, vmax, reverse = false) {
 // Gegenseitige Blockaden auflösen (sehr selten)
 function resolveDeadlocks(state) {
   const byId = new Map(state.acs.map((a) => [a.id, a]));
+  // Kreis aus drei oder mehr Flugzeugen, die aufeinander warten: nach 10 s rollt einer vorbei
+  for (const a of state.acs) {
+    if (!a.blockedBy || a.ghostUntil > state.time || a.blockedT < 10) continue;
+    const ring = [a];
+    let c = byId.get(a.blockedBy);
+    while (c && c !== a && c.blockedBy && c.blockedT >= 10 && ring.length < 8 && !ring.includes(c)) {
+      ring.push(c);
+      c = byId.get(c.blockedBy);
+    }
+    if (c === a && ring.length > 2) {
+      const loser = ring.reduce((x, y) => (x.id < y.id ? x : y));
+      if (!state.auto.atc && (state.role === 'tower' || state.role === 'ground') && !a.dlWarned) {
+        for (const r of ring) r.dlWarned = true;
+        notify(state, T`⚠ Rollverkehr verkeilt: ${ring.map((r) => r.cs).join(', ')} warteten im Kreis aufeinander – ${loser.cs} rollt vorbei`, 'warn');
+      }
+      loser.ghostUntil = state.time + 40;
+      loser.blockedT = 0;
+    }
+  }
   for (const a of state.acs) {
     if (!a.blockedBy || a.ghostUntil > state.time) continue;
     const b = byId.get(a.blockedBy);
     if (!b) continue;
-    const mutual = b.blockedBy === a.id && a.blockedT > 12 && b.blockedT > 12;
+    // gegenseitig: beide stehen – oder einer steht schon lange, während der andere nur ruckelt (z. B. Pushback)
+    const mutual = b.blockedBy === a.id && ((a.blockedT > 12 && b.blockedT > 12) || a.blockedT > 40);
     // Schlange vor dem Rollhalt: hinter einem Abflug zur selben Piste wird gewartet, nicht hindurchgerollt (sonst
     // stehen am Ende zwei Flugzeuge übereinander am Haltepunkt)
-    const queue = a.phase === PH.TAXI_OUT && [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(b.phase) && a.rwy === b.rwy;
-    const stuckOnParked = !queue && a.blockedT > 120 && [PH.STAND, PH.STARTUP, PH.VACATED, PH.HOLDING].includes(b.phase) && b.v === 0 && !b.blockedBy;
+    const slotWait = b.phase === PH.HOLDING && !slotOpen(state, b, 90);
+    const queue = a.phase === PH.TAXI_OUT && [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(b.phase) && a.rwy === b.rwy && !slotWait;
+    const stuckOnParked = !queue && a.blockedT > (slotWait ? 30 : 60) && [PH.STAND, PH.STARTUP, PH.VACATED, PH.HOLDING, PH.TAXI_WAIT].includes(b.phase) && b.v === 0 && !b.blockedBy;
     const longStuck = a.blockedT > (queue ? 1800 : 400);
     if (mutual || stuckOnParked || longStuck) {
-      const loser = mutual ? (a.id < b.id ? a : b) : a;
+      const loser = mutual && a.blockedT <= 40 ? (a.id < b.id ? a : b) : a;
       // Hinweis an den Spieler: Rollverkehr hat sich verkeilt (die Simulation löst es auf, der eine rollt vorbei)
       if (mutual && !state.auto.atc && (state.role === 'tower' || state.role === 'ground') && !a.dlWarned) {
         a.dlWarned = b.dlWarned = true;
