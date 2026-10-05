@@ -872,6 +872,17 @@ export class TowerPanel {
       const m = a && clearanceMsg(state, a, f.key);
       if (m) toast(m.t, m.lvl, 4600);
     }
+    // steht ein Flugzeug länger fest: einmal melden, wer im Weg ist und was hilft
+    this.blkNote = this.blkNote || new Set();
+    for (const a of state.acs) {
+      if (a.mode !== 'map') continue;
+      if (a.blockedBy && a.blockedT > 45 && !state.auto.atc) {
+        if (this.blkNote.has(a.id)) continue;
+        this.blkNote.add(a.id);
+        const b = state.acs.find((o) => o.id === a.blockedBy);
+        if (b) toast(T`⛔ ${a.cs} steht – ${b.cs} ist im Weg. „Vorbei“ (O) gibt ${a.cs} Vorrang, „Halt“ (X) lässt ${b.cs} warten.`, 'warn', 6500);
+      } else if (!a.blockedBy) this.blkNote.delete(a.id);
+    }
     const byId = new Map(state.acs.map((a) => [a.id, a]));
     const seq = state.seq.map((id) => byId.get(id)).filter(Boolean);
     const num = new Map(seq.map((a, i) => [a.id, i + 1]));

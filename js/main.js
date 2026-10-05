@@ -623,6 +623,11 @@ function loop(ts) {
     game.uiTimer = 0.2;
     updateHUD();
     if (game.ui.radarOn) setHTML($('#radar-seq'), seqChips(s));
+    // Sicherheitsnetz: länger als 4 s festgehalten (verlorenes Loslassen) – wieder aktualisieren
+    if (game.panelHold) {
+      game.panelHoldT = game.panelHoldT || performance.now();
+      if (performance.now() - game.panelHoldT > 3500 && !document.querySelector('.fcard.dragging') && !(game.splan && game.splan.drag)) game.panelHold = false;
+    } else game.panelHoldT = 0;
     if (!game.panelHold && !(document.activeElement && document.activeElement.tagName === 'SELECT')) game.panel.update(s);
     if (!(document.activeElement && document.activeElement.tagName === 'SELECT' && document.activeElement.closest('#info'))) renderInfo($('#info'), s, game.ui);
     keepSelVisible();
@@ -1300,6 +1305,8 @@ function wireGame() {
   const panel = $('#panel');
   panel.addEventListener('pointerdown', () => (game.panelHold = true));
   window.addEventListener('pointerup', () => setTimeout(() => (game.panelHold = false), 60));
+  // abgebrochene Geste (Scrollen per Finger, Browser übernimmt): sonst bliebe das Panel eingefroren
+  window.addEventListener('pointercancel', () => setTimeout(() => (game.panelHold = false), 400));
 
   // Info-Karte
   const info = $('#info');
