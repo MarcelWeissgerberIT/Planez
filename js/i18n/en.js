@@ -3751,4 +3751,12 @@ export default {
   "<li>🛫 <b>Großflughäfen</b>: neuer Spielmodus im Hauptmenü – fünf Drehkreuze nach echtem Vorbild, mit fiktiven Namen: Kingsmoor (wie London-Heathrow), Isarmoos (München), Sunbay (Los Angeles), Mainhafen (Frankfurt) und Liberty Bay (New York JFK). Echtes Bahnsystem, Terminals und Betriebsrichtungen, Verkehr wie zur Spitzenzeit mit bis zu 90 Bewegungen pro Stunde. Du bist der Tower: Landungen freigeben, Abflüge aufrollen und starten lassen, Kreuzungen über aktive Bahnen – je Platz drei Einsätze mit Sternen und ein freier Betrieb</li>": "<li>🛫 <b>Hub airports</b>: a new game mode in the main menu – five hubs modelled on real airports, with fictional names: Kingsmoor (like London Heathrow), Isarmoos (Munich), Sunbay (Los Angeles), Mainhafen (Frankfurt) and Liberty Bay (New York JFK). Real runway layout, terminals and runway configurations, peak-hour traffic with up to 90 movements an hour. You are the tower: clear landings, line up and launch departures, cross traffic over active runways – three scenarios with stars per airport plus free play</li>",
   "Anflüge": "Arrivals",
   "Abflüge": "Departures",
+  "Minikarte ein/aus (Umschalt+K) – Klick auf die Karte springt dorthin": "Minimap on/off (Shift+K) – click the minimap to jump there",
+  "Minikarte ein/aus (Umschalt+K)": "Minimap on/off (Shift+K)",
+  "Umschalt+K": "Shift+K",
+  "Minikarte ein/aus – Klick darauf springt dorthin": "Minimap on/off – click it to jump there",
+  "Minikarte ausblenden (Umschalt+K)": "Hide minimap (Shift+K)",
+  "Minikarte ausblenden": "Hide minimap",
+  "Luft": "Airborne",
+  "<li>🗺️ <b>Minikarte</b>: In jeder Rolle und an den Großflughäfen lässt sich unten rechts eine kleine Übersichtskarte einblenden (Knopf in der Kartenleiste oder Umschalt+K) – der ganze Flughafen in Dunkelgrau, Flugzeuge als Punkte (blau an der Position, grün beim Rollen, rot auf der Bahn, Ring in der Luft), Fahrzeuge gelb. Der weiße Rahmen zeigt den Ausschnitt; ein Klick oder Ziehen auf der Minikarte springt sofort dorthin</li>": "<li>🗺️ <b>Minimap</b>: In every role and at the hub airports you can show a small overview map in the bottom right (button in the map bar or Shift+K) – the whole airport in dark grey, aircraft as dots (blue at the stand, green while taxiing, red on the runway, a ring when airborne), vehicles in yellow. The white frame shows your current view; click or drag on the minimap to jump straight there</li>",
 };

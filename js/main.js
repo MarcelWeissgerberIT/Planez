@@ -69,6 +69,7 @@ import { ScenarioUi, shiftBonusHtml } from './ui/scenarioUi.js';
 import { StandPlan } from './ui/standPlan.js';
 import { scoreState } from './sim/score.js';
 import { keysHtml } from './ui/keys.js';
+import { createMainMinimap } from './ui/minimapMain.js';
 import { Fids } from './ui/fids.js';
 import { SpotterUi } from './ui/spotter.js';
 import { briefingHtml } from './ui/briefing.js';
@@ -184,6 +185,8 @@ async function boot() {
   await loadAssets((p) => (fill.style.width = `${Math.round(p * 100)}%`));
   game.map = new MapRenderer($('#map'), game.cam);
   game.radar = new Radar($('#radar'));
+  game.minimap = createMainMinimap(game, $('#minimap'));
+  $('#t-minimap').classList.toggle('on', game.minimap.on);
   initGlossary();
   initMainMenu({
     gloss: () => showHelp(false, 'gloss'),
@@ -604,6 +607,7 @@ function loop(ts) {
   soundscape.on = !!s.settings.sound && s.settings.ambience !== false && !document.hidden;
   soundscape.update(s, game.cam, game.map, dt, !s.speed || modalOpen());
   if (game.ui.radarOn) game.radar.render(s, dt, game.ui);
+  if (!(game.ride && game.ride.on)) game.minimap.update(dt);
   game.uiTimer -= dt;
   if (game.uiTimer <= 0) {
     game.uiTimer = 0.2;
@@ -1209,6 +1213,7 @@ function wireGame() {
   });
   $('#t-labels').classList.add('on');
   $('#t-radar').addEventListener('click', () => toggleRadar(!game.ui.radarOn));
+  $('#t-minimap').addEventListener('click', () => game.minimap.toggle());
   $('#t-help').addEventListener('click', () => showHelp(false));
   $('#t-spot').addEventListener('click', () => spotter().toggle());
   $('#t-fids').addEventListener('click', () => {
@@ -1453,6 +1458,11 @@ function onKey(e) {
   if (game.photo && game.photo.on && e.key === 'Escape') {
     e.preventDefault();
     return game.photo.stop();
+  }
+  // Umschalt+K: Minikarte ein/aus
+  if (e.key === 'K' && e.shiftKey && game.state && game.running && !modalOpen() && !(game.cinema && game.cinema.on) && !(e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) {
+    e.preventDefault();
+    return game.minimap.toggle();
   }
   if (e.key === 'P' && e.shiftKey && game.state && game.running && !modalOpen()) {
     e.preventDefault();

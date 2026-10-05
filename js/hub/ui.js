@@ -5,6 +5,7 @@ import { getAirport } from './store.js';
 import { HubSim, PHASE as P, NM } from './sim.js';
 import { HubRenderer } from './render.js';
 import { HubRadar } from './radar.js';
+import { createHubMinimap } from './minimap.js';
 import { hubScenarioById, hubStars, saveHubBest, loadHubBest, scenariosOf } from './scenarios.js';
 import { AIRLINES, CITIES } from '../config.js';
 import { T } from '../i18n.js';
@@ -65,6 +66,9 @@ class HubMode {
     this.mount();
     this.renderer = new HubRenderer(this.el.querySelector('#hb-map'), this.ap, this.sim);
     this.radar = new HubRadar(this.el.querySelector('#hb-radar'), this.ap, this.sim);
+    const mmBtn = this.el.querySelector('[data-hb="minimap"]');
+    this.minimap = createHubMinimap(this, this.el.querySelector('#hb-minimap'), mmBtn);
+    mmBtn.classList.toggle('on', this.minimap.on);
     this.resize();
     this.renderer.cam.fit();
     this.wire();
@@ -125,8 +129,10 @@ class HubMode {
         <button class="hb-btn" data-hb="zout" title="${T('Herauszoomen (−)')}">－</button>
         <button class="hb-btn" data-hb="fit" title="${T('Ganzer Flughafen (0)')}">⤢</button>
         <button class="hb-btn" data-hb="side" title="${T('Seitenleiste ein/aus')}">⇥</button>
+        <button class="hb-btn" data-hb="minimap" title="${T('Minikarte ein/aus (Umschalt+K)')}">🗺</button>
       </div>
-      <div class="hb-toasts" id="hb-toasts"></div>`;
+      <div class="hb-toasts" id="hb-toasts"></div>
+      <div id="hb-minimap"></div>`;
     el.classList.remove('hidden');
     document.getElementById('menu').classList.add('hidden');
     document.getElementById('game').classList.add('hidden');
@@ -237,6 +243,7 @@ class HubMode {
     if (k === '-') return cam.zoomAt(0.8, cam.w / 2, cam.h / 2);
     if (k === '0') return this.cmd('fit');
     if (k === 'f') return (this.follow = !!this.sel && !this.follow);
+    if (e.key === 'K' && e.shiftKey) return this.minimap.toggle();
     if (k === 'tab') {
       e.preventDefault();
       const reqs = this.sim.requests();
@@ -308,6 +315,7 @@ class HubMode {
       this.el.classList.toggle('noside');
       return setTimeout(() => this.resize(), 260);
     }
+    if (c === 'minimap') return this.minimap.toggle();
     if (c === 'menu') return this.pauseMenu();
     if (c === 'cfg') return this.cfgMenu();
     if (c === 'ai') return this.aiMenu();
@@ -666,6 +674,7 @@ class HubMode {
     cam.update(dt);
     this.renderer.render(dt);
     if (!this.el.classList.contains('noside')) this.radar.render(dt);
+    this.minimap.update(dt);
     // neue Anfragen: kurzer Ton
     for (const a of this.sim.acs) {
       if (a.req && !this.reqSeen.has(a.id + a.req)) {

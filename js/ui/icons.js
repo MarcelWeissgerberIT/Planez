@@ -8,6 +8,7 @@ const P = {
   robot: '<rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 4.5V8M9 19v1.5M15 19v1.5M3 12.5v3M21 12.5v3"/><circle class="a" cx="9.5" cy="13" r="1.4"/><circle class="a" cx="14.5" cy="13" r="1.4"/><circle cx="12" cy="4" r="1"/>',
   minus: '<path d="M5 12h14"/>',
   labels: '<path d="M3.5 11.2V4.5a1 1 0 0 1 1-1h6.7l9.3 9.3-7.7 7.7z"/><circle class="a" cx="8" cy="8" r="1.6"/>',
+  minimap: '<path d="M3.5 6.2 9 4l6 2.2L20.5 4v13.8L15 20l-6-2.2-5.5 2.2z"/><path d="M9 4v13.8M15 6.2V20" opacity=".5"/><circle class="a" cx="12" cy="11.5" r="1.6"/>',
   radar: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5" opacity=".55"/><path d="M12 12l6-6"/><circle class="a" cx="15.6" cy="14.6" r="1.4"/>',
   noise: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.2 6.5a7.5 7.5 0 0 1 0 11"/>',
   cinema: '<rect x="3.5" y="9" width="17" height="11" rx="1.5"/><path d="M3.5 9l2-4.5 15 0-2 4.5M8.5 4.5L7 9M13.5 4.5 12 9"/><path class="a" d="M10.5 12.5v4.5l3.8-2.25z"/>',

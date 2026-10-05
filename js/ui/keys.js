@@ -9,6 +9,7 @@ const COMMON = [
   [T('Maus ziehen · Pfeiltasten'), T('Karte verschieben')],
   [T('Mausrad · + / −'), 'Zoom'],
   ['B', T('Beschriftungen an/aus')],
+  [T('Umschalt+K'), T('Minikarte ein/aus – Klick darauf springt dorthin')],
   [T('M · Umschalt+M'), T('Flugzeug markieren / Markierung weg')],
   ['K', T('Kino-Modus')],
   ['I', T('Anzeigetafel Abflug/Ankunft')],
