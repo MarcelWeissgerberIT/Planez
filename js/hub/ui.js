@@ -13,7 +13,7 @@ import { voice } from '../voice.js';
 import { sfx } from '../audio.js';
 import { tracks } from '../trackMusic.js';
 import { openModal, closeModal, modalOpen, syncList } from '../ui/dom.js';
-import { loadPrefs } from '../ui/menus.js';
+import { loadPrefs, savePrefs } from '../ui/menus.js';
 import { esc } from '../util.js';
 
 
@@ -37,6 +37,7 @@ export function hubActive() {
 export function startHub(scnId, api = {}) {
   if (current) current.destroy();
   current = new HubMode(scnId, api);
+  window.planezHub = current; // für Tests/Debugging
   return current;
 }
 
@@ -66,6 +67,12 @@ class HubMode {
     this.mount();
     this.renderer = new HubRenderer(this.el.querySelector('#hb-map'), this.ap, this.sim);
     this.radar = new HubRadar(this.el.querySelector('#hb-radar'), this.ap, this.sim);
+    if (prefs.hubRadarRange && prefs.hubRadarRange !== 'auto') {
+      this.radar.auto = false;
+      this.radar.range = +prefs.hubRadarRange || 15;
+    }
+    this.talkLast = { id: null, at: -1e9 };
+    this.spoke = { id: null, at: -1e9 };
     const mmBtn = this.el.querySelector('[data-hb="minimap"]');
     this.minimap = createHubMinimap(this, this.el.querySelector('#hb-minimap'), mmBtn);
     mmBtn.classList.toggle('on', this.minimap.on);
@@ -75,6 +82,7 @@ class HubMode {
     // Funk
     voice.set({ on: prefs.tts !== false && prefs.sound !== false, vol: prefs.voiceVol ?? 0.9 });
     this.sim.onRadio = (m) => {
+      if (m.ac) this.talkLast = { id: m.ac, at: performance.now() };
       this.radioLine(m);
       if (this.speed && this.speed <= 4) voice.say(m, this.speed);
     };
@@ -113,7 +121,7 @@ class HubMode {
       </header>
       <aside class="hb-side">
         <div id="hb-minimap" class="hidden"></div>
-        <div class="hb-radarbox"><canvas id="hb-radar"></canvas><span class="hb-rlabel">${T('Anflugradar')}</span></div>
+        <div class="hb-radarbox"><canvas id="hb-radar"></canvas><span class="hb-rlabel">${T('Anflugradar')}</span><button class="hb-rzoom" data-hb="rzoom" id="hb-rzoom" title="${T('Reichweite: Auto (folgt dem Verkehr und zoomt auf den aktiven Funkkontakt) → 25 → 15 → 8 NM. Mausrad zoomt frei')}"></button></div>
         <div class="hb-strips" id="hb-strips">
           <div class="hs-sec"><div class="hs-h">🛬 ${T('Anflüge')}<span id="hs-n-arr"></span></div><div class="hs-list" id="hs-arr"></div></div>
           <div class="hs-sec"><div class="hs-h">🛫 ${T('Abflüge')}<span id="hs-n-dep"></span></div><div class="hs-list" id="hs-dep"></div></div>
@@ -220,6 +228,16 @@ class HubMode {
       const id = this.radar.pick(e.clientX - r.left, e.clientY - r.top);
       if (id) this.select(id, true);
     });
+    rc.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault();
+        const r = this.radar;
+        this.setRadarRange(false, Math.round(Math.max(3, Math.min(25, (r.auto ? r.view.r : r.range) * (e.deltaY > 0 ? 1.15 : 1 / 1.15)))));
+      },
+      { passive: false }
+    );
+    this.syncRadarRange();
     this.onKey = (e) => this.key(e);
     window.addEventListener('keydown', this.onKey);
   }
@@ -300,6 +318,31 @@ class HubMode {
     }
     this.uiT = 0;
   }
+  // Radar-Reichweite: Auto oder fest (gemerkt)
+  setRadarRange(auto, range) {
+    const r = this.radar;
+    r.auto = auto;
+    if (range) r.range = range;
+    r.tgt = null;
+    savePrefs({ hubRadarRange: auto ? 'auto' : r.range });
+    this.syncRadarRange();
+  }
+  syncRadarRange() {
+    const b = this.el.querySelector('#hb-rzoom');
+    if (!b) return;
+    b.textContent = this.radar.auto ? T('Auto') : `${this.radar.range} NM`;
+    b.classList.toggle('on', this.radar.auto);
+  }
+  // Aktiver Funkkontakt: spricht gerade (Sprachausgabe), kurz danach noch markiert; ohne Sprachausgabe die letzte Meldung
+  talking() {
+    const now = performance.now(), c = voice.on && voice.current;
+    if (c && c.ac) {
+      this.spoke = { id: c.ac, at: now };
+      return { id: c.ac, live: true };
+    }
+    if (voice.on && this.speed && this.speed <= 4) return now - this.spoke.at < 3500 ? { id: this.spoke.id, live: false } : null;
+    return now - this.talkLast.at < 6000 ? { id: this.talkLast.id, live: false } : null;
+  }
   setSpeed(v) {
     if (v) this.lastSpeed = v;
     this.speed = v;
@@ -316,6 +359,13 @@ class HubMode {
       return setTimeout(() => this.resize(), 260);
     }
     if (c === 'minimap') return this.minimap.toggle();
+    if (c === 'rzoom') {
+      const r = this.radar;
+      if (r.auto) return this.setRadarRange(false, 25);
+      if (r.range >= 20) return this.setRadarRange(false, 15);
+      if (r.range >= 10) return this.setRadarRange(false, 8);
+      return this.setRadarRange(true);
+    }
     if (c === 'menu') return this.pauseMenu();
     if (c === 'cfg') return this.cfgMenu();
     if (c === 'ai') return this.aiMenu();
@@ -530,6 +580,7 @@ class HubMode {
     d.className = `hr-l ${m.kind}`;
     d.innerHTML = `<span class="hr-t">${clock(m.t)}</span><b>${esc(m.from)}</b> ${esc(m.text)}`;
     if (m.ac) d.dataset.sel = m.ac;
+    m._el = d; // Sprachausgabe hebt die gerade gesprochene Zeile hervor
     box.appendChild(d);
     while (box.children.length > 40) box.firstChild.remove();
     box.scrollTop = box.scrollHeight;
@@ -565,7 +616,8 @@ class HubMode {
   updateStrips() {
     const s = this.sim, ap = this.ap;
     const sel = this.sel;
-    const row = (a, main, sub, btns, cls) => ({ cls: `hs-row ${cls} ${a.id === sel ? 'sel' : ''} ${a.req ? 'req' : ''}`, html: `<div class="hs-main" data-sel="${a.id}"><b>${a.cs}</b><span class="hs-ty">${a.tt.code} ${a.wake}</span>${main}</div><div class="hs-sub">${sub}</div>${btns ? `<div class="hs-btns">${btns}</div>` : ''}` });
+    const tk = this.talk;
+    const row = (a, main, sub, btns, cls) => ({ cls: `hs-row ${cls} ${a.id === sel ? 'sel' : ''} ${a.req ? 'req' : ''} ${tk && tk.id === a.id ? (tk.live ? 'talking live' : 'talking') : ''}`, html: `<div class="hs-main" data-sel="${a.id}"><b>${a.cs}</b><span class="hs-ty">${a.tt.code} ${a.wake}</span>${main}</div><div class="hs-sub">${sub}</div>${btns ? `<div class="hs-btns">${btns}</div>` : ''}` });
     // Anflug
     const arr = s.acs.filter((a) => a.phase === P.APP || a.phase === P.FIN || a.phase === P.GA).sort((a, b) => (a.phase === P.GA) - (b.phase === P.GA) || a.dfin - b.dfin);
     syncList(this.el.querySelector('#hs-arr'), arr.slice(0, 9), (a) => a.id, (a) => {
@@ -672,6 +724,8 @@ class HubMode {
       } else this.follow = false;
     }
     cam.update(dt);
+    this.talk = this.talking();
+    this.renderer.talk = this.radar.talk = this.talk;
     this.renderer.render(dt);
     if (!this.el.classList.contains('noside')) this.radar.render(dt);
     this.minimap.update(dt);

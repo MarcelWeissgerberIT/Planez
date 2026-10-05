@@ -750,12 +750,23 @@ export class HubRenderer {
       const p = cam.toScreen(ac.x, ac.y, ac.z + 0.6);
       if (p.x < -80 || p.y < -40 || p.x > cam.w + 80 || p.y > cam.h + 40) continue;
       const sel = this.sel === ac.id;
+      const talk = !!(this.talk && this.talk.id === ac.id);
       const parked = ac.phase === P.STAND && !ac.req;
-      if (parked && !sel && z < 0.75) continue;
+      if (parked && !sel && !talk && z < 0.75) continue;
       let col = 'rgba(15,23,42,.78)', fg = '#e2e8f0', bd = 'rgba(148,163,184,.5)';
       if (ac.req) (bd = '#f5a623'), (fg = '#fde68a');
       if (ac.landClr || ac.tkClr || ac.crossRwy) bd = 'rgba(52,211,153,.9)';
       if (sel) (bd = '#38d6f5'), (col = 'rgba(8,47,73,.9)');
+      if (talk) {
+        // aktiver Funkkontakt: türkiser Ring (pulsiert, solange er spricht) und Schild
+        (bd = '#67e8f9'), (col = 'rgba(8,47,60,.92)');
+        const ph = this.talk.live ? (performance.now() / 700) % 1 : 0;
+        ctx.strokeStyle = `rgba(103,232,249,${this.talk.live ? 1 - ph : 0.8})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y + 4, 12 + ph * 12, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       const t2 = z > 0.22 || sel ? ` ${ac.tt.code}` : '';
       const txt = ac.cs + t2;
       const w = ctx.measureText(txt).width + 10, h = fs + 7;
@@ -769,7 +780,7 @@ export class HubRenderer {
       ctx.stroke();
       ctx.fillStyle = col;
       ctx.strokeStyle = bd;
-      ctx.lineWidth = sel || ac.req ? 1.6 : 1;
+      ctx.lineWidth = talk ? 2.2 : sel || ac.req ? 1.6 : 1;
       ctx.beginPath();
       ctx.roundRect(x, y, w, h, 4);
       ctx.fill();
