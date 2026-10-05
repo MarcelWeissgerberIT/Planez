@@ -4,15 +4,27 @@ export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
 // Kinder eines Containers anhand eines Schlüssels abgleichen; parts: { name: html } pro Element
+// Zielhilfe: solange der Spieler in einem Bereich zielt (Maus über einem Streifen, gerade getippt), dort nichts
+// umsortieren – sonst springt der Streifen weg, bevor der Klick ankommt
+let aim = { el: null, until: 0 };
+export function holdAim(el, ms) {
+  aim = el ? { el, until: performance.now() + ms } : { el: null, until: 0 };
+}
+export const aiming = (el) => !!(aim.el && aim.el.contains(el) && performance.now() < aim.until);
+
 export function syncList(container, items, keyFn, renderFn, tag = 'div') {
-  // wird gerade ein Knopf in der Liste gedrückt, nichts umsortieren oder entfernen – sonst geht der Klick verloren
-  const frozen = !!(pressed && container.contains(pressed) && pressed.closest && pressed.closest('button, [data-cmd], [data-rbfix], [data-mark]'));
+  // wird gerade ein Knopf in der Liste gedrückt oder zielt der Spieler hinein, nichts umsortieren oder entfernen –
+  // sonst geht der Klick verloren
+  const held = aiming(container);
+  const frozen = held || !!(pressed && container.contains(pressed) && pressed.closest && pressed.closest('button, [data-cmd], [data-rbfix], [data-mark]'));
   const existing = new Map();
   for (const el of container.children) if (el.dataset && el.dataset.key) existing.set(el.dataset.key, el);
   let prev = null;
   for (const it of items) {
     const key = String(keyFn(it));
     let el = existing.get(key);
+    // beim Zielen keinen zweiten Streifen desselben Flugzeugs in einer anderen Bucht anlegen – er wechselt danach
+    if (!el && held && aim.el.querySelector(`[data-key="${CSS.escape(key)}"]`)) continue;
     const r = renderFn(it);
     if (!el) {
       el = document.createElement(tag);

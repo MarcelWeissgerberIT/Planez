@@ -5,9 +5,10 @@ import { dist, degNorm, pathLength } from '../util.js';
 import * as AS from './airspace.js';
 import * as LY from '../layout.js';
 import { overXw, gustXw, xwLimit } from './gusts.js';
-import { PH, tel, windStr, goAround, startTaxiIn, startPushback, startTaxiOut, startLineUp, runwayBlocker, runwayOccupants, setReq, fmtAlt, crossingSafe, takeoffExtraNm, takeoffPerf, holdingAltitude } from './aircraft.js';
+import { PH, tel, windStr, goAround, startTaxiIn, startPushback, startTaxiOut, startLineUp, runwayBlocker, runwayOccupants, setReq, fmtAlt, crossingSafe, takeoffExtraNm, takeoffPerf, holdingAltitude, yieldDist, startYield } from './aircraft.js';
 import { radio, log, notify, fx } from './messages.js';
 import { penalize } from './economy.js';
+import { standFits, standFree } from './ground.js';
 import { updateSequence, seqNumber, updateArrQueue, isSeqArrival, isSeqDeparture, sepSec, seqStrip } from './sequence.js';
 import { wakeNm, wakeDepSec } from './wake.js';
 import { slotOpen } from './acdm.js';
@@ -154,6 +155,13 @@ export const CMDS = {
     label: T('Pushback frei'), short: 'Pushback', key: 'P', big: true,
     valid: (s, ac) => ac.phase === PH.STAND && ac.req === 'push',
     run: (s, ac) => {
+      // A-CDM: mit Slot (CTOT) erst zur TSAT anlassen – sonst steht das Flugzeug lange am Rollhalt und die Schlange
+      // dahinter kommt nicht vorbei
+      const rot = s.rots[ac.rot];
+      if (rot && rot.ctot && rot.tsat > s.time + 150) {
+        notify(s, T`⏱️ ${ac.cs} hat Slot ${fmtClock(rot.ctot)} – Anlassen erst zur TSAT ${fmtClock(rot.tsat)}, sonst blockiert es am Rollhalt die Schlange`, 'info');
+        return CMDS.startWait.run(s, ac);
+      }
       const face = s.rwy === '27' ? 'east' : 'west';
       if (AC_TYPES[ac.type].selfTaxi) say(s, ac, `${tel(ac)}, start-up approved, runway ${s.rwy}, QNH ${qnh(s)}.`, `Start-up approved, runway ${s.rwy}, QNH ${qnh(s)}, ${tel(ac)}.`);
       else say(s, ac, `${tel(ac)}, pushback and start-up approved, face ${face}.`, `Pushback and start-up approved, face ${face}, ${tel(ac)}.`);
@@ -221,19 +229,28 @@ export const CMDS = {
       say(s, ac, `${tel(ac)}, continue taxi.`, `Continue taxi, ${tel(ac)}.`);
     },
   },
-  // Override bei verkeiltem Rollverkehr: dieses Flugzeug hat Vorrang und rollt am Hindernis vorbei
+  // Override bei verkeiltem Rollverkehr: dieses Flugzeug hat Vorrang – wer im Weg steht, macht Platz (wird ein Stück
+  // zurückgeschleppt) oder wartet. Niemand rollt durch einen anderen hindurch.
   pass: {
-    label: T('Vorrang: rollt an allem vorbei, was im Weg steht (Override)'), short: T('Vorrang'), key: 'O',
+    label: T('Vorrang: wer im Weg steht, macht Platz (Schlepper zieht ihn zurück) oder wartet'), short: T('Vorrang'), key: 'O',
     // jederzeit für rollende Flugzeuge – nicht erst, wenn sie schon feststecken
-    valid: (s, ac) => ac.mode === 'map' && ac.ghostUntil <= s.time && [PH.TAXI_IN, PH.TAXI_OUT, PH.TAXI_WAIT, PH.PUSH].includes(ac.phase),
+    valid: (s, ac) => ac.mode === 'map' && !(ac.prioUntil > s.time) && [PH.TAXI_IN, PH.TAXI_OUT, PH.TAXI_WAIT, PH.PUSH].includes(ac.phase),
     run: (s, ac) => {
       const b = s.acs.find((o) => o.id === ac.blockedBy);
-      ac.ghostUntil = s.time + 45;
-      ac.blockedT = 0;
-      ac.blockedBy = null;
+      ac.prioUntil = s.time + 120;
       ac.holdPos = false;
-      if (b && [PH.TAXI_IN, PH.TAXI_OUT].includes(b.phase)) b.blockedT = 0;
-      say(s, ac, `${tel(ac)}, continue taxi, you have priority${b ? `, ${tel(b)} is holding` : ''}.`, `Continue taxi, ${tel(ac)}.`);
+      ac.blockedT = 0;
+      if (!b) return say(s, ac, `${tel(ac)}, continue taxi, you have priority.`, `Continue taxi, ${tel(ac)}.`);
+      const d = yieldDist(s, b, ac);
+      if (d) {
+        startYield(s, b, ac, d);
+        say(s, ac, `${tel(ac)}, continue taxi, you have priority.`, `Continue taxi, ${tel(ac)}.`);
+        say(s, b, `${tel(b)}, give way to ${tel(ac)}, you will be towed back.`, `Giving way, ${tel(b)}.`);
+        return;
+      }
+      // kein Platz zum Ausweichen: der andere bleibt stehen, sobald er kann, und dieses Flugzeug wartet, bis der Weg frei ist
+      say(s, ac, `${tel(ac)}, hold position, ${tel(b)} cannot give way, expect further taxi shortly.`, `Holding, ${tel(ac)}.`);
+      notify(s, T`⛔ ${b.cs} kann nicht ausweichen – ${ac.cs} wartet, bis der Weg frei ist (niemand rollt durch einen anderen hindurch)`, 'warn');
     },
   },
   // Wetterumflug um eine Gewitterzelle
@@ -461,6 +478,14 @@ export function autoAtc(state, dt) {
   state._autoCmd = false;
 }
 
+// Parkposition oder Warteplatz frei? Sonst bleibt ein Anflug in der Warteschleife – am Boden würde er ohne Position
+// eine Rollweg-Einfahrt zustellen (Notfälle, Treibstoffmangel und Staatsbesuch ausgenommen)
+export function parkingFor(state, c) {
+  if (c.stand || c.emergency || c.minFuel || (c.fuelMin !== undefined && c.fuelMin < 25) || c.protocol) return true;
+  if (state.stands.some((s) => standFits(s, c) && standFree(s))) return true;
+  return !state.acs.some((a) => a !== c && a.arr && !a.stand && (a.mode === 'map' || [PH.APPROACH, PH.FINAL].includes(a.phase)));
+}
+
 // Nächste Anflugfreigabe: Kandidaten in Reihenfolge (Notfälle und Treibstoffmangel zuerst),
 // aus der Warteschleife immer der Unterste; Abstand zu bereits freigegebenen Anflügen derselben Bahn
 function clearNextApproach(state, cands, distCleared, departuresWaiting, order = null, depExtra = 0) {
@@ -479,7 +504,8 @@ function clearNextApproach(state, cands, distCleared, departuresWaiting, order =
   for (const x of scored) if (x.c.qT === undefined) x.c.qT = state.time;
   const eff = (x) => x.d - Math.min(30, (state.time - x.c.qT) / 60) * 1.2;
   scored.sort((x, y) => prio(y) - prio(x) || (order ? x.o - y.o : eff(x) - eff(y)));
-  const next = scored[0];
+  // ohne Parkposition (und mit belegtem Warteplatz) bleibt ein Anflug in der Schleife – die nächsten mit Position rücken vor
+  const next = scored.find((x) => parkingFor(state, x.c));
   if (!next) return null;
   const c = next.c;
   if (next.blocked && !c.emergency) return null; // warten, bis der Stapel darunter frei ist

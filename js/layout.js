@@ -182,14 +182,20 @@ function taxiInPts(fromX, stand, len, rwy) {
   const sx = stand.x;
   const cy = noseY(stand) + len / 2;
   const pts = [P(fromX, TWY_A)];
+  // Einfahrt in Flussrichtung von Rollweg A wählen (27: westwärts, 09: ostwärts) – nie quer durch den Gegenverkehr.
+  // Steht das Flugzeug schon hinter allen passenden Einfahrten (Warteplatz am Rollweg-Ende), die nächstgelegene.
   if (rwy === '27') {
     // Vorfeldstraße ostwärts: Einfahrt westlich des Standes
-    const cands = CONN.slice(0, -1).filter((c) => c <= sx - 2.4);
-    const c = cands.length ? Math.max(...cands) : CONN[0];
+    const ok = CONN.slice(0, -1).filter((c) => c <= sx - 2.4);
+    const ahead = ok.filter((c) => c <= fromX + 0.5);
+    const back = ok.filter((c) => c > fromX + 0.5);
+    const c = ahead.length ? Math.max(...ahead) : back.length ? Math.min(...back) : CONN[0];
     pts.push(P(c, TWY_A), P(c, LANE));
   } else {
-    const cands = CONN.slice(1).filter((c) => c >= sx + 2.4);
-    const c = cands.length ? Math.min(...cands) : CONN[CONN.length - 1];
+    const ok = CONN.slice(1).filter((c) => c >= sx + 2.4);
+    const ahead = ok.filter((c) => c >= fromX - 0.5);
+    const back = ok.filter((c) => c < fromX - 0.5);
+    const c = ahead.length ? Math.min(...ahead) : back.length ? Math.max(...back) : CONN[CONN.length - 1];
     pts.push(P(c, TWY_A), P(c, LANE));
   }
   pts.push(P(sx, LANE), P(sx, cy));
@@ -281,9 +287,12 @@ export function pathCrossIn(crossX, stand, len, rwy) {
 export const inNorthRunwayZone = (y) => y > HOLD_Y - 0.2 && y < HOLD_CROSS + 0.2;
 
 // Warteposition ohne Parkposition: Ende von Rollweg A in Flussrichtung
+// Warteplatz ohne Parkposition am Ende von Rollweg A – möglichst weit weg von der letzten Einfahrt, damit wer dort
+// abbiegt, nicht am Wartenden vorbei muss
 export function waitSpotX(rwy, len, slot = 0) {
-  if (rwy === '27') return RWY.thr['09'] + len / 2 + 0.6 + slot * (len + 0.8);
-  return RWY.thr['27'] - len / 2 - 0.6 - slot * (len + 0.8);
+  // ganz am Ende von Rollweg A (1,6 Kacheln hinter der Schwelle)
+  if (rwy === '27') return RWY.thr['09'] - 1.5 + len / 2 + slot * (len + 0.8);
+  return RWY.thr['27'] + 1.5 - len / 2 - slot * (len + 0.8);
 }
 export function pathToWait(fromX, rwy, len, slot = 0, at = null) {
   const x = at ?? waitSpotX(rwy, len, slot);

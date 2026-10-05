@@ -316,7 +316,8 @@ export function updateGround(state, dt) {
     state.standTimer = 8;
     if (auto || state.settings.standAuto) {
       const waiting = state.acs.filter((a) => a.arr && !a.stand && [PH.INBOUND, PH.HOLD, PH.APPROACH, PH.FINAL, PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.GOAROUND].includes(a.phase));
-      waiting.sort((a, b) => (state.rots[a.rot]?.sta || 0) - (state.rots[b.rot]?.sta || 0));
+      // wer schon am Boden wartet, zuerst – er steht sonst auf dem Rollweg im Weg
+      waiting.sort((a, b) => (b.mode === 'map') - (a.mode === 'map') || (state.rots[a.rot]?.sta || 0) - (state.rots[b.rot]?.sta || 0));
       for (const a of waiting) assignStandAuto(state, a);
     }
   }

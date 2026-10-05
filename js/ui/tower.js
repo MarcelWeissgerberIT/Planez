@@ -10,7 +10,7 @@ import { PH, PHASE_DE, runwayOccupants, fmtAlt } from '../sim/aircraft.js';
 import * as AS from '../sim/airspace.js';
 import { AC_TYPES, CITIES, AIRPORT, typeCode } from '../config.js';
 import { fmtClock, esc } from '../util.js';
-import { syncList, setHTML, toast, $ } from './dom.js';
+import { syncList, setHTML, toast, $, holdAim } from './dom.js';
 import { sfx } from '../audio.js';
 import { icon } from './icons.js';
 import { flagButton, flagHtml, openMarkMenu } from './marks.js';
@@ -185,7 +185,7 @@ export function clearanceMsg(state, ac, key) {
     if (g) t += g.st === 'bad' ? T` Nur ${gapTxt(g)} hinter ${g.lead.cs}, Soll ${g.req} NM ⚠` : T` ${gapTxt(g)} hinter ${g.lead.cs}, Soll ${g.req} NM ✓`;
     return { t, lvl: g && g.st === 'bad' ? 'warn' : 'good' };
   }
-  if (key === 'pass') return { t: T`${ac.cs} hat Vorrang und rollt vorbei – der andere wartet`, lvl: 'info' };
+  if (key === 'pass') return { t: T`${ac.cs} hat Vorrang – wer im Weg steht, wird zurückgeschleppt oder wartet`, lvl: 'info' };
   if (key === 'hold') {
     const f = ac.holdFix || (ac.route[0] && ac.route[0].iaf ? ac.route[0] : null);
     if (!f) return null;
@@ -362,7 +362,17 @@ export class TowerPanel {
     this.bay = {};
     for (const b of BAYS) this.bay[b] = rail.querySelector(`#rl-${b}`);
     rail.addEventListener('click', (e) => this.onClick(e));
-    rail.addEventListener('pointerdown', () => (this.game.panelHold = true));
+    rail.addEventListener('pointerdown', () => {
+      this.game.panelHold = true;
+      holdAim(rail, 2500);
+    });
+    // Zielhilfe: Maus über einem Streifen – Reihenfolge stillhalten, bis die Maus ruht oder die Tafel verlässt
+    rail.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'mouse' && e.target.closest('.fcard')) holdAim(rail, 1500);
+    });
+    rail.addEventListener('pointerleave', (e) => {
+      if (e.pointerType === 'mouse') holdAim(null);
+    });
     this.wireDrag(this.el.bays);
     document.getElementById('game').classList.add('tw-layout');
     this.game.resize && this.game.resize();

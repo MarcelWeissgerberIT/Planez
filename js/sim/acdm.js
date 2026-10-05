@@ -101,8 +101,11 @@ function tsatFor(state, ac, rot) {
 function reslot(state, ac, rot, why, gnd) {
   rot.slotMissed = (rot.slotMissed || 0) + 1;
   const old = rot.ctot;
-  const earliest = ac.phase === PH.STAND ? Math.max(state.time, rot.tobt || 0) + exot(state, ac) : state.time + 120;
-  rot.ctot = ceilMin(earliest + randInt(state, 10, 30) * 60);
+  // an der Position: neuer Slot 10–30 min später; schon unterwegs (Rollhalt, Rollweg): nur kurze Revision um 2–5 min –
+  // das Flugzeug kann nirgends ausweichen, und die Schlange dahinter wartet auf es
+  const atStand = ac.phase === PH.STAND;
+  const earliest = atStand ? Math.max(state.time, rot.tobt || 0) + exot(state, ac) : state.time + 60;
+  rot.ctot = ceilMin(earliest + (atStand ? randInt(state, 10, 30) : randInt(state, 2, 5)) * 60);
   // Gewitter: höhere Gewalt – neuer Slot ohne Strafe, Verspätung zählt als ATFM
   if (state.weather.kind === 'storm') {
     rot.atfm = Math.max(rot.atfm || 0, rot.ctot - exot(state, ac) - rot.std);

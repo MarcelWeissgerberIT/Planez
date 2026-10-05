@@ -161,7 +161,7 @@ function makeAircraft(state, rot, o) {
     squawk: String(randInt(state, 1, 7)) + String(randInt(state, 0, 7)) + String(randInt(state, 0, 7)) + String(randInt(state, 0, 7)),
     emergency: false,
     created: state.time,
-    blockedBy: null, blockedT: 0, ghostUntil: 0,
+    blockedBy: null, blockedT: 0,
     engines: true,
     arr: true,
     // Treibstoff für Anflug + Reserve in Minuten (Warteschleifen zehren daran)
@@ -1033,6 +1033,7 @@ export function crossingSafe(state) {
 function advance(state, ac, dt, v, reverse, keepHeading = false) {
   let s = v * dt;
   const path = ac.path;
+  const x0 = ac.x, y0 = ac.y, pi0 = ac.pi;
   while (s > 1e-6 && ac.pi < path.length - 1) {
     const b = path[ac.pi + 1];
     const seg = Math.hypot(b.x - ac.x, b.y - ac.y);
@@ -1048,12 +1049,23 @@ function advance(state, ac, dt, v, reverse, keepHeading = false) {
     }
   }
   // Blickrichtung
+  const h0 = ac.hdg;
   const la = lookAhead(ac, 0.35);
   if (la) {
     let h = Math.atan2(la.y - ac.y, la.x - ac.x);
     if (reverse) h += Math.PI;
     const diff = angNorm(h - ac.hdg);
     ac.hdg = angNorm(ac.hdg + clamp(diff, -2.5 * dt, 2.5 * dt));
+  }
+  // harte Abstandsregel: nie in ein anderes Flugzeug hineinrollen oder -schwenken – dann bleibt es stehen
+  const hit = hardHit(state, ac, x0, y0, h0);
+  if (hit) {
+    ac.x = x0;
+    ac.y = y0;
+    ac.pi = pi0;
+    ac.hdg = h0;
+    ac.v = 0;
+    ac.hardBlock = hit;
   }
 }
 
@@ -1118,8 +1130,76 @@ function samplesAhead(ac, look, step = 0.35) {
 }
 
 const COLLIDE_SKIP = new Set([PH.FINAL, PH.MISSED, PH.TAKEOFF]);
+// Flugzeuge am Boden, die einander im Weg sein können
+const onGround = (b) => b.mode === 'map' && !COLLIDE_SKIP.has(b.phase) && !(b.z > 0.3);
+// ---- Umriss am Boden: Rumpf, Tragfläche und Höhenleitwerk als Linien mit Dicke (in Kacheln) ----
+// Spannweite im Verhältnis zur Länge: Großraum ~0,9 (Superjumbo 1,1), Mittelstrecke ~0,92, Regional 1,05, Sportflieger 1,3
+const spanOf = (ac) => {
+  const t = AC_TYPES[ac.type] || {};
+  return ac.len * (ac.type === 'A388' ? 1.1 : t.light ? 1.3 : t.size === 'L' ? 0.9 : t.size === 'S' ? 1.05 : 0.92);
+};
+function shapeOf(ac, x = ac.x, y = ac.y, hdg = ac.hdg || 0) {
+  const L = ac.len, sp = spanOf(ac), dx = Math.cos(hdg), dy = Math.sin(hdg);
+  const wx = x + dx * 0.05 * L, wy = y + dy * 0.05 * L; // Flügel etwas vor der Mitte
+  const tx = x - dx * 0.42 * L, ty = y - dy * 0.42 * L; // Höhenleitwerk am Heck
+  const cs = sp * 0.8; // Flügelkern für Flügel gegen Flügel (Spitzen dürfen sich auf parallelen Rollwegen nahe kommen)
+  return [
+    [x - (dx * L) / 2, y - (dy * L) / 2, x + (dx * L) / 2, y + (dy * L) / 2, 0.1 * L, 'f'],
+    [wx - (dy * sp) / 2, wy + (dx * sp) / 2, wx + (dy * sp) / 2, wy - (dx * sp) / 2, 0.07 * L, 'w'],
+    [tx - dy * 0.17 * L, ty + dx * 0.17 * L, tx + dy * 0.17 * L, ty - dx * 0.17 * L, 0.07 * L, 't'],
+    [wx - (dy * cs) / 2, wy + (dx * cs) / 2, wx + (dy * cs) / 2, wy - (dx * cs) / 2, 0.04, 'c'],
+  ];
+}
+// kürzester Abstand zweier Strecken
+function segDist(ax, ay, bx, by, cx, cy, ex, ey) {
+  const ptSeg = (px, py, x1, y1, x2, y2) => {
+    const vx = x2 - x1, vy = y2 - y1, l2 = vx * vx + vy * vy;
+    const t = l2 ? clamp(((px - x1) * vx + (py - y1) * vy) / l2, 0, 1) : 0;
+    return Math.hypot(px - x1 - t * vx, py - y1 - t * vy);
+  };
+  const o = (px, py, qx, qy, rx, ry) => Math.sign((qx - px) * (ry - py) - (qy - py) * (rx - px));
+  if (o(ax, ay, bx, by, cx, cy) * o(ax, ay, bx, by, ex, ey) < 0 && o(cx, cy, ex, ey, ax, ay) * o(cx, cy, ex, ey, bx, by) < 0) return 0;
+  return Math.min(ptSeg(ax, ay, cx, cy, ex, ey), ptSeg(bx, by, cx, cy, ex, ey), ptSeg(cx, cy, ax, ay, bx, by), ptSeg(ex, ey, ax, ay, bx, by));
+}
+// Lücke zwischen zwei Umrissen (negativ = sie berühren sich). Rumpf und Leitwerk gegen alles mit voller Fläche; Flügel
+// gegen Flügel nur mit dem Flügelkern – Rollweg A und Vorfeldgasse liegen im Kartenmaßstab so eng, dass sich zwei
+// Großraumjets sonst nie begegnen könnten
+function shapeGap(sa, sb) {
+  let g = 1e9;
+  for (const a of sa)
+    for (const b of sb) {
+      const ka = a[5], kb = b[5];
+      if (ka === 'c' || kb === 'c' ? !(ka === 'c' && kb === 'c') : ka === 'w' && kb === 'w') continue;
+      g = Math.min(g, segDist(a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3]) - (a[4] + b[4]) / 2);
+    }
+  return g;
+}
+const reach = (ac) => 0.5 * Math.max(ac.len, spanOf(ac)) + 0.1;
+// Überdecken sich die vollen Flügel zweier Flugzeuge (Spitzen)? – für die Auswertung in Tests
+export function wingTouch(a, b) {
+  const wa = shapeOf(a)[1], wb = shapeOf(b)[1];
+  return segDist(wa[0], wa[1], wa[2], wa[3], wb[0], wb[1], wb[2], wb[3]) - (wa[4] + wb[4]) / 2 < 0;
+}
+// Lücke zwischen zwei Flugzeugen (ac optional an anderer Stelle bzw. mit anderem Kurs)
+export function gapBetween(ac, b, x = ac.x, y = ac.y, hdg = ac.hdg) {
+  if (Math.hypot(b.x - x, b.y - y) > reach(ac) + reach(b) + 1) return 9;
+  return shapeGap(shapeOf(ac, x, y, hdg), shapeOf(b));
+}
+const HARD_GAP = 0.05; // nie näher (≈ 1 m)
+const SAFE_GAP = 0.3; // Rollabstand (≈ 5 m)
+// Würde ac mit der Bewegung von (x0, y0) an die aktuelle Position ein anderes Flugzeug berühren?
+function hardHit(state, ac, x0, y0, h0 = ac.hdg) {
+  if (!onGround(ac)) return null;
+  for (const b of state.acs) {
+    if (b === ac || !onGround(b)) continue;
+    const g1 = gapBetween(ac, b);
+    if (g1 >= HARD_GAP) continue;
+    // schon zu nah (alter Spielstand): nur Bewegungen, die die Lage verbessern
+    if (g1 < gapBetween(ac, b, x0, y0, h0) - 1e-6) return b;
+  }
+  return null;
+}
 function checkBlocked(state, ac, look) {
-  if (ac.ghostUntil > state.time) return null;
   // noch nicht von der Bahn: Abflüge in der Schlange vor dem Rollhalt halten ihn nicht auf der Piste fest (sonst wartet
   // der vorderste Abflug auf die freie Bahn und die Bahn auf die Schlange – Patt)
   const vacating = ac.phase === PH.ROLLOUT && !ac.vacated;
@@ -1133,18 +1213,33 @@ function checkBlocked(state, ac, look) {
   for (const b of state.acs) {
     if (b === ac || b.mode !== 'map' || COLLIDE_SKIP.has(b.phase) || b.z > 0.3) continue;
     if (vacating && (b.phase === PH.TAXI_OUT || b.phase === PH.HOLDING)) continue;
-    const r = 0.45 * (ac.len + b.len) + 0.3;
     const dx = b.x - ac.x, dy = b.y - ac.y;
     const dd = Math.hypot(dx, dy);
-    if (dd > look + r + 0.5) continue;
+    if (dd > look + reach(ac) + reach(b) + 0.5) continue;
     if (dx * mdx + dy * mdy < 0.15 * dd) continue;
-    for (const p of pts) if (Math.hypot(b.x - p.x, b.y - p.y) < r) return b;
+    if (pathHits(ac, b, pts, b.phase === PH.STAND ? HARD_GAP + 0.05 : SAFE_GAP)) return b;
   }
   return null;
+}
+// Berührt ac auf den Punkten pts (mit Kurs entlang des Weges) das Flugzeug b (bzw. b an Position bp)?
+function pathHits(ac, b, pts, gap, bp = null) {
+  const sb = bp ? shapeOf(b, bp.x, bp.y) : shapeOf(b);
+  const bx = bp ? bp.x : b.x, by = bp ? bp.y : b.y;
+  let px = ac.x, py = ac.y;
+  const flip = ac.phase === PH.PUSH && ac.rev ? Math.PI : 0; // Pushback: Heck voraus
+  for (const p of pts) {
+    const h = Math.atan2(p.y - py, p.x - px) + flip;
+    px = p.x;
+    py = p.y;
+    if (Math.hypot(bx - p.x, by - p.y) > reach(ac) + reach(b) + gap) continue;
+    if (shapeGap(shapeOf(ac, p.x, p.y, h), sb) < gap) return true;
+  }
+  return false;
 }
 
 function followPath(state, ac, dt, vmax, reverse = false) {
   const path = ac.path;
+  if (ac.yieldBack && yieldStep(state, ac, dt)) return false;
   if (!path || ac.pi >= path.length - 1) {
     ac.v = 0;
     return true;
@@ -1155,17 +1250,19 @@ function followPath(state, ac, dt, vmax, reverse = false) {
   if (ac.holdPos) vt = 0;
   const look = Math.max(1.0, (ac.v * ac.v) / (2 * 0.01) + 0.6);
   const blk = checkBlocked(state, ac, look);
-  if (blk) {
-    vt = 0;
-    ac.blockedBy = blk.id;
+  if (blk) vt = 0;
+  if (ac.v < vt) ac.v = Math.min(vt, ac.v + 0.0045 * dt);
+  else ac.v = Math.max(vt, ac.v - 0.02 * dt);
+  ac.hardBlock = null;
+  if (ac.v > 0) advance(state, ac, dt, ac.v, reverse);
+  const by = blk || ac.hardBlock;
+  if (by) {
+    ac.blockedBy = by.id;
     ac.blockedT += dt;
   } else {
     ac.blockedBy = null;
     ac.blockedT = 0;
   }
-  if (ac.v < vt) ac.v = Math.min(vt, ac.v + 0.0045 * dt);
-  else ac.v = Math.max(vt, ac.v - 0.02 * dt);
-  if (ac.v > 0) advance(state, ac, dt, ac.v, reverse);
   if (rem < 0.02 && ac.pi >= path.length - 2) {
     const last = path[path.length - 1];
     ac.x = last.x;
@@ -1175,12 +1272,123 @@ function followPath(state, ac, dt, vmax, reverse = false) {
   return ac.pi >= path.length - 1;
 }
 
-// Gegenseitige Blockaden auflösen (sehr selten)
+// ---- Blockaden ohne Durchrollen auflösen ----
+// Rückwärts entlang des eigenen Weges (Schlepper zieht zurück): Position nach dist Kacheln, oder null, wenn dahinter
+// jemand steht bzw. der Weg nicht so weit zurückreicht
+function retreatPos(state, ac, dist, ignore) {
+  const path = ac.path;
+  if (!path || !path.length) return null;
+  let x = ac.x, y = ac.y, i = Math.min(ac.pi, path.length - 1), left = dist;
+  while (left > 1e-6) {
+    const a = path[i];
+    const seg = Math.hypot(a.x - x, a.y - y);
+    if (seg < 1e-6) {
+      if (i === 0) return null;
+      i--;
+      continue;
+    }
+    const st = Math.min(seg, left, 0.3);
+    x += ((a.x - x) / seg) * st;
+    y += ((a.y - y) / seg) * st;
+    left -= st;
+    for (const o of state.acs) {
+      if (o === ac || o === ignore || !onGround(o)) continue;
+      const g = gapBetween(ac, o, x, y);
+      if (g < HARD_GAP + 0.15 && g < gapBetween(ac, o)) return null;
+    }
+  }
+  return { x, y };
+}
+// Wäre w's Weg frei, wenn y an Position p stünde?
+function pathClearOf(w, y, p) {
+  return !pathHits(w, y, samplesAhead(w, 3.2), SAFE_GAP, p);
+}
+// Kann y so weit zurückweichen, dass w vorbeikommt? Liefert die nötige Strecke oder 0
+const YIELD_PHASES = new Set([PH.PUSH, PH.TAXI_IN, PH.TAXI_OUT]);
+export function yieldDist(state, y, w) {
+  if (!YIELD_PHASES.has(y.phase) || y.yieldBack || (y.prioUntil > state.time && !(w.prioUntil > state.time))) return 0;
+  for (const d of [1.2, 2, 3, 4.5, 6]) {
+    const p = retreatPos(state, y, d, w);
+    if (!p) return 0;
+    if (pathClearOf(w, y, p)) return d;
+  }
+  return 0;
+}
+export function startYield(state, y, w, d) {
+  y.yieldBack = { left: d, w: w.id, t0: state.time, wx: w.x, wy: w.y };
+  y.blockedT = 0;
+  y.v = 0;
+}
+// Schlepper zieht ac entlang des eigenen Weges zurück (höchstens dist, nie in ein anderes Flugzeug); liefert die Strecke
+function retreatMove(state, ac, dist) {
+  const path = ac.path;
+  let left = dist, moved = 0;
+  ac.pi = Math.min(ac.pi, path.length - 1);
+  while (left > 1e-6) {
+    const a = path[ac.pi];
+    const seg = Math.hypot(a.x - ac.x, a.y - ac.y);
+    if (seg < 1e-6) {
+      if (ac.pi === 0) break;
+      ac.pi--;
+      continue;
+    }
+    const st = Math.min(seg, left);
+    const nx = ac.x + ((a.x - ac.x) / seg) * st, ny = ac.y + ((a.y - ac.y) / seg) * st;
+    for (const o of state.acs) {
+      if (o === ac || !onGround(o)) continue;
+      const g = gapBetween(ac, o, nx, ny);
+      if (g < HARD_GAP && g < gapBetween(ac, o)) return moved;
+    }
+    ac.x = nx;
+    ac.y = ny;
+    left -= st;
+    moved += st;
+  }
+  return moved;
+}
+// ein Schritt Zurückweichen bzw. Warten, bis der andere vorbei ist; true = followPath übernimmt nicht
+function yieldStep(state, ac, dt) {
+  const yb = ac.yieldBack;
+  ac.v = 0;
+  ac.blockedBy = null;
+  ac.blockedT = 0;
+  if (yb.left > 0.005) {
+    const st = Math.min(yb.left, 0.05 * dt); // etwa Pushback-Tempo
+    const m = retreatMove(state, ac, st);
+    yb.left = m < st * 0.5 ? 0 : yb.left - m;
+    return true;
+  }
+  const w = state.acs.find((o) => o.id === yb.w);
+  // erst weiter, wenn der andere wirklich vorbeigerollt ist (nicht nur, weil der Weg kurz frei aussieht – sonst
+  // rollen beide wieder aufeinander zu)
+  const moved = w && Math.hypot(w.x - (yb.wx ?? w.x), w.y - (yb.wy ?? w.y)) > Math.max(1.5, w.len * 0.6);
+  const gone = !w || !onGround(w) || (moved && pathClearOf(w, ac, ac) && gapBetween(ac, w) > 0.6 && checkBlocked(state, ac, 3) !== w);
+  if (gone || state.time - yb.t0 > 150) {
+    ac.yieldBack = null;
+    return false;
+  }
+  return true;
+}
+// Gegenseitige Blockaden auflösen: niemand rollt durch einen anderen hindurch – wer zurückweichen kann, wird ein
+// Stück zurückgeschleppt (Pushback abbrechen, zurück auf die Position bzw. ein Stück den Rollweg zurück)
 function resolveDeadlocks(state) {
   const byId = new Map(state.acs.map((a) => [a.id, a]));
-  // Kreis aus drei oder mehr Flugzeugen, die aufeinander warten: nach 10 s rollt einer vorbei
+  const tryYield = (cands, why) => {
+    for (const [y, w] of cands) {
+      const d = yieldDist(state, y, w);
+      if (!d) continue;
+      startYield(state, y, w, d);
+      if (!state.auto.atc && (state.role === 'tower' || state.role === 'ground') && !y.dlWarned) {
+        y.dlWarned = true;
+        notify(state, T`⚠ Rollverkehr verkeilt: ${why} – ein Schlepper zieht ${y.cs} ein Stück zurück, damit ${w.cs} vorbeikommt`, 'warn');
+      }
+      return true;
+    }
+    return false;
+  };
+  // Kreis aus drei oder mehr Flugzeugen, die aufeinander warten
   for (const a of state.acs) {
-    if (!a.blockedBy || a.ghostUntil > state.time || a.blockedT < 10) continue;
+    if (!a.blockedBy || a.yieldBack || a.blockedT < 10) continue;
     const ring = [a];
     let c = byId.get(a.blockedBy);
     while (c && c !== a && c.blockedBy && c.blockedT >= 10 && ring.length < 8 && !ring.includes(c)) {
@@ -1188,36 +1396,19 @@ function resolveDeadlocks(state) {
       c = byId.get(c.blockedBy);
     }
     if (c === a && ring.length > 2) {
-      const loser = ring.reduce((x, y) => (x.id < y.id ? x : y));
-      if (!state.auto.atc && (state.role === 'tower' || state.role === 'ground') && !a.dlWarned) {
-        for (const r of ring) r.dlWarned = true;
-        notify(state, T`⚠ Rollverkehr verkeilt: ${ring.map((r) => r.cs).join(', ')} warteten im Kreis aufeinander – ${loser.cs} rollt vorbei`, 'warn');
-      }
-      loser.ghostUntil = state.time + 40;
-      loser.blockedT = 0;
+      // wer im Kreis zurückweicht, macht den Weg für den frei, der auf ihn wartet
+      const cands = ring.map((y, i) => [y, ring[(i + ring.length - 1) % ring.length]]).sort((p, q) => (q[0].phase === PH.PUSH) - (p[0].phase === PH.PUSH));
+      tryYield(cands, ring.map((r) => r.cs).join(', '));
     }
   }
+  // zwei, die sich gegenseitig im Weg stehen
   for (const a of state.acs) {
-    if (!a.blockedBy || a.ghostUntil > state.time) continue;
+    if (!a.blockedBy || a.yieldBack) continue;
     const b = byId.get(a.blockedBy);
-    if (!b) continue;
-    // gegenseitig: beide stehen – oder einer steht schon lange, während der andere nur ruckelt (z. B. Pushback)
-    const mutual = b.blockedBy === a.id && ((a.blockedT > 12 && b.blockedT > 12) || a.blockedT > 40);
-    // Schlange vor dem Rollhalt: hinter einem Abflug zur selben Piste wird gewartet, nicht hindurchgerollt (sonst
-    // stehen am Ende zwei Flugzeuge übereinander am Haltepunkt)
-    const slotWait = b.phase === PH.HOLDING && !slotOpen(state, b, 90);
-    const queue = a.phase === PH.TAXI_OUT && [PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED].includes(b.phase) && a.rwy === b.rwy && !slotWait;
-    const stuckOnParked = !queue && a.blockedT > (slotWait ? 30 : 60) && [PH.STAND, PH.STARTUP, PH.VACATED, PH.HOLDING, PH.TAXI_WAIT].includes(b.phase) && b.v === 0 && !b.blockedBy;
-    const longStuck = a.blockedT > (queue ? 1800 : 400);
-    if (mutual || stuckOnParked || longStuck) {
-      const loser = mutual && a.blockedT <= 40 ? (a.id < b.id ? a : b) : a;
-      // Hinweis an den Spieler: Rollverkehr hat sich verkeilt (die Simulation löst es auf, der eine rollt vorbei)
-      if (mutual && !state.auto.atc && (state.role === 'tower' || state.role === 'ground') && !a.dlWarned) {
-        a.dlWarned = b.dlWarned = true;
-        notify(state, T`⚠ Rollverkehr verkeilt: ${a.cs} und ${b.cs} standen sich im Weg – künftig einen per „Halt“ warten lassen`, 'warn');
-      }
-      loser.ghostUntil = state.time + 40;
-      loser.blockedT = 0;
-    }
+    if (!b || b.blockedBy !== a.id || b.yieldBack || a.blockedT < 8 || b.blockedT < 8) continue;
+    // Vorrang (Spieler), sonst zuerst der mit Schlepper (Pushback), dann Abflüge vor Ankünften
+    const rank = (x) => (x.prioUntil > state.time ? -10 : 0) + (x.phase === PH.PUSH || x.phase === PH.STARTUP ? 3 : 0) + (x.arr ? 0 : 1);
+    const order = rank(a) >= rank(b) ? [[a, b], [b, a]] : [[b, a], [a, b]];
+    tryYield(order, T`${a.cs} und ${b.cs}`);
   }
 }
