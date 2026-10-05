@@ -1344,6 +1344,7 @@ export class MapRenderer {
     }
     const onGround = ac.mode !== 'air' && ac.z < 0.05;
     if (ui && ui.selected === ac.id) this.selRing(ac.x, ac.y, L * 0.62, ac.z);
+    if (ui && ui.talk && ui.talk.cs === ac.cs) this.selRing(ac.x, ac.y, L * (ui.talk.live ? 0.7 + ((this.time * 1.4) % 1) * 0.3 : 0.74), ac.z, '103,232,249');
     const mk = markOf(ac);
     if (mk) {
       // Markierung: gestrichelter Ring in Markierungsfarbe
@@ -1465,15 +1466,17 @@ export class MapRenderer {
     this.picks.push({ type: 'ac', id: ac.id, x: sp.x, y: sp.y, r: Math.max(14, L * 22 * cam.zoom) });
   }
 
-  selRing(x, y, r, z) {
+  // Auswahlring; mit Farbe (rgb) als Ring des aktiven Funkkontakts ohne Füllung
+  selRing(x, y, r, z, rgb = null) {
     const ctx = this.ctx, cam = this.cam;
     cam.setIso(ctx, 0.02);
-    const pulse = 1 + Math.sin(this.time * 5) * 0.06;
-    ctx.strokeStyle = 'rgba(80,220,255,0.95)';
-    ctx.lineWidth = 0.07;
+    const pulse = rgb ? 1 : 1 + Math.sin(this.time * 5) * 0.06;
+    ctx.strokeStyle = `rgba(${rgb || '80,220,255'},0.95)`;
+    ctx.lineWidth = rgb ? 0.1 : 0.07;
     ctx.beginPath();
     ctx.arc(x, y, r * pulse, 0, Math.PI * 2);
     ctx.stroke();
+    if (rgb) return;
     ctx.fillStyle = 'rgba(80,220,255,0.12)';
     ctx.fill();
   }
@@ -2414,7 +2417,8 @@ export class MapRenderer {
       if (ac.mode !== 'map') continue;
       const isSel = ui.selected === ac.id;
       const mk = markOf(ac);
-      if (!ui.labels && !isSel && !ac.req && !ac.emergency && !mk) continue;
+      const talk = !!(ui.talk && ui.talk.cs === ac.cs);
+      if (!ui.labels && !isSel && !ac.req && !ac.emergency && !mk && !talk) continue;
       const p = cam.toScreen(ac.x, ac.y, ac.z + 0.3);
       if (p.x < -80 || p.y < -40 || p.x > cam.w + 80 || p.y > cam.h + 40) continue;
       const line2 = ui.labelFn ? ui.labelFn(ac) : '';
@@ -2429,13 +2433,14 @@ export class MapRenderer {
       // Schild über dem Flugzeug statt auf dem Rumpf: nah herangezoomt weiter nach oben, Linie zeigt auf das Flugzeug
       const lift = 22 + Math.min(110, (ac.len || 1) * 7 * cam.zoom);
       const bx = p.x + 10, by = p.y - lift - bh / 2;
-      const quiet = !isSel && !ac.req && !ac.emergency && !mk;
+      const quiet = !isSel && !ac.req && !ac.emergency && !mk && !talk;
       let border = quiet ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.25)';
       const sc = ui.seqCol ? ui.seqCol(ac) : null;
       if (ac.req) border = '#fbbf24';
       if (sc) border = sc;
       if (ac.emergency) border = '#f43f5e';
       if (isSel) border = '#38bdf8';
+      if (talk) border = '#67e8f9';
       if (quiet) ctx.globalAlpha = cam.zoom > 1.6 ? 0.78 : 0.9;
       ctx.strokeStyle = border;
       ctx.lineWidth = 1;
@@ -2453,7 +2458,7 @@ export class MapRenderer {
       ctx.fillStyle = lg;
       roundRect(ctx, bx, by, bw, bh, 5);
       ctx.fill();
-      ctx.lineWidth = isSel || ac.req || sc ? 1.6 : 1;
+      ctx.lineWidth = talk ? 2.2 : isSel || ac.req || sc ? 1.6 : 1;
       ctx.stroke();
       // Farbstreifen links: Markierung, sonst Airline-Farbe
       const al = AIRLINES[ac.airline];

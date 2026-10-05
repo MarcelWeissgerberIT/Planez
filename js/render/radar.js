@@ -62,7 +62,11 @@ export class Radar {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    this.range = 48;
+    this.range = 48; // feste Reichweite (NM) ohne Auto-Zoom
+    this.auto = true; // Auto-Zoom: Verkehr füllt das Bild, der aktive Funkkontakt rückt in den Fokus
+    this.view = { x: 0, y: 0, r: 48 }; // aktueller Ausschnitt: Mitte (NM) und Reichweite bis zum kurzen Rand
+    this.tgt = null;
+    this.lastT = 0;
     this.sweep = 0;
     this.blips = [];
     this.w = 300;
@@ -82,34 +86,89 @@ export class Radar {
     return Math.min(this.w, this.h) / 2 - 8;
   }
   toScreen(x, y) {
-    const k = this.R / this.range;
-    return { x: this.w / 2 + x * k, y: this.h / 2 + y * k };
+    const v = this.view, k = this.R / v.r;
+    return { x: this.w / 2 + (x - v.x) * k, y: this.h / 2 + (y - v.y) * k };
   }
   toWorld(sx, sy) {
-    const k = this.R / this.range;
-    return { x: (sx - this.w / 2) / k, y: (sy - this.h / 2) / k };
+    const v = this.view, k = this.R / v.r;
+    return { x: (sx - this.w / 2) / k + v.x, y: (sy - this.h / 2) / k + v.y };
+  }
+  // Was gehört ins Bild? Platz und Bahn immer; spricht gerade ein Flugzeug in der Luft, es selbst und alles in 8 NM
+  // Umkreis, sonst der ganze Luftverkehr (abfliegende nur bis 25 NM). Das gewählte Flugzeug bleibt immer im Bild.
+  frame(state, ui) {
+    const airPos = (a) => (a.mode === 'air' ? a.pos : a.phase === PH.FINAL || a.phase === PH.MISSED || (a.phase === PH.TAKEOFF && a.z > 0) ? LY.tileToNm(a.x, a.y) : null);
+    const pts = [{ x: AS.THR['09'].x, y: -1 }, { x: AS.THR['27'].x, y: 1 }];
+    const talkCs = ui && ui.talk && ui.talk.cs;
+    const fa = talkCs ? state.acs.find((a) => a.cs === talkCs) : null;
+    const fp = fa && airPos(fa);
+    if (fp) {
+      pts.push(fp);
+      for (const a of state.acs) {
+        const p = a !== fa && airPos(a);
+        if (p && Math.hypot(p.x - fp.x, p.y - fp.y) < 8) pts.push(p);
+      }
+    } else {
+      for (const a of state.acs) {
+        const p = airPos(a);
+        if (p && !(a.phase === PH.DEPART && Math.hypot(p.x, p.y) > 25)) pts.push(p);
+      }
+      for (const o of [state.vfr && state.vfr.p, state.heli && state.heli.h]) if (o) pts.push(LY.tileToNm(o.x, o.y));
+    }
+    const sa = ui && ui.selected ? state.acs.find((a) => a.id === ui.selected) : null;
+    const sp = sa && airPos(sa);
+    if (sp) pts.push(sp);
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (const p of pts) {
+      x0 = Math.min(x0, p.x);
+      x1 = Math.max(x1, p.x);
+      y0 = Math.min(y0, p.y);
+      y1 = Math.max(y1, p.y);
+    }
+    // Rand ringsum, rechts oben Platz für die Datenblöcke
+    const mx = 28, my = 24, lw = 86, lh = 30;
+    const k = Math.min(Math.max(40, this.w - 2 * mx - lw) / Math.max(1, x1 - x0), Math.max(40, this.h - 2 * my - lh) / Math.max(1, y1 - y0));
+    const r = clamp(this.R / k, 6, 60), kk = this.R / r;
+    return { x: (x0 + x1) / 2 + lw / 2 / kk, y: (y0 + y1) / 2 - lh / 2 / kk, r, focus: fp ? talkCs : null };
+  }
+  updateView(state, ui) {
+    const now = performance.now();
+    const dt = Math.min(0.1, Math.max(0, (now - (this.lastT || now)) / 1000));
+    this.lastT = now;
+    let t = { x: 0, y: 0, r: this.range, focus: null };
+    if (this.auto) {
+      const f = this.frame(state, ui), o = this.tgt;
+      // ruhiges Bild: nachführen, wenn mehr Platz nötig ist, deutlich weniger reicht, die Mitte wandert oder der Fokus wechselt
+      if (!o || f.focus !== o.focus || f.r > o.r * 1.03 || f.r < o.r * 0.82 || Math.hypot(f.x - o.x, f.y - o.y) > o.r * 0.1) this.tgt = f;
+      t = this.tgt;
+    } else this.tgt = null;
+    const v = this.view, a = 1 - Math.exp(-dt * 2.6);
+    v.x += (t.x - v.x) * a;
+    v.y += (t.y - v.y) * a;
+    v.r = Math.exp(Math.log(v.r) + (Math.log(t.r) - Math.log(v.r)) * a);
   }
 
   render(state, dt, ui) {
     this.cb = document.documentElement.classList.contains('a11y-cb');
     const ctx = this.ctx;
     const { w, h } = this;
+    this.updateView(state, ui);
     const R = this.R;
-    const cx = w / 2, cy = h / 2;
-    const k = R / this.range;
+    const k = R / this.view.r;
+    // Mittelpunkt des Platzes auf dem Schirm (Ringe, Piste, Sweep); der Schirm füllt die ganze Fläche
+    const c0 = this.toScreen(0, 0);
+    const cx = c0.x, cy = c0.y;
+    const far = Math.max(Math.hypot(cx, cy), Math.hypot(w - cx, cy), Math.hypot(cx, h - cy), Math.hypot(w - cx, h - cy));
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
     // Scope
-    const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+    const bg = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.hypot(w, h) / 2);
     bg.addColorStop(0, '#07261b');
     bg.addColorStop(1, '#03140e');
     ctx.fillStyle = bg;
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillRect(0, 0, w, h);
     ctx.save();
     ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.rect(0, 0, w, h);
     ctx.clip();
 
     // Landschaft
@@ -136,7 +195,8 @@ export class Radar {
     ctx.lineWidth = 1;
     ctx.fillStyle = 'rgba(80,255,160,0.35)';
     ctx.font = '10px ui-monospace, Menlo, monospace';
-    for (let r = 10; r <= this.range; r += 10) {
+    const ringStep = this.view.r > 30 ? 10 : this.view.r > 12 ? 5 : 2;
+    for (let r = ringStep; r * k <= far; r += ringStep) {
       ctx.beginPath();
       ctx.arc(cx, cy, r * k, 0, Math.PI * 2);
       ctx.stroke();
@@ -344,14 +404,12 @@ export class Radar {
       cg.addColorStop(0.14, 'rgba(60,255,150,0.13)');
       cg.addColorStop(0.1433, 'rgba(60,255,150,0)');
       ctx.fillStyle = cg;
-      ctx.beginPath();
-      ctx.arc(cx, cy, R, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillRect(0, 0, w, h);
     }
     ctx.strokeStyle = 'rgba(120,255,190,0.55)';
     ctx.beginPath();
     ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(sw) * R, cy + Math.sin(sw) * R);
+    ctx.lineTo(cx + Math.cos(sw) * far, cy + Math.sin(sw) * far);
     ctx.stroke();
 
     // Pistenfolge: Verbindungslinie der Landungen und Startmarker
@@ -392,6 +450,7 @@ export class Radar {
     this.blips = [];
     const blink = Math.floor(performance.now() / 400) % 2 === 0;
     const sel = ui && ui.selected;
+    const talkCs = ui && ui.talk && ui.talk.cs, talkLive = !!(ui && ui.talk && ui.talk.live);
     const placed = [];
     ctx.font = `600 ${this.R > 200 ? 11 : 10}px ui-monospace, Menlo, monospace`;
     // Rettungshubschrauber (Sichtflug, Querungsanfrage)
@@ -399,6 +458,7 @@ export class Radar {
     if (HH) {
       const q = LY.tileToNm(HH.x, HH.y);
       const p = this.toScreen(q.x, q.y);
+      if (talkCs === 'RESCUE7') this.talkMark(ctx, p, talkLive);
       ctx.fillStyle = HH.st === 'req' && blink ? 'rgba(251,191,36,0.95)' : 'rgba(255,140,140,0.95)';
       ctx.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
       ctx.textAlign = 'left';
@@ -426,6 +486,7 @@ export class Radar {
     if (VV) {
       const q = LY.tileToNm(VV.x, VV.y);
       const p = this.toScreen(q.x, q.y);
+      if (talkCs === VV.cs) this.talkMark(ctx, p, talkLive);
       ctx.fillStyle = VV.req && blink ? 'rgba(251,191,36,0.95)' : 'rgba(186,230,253,0.9)';
       ctx.beginPath();
       ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
@@ -528,6 +589,8 @@ export class Radar {
         ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
         ctx.stroke();
       }
+      const talk = talkCs === ac.cs;
+      if (talk) this.talkMark(ctx, p, talkLive);
       // Markierung: Ring + Fähnchen
       if (mk) {
         const pulse = 11 + Math.sin(performance.now() / 260) * 1.2;
@@ -595,9 +658,13 @@ export class Radar {
       ctx.moveTo(p.x, p.y);
       ctx.lineTo(tx - 2, ty + 8);
       ctx.stroke();
-      if (sel === ac.id) {
-        ctx.fillStyle = 'rgba(0,30,20,0.85)';
+      if (sel === ac.id || talk) {
+        ctx.fillStyle = talk ? 'rgba(8,47,60,0.92)' : 'rgba(0,30,20,0.85)';
         ctx.fillRect(tx - 3, ty - 3, bw + 4, bh + 4);
+      }
+      if (talk) {
+        ctx.strokeStyle = 'rgba(103,232,249,0.9)';
+        ctx.strokeRect(tx - 3.5, ty - 3.5, bw + 5, bh + 5);
       }
       ctx.fillStyle = cs(Math.max(0.75, glow));
       ctx.fillText(l1, tx, ty + 8);
@@ -613,6 +680,33 @@ export class Radar {
       ctx.globalAlpha = 1;
       this.blips.push({ id: ac.id, x: p.x, y: p.y, tx, ty });
     }
+    // Kompassrose am Bildrand: Peilung vom Platz aus
+    ctx.strokeStyle = 'rgba(80,255,160,0.35)';
+    ctx.fillStyle = 'rgba(80,255,160,0.6)';
+    ctx.font = '10px ui-monospace, Menlo, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let d = 0; d < 360; d += 10) {
+      const a2 = ((d - 90) * Math.PI) / 180, dx = Math.cos(a2), dy = Math.sin(a2);
+      const te = Math.min(dx > 1e-6 ? (w - cx) / dx : dx < -1e-6 ? -cx / dx : 1e9, dy > 1e-6 ? (h - cy) / dy : dy < -1e-6 ? -cy / dy : 1e9);
+      if (!(te > 20)) continue;
+      const ex = cx + dx * te, ey = cy + dy * te;
+      const l = d % 30 === 0 ? 8 : 4;
+      ctx.beginPath();
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(ex - dx * l, ey - dy * l);
+      ctx.stroke();
+      if (d % 30 === 0 && Math.min(w, h) > 200) ctx.fillText(String(d / 10).padStart(2, '0'), ex - dx * 16, ey - dy * 16);
+    }
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    // Ausschnitt unten links: Auto-Zoom bzw. feste Reichweite
+    ctx.font = '700 10px ui-monospace, monospace';
+    const zt = `${this.auto ? 'AUTO · ' : ''}${Math.round(this.view.r)} NM${this.tgt && this.tgt.focus ? ' · ' + this.tgt.focus : ''}`;
+    ctx.fillStyle = 'rgba(3,20,14,0.8)';
+    ctx.fillRect(6, h - 22, ctx.measureText(zt).width + 12, 16);
+    ctx.fillStyle = this.tgt && this.tgt.focus ? 'rgba(103,232,249,0.95)' : 'rgba(134,239,172,0.8)';
+    ctx.fillText(zt, 12, h - 10);
     ctx.restore();
     // ATIS-Zeile oben links
     ctx.textAlign = 'left';
@@ -645,29 +739,31 @@ export class Radar {
       ctx.fillText(tf, 12, 40);
     }
 
-    // Kompassrose
     ctx.strokeStyle = 'rgba(80,255,160,0.35)';
-    ctx.fillStyle = 'rgba(80,255,160,0.6)';
-    ctx.font = '10px ui-monospace, Menlo, monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (let d = 0; d < 360; d += 10) {
-      const a2 = ((d - 90) * Math.PI) / 180;
-      const l = d % 30 === 0 ? 8 : 4;
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(a2) * R, cy + Math.sin(a2) * R);
-      ctx.lineTo(cx + Math.cos(a2) * (R - l), cy + Math.sin(a2) * (R - l));
-      ctx.stroke();
-      if (d % 30 === 0 && R > 120) ctx.fillText(String(d / 10).padStart(2, '0'), cx + Math.cos(a2) * (R - 16), cy + Math.sin(a2) * (R - 16));
-    }
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
-    ctx.strokeStyle = 'rgba(80,255,160,0.5)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.stroke();
     ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+  }
+
+  // Funkwellen um das Flugzeug, das gerade spricht (bzw. eben gesprochen hat)
+  talkMark(ctx, p, live) {
+    const t = performance.now() / 1000;
+    ctx.save();
+    ctx.strokeStyle = 'rgb(103,232,249)';
+    ctx.lineWidth = 2;
+    if (live) {
+      for (let i = 0; i < 2; i++) {
+        const ph = (t * 1.4 + i / 2) % 1;
+        ctx.globalAlpha = 1 - ph;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 9 + ph * 16, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = live ? 1 : 0.65;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   }
 
   pick(sx, sy) {

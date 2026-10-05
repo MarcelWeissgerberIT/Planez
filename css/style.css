@@ -732,6 +732,12 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .fcard.req { border-color: rgba(251,191,36,.75); }
 .fcard.req .c-bar { animation: pulse 1.1s infinite; }
 .fcard.emg { border-color: #f43f5e; background: rgba(244,63,94,.12); }
+/* aktiver Funkkontakt: Streifen leuchtet türkis, spricht er gerade, pulsiert er */
+.fcard.talking { border-color: #67e8f9; box-shadow: 0 0 0 1px rgba(103,232,249,.6), 0 0 14px rgba(103,232,249,.22); }
+.fcard.talking .fs-cs .fs-l1::after { content: ' 🔊'; font-size: .82em; }
+.fcard.talking.live { animation: talkGlow 1s ease-in-out infinite; }
+@keyframes talkGlow { 50% { box-shadow: 0 0 0 2px rgba(103,232,249,.95), 0 0 20px rgba(103,232,249,.45); } }
+@media (prefers-reduced-motion: reduce) { .fcard.talking.live { animation: none; } }
 .fcard.conf { border-color: #ef4444; }
 .fcard.dragging { opacity: .4; }
 .fcard.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }

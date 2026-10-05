@@ -81,6 +81,7 @@ import { VERSION } from './version.js';
 import { IS_DEMO, DEMO } from './edition.js';
 import { showDemoEnd, demoFreeOver } from './ui/demo.js';
 import { T, DEC, LOCALE, translateDom } from './i18n.js';
+import { noteRadio, talking, csOf } from './ui/talk.js';
 
 // eigene SVG-Icons in die statischen Knöpfe (Kartenleiste, Menü, Radar/Funk-Köpfe) einsetzen
 hydrateIcons(document);
@@ -615,6 +616,7 @@ function loop(ts) {
   if (!game.replay) game.replay = new Replay(game);
   game.replay.record(s, dt);
   // beim Mitfliegen in 3D zeichnet WebGL die Szene – die 2D-Karte darunter muss nicht mitlaufen
+  game.ui.talk = s.role === 'tower' || s.role === 'observer' ? talking() : null;
   if (!(game.ride && game.ride.on && game.ride.use3d)) game.map.render(game.replay.on ? game.replay.view(s, dt) : s, dt, game.ui);
   soundscape.on = !!s.settings.sound && s.settings.ambience !== false && !document.hidden;
   soundscape.update(s, game.cam, game.map, dt, !s.speed || modalOpen());
@@ -626,6 +628,7 @@ function loop(ts) {
     updateHUD();
     syncPauseBadge(s);
     if (game.ui.radarOn) setHTML($('#radar-seq'), seqChips(s));
+    syncRadarRange();
     // Sicherheitsnetz: länger als 4 s festgehalten (verlorenes Loslassen) – wieder aktualisieren
     if (game.panelHold) {
       game.panelHoldT = game.panelHoldT || performance.now();
@@ -634,6 +637,7 @@ function loop(ts) {
     if (!game.panelHold && !(document.activeElement && document.activeElement.tagName === 'SELECT')) game.panel.update(s);
     if (!(document.activeElement && document.activeElement.tagName === 'SELECT' && document.activeElement.closest('#info'))) renderInfo($('#info'), s, game.ui);
     keepSelVisible();
+    syncTalk();
     if (game.mgmt && game.mgmt.isOpen()) game.mgmt.update(s);
     if (!game.decision) game.decision = new DecisionCard(game);
     game.decision.update(s);
@@ -841,6 +845,7 @@ function addLog(m, silent = false) {
   if (!s) return;
   const f = LOG_FILTER[s.role];
   if (f && !f.includes(m.kind)) return;
+  if (!silent) noteRadio(s, m);
   const box = $('#log');
   const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 30;
   const d = document.createElement('div');
@@ -1171,10 +1176,35 @@ function wireGame() {
     $('#game').classList.toggle('radar-big', game.ui.radarBig);
     resize();
   });
+  // Reichweite: Auto (folgt Verkehr und aktivem Funkkontakt) → 48 → 25 → 15 NM → Auto; Mausrad zoomt frei
+  const setRange = (auto, range) => {
+    const r = game.radar;
+    r.auto = auto;
+    if (range) r.range = range;
+    r.tgt = null;
+    savePrefs({ radarRange: auto ? 'auto' : r.range });
+    syncRadarRange();
+  };
+  {
+    const pr = loadPrefs().radarRange;
+    if (pr && pr !== 'auto') setRange(false, +pr || 48);
+  }
   $('#radar-rng').addEventListener('click', () => {
     const r = game.radar;
-    r.range = r.range === 48 ? 25 : r.range === 25 ? 15 : 48;
+    if (r.auto) setRange(false, 48);
+    else if (r.range >= 40) setRange(false, 25);
+    else if (r.range >= 20) setRange(false, 15);
+    else setRange(true);
   });
+  rc.addEventListener(
+    'wheel',
+    (e) => {
+      e.preventDefault();
+      const r = game.radar;
+      setRange(false, Math.round(clamp((r.auto ? r.view.r : r.range) * (e.deltaY > 0 ? 1.15 : 1 / 1.15), 5, 60)));
+    },
+    { passive: false }
+  );
 
   // HUD
   // Handy: nur Pause und das aktuelle Tempo – ein Tipp darauf klappt alle Stufen unter der Kopfleiste auf
@@ -1285,9 +1315,10 @@ function wireGame() {
     const rx = $('#rx');
     if (spokenEl) spokenEl.classList.remove('speaking');
     spokenEl = null;
+    syncTalk();
     if (cur) {
       rx.className = `rx on ${cur.kind}`;
-      rx.textContent = cur.kind === 'atc' ? 'TWR' : cur.from || '';
+      rx.textContent = cur.kind === 'atc' ? (csOf(cur) ? `TWR → ${csOf(cur)}` : 'TWR') : cur.from || '';
       if (cur._el) {
         spokenEl = cur._el;
         spokenEl.classList.add('speaking');
@@ -1748,6 +1779,25 @@ function resize() {
     const h = game.ui.radarBig ? Math.min(w, window.innerHeight - 140) : docked ? Math.round(Math.min(w, Math.max(200, window.innerHeight - 480))) : w;
     game.radar.resize(w, h, dpr);
   }
+}
+// Streifen des aktiven Funkkontakts leuchten (spricht gerade: pulsierend)
+function syncTalk() {
+  const s = game.state;
+  const t = s && (s.role === 'tower' || s.role === 'observer') ? talking() : null;
+  const ac = t && t.cs ? s.acs.find((a) => a.cs === t.cs) : null;
+  const key = ac ? ac.id : null;
+  for (const e of document.querySelectorAll('.fcard.talking')) if (e.dataset.key !== key) e.classList.remove('talking', 'live');
+  if (key) for (const e of document.querySelectorAll(`.fcard[data-key="${key}"]`)) {
+    e.classList.add('talking');
+    e.classList.toggle('live', !!t.live);
+  }
+}
+function syncRadarRange() {
+  const r = game.radar, el = $('#radar-range'), b = $('#radar-rng');
+  if (!r || !el) return;
+  const txt = r.auto ? T('· Auto') : `· ${r.range} NM`;
+  if (el.textContent !== txt) el.textContent = txt;
+  if (b) b.classList.toggle('on', r.auto);
 }
 function toggleRadar(on) {
   game.ui.radarOn = on;
