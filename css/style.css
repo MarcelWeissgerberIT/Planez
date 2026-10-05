@@ -2785,29 +2785,29 @@ button.hb-chip:hover { border-color: var(--mm-cyan); background: rgba(56,214,245
 }
 
 /* ===================== Minikarte (alle Modi) ===================== */
-.minimap { position: absolute; z-index: 7; width: 238px; padding: 6px 6px 5px; border-radius: 12px; background: linear-gradient(180deg, rgba(22, 26, 32, 0.94), rgba(12, 15, 20, 0.95)); border: 1px solid rgba(148, 163, 184, 0.22); box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45); user-select: none; -webkit-user-select: none; }
+/* bei Bedarf oben in der rechten Spalte: Hauptspiel in #ctx (das Panel rückt darunter), Großflughäfen in .hb-side */
+.minimap { position: relative; flex: 0 0 auto; order: -1; padding: 9px 12px 9px; border-radius: 6px; background: linear-gradient(180deg, rgb(16, 22, 34), rgb(8, 12, 20)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--role, #38d6f5) 24%, rgba(148, 178, 214, 0.1)), 0 16px 40px rgba(0, 0, 0, 0.45); user-select: none; -webkit-user-select: none; }
+.minimap::before { content: ''; position: absolute; left: 0; top: 0; width: 96px; height: 3px; background: var(--role, #38d6f5); box-shadow: 0 0 12px var(--role, #38d6f5); pointer-events: none; }
 .minimap.hidden { display: none; }
-.minimap canvas { display: block; margin: 0 auto; border-radius: 6px; cursor: crosshair; touch-action: none; }
-.mmap-h { display: flex; justify-content: space-between; align-items: center; padding: 0 2px 5px; font-family: var(--mm-font, inherit); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(203, 213, 225, 0.7); }
-.mmap-x { border: 0; background: transparent; color: rgba(203, 213, 225, 0.7); font-size: 11px; line-height: 1; padding: 2px 3px; border-radius: 5px; cursor: pointer; }
+.minimap canvas { display: block; margin: 0 auto; border-radius: 4px; cursor: crosshair; touch-action: none; }
+.mmap-h { display: flex; justify-content: space-between; align-items: center; padding: 0 0 7px; font-family: var(--mm-font, inherit); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(203, 213, 225, 0.75); }
+.mmap-x { border: 0; background: transparent; color: rgba(203, 213, 225, 0.7); font-size: 12px; line-height: 1; padding: 3px 5px; border-radius: 5px; cursor: pointer; }
 .mmap-x:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
-.mmap-leg { display: flex; flex-wrap: wrap; gap: 3px 9px; padding: 5px 2px 0; font-size: 10px; color: rgba(203, 213, 225, 0.75); }
-.mmap-leg i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 3px; }
-#minimap { right: calc(var(--panel-w) + 68px); bottom: 12px; }
-#map-ctrls.full ~ #minimap { right: 64px; }
-#game.tw-layout #minimap { bottom: calc(var(--rail-h) + 16px); }
-#game.role-manager #minimap, #game.role-observer #minimap { bottom: 48px; }
+.mmap-leg { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 7px 0 0; font-size: 11px; color: rgba(203, 213, 225, 0.78); }
+.mmap-leg i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
 #game.cinema #minimap, #game.photo #minimap, #game.replaying #minimap, #game.riding #minimap { display: none !important; }
-@media (max-width: 760px) {
-  .minimap { width: 170px; padding: 5px; }
-  .mmap-leg { display: none; }
-  #minimap, #map-ctrls.full ~ #minimap { right: 58px; bottom: calc(46vh + 60px); }
-  #map-ctrls.full ~ #minimap { bottom: 60px; }
-  #game.tw-layout #minimap { bottom: calc(var(--rail-h) + 14px); }
+/* schmal: #ctx liegt unten über dem Panel – Minikarte flacher */
+@media (max-width: 1000px) {
+  #minimap { --mm-max-h: 150px; }
 }
-#hb-minimap { right: calc(var(--hb-side) + 58px); bottom: 14px; z-index: 4; transition: right .25s; }
+@media (max-width: 760px) {
+  #minimap { --mm-max-h: 120px; padding: 7px 9px; }
+  .mmap-leg { display: none; }
+}
+/* Großflughäfen: oben in der Seitenleiste über dem Anflugradar */
+.hb-side .minimap { order: 0; background: var(--glass); border-radius: 12px; box-shadow: none; border: 1px solid var(--line); }
+.hb-side .minimap::before { display: none; }
 .hb-btn.on { border-color: rgba(56, 214, 245, 0.6); background: rgba(56, 214, 245, 0.16); }
 @media (max-width: 760px), (max-height: 500px) {
-  #hb-minimap { right: 56px; bottom: calc(42vh + 14px); }
-  #hub.noside #hb-minimap { bottom: 14px; }
+  #hb-minimap { --mm-max-h: 110px; }
 }

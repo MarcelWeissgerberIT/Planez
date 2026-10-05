@@ -112,6 +112,7 @@ class HubMode {
         <button class="hb-chip" data-hb="ai" id="hb-ai" title="${T('KI übernimmt Freigaben')}"></button>
       </header>
       <aside class="hb-side">
+        <div id="hb-minimap" class="hidden"></div>
         <div class="hb-radarbox"><canvas id="hb-radar"></canvas><span class="hb-rlabel">${T('Anflugradar')}</span></div>
         <div class="hb-strips" id="hb-strips">
           <div class="hs-sec"><div class="hs-h">🛬 ${T('Anflüge')}<span id="hs-n-arr"></span></div><div class="hs-list" id="hs-arr"></div></div>
@@ -131,8 +132,7 @@ class HubMode {
         <button class="hb-btn" data-hb="side" title="${T('Seitenleiste ein/aus')}">⇥</button>
         <button class="hb-btn" data-hb="minimap" title="${T('Minikarte ein/aus (Umschalt+K)')}">🗺</button>
       </div>
-      <div class="hb-toasts" id="hb-toasts"></div>
-      <div id="hb-minimap"></div>`;
+      <div class="hb-toasts" id="hb-toasts"></div>`;
     el.classList.remove('hidden');
     document.getElementById('menu').classList.add('hidden');
     document.getElementById('game').classList.add('hidden');

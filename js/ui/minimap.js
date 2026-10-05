@@ -1,21 +1,21 @@
-// Minikarte: einblendbares Abbild des Flughafens in Dunkelgrau, isometrisch wie die Karte. Punkte zeigen Flugzeuge
-// (blau an der Position oder in der Luft, grün beim Rollen, rot auf der Bahn) und Fahrzeuge (gelb); der helle Rahmen
-// ist der aktuelle Kartenausschnitt. Klicken oder Ziehen springt dorthin. Genutzt im Hauptspiel (alle Rollen) und an
-// den Großflughäfen; die Zeichnung des Flughafens kommt je Modus von außen (paint).
+// Minikarte: bei Bedarf einblendbares Abbild des Flughafens in Dunkelgrau, isometrisch wie die Karte, oben in der
+// rechten Spalte. Punkte zeigen Flugzeuge (blau an der Position, Ring in der Luft, grün beim Rollen, rot auf der Bahn)
+// und Fahrzeuge (gelb); der helle Rahmen ist der aktuelle Kartenausschnitt. Klicken oder Ziehen springt dorthin.
+// Genutzt im Hauptspiel (alle Rollen) und an den Großflughäfen; die Zeichnung des Flughafens kommt je Modus von außen.
 import { T } from '../i18n.js';
 
 export const MM_COL = { stand: '#3b82f6', taxi: '#22c55e', rwy: '#ef4444', veh: '#facc15', air: '#93c5fd' };
 // Grautöne des Abbilds
 export const MM_GRAY = { bg: '#14171c', field: '#1e2329', land: '#252a31', apron: '#39404a', twy: '#4b535e', rwy: '#8a939e', grassRwy: '#56634c', bld: '#5b6470', term: '#6b7787', mark: '#4e5662' };
 
-const KEY = 'planez_minimap';
-// Standard: am Rechner eingeblendet, am Handy aus (wenig Platz)
+const KEY = 'planez_minimap2';
+// nur bei Bedarf: standardmäßig aus, der Kartenknopf blendet sie ein (die Wahl bleibt gespeichert)
 export function minimapOn() {
   try {
-    const v = localStorage.getItem(KEY);
-    if (v != null) return v === '1';
-  } catch (e) {}
-  return !(window.matchMedia && window.matchMedia('(max-width: 760px)').matches);
+    return localStorage.getItem(KEY) === '1';
+  } catch (e) {
+    return false;
+  }
 }
 function saveOn(on) {
   try {
@@ -109,7 +109,9 @@ export class Minimap {
     }
     const cs2 = getComputedStyle(this.el);
     const W = Math.max(80, (this.el.clientWidth || 238) - parseFloat(cs2.paddingLeft || 0) - parseFloat(cs2.paddingRight || 0));
-    const k = Math.min(W / (u1 - u0), (W * 0.75) / (v1 - v0));
+    // Höhe begrenzen (am Handy über --mm-max-h kleiner), damit unter der Minikarte genug Spalte bleibt
+    const maxH = parseFloat(cs2.getPropertyValue('--mm-max-h')) || W * 0.62;
+    const k = Math.min(W / (u1 - u0), maxH / (v1 - v0));
     const w = Math.round((u1 - u0) * k), h = Math.round((v1 - v0) * k);
     return { k, u0, v0, w, h, key: `${w}x${h}|${u0}|${v0}` };
   }
@@ -171,7 +173,7 @@ export class Minimap {
     const dots = this.o.dots();
     const order = { veh: 0, stand: 1, air: 2, taxi: 3, rwy: 4 };
     dots.sort((a, b) => order[a.c] - order[b.c]);
-    const r = L.w < 180 ? 1.7 : 2.2;
+    const r = L.w < 180 ? 1.7 : L.w < 300 ? 2.2 : 2.7;
     for (const d of dots) {
       const p = this.toMini(d.x, d.y);
       if (p.x < -4 || p.y < -4 || p.x > L.w + 4 || p.y > L.h + 4) continue;
