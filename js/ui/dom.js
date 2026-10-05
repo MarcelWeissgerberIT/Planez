@@ -5,6 +5,8 @@ export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
 // Kinder eines Containers anhand eines Schlüssels abgleichen; parts: { name: html } pro Element
 export function syncList(container, items, keyFn, renderFn, tag = 'div') {
+  // wird gerade ein Knopf in der Liste gedrückt, nichts umsortieren oder entfernen – sonst geht der Klick verloren
+  const frozen = !!(pressed && container.contains(pressed) && pressed.closest && pressed.closest('button, [data-cmd], [data-rbfix], [data-mark]'));
   const existing = new Map();
   for (const el of container.children) if (el.dataset && el.dataset.key) existing.set(el.dataset.key, el);
   let prev = null;
@@ -46,6 +48,7 @@ export function syncList(container, items, keyFn, renderFn, tag = 'div') {
       for (const [p, html] of Object.entries(r.parts)) {
         if (el._parts[p] !== html) {
           const box = el.querySelector('.' + p.split(' ')[0]);
+          if (box && busy(box)) continue; // Knopf darin gedrückt: später aktualisieren
           if (box) {
             box.innerHTML = html;
             glossify(box);
@@ -55,10 +58,12 @@ export function syncList(container, items, keyFn, renderFn, tag = 'div') {
       }
     }
     const next = prev ? prev.nextSibling : container.firstChild;
-    if (el !== next) container.insertBefore(el, next);
+    if (!frozen && el !== next) container.insertBefore(el, next);
+    else if (frozen && !el.parentNode) container.appendChild(el);
     existing.delete(key);
     prev = el;
   }
+  if (frozen) return;
   for (const el of existing.values()) el.remove();
   // nicht verschlüsselte Elemente (z.B. Leer-Hinweis) entfernen
   for (const el of [...container.children]) if (!el.dataset || !el.dataset.key) el.remove();
@@ -69,7 +74,7 @@ export function syncList(container, items, keyFn, renderFn, tag = 'div') {
 let pressed = null;
 if (typeof window !== 'undefined') {
   window.addEventListener('pointerdown', (e) => (pressed = e.target), true);
-  const release = () => setTimeout(() => (pressed = null), 30);
+  const release = () => setTimeout(() => (pressed = null), 150);
   window.addEventListener('pointerup', release, true);
   window.addEventListener('pointercancel', release, true);
 }

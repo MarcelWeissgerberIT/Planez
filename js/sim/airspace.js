@@ -27,16 +27,50 @@ export const FIXES = {
 };
 export const ALL_FIXES = [...Object.values(FIXES['27']), ...Object.values(FIXES['09'])];
 
-// Warteschleife: Rechteck außen am Fix
+// Warteschleife wie veröffentlicht: Rennbahnmuster am Fix. Der Anflugschenkel (inbound) führt in Richtung Platz auf
+// den Fix zu, am Fix folgt eine 180°-Kurve mit Standardrate (3°/s), dann 1 Minute Gegenschenkel und die Kurve zurück.
+// Die Kurven liegen auf der dem Endanflug abgewandten Seite – an den nördlichen Fixen nach Norden, an den südlichen
+// nach Süden (je nach Fix Rechts- oder Linkskurven). Gestapelt wird in 1000-ft-Schritten.
+export const HOLD_LEG = 3.7; // NM, 1 Minute bei ~220 kt
+export const HOLD_R = 1.2; // NM, Kurvenradius bei 220 kt und 3°/s
+const holdCache = new Map();
+export function holdInfo(fix) {
+  const inb = bearing(fix.x, fix.y, 0, 0);
+  const u = { x: Math.sin(inb * DEG), y: -Math.cos(inb * DEG) };
+  const r = { x: Math.cos(inb * DEG), y: Math.sin(inb * DEG) }; // rechts vom Anflugschenkel
+  const right = r.y * (fix.y || 1) > 0;
+  const o = right ? r : { x: -r.x, y: -r.y };
+  return { inb: Math.round(inb), right, u, o };
+}
+// Punkte der Rennbahn ab dem Fix (Index 0) in Flugrichtung, geschlossen
 export function holdPattern(fix) {
-  const dx = Math.sign(fix.x) || 1;
-  const dy = Math.sign(fix.y) || 1;
-  return [
-    { x: fix.x, y: fix.y },
-    { x: fix.x + dx * 5, y: fix.y },
-    { x: fix.x + dx * 5, y: fix.y + dy * 3.5 },
-    { x: fix.x, y: fix.y + dy * 3.5 },
-  ];
+  const key = fix.name + fix.x + ',' + fix.y;
+  if (holdCache.has(key)) return holdCache.get(key);
+  const { u, o } = holdInfo(fix);
+  const L = HOLD_LEG, R = HOLD_R;
+  const P = (x, y) => ({ x, y });
+  const F = P(fix.x, fix.y);
+  const A = P(F.x - u.x * L, F.y - u.y * L);
+  const pts = [F];
+  const N = 6;
+  // Kurve am Fix: nach vorn ausholend auf die abgewandte Seite
+  const C1 = P(F.x + o.x * R, F.y + o.y * R);
+  for (let i = 1; i <= N; i++) {
+    const t = (Math.PI * i) / N;
+    pts.push(P(C1.x - o.x * R * Math.cos(t) + u.x * R * Math.sin(t), C1.y - o.y * R * Math.cos(t) + u.y * R * Math.sin(t)));
+  }
+  // Gegenschenkel
+  for (const f of [1 / 3, 2 / 3]) pts.push(P(F.x + o.x * 2 * R - u.x * L * f, F.y + o.y * 2 * R - u.y * L * f));
+  // Kurve am anderen Ende zurück auf den Anflugschenkel
+  const C2 = P(A.x + o.x * R, A.y + o.y * R);
+  for (let i = 0; i <= N; i++) {
+    const t = (Math.PI * i) / N;
+    pts.push(P(C2.x + o.x * R * Math.cos(t) - u.x * R * Math.sin(t), C2.y + o.y * R * Math.cos(t) - u.y * R * Math.sin(t)));
+  }
+  // Anflugschenkel zum Fix
+  for (const f of [1 / 3, 2 / 3]) pts.push(P(A.x + u.x * L * f, A.y + u.y * L * f));
+  holdCache.set(key, pts);
+  return pts;
 }
 
 export function sideOf(pos) {

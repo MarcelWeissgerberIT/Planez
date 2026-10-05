@@ -14,7 +14,7 @@ import { syncList, setHTML, toast, $ } from './dom.js';
 import { sfx } from '../audio.js';
 import { icon } from './icons.js';
 import { flagButton, flagHtml, openMarkMenu } from './marks.js';
-import { updateSequence, isSeqArrival, seqSlot, seqMove, seqMoveTo, seqSortByEta, seqIndex, updateArrQueue, arrQMoveTo } from '../sim/sequence.js';
+import { updateSequence, isSeqArrival, seqSlot, seqMove, seqMoveTo, seqSortByEta, seqIndex, updateArrQueue, arrQMoveTo, arrivalGaps, arrDist, seqNumber } from '../sim/sequence.js';
 import { qm, glTag } from './glossary.js';
 import { slotInfo } from '../sim/acdm.js';
 import { rwyCond, brakingAction, BRAKE_DE, runwayClosed, isWet, hasRwy2, rwyName, segregated } from '../sim/runway.js';
@@ -50,7 +50,10 @@ export function runwayStatusHtml(state) {
     const closed = runwayClosed(state, strip);
     const cond = Math.round(rwyCond(state, strip));
     const role = !hasRwy2(state) ? '' : segregated(state) ? (strip === 'N' ? T(' · Starts') : T(' · Landungen')) : strip === 'N' ? T(' · Starts & Landungen') : T(' · Reserve');
-    h += T`<div class="rwy-line"><b class="rwy-id">${rwyName(state, strip)}</b>${role} · ${closed ? `<span class="state busy">⛔ ${esc(closed)}</span>` : occ.length ? T`<span class="state busy">belegt · ${occ.map((a) => esc(a.cs)).join(', ')}</span>` : T('<span class="state free">frei</span>')}<div class="rwy-cond">Zustand <b>${cond} %</b> · Bremswirkung <b class="ba-${ba}">${BRAKE_DE[ba]}</b>${isWet(state) ? T(' (nass)') : ''}${state.rwySnow && state.rwySnow[strip] > 0.04 ? T` · ❄️ Schnee <b>${Math.round(state.rwySnow[strip] * 100)} %</b>${state.plow && state.plow.strip === strip ? T(' – Räumdienst') : state.rwySnow[strip] > 0.25 ? T(' – Räumung bald') : ''}` : ''}</div></div><div></div>`;
+    // wem die Bahn gerade gehört: Landefreigabe bzw. Start- oder Line-up-Freigabe
+    const resv = state.acs.find((a) => a.arr && a.clr.land && (a.strip || 'N') === strip && (a.phase === PH.APPROACH || a.phase === PH.FINAL)) || (strip === 'N' ? state.acs.find((a) => !a.arr && (a.clr.takeoff || a.clr.lineup) && [PH.HOLDING, PH.LINEUP, PH.LINED].includes(a.phase)) : null);
+    const resvTxt = resv ? (resv.arr ? T`<span class="state resv">reserviert · ${esc(resv.cs)} landet (${distToLand(resv).toFixed(1)} NM)</span>` : resv.clr.takeoff ? T`<span class="state resv">reserviert · ${esc(resv.cs)} startet</span>` : T`<span class="state resv">reserviert · ${esc(resv.cs)} Line up</span>`) : '';
+    h += T`<div class="rwy-line"><b class="rwy-id">${rwyName(state, strip)}</b>${role} · ${closed ? `<span class="state busy">⛔ ${esc(closed)}</span>` : occ.length ? T`<span class="state busy">belegt · ${occ.map((a) => esc(a.cs)).join(', ')}</span>` : resvTxt || T('<span class="state free">frei</span>')}<div class="rwy-cond">Zustand <b>${cond} %</b> · Bremswirkung <b class="ba-${ba}">${BRAKE_DE[ba]}</b>${isWet(state) ? T(' (nass)') : ''}${state.rwySnow && state.rwySnow[strip] > 0.04 ? T` · ❄️ Schnee <b>${Math.round(state.rwySnow[strip] * 100)} %</b>${state.plow && state.plow.strip === strip ? T(' – Räumdienst') : state.rwySnow[strip] > 0.25 ? T(' – Räumung bald') : ''}` : ''}</div></div><div></div>`;
   }
   // Notfall-Checkliste (hakt sich selbst ab)
   const em = !state.auto.atc && state.acs.find((a) => (a.emergency || a.fuelEmergency) && (a.mode === 'air' || [PH.FINAL, PH.ROLLOUT].includes(a.phase)));
@@ -133,6 +136,82 @@ export function distToLand(ac) {
   return AS.routeDistance(ac.pos, ac.route.length && ac.phase === PH.APPROACH ? ac.route : AS.approachRoute(ac.pos, ac.rwy));
 }
 
+// Knopftext: Symbol und kurzes Verb („Landen“ statt „Landefreigabe“), der volle Name steht im Tooltip
+const CMD_ICO = { land: 'land', takeoff: 'takeoff', push: 'tug' };
+export const cmdText = (k) => `${CMD_ICO[k] ? icon(CMD_ICO[k]) + ' ' : ''}${esc(CMDS[k].short || CMDS[k].label)}`;
+export const cmdTitle = (k) => `${esc(CMDS[k].label)}${CMDS[k].key ? ` (${CMDS[k].key})` : ''}`;
+
+// Rückmeldung auf eigene Freigaben: der Streifen leuchtet auf, eine Meldung sagt, was das für die Folge heißt
+const clrFx = new Map();
+export function noteClearance(ac, key) {
+  if (ac) clrFx.set(ac.id, { key, at: performance.now(), done: false });
+}
+const gapTxt = (g) => `${g.gap.toFixed(1)} NM`;
+function nextLanding(state, except) {
+  let best = null, bd = 1e9;
+  for (const a of state.acs) {
+    if (a === except || !isSeqArrival(a) || !(state.seq || []).includes(a.id) || (a.strip || 'N') !== 'N') continue;
+    const d = arrDist(a);
+    if (d < bd) {
+      bd = d;
+      best = a;
+    }
+  }
+  return best ? { a: best, d: bd } : null;
+}
+export function clearanceMsg(state, ac, key) {
+  const gaps = arrivalGaps(state);
+  const n = seqNumber(state, ac);
+  if (key === 'land' || key === 'lightGreen') {
+    const rn = rwyName(state, ac.strip || 'N');
+    let t = T`${ac.cs} darf landen – Piste ${rn} ist jetzt für ihn reserviert (Nr. ${n} der Landungen).`;
+    let lvl = 'good';
+    const behind = [...gaps.entries()].find(([, g]) => g.lead === ac);
+    if (behind) {
+      const g = behind[1];
+      const f = state.acs.find((a) => a.id === behind[0]);
+      if (g.st === 'ok') t += T` Dahinter ${f.cs}: ${gapTxt(g)}, Soll ${g.req} NM ✓`;
+      else if (g.st === 'tight') t += T` Dahinter ${f.cs}: ${gapTxt(g)} – knapp, Soll ${g.req} NM`;
+      else {
+        t += T` Dahinter ${f.cs}: nur ${gapTxt(g)}, Soll ${g.req} NM ⚠ – Tempo raus oder Warteschleife`;
+        lvl = 'warn';
+      }
+    } else t += T(' Kein Anflug dahinter.');
+    return { t, lvl };
+  }
+  if (key === 'approach' || key === 'direct') {
+    const g = gaps.get(ac.id);
+    let t = T`${ac.cs}: Anflug frei – Nr. ${n} der Landungen.`;
+    if (g) t += g.st === 'bad' ? T` Nur ${gapTxt(g)} hinter ${g.lead.cs}, Soll ${g.req} NM ⚠` : T` ${gapTxt(g)} hinter ${g.lead.cs}, Soll ${g.req} NM ✓`;
+    return { t, lvl: g && g.st === 'bad' ? 'warn' : 'good' };
+  }
+  if (key === 'hold') {
+    const f = ac.holdFix || (ac.route[0] && ac.route[0].iaf ? ac.route[0] : null);
+    if (!f) return null;
+    const hi = AS.holdInfo(f);
+    const alt = ac.phase === PH.HOLD ? ac.tAlt : ac.stackAlt || ac.tAlt;
+    const nr = 1 + state.acs.filter((o) => o !== ac && o.mode === 'air' && ((o.phase === PH.HOLD && o.holdFix && o.holdFix.name === f.name ? o.tAlt : o.stackFix === f.name ? o.stackAlt : 1e9) < alt)).length;
+    return { t: T`${ac.cs} fliegt in die Warteschleife ${f.name} – ${hi.right ? T('Rechtskurven') : T('Linkskurven')}, ${fmtAlt(alt)}, Nr. ${nr} im Stapel. Aus der Pistenfolge genommen.`, lvl: 'info' };
+  }
+  if (key === 'takeoff' || key === 'lineup') {
+    const rn = rwyName(state, 'N');
+    const nx = nextLanding(state, ac);
+    let t = key === 'takeoff' ? T`${ac.cs}: Start frei, Piste ${rn}.` : T`${ac.cs}: Line up Piste ${rn} – Startfreigabe folgt.`;
+    let lvl = 'good';
+    if (nx) {
+      const d = nx.d.toFixed(1);
+      if (nx.d >= 5) t += T` Nächste Landung ${nx.a.cs} in ${d} NM – die Lücke reicht ✓`;
+      else if (nx.d >= 3.5) t += T` Nächste Landung ${nx.a.cs} in ${d} NM – knapp, zügig starten`;
+      else {
+        t += T` Nächste Landung ${nx.a.cs} nur ${d} NM entfernt ⚠`;
+        lvl = 'warn';
+      }
+    }
+    return { t, lvl };
+  }
+  return null;
+}
+
 export function cmdButtons(state, ac, compact = false, showSpd = true) {
   const keys = validCommands(state, ac);
   const main = keys.filter((k) => !CMDS[k].spd);
@@ -143,7 +222,7 @@ export function cmdButtons(state, ac, compact = false, showSpd = true) {
       const cls = c.big ? 'big' : c.danger ? 'danger' : '';
       // gefährliche Freigabe schon vorher sichtbar machen
       const risk = state.role === 'tower' && (k === 'land' || k === 'takeoff' || k === 'lineup') ? clearanceRisk(state, ac, k) : null;
-      return `<button class="cmd ${cls}${risk ? ' risk' : ''}" data-cmd="${k}" data-ac="${ac.id}"${risk ? ` title="⚠ ${esc(risk)}"` : ''}>${risk ? '⚠ ' : ''}${c.label}${c.key && !compact ? ` <kbd>${c.key}</kbd>` : ''}</button>`;
+      return `<button class="cmd ${cls}${risk ? ' risk' : ''}" data-cmd="${k}" data-ac="${ac.id}" title="${risk ? `⚠ ${esc(risk)}` : cmdTitle(k)}">${risk ? '⚠ ' : ''}${cmdText(k)}${c.key && !compact ? ` <kbd>${c.key}</kbd>` : ''}</button>`;
     })
     .join('');
   if (spd.length && showSpd) h += spd.map((k) => `<button class="cmd spd ${ac.spdOverride === CMDS[k].spd ? 'on' : ''}" data-cmd="${k}" data-ac="${ac.id}">${CMDS[k].label}</button>`).join('');
@@ -165,6 +244,8 @@ const ARR_GND = new Set([PH.ROLLOUT, PH.VACATED, PH.TAXI_WAIT, PH.TAXI_IN]);
 const DEP_APRON = new Set([PH.PUSH]);
 // Streifentafel: Buchten, Abflug oder Anflug, Freigabe-Kästchen
 const BAYS = ['air', 'rwy', 'taxi', 'apron'];
+// Touchgerät: Streifen per langem Drücken anheben und mit dem Finger ziehen (HTML5-Ziehen gibt es dort nicht)
+const COARSE = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 const DEP_PH = new Set([PH.STAND, PH.PUSH, PH.STARTUP, PH.TAXI_OUT, PH.HOLDING, PH.LINEUP, PH.LINED, PH.TAKEOFF, PH.DEPART]);
 const isDepStrip = (ac) => !ac.arr || DEP_PH.has(ac.phase);
 const EMPTY = { air: () => T('Kein Verkehr in der Luft.'), rwy: () => T('Pistenfolge leer.'), taxi: () => T('Niemand rollt herein.'), apron: () => T('Keine Pushback-Anfragen.') };
@@ -193,7 +274,9 @@ export function guardedCommand(state, ac, key) {
     }
   }
   pendingRisk = null;
-  return command(state, ac, key);
+  const r = command(state, ac, key);
+  if (r && r.ok !== false) noteClearance(ac, key);
+  return r;
 }
 
 // Start/Line-up vor dem Startfenster: erlaubt, aber mit Warnung (der nächste Anflug muss evtl. durchstarten)
@@ -458,14 +541,37 @@ export class TowerPanel {
   wireDrag(box) {
     let drag = null;
     const clear = () => box.querySelectorAll('.drop-before,.drop-after,.drop-into').forEach((x) => x.classList.remove('drop-before', 'drop-after', 'drop-into'));
-    const targetOf = (e) => {
-      const c = e.target.closest('.fcard');
-      const list = e.target.closest('.bay-list');
+    // Ziel unter dem Zeiger: Streifen in „Luft“ oder Pistenfolge (davor/dahinter) oder die Bucht selbst (ans Ende)
+    const targetAt = (el, y) => {
+      const c = el && el.closest('.fcard');
+      const list = el && el.closest('.bay-list');
       const bay = list && list.dataset.bay;
       if (!bay || !['air', 'rwy'].includes(bay)) return null;
-      if (c && ['seq', 'q'].includes(c.dataset.g)) return { c, bay, g: c.dataset.g };
-      return { c: null, bay, g: bay === 'rwy' ? 'seq' : 'q', list };
+      if (c && ['seq', 'q'].includes(c.dataset.g)) {
+        const r = c.getBoundingClientRect();
+        return { c, g: c.dataset.g, after: y >= r.top + r.height / 2 };
+      }
+      return { c: null, g: bay === 'rwy' ? 'seq' : 'q', list, after: true };
     };
+    const mark = (t) => {
+      clear();
+      if (!t) return;
+      if (t.c) t.c.classList.add(t.after ? 'drop-after' : 'drop-before');
+      else t.list.classList.add('drop-into');
+    };
+    const finish = (t) => {
+      if (!drag || !t) return;
+      const ac = this.game.state.acs.find((a) => a.id === drag.id);
+      this.drop(ac && ac.arr && !DEP_PH.has(ac.phase) ? 'arr' : 'dep', drag, t.c ? t.c.dataset.key : null, t.g, t.after);
+    };
+    const end = () => {
+      box.querySelectorAll('.dragging').forEach((x) => x.classList.remove('dragging'));
+      clear();
+      drag = null;
+      this.game.panelHold = false;
+      this.update(this.game.state);
+    };
+    // Maus: HTML5-Ziehen
     box.addEventListener('dragstart', (e) => {
       const c = e.target.closest('.fcard');
       if (!c || !c.draggable) return;
@@ -477,30 +583,102 @@ export class TowerPanel {
     });
     box.addEventListener('dragover', (e) => {
       if (!drag) return;
-      const t = targetOf(e);
+      const t = targetAt(e.target, e.clientY);
       if (!t) return;
       e.preventDefault();
-      clear();
-      if (t.c) {
-        const r = t.c.getBoundingClientRect();
-        t.c.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after');
-      } else t.list.classList.add('drop-into');
+      mark(t);
     });
     box.addEventListener('drop', (e) => {
       if (!drag) return;
-      const t = targetOf(e);
+      const t = targetAt(e.target, e.clientY);
       if (!t) return;
       e.preventDefault();
-      const ac = this.game.state.acs.find((a) => a.id === drag.id);
-      this.drop(ac && ac.arr && !DEP_PH.has(ac.phase) ? 'arr' : 'dep', drag, t.c ? t.c.dataset.key : null, t.g, t.c ? t.c.classList.contains('drop-after') : true);
+      finish(t);
       clear();
     });
-    box.addEventListener('dragend', () => {
-      box.querySelectorAll('.dragging').forEach((x) => x.classList.remove('dragging'));
-      clear();
-      drag = null;
-      this.game.panelHold = false;
-      this.update(this.game.state);
+    box.addEventListener('dragend', end);
+    // Finger: lange drücken hebt den Streifen an (kurz vibrieren), dann ziehen; kurzes Wischen scrollt wie gewohnt
+    let tp = null;
+    const scroller = (el) => {
+      for (let n = el; n && n !== document.body; n = n.parentElement) {
+        if (n.scrollHeight > n.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(n).overflowY)) return n;
+      }
+      return null;
+    };
+    const cancelTouch = () => {
+      if (!tp) return;
+      clearTimeout(tp.timer);
+      if (tp.ghost) tp.ghost.remove();
+      const was = tp.active;
+      tp = null;
+      if (was) end();
+    };
+    box.addEventListener(
+      'touchstart',
+      (e) => {
+        if (e.touches.length !== 1) return cancelTouch();
+        const c = e.target.closest('.fcard');
+        if (!c || c.dataset.drag !== '1' || e.target.closest('button, .flag')) return;
+        const t0 = e.touches[0];
+        tp = { c, x0: t0.clientX, y0: t0.clientY, x: t0.clientX, y: t0.clientY, active: false, target: null };
+        tp.timer = setTimeout(() => {
+          if (!tp) return;
+          tp.active = true;
+          drag = { id: c.dataset.key, g: c.dataset.g };
+          this.game.panelHold = true;
+          c.classList.add('dragging');
+          const r = c.getBoundingClientRect();
+          const gh = c.cloneNode(true);
+          gh.classList.add('drag-ghost');
+          gh.classList.remove('dragging');
+          gh.style.width = r.width + 'px';
+          gh.style.left = r.left + 'px';
+          gh.style.top = r.top + 'px';
+          document.body.appendChild(gh);
+          tp.ghost = gh;
+          tp.dy = tp.y - r.top;
+          if (navigator.vibrate) navigator.vibrate(15);
+        }, 280);
+      },
+      { passive: true }
+    );
+    box.addEventListener(
+      'touchmove',
+      (e) => {
+        if (!tp) return;
+        const t0 = e.touches[0];
+        tp.x = t0.clientX;
+        tp.y = t0.clientY;
+        if (!tp.active) {
+          if (Math.hypot(tp.x - tp.x0, tp.y - tp.y0) > 9) cancelTouch();
+          return;
+        }
+        e.preventDefault();
+        tp.ghost.style.top = tp.y - tp.dy + 'px';
+        tp.ghost.style.left = tp.c.getBoundingClientRect().left + (tp.x - tp.x0) * 0.25 + 'px';
+        tp.target = targetAt(document.elementFromPoint(tp.x, tp.y), tp.y);
+        mark(tp.target);
+        // am Rand der Liste mitscrollen
+        const sc = scroller(document.elementFromPoint(tp.x, tp.y) || tp.c);
+        if (sc) {
+          const r = sc.getBoundingClientRect();
+          if (tp.y < r.top + 34) sc.scrollTop -= 10;
+          else if (tp.y > r.bottom - 34) sc.scrollTop += 10;
+        }
+      },
+      { passive: false }
+    );
+    box.addEventListener('touchend', (e) => {
+      if (!tp) return;
+      if (tp.active) {
+        e.preventDefault();
+        finish(tp.target);
+      }
+      cancelTouch();
+    });
+    box.addEventListener('touchcancel', cancelTouch);
+    box.addEventListener('contextmenu', (e) => {
+      if (tp) e.preventDefault();
     });
   }
 
@@ -589,6 +767,9 @@ export class TowerPanel {
     else if (dep && inSeq && plan && plan.slot > 20 && ![PH.LINED, PH.TAKEOFF].includes(ac.phase)) time = `+${mmss(plan.slot)}`;
     else if (dep && rot && rot.tobt && [PH.STAND, PH.PUSH].includes(ac.phase)) time = fmtClock(rot.ctot || rot.tsat || rot.tobt);
     else if (ac.stand) time = `P${ac.stand}`;
+    // Anflug in der Folge: Abstand zum Vordermann statt Zeit (grün = Soll erfüllt, gelb = knapp, rot = zu dicht)
+    const gp = land && inSeq && this.gaps ? this.gaps.get(ac.id) : null;
+    if (gp) time = `<span class="gap g-${gp.st}" title="${T`Abstand zu ${gp.lead.cs}: ${gapTxt(gp)} – Soll ${gp.req} NM`}${gp.wake ? T(' (Wirbelschleppe)') : ''}${gp.dep ? T(' (Lücke für einen Start)') : ''}">↕${gp.gap.toFixed(1)}</span>`;
     const rt = `<b class="fs-l1">${rwy}</b><small class="fs-l2">${time}</small>`;
     // Freigabe-Kästchen
     const tk = ticks(ac, land).map(([k, on, due]) => `<i class="${on ? 'on' : due ? 'due' : ''}" title="${TICK_TITLE[k]}">${on ? '✓' : k}</i>`).join('');
@@ -602,10 +783,17 @@ export class TowerPanel {
       else if (dep && [PH.HOLDING, PH.LINED, PH.LINEUP].includes(ac.phase)) sp = T('<span class="spc ok">Startfenster offen</span>');
     }
     if (ac.spacingHold && ac.phase === PH.HOLD) sp = T('<span class="spc">Schleife für die Reihenfolge</span>');
+    // Stempel der erteilten Freigabe, solange sie gilt – wie der Haken des Lotsen auf dem Papierstreifen
+    let stamp = '';
+    if (inSeq && land && ac.clr.land) stamp = `<span class="stamp">✓ ${T('Landung frei')} ${rwy}</span>`;
+    else if (inSeq && dep && ac.clr.takeoff) stamp = `<span class="stamp">✓ ${T('Start frei')} ${rwy}</span>`;
+    else if (inSeq && dep && ac.clr.lineup) stamp = `<span class="stamp lu">✓ Line up ${rwy}</span>`;
+    else if (ac.phase === PH.HOLD && ac.holdFix) stamp = `<span class="stamp hold" title="${T('Warteschleife')}">⟲ ${ac.holdFix.name} ${String(Math.round(ac.tAlt / 100)).padStart(3, '0')}</span>`;
+    else if (ac.phase === PH.INBOUND && ac.holdTo && ac.route[0] && ac.route[0].iaf) stamp = `<span class="stamp hold" title="${T('Warteschleife')}">→ ⟲ ${ac.route[0].name} ${String(Math.round((ac.stackAlt || ac.tAlt) / 100)).padStart(3, '0')}</span>`;
     let btns = '';
     if (!sel && ac.req) {
       const k = primaryCommand(state, ac);
-      if (k) btns = `<button class="cmd big" data-cmd="${k}" data-ac="${ac.id}">${CMDS[k].label}${CMDS[k].key ? ` <kbd>${CMDS[k].key}</kbd>` : ''}</button>`;
+      if (k) btns = `<button class="cmd big" data-cmd="${k}" data-ac="${ac.id}" title="${cmdTitle(k)}">${cmdText(k)}${CMDS[k].key ? ` <kbd>${CMDS[k].key}</kbd>` : ''}</button>`;
       else if ((ac.req === 'taxi_in' || ac.req === 'cross') && !ac.stand) btns = T`<span class="cmd big wait" title="Das Vorfeld hat noch keine Parkposition zugewiesen">${icon('hourglass')} wartet auf Parkposition</span>`;
       else if (ac.req === 'approach') btns = T`<span class="cmd big wait" title="Die Auto-Staffelung gibt Anflüge in der Reihenfolge der Warteliste frei. Vorziehen: Streifen in die Pistenfolge ziehen.">🕒 Auto-Staffelung gibt frei</span>`;
       else if (ac.req === 'takeoff') {
@@ -615,12 +803,14 @@ export class TowerPanel {
     }
     if (ac.wxReq) {
       const left = Math.max(0, 1 - ac.wxReq.age / WX_WINDOW);
-      btns = T`<button class="cmd big wxok" data-cmd="wxOk" data-ac="${ac.id}" title="Ausweichkurs um die Gewitterzelle genehmigen">⛈️ Umweg genehmigen <kbd>Y</kbd><i style="--p:${left}"></i></button><button class="cmd wxno" data-cmd="wxNo" data-ac="${ac.id}" title="Ablehnen (Verkehr): das Flugzeug fliegt durch die Zelle – Turbulenz">Ablehnen</button>`;
+      btns = T`<button class="cmd big wxok" data-cmd="wxOk" data-ac="${ac.id}" title="Ausweichkurs um die Gewitterzelle genehmigen">⛈️ Umweg ok <kbd>Y</kbd><i style="--p:${left}"></i></button><button class="cmd wxno" data-cmd="wxNo" data-ac="${ac.id}" title="Ablehnen (Verkehr): das Flugzeug fliegt durch die Zelle – Turbulenz">Ablehnen</button>`;
     }
-    if (ac.rbErr && ac.rbErr.age >= rbHintDelay(state)) btns = T`<button class="cmd big rbfix" data-rbfix="${ac.id}" title="Pilot hat falsch zurückgelesen: „${esc(ac.rbErr.wrong)}“">⚠ Readback falsch – korrigieren <kbd>Q</kbd><i style="--p:${Math.max(0, ac.rbErr.left / RB_WINDOW)}"></i></button>`;
-    const act = rq || btns || sp ? `${rq}${sp}${fuelChip(ac)}${btns}` : fuelChip(ac) && land && ac.mode === 'air' ? fuelChip(ac) : '';
+    if (ac.rbErr && ac.rbErr.age >= rbHintDelay(state)) btns = T`<button class="cmd big rbfix" data-rbfix="${ac.id}" title="Pilot hat falsch zurückgelesen: „${esc(ac.rbErr.wrong)}“">⚠ Readback korrigieren <kbd>Q</kbd><i style="--p:${Math.max(0, ac.rbErr.left / RB_WINDOW)}"></i></button>`;
+    const fuel = fuelChip(ac);
+    const act = stamp || rq || btns || sp ? `${stamp}${rq}${sp}${fuel}` : fuel && land && ac.mode === 'air' ? fuel : '';
     // ausgewählt: alle Daten und Befehle
     let ext = '';
+    let extB = '';
     if (sel) {
       const parts = [];
       if (rot && land && ac.mode === 'air') parts.push(`STA ${fmtClock(rot.sta)}`);
@@ -631,14 +821,18 @@ export class TowerPanel {
       if (land && ac.mode === 'air') parts.push(T`${distToLand(ac).toFixed(1)} NM bis zur Schwelle`);
       let b = cmdButtons(state, ac, false, true);
       if (inSeq) b += T`<span class="c-mv"><button class="mini" data-seqmv="-1" data-ac="${ac.id}" title="in der Pistenfolge früher (W)">▲ früher</button><button class="mini" data-seqmv="1" data-ac="${ac.id}" title="in der Pistenfolge später (S)">später ▼</button></span>`;
-      ext = `<div class="c-x">${parts.join(' · ')}</div>${dep ? acdmLine(state, ac) : ''}<div class="c-btns">${b}</div>`;
+      ext = `<div class="c-x">${parts.join(' · ')}</div>${dep ? acdmLine(state, ac) : ''}`;
+      extB = b;
     }
     const kind = dep ? 'k-dep' : 'k-arr';
     const clr = inSeq && (land ? ac.clr.land : ac.clr.takeoff) ? ' k-clr' : '';
+    const fx = clrFx.get(ac.id);
+    const flash = fx && performance.now() - fx.at < 1500 ? ' flash' : '';
+    const gapCls = gp && gp.st === 'bad' ? ' gapbad' : '';
     return {
-      cls: `fcard ${kind}${clr} g-${g}${sel ? ' active' : ''}${ac.req || ac.wxReq ? ' req' : ''}${ac.wxReq ? ' wxreq' : ''}${ac.emergency || ac.nordo ? ' emg' : ''}${ac.conflict ? ' conf' : ''}${ac.wakeWarn ? ' conf' : ''}${ac.rbErr && ac.rbErr.age >= rbHintDelay(state) ? ' rberr' : ''}`,
+      cls: `fcard ${kind}${clr}${flash}${gapCls} g-${g}${sel ? ' active' : ''}${ac.req || ac.wxReq ? ' req' : ''}${ac.wxReq ? ' wxreq' : ''}${ac.emergency || ac.nordo ? ' emg' : ''}${ac.conflict ? ' conf' : ''}${ac.wakeWarn ? ' conf' : ''}${ac.rbErr && ac.rbErr.age >= rbHintDelay(state) ? ' rberr' : ''}`,
       wrap: (inner) => `<div class="c-bar"></div>${inner}`,
-      parts: { 'fs-num': numB, 'fs-cs': cs, 'fs-mid': mid, 'fs-rt': rt, 'fs-tk': tk, 'fs-act': act, 'fs-ext': ext },
+      parts: { 'fs-num': numB, 'fs-cs': cs, 'fs-mid': mid, 'fs-rt': rt, 'fs-tk': tk, 'fs-act': act, 'fs-cmd': btns, 'fs-ext': ext, 'fs-btns': extB },
     };
   }
 
@@ -660,6 +854,19 @@ export class TowerPanel {
     }
     updateSequence(state);
     updateArrQueue(state);
+    this.gaps = arrivalGaps(state);
+    // eigene Freigaben: Meldung mit Platz in der Folge und Abstand (Streifen leuchtet in card() auf)
+    const now = performance.now();
+    for (const [id, f] of clrFx) {
+      if (f.done) {
+        if (now - f.at > 2000) clrFx.delete(id);
+        continue;
+      }
+      f.done = true;
+      const a = state.acs.find((x) => x.id === id);
+      const m = a && clearanceMsg(state, a, f.key);
+      if (m) toast(m.t, m.lvl, 4600);
+    }
     const byId = new Map(state.acs.map((a) => [a.id, a]));
     const seq = state.seq.map((id) => byId.get(id)).filter(Boolean);
     const num = new Map(seq.map((a, i) => [a.id, i + 1]));
@@ -693,7 +900,8 @@ export class TowerPanel {
         if (!it || !it.a) continue;
         if (el.dataset.g !== it.g) el.dataset.g = it.g;
         const dr = it.g === 'seq' || it.g === 'q';
-        if (el.draggable !== dr) el.draggable = dr;
+        if (el.draggable !== (dr && !COARSE)) el.draggable = dr && !COARSE;
+        if (el.dataset.drag !== (dr ? '1' : '')) el.dataset.drag = dr ? '1' : '';
       }
       const strips = list.filter((x) => x.a);
       if (!strips.length && !this.bay[b].querySelector('.empty')) this.bay[b].innerHTML = `<div class="empty">${EMPTY[b]()}</div>`;

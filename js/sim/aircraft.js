@@ -218,11 +218,45 @@ export function setReq(state, ac, req) {
   }
 }
 
+// Warteschleifen-Stapel: verlässt der Unterste die Schleife, rücken die anderen je 1000 ft nach unten – aber nur,
+// wenn die Höhe darunter frei ist und kein anderer Verkehr in der Nähe auf dieser Höhe fliegt
+function compactStacks(state) {
+  const byFix = new Map();
+  for (const a of state.acs) {
+    if (a.mode !== 'air') continue;
+    const fx = a.phase === PH.HOLD && a.holdFix ? a.holdFix.name : a.stackFix && a.stackAlt ? a.stackFix : null;
+    if (!fx) continue;
+    if (!byFix.has(fx)) byFix.set(fx, []);
+    byFix.get(fx).push(a);
+  }
+  for (const list of byFix.values()) {
+    const lvl = (a) => (a.phase === PH.HOLD ? a.tAlt : a.stackAlt);
+    list.sort((x, y) => lvl(x) - lvl(y));
+    const used = new Set(list.map(lvl));
+    for (const a of list) {
+      if (a.phase !== PH.HOLD) continue;
+      const L = lvl(a) - 1000;
+      if (L < 7000 || used.has(L) || Math.abs(a.alt - a.tAlt) > 300) continue;
+      const fix = a.holdFix;
+      const busy = state.acs.some((o) => o !== a && o.mode === 'air' && Math.hypot(o.pos.x - fix.x, o.pos.y - fix.y) < 8 && Math.abs(o.alt - L) < 900);
+      if (busy) continue;
+      used.delete(lvl(a));
+      a.tAlt = L;
+      used.add(L);
+    }
+  }
+}
+
 // ---------------- Laufzeit ----------------
 export function updateAircraft(state, dt) {
   for (const ac of state.acs) {
     if (ac.mode === 'air') updateAir(state, ac, dt);
     else updateMap(state, ac, dt);
+  }
+  state.stackT = (state.stackT || 0) + dt;
+  if (state.stackT > 5) {
+    state.stackT = 0;
+    compactStacks(state);
   }
   // entfernen
   if (state.acs.some((a) => a.phase === PH.GONE)) state.acs = state.acs.filter((a) => a.phase !== PH.GONE);
@@ -292,9 +326,16 @@ function updateAir(state, ac, dt) {
   let tgt = null;
   let localizer = false;
   if (ac.holdFix) {
+    // Rennbahn abfliegen: nächster Punkt, sobald der aktuelle nah oder schon hinter dem Flugzeug liegt
     const pat = AS.holdPattern(ac.holdFix);
     tgt = pat[ac.holdIdx % pat.length];
-    if (dist(ac.pos.x, ac.pos.y, tgt.x, tgt.y) < 1.1) ac.holdIdx++;
+    const dx = tgt.x - ac.pos.x, dy = tgt.y - ac.pos.y;
+    const d = Math.hypot(dx, dy);
+    const ahead = dx * Math.sin(ac.crs * DEG) - dy * Math.cos(ac.crs * DEG);
+    if (d < 0.45 || (d < 2.5 && ahead < 0)) {
+      ac.holdIdx++;
+      tgt = pat[ac.holdIdx % pat.length];
+    }
   } else if (ac.route.length) {
     tgt = ac.route[0];
     if (ac.phase === PH.APPROACH && tgt.thr) {

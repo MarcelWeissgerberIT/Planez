@@ -10,6 +10,7 @@ import { toast } from './dom.js';
 import { sfx } from '../audio.js';
 import { radio } from '../sim/messages.js';
 import { tel } from '../sim/aircraft.js';
+import { noteClearance } from './tower.js';
 import { correctReadback } from '../sim/readback.js';
 import { callNordo } from '../sim/nordo.js';
 import { T } from '../i18n.js';
@@ -159,6 +160,7 @@ export function initPTT(game) {
       radio(s, r.ac.cs, `Unable, ${tel(r.ac)}.`, 'pilot');
     } else {
       show(`✓ ${r.ac.cs} · ${CMDS[r.cmd].label}`, 'ok');
+      noteClearance(r.ac, r.cmd);
       s.life = s.life || {};
       s.life.voiceCmd = (s.life.voiceCmd || 0) + 1;
       game.select(r.ac.id, false);

@@ -723,7 +723,7 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .fsep:first-child { border-top: 0; padding-top: 0; }
 .fsep b { color: var(--muted); font-family: var(--mono); }
 /* Ein Kontrollstreifen: Farbkante | Nummer | Rufzeichen/Muster | Strecke/Lage | Piste/Zeit | Freigabe-Kästchen */
-.fcard { flex: 0 0 auto; display: grid; grid-template-columns: 4px 22px minmax(88px, 1.05fr) minmax(0, 1.5fr) auto auto; grid-template-areas: "bar num cs mid rt tk" "bar act act act act act" "bar ext ext ext ext ext"; column-gap: 6px; align-items: center; padding-right: 5px; min-height: 36px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; cursor: pointer; transition: border-color .15s, background .15s; }
+.fcard { flex: 0 0 auto; display: grid; grid-template-columns: 4px 22px minmax(88px, 1.05fr) minmax(0, 1.5fr) auto auto; grid-template-areas: "bar num cs mid rt tk" "bar act act act cmd cmd" "bar ext ext ext ext ext" "bar btns btns btns btns btns"; column-gap: 6px; align-items: center; padding-right: 5px; min-height: 36px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; cursor: pointer; transition: border-color .15s, background .15s; }
 .fcard.k-arr { background: linear-gradient(90deg, rgba(251,146,60,.13), rgba(251,146,60,.04) 60%); }
 .fcard.k-dep { background: linear-gradient(90deg, rgba(56,189,248,.13), rgba(56,189,248,.04) 60%); }
 .fcard:hover { border-color: var(--line-2); }
@@ -749,7 +749,10 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .fs-tk { grid-area: tk; display: grid; grid-template-columns: repeat(2, 21px); gap: 2px; }
 .fs-act { grid-area: act; display: flex; flex-wrap: wrap; align-items: center; gap: 3px 6px; font-size: 11px; padding-bottom: 4px; }
 .fs-ext { grid-area: ext; padding-bottom: 5px; }
-.fs-act:empty, .fs-ext:empty { display: none; }
+.fs-cmd { grid-area: cmd; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px; padding-bottom: 4px; }
+.fs-btns { grid-area: btns; display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0 6px; }
+.fs-act:empty, .fs-ext:empty, .fs-cmd:empty, .fs-btns:empty { display: none; }
+.fs-cmd .cmd { padding: 3px 8px; font-size: 11px; }
 .fs-cs, .fs-mid, .fs-rt { display: flex; flex-direction: column; min-width: 0; padding: 3px 0; line-height: 1.2; }
 .fs-l1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; }
 .fs-l2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10px; color: var(--muted); }
@@ -773,7 +776,7 @@ body.no-glossary abbr.gl { text-decoration: none; cursor: inherit; }
 .c-btns { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 3px; }
 .c-mv { display: inline-flex; gap: 4px; margin-left: auto; }
 @container (max-width: 300px) {
-  .fcard { grid-template-columns: 4px 22px minmax(0, 1fr) auto auto; grid-template-areas: "bar num cs rt tk" "bar act act act act" "bar ext ext ext ext"; }
+  .fcard { grid-template-columns: 4px 22px minmax(0, 1fr) auto auto; grid-template-areas: "bar num cs rt tk" "bar act act cmd cmd" "bar ext ext ext ext" "bar btns btns btns btns"; }
   .fcard .fs-mid { display: none; }
 }
 @container (max-width: 175px) {
@@ -2880,3 +2883,30 @@ button.hb-chip:hover { border-color: var(--mm-cyan); background: rgba(56,214,245
   #cwp .bay-list { flex: 0 0 auto; overflow: visible; }
   #cwp .bay-list > .empty { display: none; }
 }
+/* Spiel statt Webseite: kein Markieren von Text, kein Kopier-/Lupenmenü beim langen Drücken (Eingabefelder ausgenommen) */
+html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+input, textarea, select, [contenteditable="true"] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+/* Freigabe-Rückmeldung: Streifen leuchtet grün auf, das neue Häkchen springt; Stempel der gültigen Freigabe */
+@keyframes clrflash { 0% { box-shadow: 0 0 0 2px #4ade80, 0 0 26px rgba(74, 222, 128, 0.7); background: rgba(74, 222, 128, 0.28); } 100% { box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.35), 0 0 0 rgba(74, 222, 128, 0); } }
+@keyframes tickpop { 0% { transform: scale(1.7); } 100% { transform: scale(1); } }
+.fcard.flash { animation: clrflash 1.4s ease-out; }
+.fcard.flash .fs-tk i.on { animation: tickpop 0.5s ease-out; }
+.fcard.k-clr:not(.active):not(.emg) { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(74, 222, 128, 0.45); }
+.stamp { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 4px; font: 800 10.5px/1.5 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: #052e16; background: #4ade80; }
+.stamp.lu { background: #bae6fd; color: #082f49; }
+/* Abstand zum Vordermann auf dem Streifen */
+.gap { font: 700 10.5px var(--mono); padding: 0 3px; border-radius: 3px; }
+.gap.g-ok { color: #86efac; }
+.gap.g-tight { color: #fde68a; background: rgba(251, 191, 36, 0.16); }
+.gap.g-bad { color: #fecaca; background: rgba(248, 113, 113, 0.3); animation: pulse 1.1s infinite; }
+.fcard.gapbad .c-bar { background: #f87171 !important; }
+/* Bahn reserviert (Lande- oder Startfreigabe erteilt) */
+.rwy-box .state.resv { color: #86efac; }
+/* Streifen am Finger */
+.fcard[data-drag="1"] { cursor: grab; touch-action: pan-y; }
+.drag-ghost { position: fixed; z-index: 70; pointer-events: none; opacity: 0.94; transform: scale(1.03) rotate(-0.6deg); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55), 0 0 0 2px var(--accent) !important; margin: 0; }
+/* Befehlsknöpfe: Symbol + kurzes Verb */
+.cmd .ico { width: 14px; height: 14px; vertical-align: -2px; }
+.stamp.hold { background: #fbbf24; color: #422006; }
+.drag-ghost { background: linear-gradient(90deg, rgba(30, 45, 70, 0.98), rgba(14, 22, 38, 0.98)) !important; }
+@media (max-width: 760px) { .bay-list { min-height: 30px; } }

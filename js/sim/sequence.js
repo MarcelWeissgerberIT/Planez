@@ -2,7 +2,7 @@
 import { PH, landingRot, takeoffPerf } from './aircraft.js';
 import * as AS from './airspace.js';
 import { pathLength } from '../util.js';
-import { wakeArrSec, wakeDepSec } from './wake.js';
+import { wakeArrSec, wakeDepSec, wakeNm } from './wake.js';
 import { depSepSec } from './sid.js';
 import { T } from '../i18n.js';
 
@@ -284,4 +284,38 @@ export function seqNumber(state, ac) {
     if (id === ac.id) return n;
   }
   return 0;
+}
+
+// Abstände im Anflug: für jede Landung der Pistenfolge der Abstand zum vorausfliegenden Anflug derselben Bahn (entlang
+// der Anflugroute) und der Sollwert – Radarstaffelung 3 NM, mehr hinter schweren Flugzeugen (Wirbelschleppe) und
+// mindestens 6 NM, wenn dazwischen ein Start eingeplant ist. st: ok, knapp (tight) oder zu dicht (bad).
+export const arrDist = (a) => (a.mode === 'air' ? AS.routeDistance(a.pos, a.route.length ? a.route : [AS.THR[a.rwy]]) : a.phase === PH.FINAL ? 0.3 : 0);
+export function arrivalGaps(state) {
+  const out = new Map();
+  if (!state.seq) return out;
+  const byId = new Map(state.acs.map((a) => [a.id, a]));
+  const seg = state.upgrades && state.upgrades.rwy2 && state.rwyMode !== 'single';
+  const last = {};
+  const depAfter = {};
+  for (const id of state.seq) {
+    const a = byId.get(id);
+    if (!a) continue;
+    if (!isSeqArrival(a)) {
+      depAfter.N = true;
+      continue;
+    }
+    const strip = a.strip || 'N';
+    const d = arrDist(a);
+    const lead = last[strip];
+    if (lead) {
+      const dep = !seg || strip === 'N' ? !!depAfter[strip] : false;
+      const wake = wakeNm(lead.a.wake, a.wake);
+      const req = Math.max(dep ? 6 : 3, wake);
+      const gap = d - lead.d;
+      out.set(a.id, { lead: lead.a, gap, req, wake: wake > 3, dep, st: gap >= req ? 'ok' : gap >= req - 0.6 ? 'tight' : 'bad' });
+    }
+    last[strip] = { a, d };
+    depAfter[strip] = false;
+  }
+  return out;
 }

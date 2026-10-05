@@ -4,9 +4,8 @@ import * as LY from '../layout.js';
 import { PH } from '../sim/aircraft.js';
 import { AC_TYPES, typeCode } from '../config.js';
 import { clamp, esc } from '../util.js';
-import { isSeqArrival } from '../sim/sequence.js';
+import { isSeqArrival, arrivalGaps } from '../sim/sequence.js';
 import { markHex } from '../ui/marks.js';
-import { wakeNm } from '../sim/wake.js';
 import { atis } from '../sim/aircraft.js';
 import { qnh } from '../sim/atis.js';
 import { temperature } from '../sim/winter.js';
@@ -208,14 +207,47 @@ export class Radar {
         ctx.fillStyle = act ? 'rgba(160,255,210,0.85)' : 'rgba(120,200,160,0.35)';
         ctx.fillText(f.name, p.x + 6, p.y + 4);
         if (act) {
-          ctx.strokeStyle = 'rgba(120,255,190,0.18)';
+          // Rennbahnmuster der Warteschleife, belegt heller; Pfeil auf dem Anflugschenkel zeigt die Flugrichtung
+          const holders = state.acs.filter((o) => o.mode === 'air' && ((o.phase === PH.HOLD && o.holdFix && o.holdFix.name === f.name) || (o.stackFix === f.name && o.stackAlt)));
+          const busy = holders.some((o) => o.phase === PH.HOLD);
+          const pat = AS.holdPattern(f);
+          ctx.strokeStyle = busy ? 'rgba(251,191,36,0.55)' : 'rgba(120,255,190,0.22)';
+          ctx.lineWidth = busy ? 1.4 : 1;
           ctx.beginPath();
-          AS.holdPattern(f).forEach((q, i) => {
+          pat.forEach((q, i) => {
             const qq = this.toScreen(q.x, q.y);
             i ? ctx.lineTo(qq.x, qq.y) : ctx.moveTo(qq.x, qq.y);
           });
           ctx.closePath();
           ctx.stroke();
+          ctx.lineWidth = 1;
+          const hi = AS.holdInfo(f);
+          const am = this.toScreen(f.x - hi.u.x * AS.HOLD_LEG * 0.45, f.y - hi.u.y * AS.HOLD_LEG * 0.45);
+          const ang = Math.atan2(hi.u.y, hi.u.x);
+          ctx.fillStyle = ctx.strokeStyle;
+          ctx.beginPath();
+          ctx.moveTo(am.x + Math.cos(ang) * 4, am.y + Math.sin(ang) * 4);
+          ctx.lineTo(am.x + Math.cos(ang + 2.5) * 4, am.y + Math.sin(ang + 2.5) * 4);
+          ctx.lineTo(am.x + Math.cos(ang - 2.5) * 4, am.y + Math.sin(ang - 2.5) * 4);
+          ctx.fill();
+          // Höhenstapel neben dem Fix: oben die höchste Höhe, unten die nächste zum Anflug
+          if (holders.length) {
+            const lv = (o) => (o.phase === PH.HOLD ? o.tAlt : o.stackAlt);
+            const rows = holders.sort((x, y) => lv(y) - lv(x)).map((o) => ({ t: `${String(Math.round(lv(o) / 100)).padStart(3, '0')} ${o.cs}${o.phase === PH.HOLD ? '' : ' →'}`, hold: o.phase === PH.HOLD }));
+            ctx.font = '600 9.5px ui-monospace, Menlo, monospace';
+            const bw = Math.max(...rows.map((r) => ctx.measureText(r.t).width)) + 10;
+            const side = hi.o.x >= 0 ? 1 : -1;
+            const bx = side > 0 ? p.x + 12 : p.x - 12 - bw, by = p.y + (f.y < 0 ? -14 - rows.length * 11 : 12);
+            ctx.fillStyle = 'rgba(3,20,14,0.82)';
+            ctx.fillRect(bx, by, bw, rows.length * 11 + 13);
+            ctx.fillStyle = 'rgba(251,191,36,0.85)';
+            ctx.fillText(`${f.name} ${hi.right ? 'R' : 'L'}`, bx + 5, by + 9);
+            rows.forEach((r, i) => {
+              ctx.fillStyle = r.hold ? 'rgba(254,240,138,0.95)' : 'rgba(160,255,210,0.55)';
+              ctx.fillText(r.t, bx + 5, by + 20 + i * 11);
+            });
+            ctx.font = '10px ui-monospace, Menlo, monospace';
+          }
         }
       }
     }
@@ -239,34 +271,68 @@ export class Radar {
     }
     ctx.lineWidth = 1;
 
-    // Abstände zwischen aufeinanderfolgenden Anflügen (je Bahn), farbig gegen den Sollabstand
-    for (const strip of ['N', 'S']) {
-      const arr = state.acs.filter((a) => a.mode === 'air' && a.arr && (a.phase === PH.APPROACH || a.phase === PH.FINAL) && (a.strip || 'N') === strip).map((a) => ({ a, d: AS.routeDistance(a.pos, a.route.length ? a.route : [AS.THR[a.rwy]]) })).sort((x, y) => x.d - y.d);
-      for (let i = 1; i < arr.length; i++) {
-        const lead = arr[i - 1], foll = arr[i];
-        const gap = foll.d - lead.d;
-        if (gap > 20) continue;
-        const req = Math.max(3, wakeNm(lead.a.wake, foll.a.wake));
-        const c = gap < req ? '248,113,113' : gap < req + 1.5 ? '251,191,36' : '134,239,172';
-        const p0 = this.toScreen(lead.a.pos.x, lead.a.pos.y), p1 = this.toScreen(foll.a.pos.x, foll.a.pos.y);
-        ctx.strokeStyle = `rgba(${c},0.45)`;
-        ctx.setLineDash([3, 4]);
+    // Abstände in der Pistenfolge (je Bahn), farbig gegen den Sollabstand. Dazu Sollabstand-Marken auf dem Endanflug
+    // (wie die Zeitstaffelungs-Anzeige echter Anflugradare): bis zur Marke darf der Nachfolger aufschließen, nicht weiter
+    const gcol = { ok: '134,239,172', tight: '251,191,36', bad: '248,113,113' };
+    const posNm = (a) => (a.mode === 'air' ? a.pos : LY.tileToNm(a.x, a.y));
+    for (const [id, g] of arrivalGaps(state)) {
+      const foll = state.acs.find((a) => a.id === id);
+      if (!foll || g.gap > 22) continue;
+      const c = gcol[g.st];
+      const p0 = this.toScreen(posNm(g.lead).x, posNm(g.lead).y), p1 = this.toScreen(posNm(foll).x, posNm(foll).y);
+      ctx.strokeStyle = `rgba(${c},0.5)`;
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const mx = (p0.x + p1.x) / 2, my = (p0.y + p1.y) / 2;
+      const txt = `${g.gap.toFixed(1)}/${g.req} NM`;
+      ctx.font = '700 10px ui-monospace, monospace';
+      const tw = ctx.measureText(txt).width;
+      ctx.fillStyle = 'rgba(3,20,14,0.88)';
+      ctx.fillRect(mx - tw / 2 - 3, my - 7, tw + 6, 13);
+      ctx.fillStyle = `rgb(${c})`;
+      ctx.textAlign = 'center';
+      ctx.fillText(txt, mx, my + 3);
+      ctx.textAlign = 'left';
+      // Marke auf der Anflugachse: Vordermann auf dem Endanflug + Sollabstand
+      const lp = posNm(g.lead);
+      const lAlong = g.lead.mode === 'air' ? AS.distToThr(lp, g.lead.rwy) : 0;
+      if (g.lead.mode === 'map' || (Math.abs(lp.y) < 1.2 && lAlong < 20)) {
+        const m = lAlong + g.req;
+        const sx = AS.appSide(g.lead.rwy || rwy);
+        const q = this.toScreen(AS.THR[g.lead.rwy || rwy].x + sx * m, 0);
+        ctx.strokeStyle = `rgba(${c},0.95)`;
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(p0.x, p0.y);
-        ctx.lineTo(p1.x, p1.y);
+        ctx.moveTo(q.x - sx * 4, q.y - 7);
+        ctx.lineTo(q.x, q.y);
+        ctx.lineTo(q.x - sx * 4, q.y + 7);
         ctx.stroke();
-        ctx.setLineDash([]);
-        const mx = (p0.x + p1.x) / 2, my = (p0.y + p1.y) / 2;
-        const txt = `${gap.toFixed(1)}${req > 3 ? '/' + req : ''} NM`;
-        ctx.font = '600 10px ui-monospace, monospace';
-        const tw = ctx.measureText(txt).width;
-        ctx.fillStyle = 'rgba(3,20,14,0.85)';
-        ctx.fillRect(mx - tw / 2 - 3, my - 7, tw + 6, 13);
-        ctx.fillStyle = `rgb(${c})`;
-        ctx.textAlign = 'center';
-        ctx.fillText(txt, mx, my + 3);
-        ctx.textAlign = 'left';
+        ctx.lineWidth = 1;
+        const sp2 = (state.seq || []).indexOf(id) + 1;
+        if (sp2) {
+          ctx.fillStyle = `rgba(${c},0.95)`;
+          ctx.font = '700 9px ui-monospace, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(String(sp2), q.x, q.y - 10);
+          ctx.textAlign = 'left';
+        }
       }
+    }
+    // Landefreigabe: die Bahn gehört diesem Flugzeug – durchgezogene Linie bis zur Schwelle
+    for (const a of state.acs) {
+      if (!a.arr || !a.clr.land || a.mode !== 'air' || a.phase !== PH.APPROACH) continue;
+      const q0 = this.toScreen(a.pos.x, a.pos.y), q1 = this.toScreen(AS.THR[a.rwy].x, 0);
+      ctx.strokeStyle = rgbStr(SC.landClr, 0.55);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(q0.x, q0.y);
+      ctx.lineTo(q1.x, q1.y);
+      ctx.stroke();
+      ctx.lineWidth = 1;
     }
 
     // Sweep
@@ -433,6 +499,17 @@ export class Radar {
         ctx.fillText('WX', q1.x + 4, q1.y - 3);
         ctx.font = `600 ${this.R > 200 ? 11 : 10}px ui-monospace, Menlo, monospace`;
       }
+      // in die Warteschleife geschickt: gestrichelt zum Fix
+      if (ac.mode === 'air' && ac.phase === PH.INBOUND && ac.holdTo && ac.route && ac.route[0] && ac.route[0].iaf) {
+        const qf = this.toScreen(ac.route[0].x, ac.route[0].y);
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(251,191,36,0.7)';
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(qf.x, qf.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
       // Symbol
       ctx.fillStyle = cs(glow);
       ctx.strokeStyle = cs(glow);
@@ -493,7 +570,7 @@ export class Radar {
       const t = AC_TYPES[ac.type];
       const l1 = (ac.mode === 'map' && sp ? '#' + sp + ' ' : '') + ac.cs + (ac.req ? ' ●' : '');
       const l2 = `${fl}${trend} ${spd}`;
-      const l3 = ac.fuelEmergency ? '7700 FUEL' : ac.emergency ? '7700 EMERG' : ac.nordo ? `7600 NORDO${ac.clr.land ? ' LND' : ''}` : `${sp ? '#' + sp + ' ' : ''}${typeCode(ac.type)}/${t.wake}${ac.wxReq ? ' WX?' : ac.route && ac.route[0] && ac.route[0].wx ? ' WX' : ac.protocol && !ac.clr.land && ac.phase !== PH.HOLD ? ' STATE' : ac.minFuel ? ' MINFUEL' : ac.wakeWarn ? ' WAKE!' : ac.clr.land ? ' LND' : ac.phase === PH.APPROACH ? ' APP' : ac.phase === PH.HOLD ? ' HLD' : ''}`;
+      const l3 = ac.fuelEmergency ? '7700 FUEL' : ac.emergency ? '7700 EMERG' : ac.nordo ? `7600 NORDO${ac.clr.land ? ' LND' : ''}` : `${sp ? '#' + sp + ' ' : ''}${typeCode(ac.type)}/${t.wake}${ac.wxReq ? ' WX?' : ac.route && ac.route[0] && ac.route[0].wx ? ' WX' : ac.protocol && !ac.clr.land && ac.phase !== PH.HOLD ? ' STATE' : ac.minFuel ? ' MINFUEL' : ac.wakeWarn ? ' WAKE!' : ac.clr.land ? ' LND✓' : ac.phase === PH.APPROACH ? ' APP' : ac.phase === PH.HOLD ? ' HLD' : ''}`;
       // Datenblock-Position: freie Ecke suchen (Überlappungen vermeiden)
       const compact = ac.mode === 'map';
       const noteTxt = mk && ac.mark.note ? `⚑ ${ac.mark.note}` : '';
