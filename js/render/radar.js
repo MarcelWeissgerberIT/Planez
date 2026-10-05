@@ -15,7 +15,7 @@ import { fmtClock } from '../util.js';
 import { T, TC } from '../i18n.js';
 
 // Farben der Pistenfolge (RGB)
-const SC = { land: [34, 211, 238], landClr: [165, 243, 252], dep: [245, 158, 11], depClr: [232, 121, 249] };
+const SC = { land: [251, 146, 60], landClr: [254, 215, 170], dep: [56, 189, 248], depClr: [186, 230, 253] }; // wie die Kontrollstreifen: Anflug orange, Abflug blau, hell = Freigabe erteilt
 const seqRgb = (ac) => (isSeqArrival(ac) ? (ac.clr.land ? SC.landClr : SC.land) : ac.clr.takeoff ? SC.depClr : SC.dep);
 const rgbStr = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 

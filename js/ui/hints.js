@@ -62,7 +62,7 @@ function towerHint(s) {
   const holds = s.acs.filter((a) => a.phase === PH.HOLD).sort((a, b) => a.alt - b.alt);
   const wait = holds[0] || s.acs.filter((a) => a.phase === PH.INBOUND).sort((a, b) => Math.hypot(a.pos.x, a.pos.y) - Math.hypot(b.pos.x, b.pos.y))[0];
   if (wait && app < 2 && s.settings.autoSpacing === false) return T`Gib <b>${esc(wait.cs)}</b> die Anflugfreigabe (A). Zwischen zwei Anflügen etwa 6–8 NM Abstand lassen.`;
-  if (s.settings.autoSpacing !== false && !s.seqManual && s.acs.filter((a) => a.phase === PH.APPROACH).length >= 2) return T('Tipp: Ziehe die Karten unten, um die Reihenfolge zu ändern – die Auto-Staffelung passt Tempo, Anflugfreigaben und Lücken für Starts an.');
+  if (s.settings.autoSpacing !== false && !s.seqManual && s.acs.filter((a) => a.phase === PH.APPROACH).length >= 2) return T('Tipp: Ziehe die Streifen in der Pistenfolge, um die Reihenfolge zu ändern – die Auto-Staffelung passt Tempo, Anflugfreigaben und Lücken für Starts an.');
   if (preferredRunway(s) !== s.rwy && tailwind(s, s.rwy) > 5 && !s.rwyPending) return T`Rückenwind auf Piste ${s.rwy} – Betriebsrichtung oben im Panel wechseln.`;
   return null;
 }

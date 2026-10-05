@@ -452,10 +452,14 @@ function applyRole() {
   if (!game.mgmt) game.mgmt = new ManagementPage(game);
   game.mgmt.close();
   if (game.splan) game.splan.toggle(false);
+  // Tower-Arbeitsplatz bleibt beim Neuaufbau des Panels offen
+  const keepCwp = s.role === 'tower' && game.panel && game.panel.cw;
   if (game.panel && game.panel.destroy) game.panel.destroy();
   if (game.ui.radarBig) {
     game.ui.radarBig = false;
     $('#radar-wrap').classList.remove('big');
+    $('#game').classList.remove('radar-big');
+    $('#radar-big').textContent = '⤢';
   }
   if (s.role === 'tower') game.panel = new TowerPanel(root, game);
   else if (s.role === 'ground') game.panel = new GroundPanel(root, game);
@@ -475,6 +479,7 @@ function applyRole() {
   }
   $('#btn-role').innerHTML = `${icon({ tower: 'headset', ground: 'vest', manager: 'briefcase', observer: 'eye' }[s.role] || 'eye')} <span class="rb-t">${ROLES[s.role].short}</span> ▾`;
   toggleRadar(s.role === 'tower');
+  if (keepCwp) $('#radar-big').click();
   if (game.syncVoice) game.syncVoice();
   if (game.tutorial && game.tutorial.on) game.tutorial.stop();
   if (game.tutorial && !s.scenario) game.tutorial.maybeStart();
@@ -1139,6 +1144,13 @@ function wireGame() {
   $('#radar-big').addEventListener('click', () => {
     game.ui.radarBig = !game.ui.radarBig;
     const w = $('#radar-wrap');
+    $('#radar-big').textContent = game.ui.radarBig ? '⤡' : '⤢';
+    // Tower: Arbeitsplatz mit großem Radar, Übersicht, Pistenstatus, Funk und der Streifentafel darunter
+    if (game.panel && game.panel.cwp) {
+      game.panel.cwp(game.ui.radarBig);
+      resize();
+      return;
+    }
     w.classList.toggle('big', game.ui.radarBig);
     // Tower-Fenster: groß als Overlay über der Karte, klein zurück ins Fenster
     const slot = $('#tw-radar-slot');
@@ -1536,6 +1548,7 @@ function onKey(e) {
     if (game.spot && game.spot.isOpen()) return game.spot.toggle(false);
     if (game.fids && game.fids.isOpen()) return game.fids.toggle(false);
     if (game.ui.sel) return game.select(null);
+    if (game.ui.radarBig) return $('#radar-big').click();
     return showGameMenu();
   }
   if ((e.key === 'o' || e.key === 'O') && (s.role === 'manager' || s.role === 'observer')) return game.mgmt && game.mgmt.toggle();
@@ -1692,6 +1705,15 @@ function resize() {
     const wrap = $('#radar-wrap');
     const w = wrap.clientWidth || 360;
     const docked = !game.ui.radarBig && wrap.closest('#tw-radar-slot');
+    const cell = wrap.closest('.cwp-radar');
+    if (cell) {
+      // Arbeitsplatz: Radar füllt seine Zelle (am Handy quadratisch über der Tafel)
+      const head = wrap.querySelector('.radar-head');
+      const cw = cell.clientWidth || w;
+      const ch = window.innerWidth <= 760 ? Math.min(cw, 440) : Math.max(160, cell.clientHeight - (head ? head.offsetHeight : 30));
+      game.radar.resize(cw, Math.round(ch), dpr);
+      return;
+    }
     const h = game.ui.radarBig ? Math.min(w, window.innerHeight - 140) : docked ? Math.round(Math.min(w, Math.max(200, window.innerHeight - 480))) : w;
     game.radar.resize(w, h, dpr);
   }
@@ -1885,8 +1907,8 @@ function helpGuide(first) {
       <li>Am Boden: <b>Rollen zur Position</b> <kbd>R</kbd>, <b>Pushback</b> <kbd>P</kbd>, <b>Rollen zum Rollhalt</b> <kbd>R</kbd>, <b>Line up</b> <kbd>U</kbd>, <b>Startfreigabe</b> <kbd>T</kbd>, <b>Halt</b> <kbd>X</kbd>.</li>
       <li><b>🛡️ Sicherheitsnetz:</b> Wäre eine Freigabe gerade gefährlich – Landung auf eine belegte Bahn, Start oder Line-up, während jemand im kurzen Endanflug ist oder mit Landefreigabe kurz davor –, ist der Knopf rot mit ⚠ markiert (Grund im Tooltip). Der erste Druck gibt nur einen Warnton und Hinweis; erst ein zweiter Druck innerhalb von vier Sekunden erteilt die Freigabe trotzdem. Per Sprechtaste fragt der Pilot zurück („confirm cleared for take-off? We have traffic on short final.“) – erst die wiederholte Freigabe gilt.</li>
       <li><b>Echter Funk:</b> Lotse und Piloten sprechen (🔊 im Funkfenster, jedes Flugzeug mit eigener Stimme, Funkrauschen, eine Frequenz – niemand spricht gleichzeitig). <b>Sprechtaste:</b> <kbd>V</kbd> gedrückt halten (oder 🎙) und auf Englisch funken, z.&nbsp;B. „Aurora five four two, runway two seven, cleared to land“, „Rheinjet four one two, line up and wait“, „… cleared for take-off“, „… cleared ILS approach“, „… hold as published“, „… reduce speed one six zero“, „… taxi to stand“, „… pushback approved“. Auch der Nebenverkehr hört aufs Wort: „Rescue seven, cross runways“ / „… hold south“, die Alcedo mit ihrem abgekürzten Rufzeichen („Delta Lima Mike, cleared touch and go“ / „… extend downwind“) und die Pistenkontrolle („Check one, enter runway“ / „… hold short“). Funktioniert in Chrome und Edge (Mikrofon erlauben).</li>
-      <li><b>Arbeitsplatz:</b> rechts Radar, Pistenstatus und Funk in einem Fenster (⤢ bzw. <kbd>F</kbd> macht das Radar groß), unten die <b>Flugstreifen</b>: links Landungen, rechts Starts, Filter <b>An / Beide / Ab</b>. Die ausgewählte Karte wird groß und zeigt alle Befehle; kleine Karten zeigen nur den gerade fälligen Befehl.</li>
-      <li><b>Reihenfolge &amp; Auto-Staffelung:</b> Karten <b>ziehen</b> (oder ◀ ▶, <kbd>W</kbd>/<kbd>S</kbd>) – die Staffelung passt sich an: Anflugfreigaben kommen in deiner Reihenfolge, Anflüge werden auf 180/160 kt gebremst, Vorgezogene bekommen „Direkt FAF“, notfalls geht einer in die Warteschleife; vor eine Landung gezogene Starts bekommen eine Lücke („Startfenster in …“). Aus der Warteliste in die Pistenfolge ziehen = Anflug frei. Du gibst weiter Lande- und Startfreigaben. „⇅ zurücksetzen“ plant wieder automatisch. Farben auf Karte und Radar: <span style="color:#22d3ee">■ Landung</span> <span style="color:#a5f3fc">■ Landung frei</span> <span style="color:#f59e0b">■ Start</span> <span style="color:#e879f9">■ Startfreigabe</span>.</li>
+      <li><b>Arbeitsplatz:</b> rechts Radar, Pistenstatus und Funk in einem Fenster, unten die <b>Streifentafel</b> wie im echten Tower: Buchten <b>Luft</b> (Warteliste, oben = als Nächstes), <b>Pistenfolge</b>, <b>Rollen</b> und <b>Vorfeld</b>. Anflüge haben orange, Abflüge blaue Streifen; die Kästchen rechts haken erteilte Freigaben ab (APP, LND, TX bzw. PB, TX, LU, TO), gelb = jetzt fällig. Der ausgewählte Streifen klappt auf und zeigt alle Daten und Befehle; sonst steht nur der fällige Befehl darunter. ⤢ bzw. <kbd>F</kbd> öffnet den <b>Arbeitsplatz groß</b>: großes Radar, rechts Übersicht (Minikarte), Pistenstatus und Funk, darunter die Streifentafel – <kbd>F</kbd>, <kbd>Esc</kbd> oder ✕ schließt ihn.</li>
+      <li><b>Reihenfolge &amp; Auto-Staffelung:</b> Streifen in der Pistenfolge <b>ziehen</b> (oder ▲ ▼, <kbd>W</kbd>/<kbd>S</kbd>) – die Staffelung passt sich an: Anflugfreigaben kommen in deiner Reihenfolge, Anflüge werden auf 180/160 kt gebremst, Vorgezogene bekommen „Direkt FAF“, notfalls geht einer in die Warteschleife; vor eine Landung gezogene Starts bekommen eine Lücke („Startfenster in …“). Aus der Warteliste in die Pistenfolge ziehen = Anflug frei. Du gibst weiter Lande- und Startfreigaben. „⇅ zurücksetzen“ plant wieder automatisch. Farben auf Streifen, Karte und Radar: <span style="color:#fb923c">■ Landung</span> <span style="color:#fed7aa">■ Landung frei</span> <span style="color:#38bdf8">■ Start</span> <span style="color:#bae6fd">■ Startfreigabe</span>.</li>
       <li><b>Wetter & Piste:</b> Bremswirkung (gut/mittel/schlecht) hängt vom Gummiabrieb und von Nässe ab. Bei Nebel gelten LVP (mehr Abstand); unter 550 m RVR geht es nur mit ILS CAT III. Bei mehr als 5 kt Rückenwind die Betriebsrichtung wechseln.</li>
       <li><b>Markieren:</b> ⚑ auf dem Streifen, Rechtsklick/langes Drücken auf ein Flugzeug oder <kbd>M</kbd>. <kbd>N</kbd>/<kbd>Tab</kbd> springt zur nächsten Anfrage, <kbd>F</kbd> vergrößert das Radar, ⓘ im Radar erklärt die Anzeige.</li>
       <li><b>↗ Abflugrouten (SID):</b> Jeder Start fliegt je nach Ziel über NOLTA, SUDEN, RIMOS oder WELDA (farbig auf dem Streifen). Zwei Starts auf <b>derselben</b> Route brauchen 100 s statt 75 s Abstand – wechsle die Routen in der Pistenfolge ab, dann gehen die Starts schneller raus.</li>

@@ -76,10 +76,16 @@ export class Minimap {
   toggle(on = !this.on) {
     this.on = on;
     saveOn(on);
-    this.el.classList.toggle('hidden', !on);
+    this.el.classList.toggle('hidden', !on && !this.forced);
     this.t = 0;
     if (this.o.onToggle) this.o.onToggle(on);
     return on;
+  }
+  // zeitweise immer sichtbar (Tower-Arbeitsplatz), ohne die gespeicherte Wahl zu ändern
+  force(f) {
+    this.forced = f;
+    this.el.classList.toggle('hidden', !this.on && !f);
+    this.t = 0;
   }
   // Abbildung Welt -> Minikarte: wie die isometrische Karte (x nach rechts unten, y nach links unten)
   layout() {
@@ -131,7 +137,7 @@ export class Minimap {
     g.setTransform(L.k * dpr, (L.k / 2) * dpr, -L.k * dpr, (L.k / 2) * dpr, -L.u0 * L.k * dpr, -L.v0 * L.k * dpr);
   }
   update(dt) {
-    if (!this.on) return;
+    if (!this.on && !this.forced) return;
     this.t -= dt;
     if (this.t > 0) return;
     this.t = 0.08; // gut 12 Bilder je Sekunde reichen für die Punkte
