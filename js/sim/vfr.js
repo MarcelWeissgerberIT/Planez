@@ -3,7 +3,7 @@
 // Pilot um „touch and go“; der Lotse gibt frei, sobald zwischen den Linienflügen Platz ist, sonst fliegt die Cessna
 // am Ende des Gegenanflugs einen Vollkreis. Während sie aufsetzt, ist die Bahn belegt (Linienflüge müssen warten bzw.
 // durchstarten); ist die Bahn im kurzen Endanflug belegt, startet sie selbst durch.
-import { PH, runwayBlocker } from './aircraft.js';
+import { PH, runwayBlocker, windStr } from './aircraft.js';
 import * as AS from './airspace.js';
 import { radio, log, notify } from './messages.js';
 import { scoreVfr } from './score.js';
@@ -95,8 +95,8 @@ export function clearVfr(state) {
   p.clr = true;
   p.req = false;
   p.orbits = 0;
-  radio(state, 'TWR', T`${tel(p.cs)}, runway ${p.rwy}, cleared touch and go, wind ${Math.round(state.wind.dir / 10) * 10} degrees ${Math.round(state.wind.spd)} knots.`, 'atc');
-  radio(state, p.cs, `Cleared touch and go ${p.rwy}, ${tel(p.cs)}.`, 'pilot');
+  radio(state, 'TWR', `${tel(p.cs)}, ${windStr(state)}, runway ${p.rwy}, cleared touch and go.`, 'atc');
+  radio(state, p.cs, `Cleared touch and go runway ${p.rwy}, ${tel(p.cs)}.`, 'pilot');
   if (humanTower(state)) scoreVfr(state, !(c && c.hard));
   return { ok: true, bad: !!(c && c.hard), soft: c && !c.hard ? c : null, c };
 }

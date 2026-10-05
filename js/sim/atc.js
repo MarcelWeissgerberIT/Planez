@@ -55,8 +55,9 @@ export const CMDS = {
       leaveStack(s, ac, hf);
       const rn = rwyName(s, ac.strip);
       // am Gras- und Verkehrslandeplatz gibt es kein ILS: Sichtanflug
-      if (smallField(s)) say(s, ac, `${tel(ac)}, ${numTxt(s, ac)}cleared visual approach runway ${rn}, descend 2000 feet.`, `Cleared visual approach ${rn}, ${tel(ac)}.`);
-      else say(s, ac, `${tel(ac)}, ${numTxt(s, ac)}cleared ILS approach runway ${rn}, descend 5000 feet.`, `Cleared ILS ${rn}, ${tel(ac)}.`);
+      const nr = numTxt(s, ac).replace(/, $/, '');
+      if (smallField(s)) say(s, ac, `${tel(ac)}, descend altitude 2000 feet, QNH ${qnh(s)}, cleared visual approach runway ${rn}${nr ? ', ' + nr : ''}.`, `Descending 2000 feet, QNH ${qnh(s)}, cleared visual approach runway ${rn}, ${tel(ac)}.`);
+      else say(s, ac, `${tel(ac)}, descend altitude 5000 feet, QNH ${qnh(s)}, cleared ILS approach runway ${rn}${nr ? ', ' + nr : ''}.`, `Descending 5000 feet, QNH ${qnh(s)}, cleared ILS approach runway ${rn}, ${tel(ac)}.`);
     },
   },
   direct: {
@@ -78,8 +79,9 @@ export const CMDS = {
       ac.holdTo = null;
       leaveStack(s, ac, hf);
       const rn = rwyName(s, ac.strip);
-      if (smallField(s)) say(s, ac, `${tel(ac)}, proceed direct final, ${numTxt(s, ac)}cleared visual approach runway ${rn}.`, `Direct final, cleared visual ${rn}, ${tel(ac)}.`);
-      else say(s, ac, `${tel(ac)}, turn direct final approach fix, ${numTxt(s, ac)}cleared ILS runway ${rn}.`, `Direct FAF, cleared ILS ${rn}, ${tel(ac)}.`);
+      const nr = numTxt(s, ac).replace(/, $/, '');
+      if (smallField(s)) say(s, ac, `${tel(ac)}, proceed direct final, cleared visual approach runway ${rn}${nr ? ', ' + nr : ''}.`, `Direct final, cleared visual approach runway ${rn}, ${tel(ac)}.`);
+      else say(s, ac, `${tel(ac)}, proceed direct final approach fix, cleared ILS approach runway ${rn}${nr ? ', ' + nr : ''}.`, `Direct final approach fix, cleared ILS approach runway ${rn}, ${tel(ac)}.`);
     },
   },
   hold: {
@@ -97,7 +99,8 @@ export const CMDS = {
       // vom Lotsen angeordnet: bleibt in der Schleife, bis er den Anflug selbst freigibt (die Auto-Staffelung holt ihn nicht heraus)
       ac.playerHold = true;
       ac.spacingHold = false;
-      say(s, ac, `${tel(ac)}, proceed ${fix.name}, hold as published, maintain ${fmtAlt(ac.stackAlt)}, expect further clearance.`, `Hold at ${fix.name}, maintain ${fmtAlt(ac.stackAlt)}, ${tel(ac)}.`);
+      const efc = fmtClock(s.time + 600).replace(':', '');
+      say(s, ac, `${tel(ac)}, hold at ${fix.name} as published, maintain ${fmtAlt(ac.stackAlt)}, expect further clearance at ${efc}.`, `Hold at ${fix.name} as published, maintain ${fmtAlt(ac.stackAlt)}, expect further clearance at ${efc}, ${tel(ac)}.`);
     },
   },
   land: {
@@ -110,7 +113,7 @@ export const CMDS = {
       ac.req = null;
       const ba = brakingAction(s, ac.strip || 'N');
       const rn = rwyName(s, ac.strip || 'N');
-      say(s, ac, T`${tel(ac)}, ${numTxt(s, ac)}runway ${rn}, cleared to land, ${windStr(s)}${ba !== 'good' ? `, braking action ${BRAKE_EN[ba]}` : ''}.`, readbackText(s, ac, 'land', T`Cleared to land ${rn}, ${tel(ac)}.`));
+      say(s, ac, `${tel(ac)}, ${windStr(s)}, runway ${rn}, cleared to land${ba !== 'good' ? `, braking action ${BRAKE_EN[ba]}` : ''}.`, readbackText(s, ac, 'land', `Cleared to land runway ${rn}, ${tel(ac)}.`));
     },
   },
   goaround: {
@@ -132,7 +135,7 @@ export const CMDS = {
       if (!ac.stand) return { ok: false, msg: T('Keine Parkposition zugewiesen (Vorfeld)') };
       ac.clr.taxi = true;
       ac.req = null;
-      say(s, ac, `${tel(ac)}, taxi to stand ${ac.stand} via A and L.`, `Taxi stand ${ac.stand}, ${tel(ac)}.`);
+      say(s, ac, `${tel(ac)}, taxi to stand ${ac.stand} via A and L.`, `Taxi to stand ${ac.stand} via A and L, ${tel(ac)}.`);
       if (ac.phase === PH.VACATED || ac.phase === PH.TAXI_WAIT) startTaxiIn(s, ac);
     },
   },
@@ -143,7 +146,7 @@ export const CMDS = {
       ac.clr.taxi = true;
       ac.req = null;
       const rn = rwyName(s, 'N');
-      say(s, ac, `${tel(ac)}, cross runway ${rn}, taxi to stand ${ac.stand} via A.`, `Crossing ${rn}, stand ${ac.stand}, ${tel(ac)}.`);
+      say(s, ac, `${tel(ac)}, cross runway ${rn}, then taxi to stand ${ac.stand} via A.`, `Crossing runway ${rn}, then stand ${ac.stand} via A, ${tel(ac)}.`);
       startTaxiIn(s, ac);
     },
   },
@@ -152,8 +155,8 @@ export const CMDS = {
     valid: (s, ac) => ac.phase === PH.STAND && ac.req === 'push',
     run: (s, ac) => {
       const face = s.rwy === '27' ? 'east' : 'west';
-      if (AC_TYPES[ac.type].selfTaxi) say(s, ac, T`${tel(ac)}, start-up approved, runway ${s.rwy}, QNH ${qnh(s)}.`, T`Start-up approved, ${tel(ac)}.`);
-      else say(s, ac, T`${tel(ac)}, pushback and start-up approved, facing ${face}.`, `Pushback approved, ${tel(ac)}.`);
+      if (AC_TYPES[ac.type].selfTaxi) say(s, ac, `${tel(ac)}, start-up approved, runway ${s.rwy}, QNH ${qnh(s)}.`, `Start-up approved, runway ${s.rwy}, QNH ${qnh(s)}, ${tel(ac)}.`);
+      else say(s, ac, `${tel(ac)}, pushback and start-up approved, face ${face}.`, `Pushback and start-up approved, face ${face}, ${tel(ac)}.`);
       startPushback(s, ac);
     },
   },
@@ -164,7 +167,7 @@ export const CMDS = {
       const rot = s.rots[ac.rot];
       ac.req = null;
       ac.pushWaitUntil = rot.tsat - 90;
-      say(s, ac, T`${tel(ac)}, expect start-up at ${fmtClock(rot.tsat).replace(':', '')}, remain on stand.`, T`Expect start-up ${fmtClock(rot.tsat).replace(':', '')}, ${tel(ac)}.`);
+      say(s, ac, `${tel(ac)}, start-up at time ${fmtClock(rot.tsat).replace(':', '')}, remain on stand.`, `Start-up at time ${fmtClock(rot.tsat).replace(':', '')}, remain on stand, ${tel(ac)}.`);
     },
   },
   taxiOut: {
@@ -175,7 +178,7 @@ export const CMDS = {
       ac.req = null;
       const nd = numTxt(s, ac, ' for departure');
       const rn = rwyName(s, 'N', ac.rwy);
-      say(s, ac, `${tel(ac)}, taxi to holding point runway ${rn} via L and A${nd ? ', ' + nd.slice(0, -2) : ''}.`, `Taxi holding point ${rn}, ${tel(ac)}.`);
+      say(s, ac, `${tel(ac)}, taxi to holding point runway ${rn} via L and A${nd ? ', ' + nd.slice(0, -2) : ''}.`, `Taxi to holding point runway ${rn} via L and A, ${tel(ac)}.`);
       if (ac.phase === PH.STARTUP && s.time - ac.startT > 55) startTaxiOut(s, ac);
     },
   },
@@ -187,7 +190,7 @@ export const CMDS = {
       ac.clr.lineup = true;
       ac.req = null;
       const rn = rwyName(s, 'N', ac.rwy);
-      say(s, ac, `${tel(ac)}, runway ${rn}, line up and wait.`, readbackText(s, ac, 'lineup', `Line up and wait ${rn}, ${tel(ac)}.`));
+      say(s, ac, `${tel(ac)}, runway ${rn}, line up and wait.`, readbackText(s, ac, 'lineup', `Line up and wait runway ${rn}, ${tel(ac)}.`));
     },
   },
   takeoff: {
@@ -198,7 +201,8 @@ export const CMDS = {
       ac.clr.takeoff = true;
       ac.req = null;
       const rn = rwyName(s, 'N', ac.rwy);
-      say(s, ac, `${tel(ac)}, runway ${rn}, cleared for take-off, ${windStr(s)}.`, `Cleared for take-off ${rn}, ${tel(ac)}.`);
+      ac.clr.toT = s.time;
+      say(s, ac, `${tel(ac)}, ${windStr(s)}, runway ${rn}, cleared for take-off.`, `Cleared for take-off runway ${rn}, ${tel(ac)}.`);
     },
   },
   holdpos: {
@@ -206,7 +210,7 @@ export const CMDS = {
     valid: (s, ac) => [PH.TAXI_IN, PH.TAXI_OUT].includes(ac.phase) && !ac.holdPos,
     run: (s, ac) => {
       ac.holdPos = true;
-      say(s, ac, T`${tel(ac)}, hold position.`, T`Holding position, ${tel(ac)}.`);
+      say(s, ac, `${tel(ac)}, hold position.`, `Holding position, ${tel(ac)}.`);
     },
   },
   cont: {
@@ -214,7 +218,7 @@ export const CMDS = {
     valid: (s, ac) => !!ac.holdPos,
     run: (s, ac) => {
       ac.holdPos = false;
-      say(s, ac, `${tel(ac)}, continue taxi.`, `Continue, ${tel(ac)}.`);
+      say(s, ac, `${tel(ac)}, continue taxi.`, `Continue taxi, ${tel(ac)}.`);
     },
   },
   // Override bei verkeiltem Rollverkehr: dieses Flugzeug hat Vorrang und rollt am Hindernis vorbei
@@ -270,7 +274,7 @@ function setSpeed(s, ac, v) {
   ac.spdManual = true; // Auto-Staffelung lässt dieses Flugzeug in Ruhe
   ac.autoSpd = false;
   const w = v < ac.spd ? 'reduce' : 'increase';
-  say(s, ac, `${tel(ac)}, ${w} speed ${v} knots.`, `Speed ${v}, ${tel(ac)}.`);
+  say(s, ac, `${tel(ac)}, ${w} speed to ${v} knots.`, `${w === 'reduce' ? 'Reducing' : 'Increasing'} speed to ${v} knots, ${tel(ac)}.`);
 }
 
 // Seitenwind mit Böen über dem Limit: der Pilot lehnt Aufrollen bzw. Start ab und wartet am Rollhalt
@@ -426,7 +430,7 @@ function applyRunwayChange(state) {
       }
     }
   }
-  radio(state, 'TWR', T`All stations, runway in use now ${to}, information ${String.fromCharCode(65 + (Math.floor(state.time / 3600) % 26))}.`, 'atc');
+  radio(state, 'TWR', `All stations, runway in use changed to ${to}, information ${String.fromCharCode(65 + (Math.floor(state.time / 3600) % 26))} is now current.`, 'atc');
   notify(state, T`🧭 Betriebsrichtung jetzt ${to}`, 'info');
 }
 
@@ -579,11 +583,11 @@ function towerSpacing(state) {
       if (want) {
         a.spdOverride = want;
         a.autoSpd = true;
-        say(state, a, `${tel(a)}, reduce speed ${want} knots for spacing.`, `Speed ${want}, ${tel(a)}.`);
+        say(state, a, `${tel(a)}, reduce speed to ${want} knots for spacing.`, `Reducing speed to ${want} knots, ${tel(a)}.`);
       } else if (a.autoSpd) {
         a.spdOverride = null;
         a.autoSpd = false;
-        say(state, a, `${tel(a)}, no speed restrictions.`, `No speed restrictions, ${tel(a)}.`);
+        say(state, a, `${tel(a)}, resume normal speed.`, `Resuming normal speed, ${tel(a)}.`);
       }
     }
   }

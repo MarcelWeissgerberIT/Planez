@@ -2,8 +2,10 @@
 // Warteschlange, feste Lotsenstimme, eigene Stimme je Flugzeug, ICAO-Aussprache von Zahlen.
 import { AIRLINES } from './config.js';
 import { T, EN } from './i18n.js';
+import { speech } from './sim/messages.js';
 
-const DIGIT = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'niner'];
+// ICAO-Aussprache der Ziffern (Doc 9432): tree, fower, fife, niner
+const DIGIT = ['zero', 'one', 'two', 'tree', 'fower', 'fife', 'six', 'seven', 'eight', 'niner'];
 const digits = (s) => String(s).split('').map((c) => (/\d/.test(c) ? DIGIT[+c] : c === '.' ? 'decimal' : c)).join(' ');
 const SIDE = { L: 'left', R: 'right', C: 'center' };
 const PHONETIC = { A: 'Alpha', B: 'Bravo', C: 'Charlie', D: 'Delta', E: 'Echo', F: 'Foxtrot', G: 'Golf', H: 'Hotel', I: 'India', J: 'Juliett', K: 'Kilo', L: 'Lima', M: 'Mike', N: 'November', O: 'Oscar', P: 'Papa', Q: 'Quebec', R: 'Romeo', S: 'Sierra', T: 'Tango', U: 'Uniform', V: 'Victor', W: 'Whiskey', X: 'X-ray', Y: 'Yankee', Z: 'Zulu' };
@@ -13,7 +15,7 @@ const SAY = [[/\bPlanez\b/g, 'Planes'], [/\bRheinjet\b/g, 'Rhine jet'], [/\bFjor
 // Zahlen so sprechen, wie es Lotsen und Piloten tun
 export function spoken(text) {
   let t = ' ' + text + ' ';
-  t = t.replace(/MAYDAY MAYDAY MAYDAY/g, 'Mayday, Mayday, Mayday');
+  t = t.replace(/MAYDAY MAYDAY MAYDAY/g, 'Mayday, Mayday, Mayday').replace(/\bMAYDAY\b/g, 'Mayday');
   for (const [re, w] of SAY) t = t.replace(re, w);
   // Rollwege und ATIS-Kennung im ICAO-Alphabet („via A and L“ -> „via Alpha and Lima“, „information K“)
   t = t.replace(/\b(via|and|taxiway|then|information) ([A-Z])\b(?!-)/g, (_, w, l) => `${w} ${PHONETIC[l]}`);
@@ -25,14 +27,16 @@ export function spoken(text) {
   t = t.replace(/\bwind (\d{3}) degrees (\d{1,2}) knots\b/g, (_, d, k) => T`wind ${digits(d)} degrees, ${digits(k)} knots`);
   t = t.replace(/\bQNH (\d{3,4})\b/g, (_, n) => `Q N H ${digits(n)}`);
   t = t.replace(/\b(ILS|CTOT|TSAT|TOBT|ATIS|VOR|RVR|LVP)\b/g, (m) => m.split('').join(' '));
-  t = t.replace(/\bnumber (\d)\b/g, (_, n) => `number ${DIGIT[+n] === 'niner' ? 'nine' : DIGIT[+n]}`);
+  t = t.replace(/\bnumber (\d)\b/g, (_, n) => `number ${DIGIT[+n]}`);
+  // Wegpunkte (NOLTA, SUDEN …) als Wort sprechen statt buchstabieren
+  t = t.replace(/\b([A-Z])([A-Z]{4})\b/g, (_, f, r) => f + r.toLowerCase());
   // übrige Zahlen: Ziffer für Ziffer (Rufzeichen, Kurse, Geschwindigkeiten, Uhrzeiten)
   t = t.replace(/\b\d+\b/g, (n) => digits(n));
   return t.replace(/\s+/g, ' ').trim();
 }
 function spokenThousands(n) {
   const th = Math.floor(n / 1000), h = Math.round((n % 1000) / 100);
-  const w = (x) => (x === 9 ? 'niner' : DIGIT[x]);
+  const w = (x) => DIGIT[x];
   let s = th ? `${th >= 10 ? digits(th) : w(th)} thousand` : '';
   if (h) s += `${s ? ' ' : ''}${w(h)} hundred`;
   return s || 'zero';
@@ -173,6 +177,7 @@ function pilotVoice(from) {
 }
 
 // ---------------- Sender / Warteschlange ----------------
+const KEEP = /MAYDAY|PAN|cleared for take-off|cleared to land|go around|going around/i;
 export const voice = {
   on: false,
   vol: 0.9,
@@ -219,8 +224,10 @@ export const voice = {
     if (urgent) this.queue.unshift(m);
     else this.queue.push(m);
     // Rückstau begrenzen: älteste unwichtige Meldungen verwerfen
+    // Freigaben für Start und Landung samt Rücklesung bleiben stehen – der Startlauf wartet darauf
     while (this.queue.length > 4) {
-      const i = this.queue.findIndex((q) => !/MAYDAY|PAN/i.test(q.text));
+      const i = this.queue.findIndex((q) => !KEEP.test(q.text));
+      if (i < 0 && this.queue.length <= 8) break;
       this.queue.splice(i < 0 ? this.queue.length - 1 : i, 1);
     }
     this.pump();
@@ -334,3 +341,6 @@ export const voice = {
 
 // Airline-Rufnamen für die Spracherkennung
 export const TELEPHONY = Object.values(AIRLINES).map((a) => ({ code: a.code, tel: a.tel.toLowerCase() }));
+
+// Simulation fragt nach: spricht dieser Sender noch oder wartet er auf die Frequenz?
+speech.pending = (cs) => voice.on && !!window.speechSynthesis && ((voice.current && voice.current.from === cs) || voice.queue.some((q) => q.from === cs));

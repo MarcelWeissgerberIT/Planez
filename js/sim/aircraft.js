@@ -6,7 +6,7 @@ import { assignLook } from './spotter.js';
 import { clamp, dist, degDiff, degNorm, DEG, rand, randInt, randRange, angNorm, pathLength } from '../util.js';
 import * as LY from '../layout.js';
 import * as AS from './airspace.js';
-import { radio, log, notify } from './messages.js';
+import { radio, log, notify, speech } from './messages.js';
 import { nextId } from './schedule.js';
 import { onBlock, onPushbackStart, onPushbackDone, assignStandAuto } from './ground.js';
 import { onLanding, onTakeoff, penalize } from './economy.js';
@@ -59,7 +59,7 @@ export function tel(ac) {
 const ATIS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const atisName = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliett', 'Kilo', 'Lima', 'Mike', 'November', 'Oscar', 'Papa', 'Quebec', 'Romeo', 'Sierra', 'Tango', 'Uniform', 'Victor', 'Whiskey', 'X-ray', 'Yankee', 'Zulu'];
 export const atis = (state) => atisName[(state.atisN ?? Math.floor(state.time / 3600)) % 26];
-export const windStr = (state) => T`wind ${String(Math.round(state.wind.dir / 10) * 10).padStart(3, '0')} degrees ${Math.round(state.wind.spd)} knots` + (gustPeak(state) ? ` gusting ${gustPeak(state)}` : '');
+export const windStr = (state) => `wind ${String(Math.round(state.wind.dir / 10) * 10 || 360).padStart(3, '0')} degrees ${Math.round(state.wind.spd)} knots` + (gustPeak(state) ? ` gusting ${gustPeak(state)} knots` : '');
 
 export function getRot(state, ac) {
   return state.rots[ac.rot];
@@ -289,7 +289,7 @@ function enterHold(state, ac, fix) {
   ac.stackAlt = null;
   ac.tSpd = 220;
   ac.route = [];
-  radio(state, ac.cs, `${tel(ac)}, entering hold at ${fix.name}, ${fmtAlt(ac.tAlt)}.`);
+  radio(state, ac.cs, `${tel(ac)}, entering the hold at ${fix.name}, maintaining ${fmtAlt(ac.tAlt)}.`);
   setReq(state, ac, 'approach');
 }
 
@@ -301,7 +301,7 @@ function updateFuel(state, ac, dt) {
   ac.fuelMin -= dt / 60;
   if (ac.fuelMin <= 12 && !ac.minFuel) {
     ac.minFuel = true;
-    radio(state, ac.cs, `${tel(ac)}, declaring minimum fuel.`);
+    radio(state, ac.cs, `Tower, ${tel(ac)}, minimum fuel.`);
     notify(state, T`⛽ ${ac.cs}: MINIMUM FUEL – bald Anflug freigeben`, 'warn');
     log(state, 'sys', T`${ac.cs} meldet Minimum Fuel (noch ca. ${Math.round(ac.fuelMin)} min Reserve).`);
     state.stats.today.minFuel = (state.stats.today.minFuel || 0) + 1;
@@ -310,7 +310,7 @@ function updateFuel(state, ac, dt) {
     ac.fuelEmergency = true;
     ac.emergency = true;
     ac.squawk = '7700';
-    radio(state, ac.cs, `MAYDAY MAYDAY MAYDAY, ${tel(ac)}, fuel emergency, request immediate approach.`);
+    radio(state, ac.cs, `MAYDAY MAYDAY MAYDAY, Tower, ${tel(ac)}, MAYDAY fuel, fuel emergency, request immediate approach.`);
     notify(state, T`🚨 ${ac.cs}: MAYDAY FUEL – sofort landen lassen!`, 'bad');
     penalize(state, 'fuelEmergency', ac);
     state.fireAlert = state.fireAlert || { ac: ac.id, t: state.time };
@@ -465,7 +465,7 @@ function passWaypoint(state, ac, w) {
   if (w.iaf && ac.phase === PH.INBOUND) {
     enterHold(state, ac, w);
   } else if (w.faf && ac.phase === PH.APPROACH) {
-    radio(state, ac.cs, `${tel(ac)}, ${smallField(state) ? 'final' : 'established ILS'} runway ${rwyName(state, ac.strip || 'N', ac.rwy)}${ac.clr.land ? '' : ', request landing'}.`);
+    radio(state, ac.cs, `Tower, ${tel(ac)}, ${smallField(state) ? 'final' : 'established ILS'} runway ${rwyName(state, ac.strip || 'N', ac.rwy)}.`);
     if (!ac.clr.land) setReq(state, ac, 'land');
   } else if (w.exit && ac.phase === PH.DEPART) {
     ac.phase = PH.GONE;
@@ -506,14 +506,16 @@ function missedRoute(state, ac) {
   ac.missedSplit = true;
   ac.altRestr = 3000;
   const side = ac.pos && ac.pos.y > 0 ? 1 : -1;
-  radio(state, 'TWR', `${tel(ac)}, after departure end turn ${side * s > 0 ? 'right' : 'left'}, climb 3000 feet, traffic ahead on the missed approach.`, 'atc');
+  const turn = side * s > 0 ? 'right' : 'left';
+  radio(state, 'TWR', `${tel(ac)}, after the runway end turn ${turn}, climb altitude 3000 feet, traffic ahead on the missed approach.`, 'atc');
+  radio(state, ac.cs, `Turning ${turn} after the runway end, climbing 3000 feet, ${tel(ac)}.`);
   return [{ x: AS.THR[ac.rwy].x - s * 2.5, y: side * 3.2, name: '' }, { x: AS.THR[ac.rwy].x - s * 6, y: side * 3.2, name: '', missedEnd: true }];
 }
 
 export function goAround(state, ac, reason) {
   const rot = getRot(state, ac);
   state.stats.today.goArounds++;
-  radio(state, ac.cs, `${tel(ac)}, going around${reason ? '' : ''}.`);
+  radio(state, ac.cs, `Going around, ${tel(ac)}.`);
   log(state, 'sys', T`${ac.cs} startet durch – ${T(reason)}.`);
   notify(state, T`↗️ ${ac.cs} startet durch (${T(reason)})`, 'warn');
   penalize(state, 'goaround', ac);
@@ -680,7 +682,7 @@ function updateMap(state, ac, dt) {
         const clearY = ac.strip === 'S' ? LY.RWY_S.y - LY.RWY_S.hw - 0.9 : LY.HOLD_Y + 0.15;
         if (!ac.vacated && ac.y + ac.len * 0.5 < clearY) {
           ac.vacated = true;
-          if (!state.auto.atc) radio(state, ac.cs, `${tel(ac)}, runway vacated${ac.clr.taxi ? '' : ', request taxi'}.`);
+          if (!state.auto.atc) radio(state, ac.cs, `Tower, ${tel(ac)}, runway vacated${ac.clr.taxi ? '' : ', request taxi to stand'}.`);
         }
         if (done) {
           ac.vacated = true;
@@ -691,7 +693,7 @@ function updateMap(state, ac, dt) {
             ac.hdg = -Math.PI / 2;
             if (!ac.stand) ac.waitedStand = true;
             setReq(state, ac, 'cross');
-            if (!state.auto.atc) radio(state, ac.cs, `${tel(ac)}, holding short runway ${rwyName(state, 'N', ac.rwy)}, request crossing.`);
+            if (!state.auto.atc) radio(state, ac.cs, `Tower, ${tel(ac)}, holding short runway ${rwyName(state, 'N', ac.rwy)}, request to cross.`);
           } else if (ac.clr.taxi && ac.stand) startTaxiIn(state, ac);
           else if (!ac.stand) {
             // ohne Parkposition zur Warteposition am Rollweg-Ende rollen – hinter die, die dort schon warten oder
@@ -764,7 +766,7 @@ function updateMap(state, ac, dt) {
         if (ac.clr.taxiOut) startTaxiOut(state, ac);
         else if (ac.req !== 'taxi_out') {
           setReq(state, ac, 'taxi_out');
-          radio(state, ac.cs, `${tel(ac)}, ready to taxi.`);
+          radio(state, ac.cs, `Tower, ${tel(ac)}, request taxi.`);
         }
       }
       break;
@@ -780,7 +782,7 @@ function updateMap(state, ac, dt) {
           else if (ac.clr.takeoff && !slotOpen(state, ac, 45)) holdForSlot(state, ac);
         } else {
           setReq(state, ac, 'takeoff');
-          radio(state, ac.cs, `${tel(ac)}, holding point runway ${rwyName(state, 'N', ac.rwy)}, ready for departure.`);
+          radio(state, ac.cs, `Tower, ${tel(ac)}, holding point runway ${rwyName(state, 'N', ac.rwy)}, ready for departure.`);
         }
       }
       break;
@@ -823,7 +825,9 @@ function updateMap(state, ac, dt) {
       } else if (ac.clr.takeoff) {
         // Piste voraus frei?
         const blk = state.acs.find((o) => o !== ac && o.mode === 'map' && ((o.phase === PH.ROLLOUT && !o.vacated && (o.strip || 'N') === 'N') || o.crossing));
-        if (!blk) {
+        // erst rollen, wenn Freigabe und Rücklesung auf der Frequenz zu hören waren (höchstens eine Minute warten)
+        const since = state.time - (ac.clr.toT ?? -1e9);
+        if (!blk && since >= 3 && (since >= 60 || !speech.pending(ac.cs))) {
           ac.phase = PH.TAKEOFF;
           ac.req = null;
           radio(state, ac.cs, `${tel(ac)}, rolling.`, 'sys');

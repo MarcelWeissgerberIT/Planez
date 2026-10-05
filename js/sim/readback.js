@@ -29,12 +29,12 @@ export function readbackText(state, ac, kind, right) {
   let wrong = null;
   if (kind === 'lineup') {
     const rn = rwyName(state, 'N', ac.rwy);
-    wrong = `Cleared for take-off ${rn}, ${tel(ac)}.`;
+    wrong = `Cleared for take-off runway ${rn}, ${tel(ac)}.`;
   } else if (kind === 'land') {
     const rn = rwyName(state, ac.strip || 'N');
     const other = state.upgrades.rwy2 ? rwyName(state, (ac.strip || 'N') === 'N' ? 'S' : 'N') : state.rwy === '27' ? '09' : '27';
     if (other === rn) return right;
-    wrong = `Cleared to land ${other}, ${tel(ac)}.`;
+    wrong = `Cleared to land runway ${other}, ${tel(ac)}.`;
     ac.rbWrongRwy = other;
   }
   if (!wrong) return right;
@@ -49,12 +49,12 @@ export function correctReadback(state, ac) {
   if (!e) return { ok: false, msg: T('Kein falscher Readback offen') };
   if (e.kind === 'lineup') {
     const rn = rwyName(state, 'N', ac.rwy);
-    radio(state, 'TWR', `${tel(ac)}, negative, hold position, runway ${rn} line up and wait only, I say again, line up and wait.`, 'atc');
-    radio(state, ac.cs, `Line up and wait ${rn}, holding, sorry for that, ${tel(ac)}.`, 'pilot');
+    radio(state, 'TWR', `${tel(ac)}, negative, hold position, I say again, runway ${rn}, line up and wait.`, 'atc');
+    radio(state, ac.cs, `Holding position, line up and wait runway ${rn}, ${tel(ac)}.`, 'pilot');
   } else {
     const rn = rwyName(state, ac.strip || 'N');
-    radio(state, 'TWR', `${tel(ac)}, negative, runway ${rn}, I say again, runway ${rn}, cleared to land.`, 'atc');
-    radio(state, ac.cs, `Runway ${rn}, cleared to land, correction copied, ${tel(ac)}.`, 'pilot');
+    radio(state, 'TWR', `${tel(ac)}, negative, I say again, runway ${rn}, cleared to land.`, 'atc');
+    radio(state, ac.cs, `Cleared to land runway ${rn}, ${tel(ac)}.`, 'pilot');
   }
   const quick = e.age < RB_HINT;
   ac.rbErr = null;
@@ -118,8 +118,8 @@ export function updateReadback(state, dt) {
     if (ac.phase === PH.FINAL || d < 2.5) {
       ac.rbGoAround = false;
       ac.clr.land = false;
-      radio(state, ac.cs, `${tel(ac)}, going around, we were lined up for the wrong runway.`, 'pilot');
       goAround(state, ac, T('Falsche Piste (Readback)'));
+      radio(state, ac.cs, `${tel(ac)}, we were lined up with the wrong runway.`, 'pilot');
     }
   }
 }

@@ -5,6 +5,7 @@
 import { AC_TYPES, AIRLINES, CITIES } from '../config.js';
 import { NM, KT, dist, sub, dot, cross, add, mul, norm, rng, angNorm, brgOfVec, segX } from './geom.js';
 import { findRoute, pathFromRoute, pathAt } from './route.js';
+import { speech } from '../sim/messages.js';
 
 const GS = Math.tan((3 * Math.PI) / 180);
 const SPAWN = 12 * NM; // Anflug erscheint 12 NM vor der Schwelle
@@ -813,7 +814,8 @@ export class HubSim {
     ac.prio = ++this.prio;
     for (const eid of this.ap.lines[ac.stand.lane].edgeIds) this.useEdge(eid, ac, 0);
     // Position wird frei, sobald das Flugzeug draußen ist
-    this.radio(this.ap.tower.replace('Tower', 'Ground'), `${ac.tel}, pushback approved, expect runway ${ac.depEnd}`, 'atc', ac);
+    this.radio(this.ap.tower.replace('Tower', 'Ground'), `${ac.tel}, pushback and start-up approved, expect runway ${ac.depEnd}`, 'atc', ac);
+    if (this.manualGround) this.radio(ac.tel, `Pushback and start-up approved, expect runway ${ac.depEnd}, ${ac.tel}`, 'pilot', ac);
   }
   updatePush(ac, dt) {
     const L = dist(ac.pushFrom, ac.pushTo);
@@ -853,6 +855,7 @@ export class HubSim {
     ac.taxiStart = this.t;
     ac.nomTaxi = ac.path.total / 0.5 + 150;
     this.radio(this.ap.tower.replace('Tower', 'Ground'), `${ac.tel}, taxi to holding point runway ${ac.depEnd}`, 'atc', ac);
+    if (this.manualGround) this.radio(ac.tel, `Taxi to holding point runway ${ac.depEnd}, ${ac.tel}`, 'pilot', ac);
   }
   // am Rollhalt: Aufrollen und Start
   lineupPath(ac) {
@@ -1014,7 +1017,7 @@ export class HubSim {
     if (ac.phase !== P.FIN && ac.phase !== P.APP) return false;
     ac.landClr = true;
     ac.req = null;
-    this.radio(this.ap.tower, `${ac.tel}, runway ${ac.end}, cleared to land, ${this.windStr()}`, 'atc', ac);
+    this.radio(this.ap.tower, `${ac.tel}, ${this.windStr()}, runway ${ac.end}, cleared to land`, 'atc', ac);
     this.radio(ac.tel, `Cleared to land runway ${ac.end}, ${ac.tel}`, 'pilot', ac);
     return true;
   }
@@ -1033,13 +1036,17 @@ export class HubSim {
   }
   clearTakeoff(ac) {
     if (ac.phase !== P.HOLD && ac.phase !== P.LINED && ac.phase !== P.LINEUP) return false;
-    this.radio(this.ap.tower, `${ac.tel}, runway ${ac.depEnd}, cleared for take-off, ${this.windStr()}`, 'atc', ac);
+    this.radio(this.ap.tower, `${ac.tel}, ${this.windStr()}, runway ${ac.depEnd}, cleared for take-off`, 'atc', ac);
     this.radio(ac.tel, `Cleared for take-off runway ${ac.depEnd}, ${ac.tel}`, 'pilot', ac);
+    ac.tkAt = this.t;
     if (ac.phase === P.HOLD) this.lineUp(ac, true);
-    else if (ac.phase === P.LINEUP) ac.tkClr = true;
-    else this.takeoff(ac);
+    else ac.tkClr = true; // aufgestellt: rollt los, sobald die Rücklesung zu hören war
     ac.req = null;
     return true;
+  }
+  // Startlauf erst, wenn Freigabe und Rücklesung auf der Frequenz zu hören waren (höchstens eine Minute)
+  readyToRoll(ac) {
+    return this.t - (ac.tkAt ?? -1e9) >= 60 || !speech.pending(ac.tel);
   }
   clearCross(ac) {
     if (ac.req !== 'cross' || !ac.reqStop) return false;
@@ -1283,7 +1290,7 @@ export class HubSim {
               if (ac.req !== 'taxi') {
                 ac.req = 'taxi';
                 ac.tReq = this.t;
-                this.radio(ac.tel, `${ac.tel}, ready to taxi`, 'pilot', ac);
+                this.radio(ac.tel, `${this.ap.tower.replace('Tower', 'Ground')}, ${ac.tel}, request taxi`, 'pilot', ac);
               }
             } else this.beginTaxiOut(ac);
           }
@@ -1305,13 +1312,14 @@ export class HubSim {
           ac.onRwz = this.ap.ends[ac.depEnd].rwy;
           if (done) {
             ac.spd = 0;
-            if (ac.tkClr) this.takeoff(ac);
+            if (ac.tkClr && this.readyToRoll(ac)) this.takeoff(ac);
+            else if (ac.tkClr) ac.phase = P.LINED;
             else {
               ac.phase = P.LINED;
               ac.req = 'takeoff';
               ac.tReq = this.t;
             }
-          } else if (ac.tkClr && ac.path.total - ac.s < 1.5) {
+          } else if (ac.tkClr && ac.path.total - ac.s < 1.5 && this.readyToRoll(ac)) {
             this.takeoff(ac);
           }
           if (ac.phase === P.LINEUP && !ac.tkClr && this.auto.dep) {
@@ -1321,6 +1329,7 @@ export class HubSim {
         }
         case P.LINED:
           ac.onRwz = this.ap.ends[ac.depEnd].rwy;
+          if (ac.tkClr && this.t - (ac.tkAt ?? -1e9) >= 3 && this.readyToRoll(ac)) this.takeoff(ac);
           break;
         case P.TKOF:
           this.updateTakeoff(ac, dt);

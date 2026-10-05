@@ -14,6 +14,9 @@ export function notify(state, text, level = 'info') {
   for (const fn of listeners.toast) fn({ text, level });
 }
 
+// Sprachausgabe meldet, ob ein Sender noch spricht oder in der Warteschlange steht (Startlauf erst nach gehörter Rücklesung)
+export const speech = { pending: () => false };
+
 export function radio(state, from, text, kind = 'pilot') {
   log(state, kind, text, from);
 }

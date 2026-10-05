@@ -303,7 +303,7 @@ export function updateGround(state, dt) {
       if (ac.req !== 'push') {
         setReq(state, ac, 'push');
         const self = AC_TYPES[ac.type].selfTaxi;
-        radio(state, ac.cs, `${greet(state, ac).replace(/^./, (c) => c.toUpperCase())}${tel(ac)}, ${self ? T`parking ${ac.stand}, request start-up` : `stand ${ac.stand}, request pushback`}.`);
+        radio(state, ac.cs, `Tower, ${greet(state, ac)}${tel(ac)}, ${self ? T`parking ${ac.stand}, request start-up` : `stand ${ac.stand}, request pushback and start-up`}.`);
       }
     }
   }
