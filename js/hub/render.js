@@ -2,10 +2,11 @@
 // aus einem vorberechneten Bild, nah heran als Vektorgrafik; Gebäude als Quader mit Fassaden, Flugzeuge als dieselben
 // 3D-Modelle wie im Hauptspiel (render/acimp.js), dazu Beschriftungen, Haltebalken, aktive Bahnen und Nachtlichter.
 import { Camera, HALF_W, HALF_H } from '../render/camera.js';
-import { ZS, AIRLINES } from '../config.js';
+import { ZS, AIRLINES, AC_TYPES, VEH_TYPES } from '../config.js';
 import { IMG, glowTinted } from '../assets.js';
 import { PH } from '../sim/aircraft.js';
-import { PHASE as P } from './sim.js';
+import { PHASE as P, SIZE } from './sim.js';
+import { HubGse } from './gse.js';
 import { dist, polyCenter } from './geom.js';
 import { T } from '../i18n.js';
 
@@ -95,6 +96,9 @@ export class HubRenderer {
     this.adapt = new Map(); // Flugzeug-ID -> Objekt für die 3D-Modelle
     this.grassPat = null;
     this.lights = this.makeLights();
+    this.gse = new HubGse(sim);
+    this.vehs = [];
+    this.pState = { acs: [], time: 0 }; // für bewegliche Fahrzeugteile (Schleppstange): Flugzeuge in Hauptspiel-Maßen
     loadImp();
   }
   resize(w, h, dpr) {
@@ -487,7 +491,39 @@ export class HubRenderer {
     o.v = ac.spd;
     o.alt = ac.z * 65;
     o.roll = 0;
+    o.sc = SIZE; // Modelle des Hauptspiels maßstäblich verkleinern (wie die Umrisse der Simulation)
     return o;
+  }
+  // Auto auf der Landseite: 3D-Bild (je Richtung zwischengespeichert), sonst ein kleiner Strich in Wagenfarbe
+  drawCar(ctx, c) {
+    const cam = this.cam;
+    if (this.useImp && cam.zoom >= 0.18 && IMP.drawCar(ctx, cam, c.x, c.y, c.hdg, c.color, SIZE, 0, false, c.kind)) return;
+    const L = c.kind.startsWith('bus') ? 0.32 : 0.12;
+    const a = cam.toScreen(c.x - Math.cos(c.hdg) * L, c.y - Math.sin(c.hdg) * L, 0.03), b = cam.toScreen(c.x + Math.cos(c.hdg) * L, c.y + Math.sin(c.hdg) * L, 0.03);
+    ctx.strokeStyle = c.color;
+    ctx.lineWidth = Math.max(1.2, cam.zoom * 6);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+  // Vorfeldfahrzeug: 3D-Modell, sonst ein kleiner Quader in Fahrzeugfarbe; fade blendet bei An- und Abfahrt ein/aus
+  drawVehicle(ctx, v) {
+    ctx.globalAlpha = v.fade ?? 1;
+    if (!(this.useImp && IMP.has(v.id) && IMP.draw(this, v.id, v.x, v.y, 0))) {
+      const cam = this.cam;
+      const L = ((VEH_TYPES[v.type] || {}).len || 0.5) * SIZE * 0.5, W = 0.12;
+      const c = Math.cos(v.hdg || 0), s = Math.sin(v.hdg || 0);
+      const P2 = (f, l) => cam.toScreen(v.x + c * f - s * l, v.y + s * f + c * l, 0.05);
+      const pts = [P2(L, W), P2(L, -W), P2(-L, -W), P2(-L, W)];
+      ctx.fillStyle = (VEH_TYPES[v.type] || {}).color || (v.type === 'belt' ? '#e5e7eb' : '#facc15');
+      ctx.beginPath();
+      pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
   // vereinfachte Silhouette (falls die 3D-Modelle nicht verfügbar sind)
   drawSimple(ctx, ac) {
@@ -598,7 +634,17 @@ export class HubRenderer {
     // 3D-Modelle vorbereiten
     this.useImp = !!IMP && cam.zoom >= 0.065;
     const list = sim.acs.filter((a) => a.phase !== P.GONE && (this.inView(a.x, a.y, 20 + a.z * 2) || a.z > 1));
-    if (IMP) IMP.prepare(this, null, this.useImp ? list.filter((a) => this.inView(a.x, a.y, 20 + a.z * 2)).map((a) => this.adapter(a)) : [], [], dt);
+    // Vorfeldfahrzeuge (erst ab mittlerem Zoom sichtbar)
+    this.vehs = cam.zoom >= 0.07 ? this.gse.list().filter((v) => this.inView(v.x, v.y, 3)) : [];
+    const ps = this.pState;
+    ps.time = sim.t;
+    ps.acs.length = 0;
+    for (const v of this.vehs) {
+      const a = v.job && v.type === 'tug' && sim.byId && sim.byId.get(v.job.ac);
+      if (a) ps.acs.push({ id: a.id, type: a.type, len: (AC_TYPES[a.type] || AC_TYPES.A320).len });
+    }
+    const vehImp = this.useImp && cam.zoom >= 0.14;
+    if (IMP) IMP.prepare(this, ps, this.useImp ? list.filter((a) => this.inView(a.x, a.y, 20 + a.z * 2)).map((a) => this.adapter(a)) : [], vehImp ? this.vehs : [], dt);
     // Tiefensortierte Objekte am Boden
     const items = [];
     for (const b of ap.buildings) {
@@ -611,6 +657,8 @@ export class HubRenderer {
       items.push({ d: d - 0.5, f: () => this.drawBuilding(ctx, b, night) });
     }
     if (cam.zoom >= VEC_Z) for (const t of ap.trees) if (this.inView(t.x, t.y, 2)) items.push({ d: t.x + t.y, f: () => this.drawTree(ctx, t) });
+    for (const v of this.vehs) items.push({ d: v.x + v.y + 0.1, f: () => this.drawVehicle(ctx, v) });
+    if (cam.zoom >= 0.1) for (const c of this.gse.cars(this.view)) items.push({ d: c.x + c.y, f: () => this.drawCar(ctx, c) });
     const air = [];
     for (const ac of list) {
       if (ac.z > 0.4) air.push(ac);

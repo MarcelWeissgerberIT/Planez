@@ -208,6 +208,8 @@ export class Ride {
     this.load3d();
     // Begrüßung durch den Kapitän (Terminal-/Kabinenstimme, nur mit Echter Funk)
     this.greet(s, ac, mode);
+    // Lotse bzw. Vorfeld: der Verkehr läuft weiter, während man mitfliegt
+    if ((s.role === 'tower' || s.role === 'ground') && s.speed) toast(T('✈️ Du fliegst mit – der Verkehr läuft weiter. Esc oder ✕ bringt dich zurück an den Arbeitsplatz'), 'info', 4200);
   }
 
   // echte 3D-Ansicht (WebGL) nachladen; bis dahin bzw. ohne WebGL die gekippte Karte

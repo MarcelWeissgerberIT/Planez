@@ -2931,3 +2931,42 @@ input, textarea, select, [contenteditable="true"] { -webkit-user-select: text; u
 @keyframes pausepulse { 0%, 100% { box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.7), 0 10px 26px rgba(0, 0, 0, 0.45); } 50% { box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.35), 0 10px 26px rgba(0, 0, 0, 0.45); } }
 #game.cinema #pause-badge, #game.photo #pause-badge, #game.riding #pause-badge { display: none !important; }
 @media (max-width: 760px) { #pause-badge span { display: none; } }
+
+/* Großflughäfen: Mitfliegen in 3D */
+.hb-ride { position: absolute; inset: 0; z-index: 3; }
+.hb-ride.hidden { display: none; }
+.hb-ride .hb-3d { position: absolute; left: 0; top: 0; width: calc(100% - var(--hb-side)); height: 100%; display: block; }
+.hb-ride .hr-drag { position: absolute; left: 0; top: var(--hb-top); bottom: 0; width: calc(100% - var(--hb-side)); touch-action: none; cursor: grab; z-index: 1; }
+.hb-ride .hr-drag:active { cursor: grabbing; }
+.hb-ride .hr-bar { position: absolute; left: 10px; top: calc(var(--hb-top) + 10px); max-width: calc(100% - var(--hb-side) - 20px); z-index: 3; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--glass-2); border: 1px solid var(--line-2); border-radius: 12px; padding: 6px 8px; font-size: 12.5px; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.hb-ride .hr-modes { display: flex; gap: 4px; }
+.hb-ride .hr-bar button { background: rgba(255,255,255,.06); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 4px 9px; font: inherit; cursor: pointer; }
+.hb-ride .hr-bar button.on { background: var(--mm-cyan); color: #04121a; border-color: transparent; font-weight: 700; }
+.hb-ride .hr-t { color: var(--muted); }
+.hb-ride .hr-t b { color: var(--text); }
+.hb-ride .hr-load { position: absolute; left: calc(50% - var(--hb-side) / 2); top: 50%; transform: translate(-50%, -50%); background: var(--glass-2); padding: 10px 16px; border-radius: 10px; display: none; z-index: 3; }
+.hb-ride.loading .hr-load { display: block; }
+.hb-ride .hr-cockpit { display: none; position: absolute; left: 0; top: 0; bottom: 0; width: calc(100% - var(--hb-side)); pointer-events: none; z-index: 2; }
+.hb-ride.cockpit .hr-cockpit { display: block; }
+.hb-ride .hr-pl { position: absolute; top: 0; bottom: 24%; width: 7%; background: linear-gradient(90deg, #1b1f26, #2b313b); }
+.hb-ride .hr-pl.l { left: 0; clip-path: polygon(0 0, 100% 0, 40% 100%, 0 100%); }
+.hb-ride .hr-pl.r { right: 0; clip-path: polygon(0 0, 100% 0, 100% 100%, 60% 100%); }
+.hb-ride .hr-glare { position: absolute; left: 0; right: 0; bottom: 0; height: 24%; background: linear-gradient(#1a1d23, #0d0f13); border-top: 3px solid #2f3540; display: flex; justify-content: center; align-items: center; }
+.hb-ride .hr-pfd { display: flex; gap: 18px; align-items: center; background: #05070a; border: 2px solid #3a414d; border-radius: 8px; padding: 10px 16px; font: 700 13px ui-monospace, monospace; color: #e5e7eb; }
+.hb-ride .hr-pfd span { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 54px; }
+.hb-ride .hr-pfd small { color: #9ca3af; font-size: 10px; }
+.hb-ride .hr-pfd b { font-size: 18px; color: #fff; background: #000; padding: 1px 6px; border: 1px solid #fde047; }
+.hb-ride .hr-fma { color: #4ade80; font-size: 14px; min-width: 90px !important; }
+/* Fensterplatz: ovales Kabinenfenster in der hellen Kabinenwand */
+.hb-ride .hr-winbox { display: none; position: absolute; left: 0; top: 0; bottom: 0; width: calc(100% - var(--hb-side)); overflow: hidden; pointer-events: none; z-index: 2; }
+.hb-ride.window .hr-winbox { display: block; }
+.hb-ride .hr-win { position: absolute; left: 50%; top: 50%; width: min(52vmin, 50vw); height: min(68vmin, 70vh); transform: translate(-50%, -48%); border-radius: 46% / 40%; box-shadow: 0 0 0 14px #cfc8bc, 0 0 0 22px #b9b1a3, 0 0 0 200vmax #e4dfd6, inset 0 0 40px rgba(0,0,0,.45), inset 0 0 0 3px rgba(255,255,255,.35); pointer-events: none; z-index: 2; }
+#hub.hb-riding .hb-goal, #hub.hb-riding .hb-info, #hub.hb-riding .hb-ctrls { display: none; }
+#hub.hb-riding #hb-map { visibility: hidden; }
+@media (max-width: 760px) {
+  .hb-ride .hb-3d, .hb-ride .hr-drag, .hb-ride .hr-cockpit, .hb-ride .hr-winbox { width: 100%; }
+  .hb-ride .hr-bar { max-width: calc(100% - 20px); }
+  .hb-ride .hr-pfd { gap: 8px; padding: 6px 8px; }
+  .hb-ride .hr-cockpit { bottom: 42vh; }
+  #hub.noside .hb-ride .hr-cockpit { bottom: 0; }
+}

@@ -10,7 +10,7 @@ import { shapeAt, shapeGap } from '../sim/shape.js';
 
 // Flugzeugmaße: AC_TYPES rechnet in Kacheln des Towers (~15,2 m), die Großflughäfen in 20-m-Kacheln – vorher waren die
 // Flugzeuge hier ein Drittel zu groß und überragten beim Rollen die geparkten Nachbarn
-const SIZE = 15.2 / 20;
+export const SIZE = 15.2 / 20;
 const spanK = (t, type) => (type === 'A388' ? 1.1 : t.light ? 1.3 : t.size === 'L' ? 0.9 : t.size === 'S' ? 1.05 : 0.92);
 const shp = (a, x = a.x, y = a.y, h = a.hdg) => shapeAt(x, y, h, a.len, a.span);
 

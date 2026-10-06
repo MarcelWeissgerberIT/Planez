@@ -141,11 +141,12 @@ function shoot(obj, rad, hgt, K, x, cz, y, cv) {
   spent += performance.now() - t0;
   return { px, q };
 }
-// ein Modell in sein Bild rendern; z0 = Höhe über Grund, die beim Zeichnen ersetzt wird
-function render(id, m, key, K, x, cz, y, z0) {
+// ein Modell in sein Bild rendern; z0 = Höhe über Grund, die beim Zeichnen ersetzt wird; sc = Maßstab des Modells
+// (Großflughäfen: Flugzeuge und Fahrzeuge maßstäblich kleiner als im Hauptspiel)
+function render(id, m, key, K, x, cz, y, z0, sc = 1) {
   let c = cache.get(id);
   if (!c) cache.set(id, (c = { cv: document.createElement('canvas'), seen: frame }));
-  Object.assign(c, shoot(m.g, m.rad, m.hgt, K, x, cz, y, c.cv), { key, K, cz: cz - z0, t: performance.now() });
+  Object.assign(c, shoot(m.g, m.rad * sc, m.hgt * sc, K, x, cz, y, c.cv), { key, K, cz: cz - z0, t: performance.now() });
 }
 
 // ---------- Pkw: ein Bild je Farbe und Richtung (48 Richtungen), für Straßen, Parkplatz und Parkhaus ----------
@@ -242,7 +243,8 @@ export function prepare(r, state, acs, vehs = [], dt = 0) {
     const fs = flapStage(ac), spl = spoilersOut(ac); // Klappen 0/1/2, Störklappen
     const pitch = ac.phase === PH.TAKEOFF && ac.z > 0.02 ? 0.12 : 0;
     const roll = Math.round((ac.roll || 0) * 50) / 50; // Schaukeln in Böen (Stufen von gut 1°)
-    const key = `${Math.round(ac.hdg * 114.6)}|${gear}|${fs}|${spl}|${pitch}|${roll}`; // Kurs in halben Grad
+    const sc = ac.sc || 1;
+    const key = `${Math.round(ac.hdg * 114.6)}|${gear}|${fs}|${spl}|${pitch}|${roll}|${sc}`; // Kurs in halben Grad
     const c = cache.get(ac.id);
     if (!want(c, key, GAP.ac)) continue;
     todo.push({ c, run: () => {
@@ -251,22 +253,25 @@ export function prepare(r, state, acs, vehs = [], dt = 0) {
       if (m.parts.flapsTo) m.parts.flapsTo.visible = fs === 1;
       if (m.parts.slats) m.parts.slats.visible = fs > 0;
       if (m.parts.spoilers) m.parts.spoilers.visible = spl;
-      const z = m.H + (ac.z || 0);
+      const z = m.H * sc + (ac.z || 0);
+      m.g.scale.setScalar(sc);
       m.g.position.set(ac.x, z, ac.y);
       m.g.rotation.set(roll, -ac.hdg, pitch, 'YXZ');
-      render(ac.id, m, key, K, ac.x, z, ac.y, ac.z || 0);
+      render(ac.id, m, key, K, ac.x, z, ac.y, ac.z || 0, sc);
     } });
   }
   for (const v of vehs) {
     const m = modelFor(v.id, `v|${v.type}`, () => buildVehicle(v));
     const pose = poseVehicle(state, v, m.g, dt, r.time ?? state.time); // bewegliche Teile weiterführen, auch ohne neues Bild (Uhr: Echtzeit wie in 3D)
-    const key = `${Math.round((v.hdg || 0) * 57.3)}|${pose}`;
+    const sc = v.sc || 1;
+    const key = `${Math.round((v.hdg || 0) * 57.3)}|${pose}|${sc}`;
     const c = cache.get(v.id);
     if (!want(c, key, GAP.veh)) continue;
     todo.push({ c, run: () => {
+      m.g.scale.setScalar(sc);
       m.g.position.set(v.x, 0, v.y);
       m.g.rotation.set(0, -(v.hdg || 0), 0);
-      render(v.id, m, key, K, v.x, m.hgt / 2, v.y, 0);
+      render(v.id, m, key, K, v.x, (m.hgt * sc) / 2, v.y, 0, sc);
     } });
   }
   todo.sort((a, b) => (a.c ? a.c.t : -1) - (b.c ? b.c.t : -1));

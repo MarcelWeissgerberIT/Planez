@@ -149,6 +149,7 @@ class HubMode {
     const r = this.el.getBoundingClientRect();
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     this.renderer.resize(r.width, r.height, dpr);
+    if (this.ride) this.ride.resize();
     const side = this.el.querySelector('.hb-side');
     this.renderer.cam.pad = this.el.classList.contains('noside') || r.width < 761 ? 0 : side.getBoundingClientRect().width + 8;
     this.radar.resize();
@@ -251,7 +252,7 @@ class HubMode {
     }
     const k = e.key.toLowerCase();
     const cam = this.renderer.cam;
-    if (k === 'escape') return this.cmd('menu');
+    if (k === 'escape') return this.ride && this.ride.on ? this.ride.stop() : this.cmd('menu');
     if (k === ' ') {
       e.preventDefault();
       return this.setSpeed(this.speed ? 0 : this.lastSpeed || 1);
@@ -308,6 +309,8 @@ class HubMode {
     this.uiT = 0;
   }
   select(id, focus) {
+    // beim Mitfliegen: ein anderes Flugzeug wählen (Streifen, Radar) = dorthin umsteigen
+    if (this.ride && this.ride.on && id && id !== this.ride.id) this.ride.start(id, this.ride.mode);
     this.sel = id || null;
     this.renderer.sel = this.sel;
     this.radar.sel = this.sel;
@@ -366,9 +369,35 @@ class HubMode {
       if (r.range >= 10) return this.setRadarRange(false, 8);
       return this.setRadarRange(true);
     }
+    if (c.startsWith('ride:')) return this.startRide(c.slice(5));
     if (c === 'menu') return this.pauseMenu();
     if (c === 'cfg') return this.cfgMenu();
     if (c === 'ai') return this.aiMenu();
+  }
+
+  // ------------------------------------------------------------ Mitfliegen (3D)
+  startRide(mode) {
+    const id = this.sel;
+    if (!id) return;
+    if (this.ride) return this.ride.start(id, mode);
+    if (this.rideLoading) return;
+    this.rideLoading = true;
+    this.toast(T('3D-Ansicht wird geladen …'), 'info', 2000);
+    import('./ride3d.js')
+      .then((m) => {
+        this.rideLoading = false;
+        if (this.dead) return;
+        this.ride = new m.HubRide(this);
+        this.ride.start(id, mode);
+      })
+      .catch((e) => {
+        this.rideLoading = false;
+        console.error('3D', e);
+        this.toast(T('3D-Ansicht konnte nicht starten – bitte die Seite neu laden (Strg+Umschalt+R)'), 'bad', 6000);
+      });
+  }
+  phaseText(a) {
+    return PHASE_TXT[a.phase] || '';
   }
 
   // ------------------------------------------------------------ Fenster
@@ -680,7 +709,7 @@ class HubMode {
     const html = `<div class="hi-h"><b>${a.cs}</b><span>${esc(al.name || '')} · ${esc(a.tt.name)} (${a.wake})</span><button class="hb-x" data-hb="desel">✕</button></div>
       <div class="hi-r">${route}${rw ? ` · ${T('Bahn')} ${rw}` : ''}${a.stand ? ` · ${T('Position')} ${a.stand.name}` : ''}</div>
       <div class="hi-r"><b>${esc(PHASE_TXT[a.phase] || '')}</b> · ${kt} kt${alt}${a.phase === P.FIN || a.phase === P.APP ? ` · ${nm(a.dfin)} NM` : ''}</div>
-      <div class="hs-btns">${btns}<button class="hs-b ghost" data-hb="follow">${this.follow ? T('Folgen aus') : T('Folgen')} <kbd>F</kbd></button></div>`;
+      <div class="hs-btns">${btns}<button class="hs-b ghost" data-hb="follow">${this.follow ? T('Folgen aus') : T('Folgen')} <kbd>F</kbd></button><button class="hs-b ghost" data-hb="ride:cockpit" title="${T('Im Cockpit mitfliegen (3D)')}">✈️ ${T('Cockpit')}</button><button class="hs-b ghost" data-hb="ride:window" title="${T('Als Passagier am Fensterplatz mitfliegen (3D)')}">🪟 ${T('Fenster')}</button></div>`;
     if (box._html !== html) {
       box.innerHTML = html;
       box._html = html;
@@ -727,9 +756,13 @@ class HubMode {
     cam.update(dt);
     this.talk = this.talking();
     this.renderer.talk = this.radar.talk = this.talk;
-    this.renderer.render(dt);
+    // beim Mitfliegen die 3D-Ansicht statt der Karte zeichnen; Radar und Streifen bleiben bedienbar
+    if (this.ride && this.ride.on) this.ride.frame();
+    else {
+      this.renderer.render(dt);
+      this.minimap.update(dt);
+    }
     if (!this.el.classList.contains('noside')) this.radar.render(dt);
-    this.minimap.update(dt);
     // neue Anfragen: kurzer Ton
     for (const a of this.sim.acs) {
       if (a.req && !this.reqSeen.has(a.id + a.req)) {
@@ -758,6 +791,8 @@ class HubMode {
     window.removeEventListener('keydown', this.onKey);
     voice.stop && voice.stop();
     tracks.stop && tracks.stop();
+    if (this.ride && this.ride.v3d) this.ride.v3d.dispose();
+    this.ride = null;
     this.el.classList.add('hidden');
     this.el.innerHTML = '';
     if (current === this) current = null;
