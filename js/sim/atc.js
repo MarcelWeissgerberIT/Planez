@@ -196,6 +196,7 @@ export const CMDS = {
     run: (s, ac) => {
       if (overXw(s, ac)) return unableXw(s, ac);
       ac.clr.lineup = true;
+      ac.clr.luT = s.time;
       ac.req = null;
       const rn = rwyName(s, 'N', ac.rwy);
       say(s, ac, `${tel(ac)}, runway ${rn}, line up and wait.`, readbackText(s, ac, 'lineup', `Line up and wait runway ${rn}, ${tel(ac)}.`));

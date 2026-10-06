@@ -69,30 +69,22 @@ function band(a, f = 1800, q = 0.9) {
   bp.Q.value = q;
   return bp;
 }
-// kurzer Sendetasten-Klick mit Rauschfahne
+// kurzer, weicher Rauschstoß beim Drücken und Loslassen der Sendetaste (kein Piepton)
 function squelch(vol) {
   const a = audio();
   if (!a || vol <= 0) return;
   const src = a.createBufferSource();
-  src.buffer = noiseBuffer(a, 0.14);
+  src.buffer = noiseBuffer(a, 0.12);
   const g = a.createGain();
   const t0 = a.currentTime;
   g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(0.09 * vol, t0 + 0.005);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.13);
-  src.connect(band(a, 2200, 0.7)).connect(g).connect(a.destination);
-  src.start();
-  const o = a.createOscillator();
-  const og = a.createGain();
-  o.type = 'square';
-  o.frequency.value = 1150;
-  og.gain.setValueAtTime(0.0001, t0);
-  og.gain.exponentialRampToValueAtTime(0.012 * vol, t0 + 0.003);
-  og.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.03);
-  o.connect(og).connect(a.destination);
-  o.start(t0);
-  o.stop(t0 + 0.04);
+  g.gain.exponentialRampToValueAtTime(0.045 * vol, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.11);
+  src.connect(band(a, 1700, 0.8)).connect(g).connect(a.destination);
+  src.start(t0);
+  src.stop(t0 + 0.12);
 }
+// leises Trägerrauschen während der Sendung, sanft ein- und ausgeblendet (sonst knackt es)
 function startHiss(vol) {
   const a = audio();
   if (!a || vol <= 0 || hiss) return;
@@ -100,17 +92,28 @@ function startHiss(vol) {
   src.buffer = noiseBuffer(a, 2);
   src.loop = true;
   const g = a.createGain();
-  g.gain.value = 0.011 * vol;
-  src.connect(band(a, 1600, 0.6)).connect(g).connect(a.destination);
-  src.start();
-  hiss = { src, g };
+  const t0 = a.currentTime;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.006 * vol, t0 + 0.08);
+  src.connect(band(a, 1500, 0.7)).connect(g).connect(a.destination);
+  src.start(t0);
+  hiss = { src, g, a };
 }
 function stopHiss() {
   if (!hiss) return;
-  try {
-    hiss.src.stop();
-  } catch (e) {}
+  const { src, g, a } = hiss;
   hiss = null;
+  try {
+    const t0 = a.currentTime;
+    g.gain.cancelScheduledValues(t0);
+    g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.08);
+    src.stop(t0 + 0.1);
+  } catch (e) {
+    try {
+      src.stop();
+    } catch (e2) {}
+  }
 }
 
 // Klick beim Drücken der eigenen Sprechtaste
@@ -125,16 +128,20 @@ let deVoices = [];
 const LOC = EN ? 'en' : 'de';
 const LOC_TAG = EN ? 'en-GB' : 'de-DE';
 // Spaß- und Effektstimmen (v. a. macOS) taugen nicht für den Funk
-const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|wobble|zarvox|trinoids|whisper|jester|organ|superstar|good news|deranged|hysterical|junior|ralph|\bfred\b|kathy|princess|grandma|grandpa|\beddy\b|\bflo\b|\breed\b|rocko|\bsandy\b|shelley|novelty/i;
+const NOVELTY = /albert|bad ?news|bahh|bells|boing|bubbles|cellos|wobble|zarvox|trinoids|whisper|jester|organ|superstar|good ?news|deranged|hysterical|junior|ralph|\bfred\b|kathy|princess|grandma|grandpa|\beddy\b|\bflo\b|\breed\b|rocko|\bsandy\b|shelley|novelty|\boma\b|\bopa\b|flüster|glocken|blasen|orgel|celli|nachricht/i;
+// iOS/macOS: Eloquence-Sprachsynthese (Eddy, Flo, Opa …) und Effektstimmen klingen blechern bzw. heiser – auch an der
+// Kennung erkennen, denn die Namen sind auf deutschen Geräten übersetzt
+const ODD_URI = /eloquence|speech\.synthesis\.voice\.(albert|badnews|bahh|bells|boing|bubbles|cellos|deranged|goodnews|hysterical|jester|junior|kathy|organ|princess|ralph|fred|superstar|trinoids|whisper|wobble|zarvox)\b|novelty/i;
+const odd = (v) => NOVELTY.test(v.name) || ODD_URI.test(v.voiceURI || '');
 // natürlich klingende Stimmen zuerst (Edge „Online (Natural)“, Google, Siri/Premium/Enhanced)
-const quality = (v) => (/natural|neural|online|premium|enhanced|siri/i.test(v.name) ? 4 : 0) + (/google/i.test(v.name) ? 3 : 0) + (/microsoft/i.test(v.name) ? 1 : 0) + (v.localService === false ? 1 : 0) + (/daniel|samantha|karen|moira|tessa|serena|arthur|oliver/i.test(v.name) ? 2 : 0);
+const quality = (v) => (/natural|neural|online|premium|enhanced|siri/i.test(v.name) ? 4 : 0) + (/google/i.test(v.name) ? 3 : 0) + (/microsoft/i.test(v.name) ? 1 : 0) + (v.localService === false ? 1 : 0) + (/daniel|samantha|karen|moira|tessa|serena|arthur|oliver|aaron|nicky|martha|gordon|catherine|fiona|rishi|libby|sonia|ryan|jenny|aria|guy/i.test(v.name) ? 2 : 0);
 function loadVoices() {
   if (!window.speechSynthesis) return;
   const all = speechSynthesis.getVoices();
   const en = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith('en'));
-  const good = en.filter((v) => !NOVELTY.test(v.name));
+  const good = en.filter((v) => !odd(v));
   voices = (good.length ? good : en).slice().sort((a, b) => quality(b) - quality(a));
-  deVoices = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith(LOC) && !NOVELTY.test(v.name)).sort((a, b) => quality(b) - quality(a));
+  deVoices = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith(LOC) && !odd(v)).sort((a, b) => quality(b) - quality(a));
 }
 // Bodencrew (Betriebsfunk, Deutsch): feste Stimme je Fahrzeug
 function crewVoice(from) {
@@ -167,16 +174,20 @@ function pilotVoice(from) {
   if (!voices.length) return null;
   const atc = atcVoice();
   const pool = voices.filter((v) => v !== atc);
-  const list = pool.length ? pool : voices;
+  let list = pool.length ? pool : voices;
+  // nur die gut klingenden Stimmen, sofern genug davon da sind (einfache Kompaktstimmen klingen oft blechern)
+  const top = list.filter((v) => quality(v) >= 2);
+  if (top.length >= 3) list = top;
   const al = String(from).replace(/[^A-Z].*$/, '');
   const acc = ACCENT[al];
   const byAccent = acc ? list.filter((v) => acc.some((a) => v.lang.replace('_', '-').toLowerCase().startsWith(a.toLowerCase()))) : [];
   // die besseren Stimmen bevorzugen: aus der oberen Hälfte der Liste wählen, sofern vorhanden
-  const cand = byAccent.length ? byAccent : list.slice(0, Math.max(2, Math.ceil(list.length / 2)));
+  const cand = byAccent.length ? byAccent : top.length >= 3 ? list : list.slice(0, Math.max(2, Math.ceil(list.length / 2)));
   return cand[hash(from) % cand.length];
 }
 
 // ---------------- Sender / Warteschlange ----------------
+const queuedAt = new WeakMap(); // Meldung -> Zeitpunkt (Echtzeit), seit dem sie auf die Frequenz wartet
 const KEEP = /MAYDAY|PAN|cleared for take-off|cleared to land|go around|going around/i;
 export const voice = {
   on: false,
@@ -221,6 +232,7 @@ export const voice = {
     const urgent = /MAYDAY|PAN PAN|go around|going around|fuel emergency/i.test(m.text);
     // bei hohem Tempo nur Wichtiges, sonst läuft der Funk hinterher
     if (speed > 2 && !urgent && !/request|ready|cleared to land|cleared for take-off/i.test(m.text)) return;
+    queuedAt.set(m, performance.now());
     if (urgent) this.queue.unshift(m);
     else this.queue.push(m);
     // Rückstau begrenzen: älteste unwichtige Meldungen verwerfen
@@ -245,9 +257,9 @@ export const voice = {
       u.lang = v.lang;
     } else u.lang = isCrew ? LOC_TAG : 'en-US';
     const h = hash(m.from || 'TWR');
-    // natürliche Stimmen klingen bei starker Tonhöhenverschiebung künstlich: nur leicht variieren
-    u.rate = (isCrew ? 1.02 : isAtc ? 1.08 : 1.03 + (h % 5) * 0.025) * this.rate;
-    u.pitch = isCrew ? 1 : isAtc ? 0.97 : 0.9 + (h % 5) * 0.05;
+    // Tonhöhe nie verschieben – vor allem Frauenstimmen klingen sonst verzerrt; nur das Sprechtempo variiert leicht
+    u.rate = (isCrew ? 1.02 : isAtc ? 1.05 : 1.0 + (h % 4) * 0.03) * this.rate;
+    u.pitch = 1;
     u.volume = this.vol;
     this.current = m;
     const done = () => {
@@ -293,7 +305,7 @@ export const voice = {
       u.lang = v.lang;
     } else u.lang = LOC_TAG;
     u.rate = 0.92 * this.rate;
-    u.pitch = 1.05;
+    u.pitch = 1;
     u.volume = this.vol * 0.75;
     const m = { kind: 'pa', from: T('Durchsage'), text };
     this.current = m;
@@ -342,5 +354,12 @@ export const voice = {
 // Airline-Rufnamen für die Spracherkennung
 export const TELEPHONY = Object.values(AIRLINES).map((a) => ({ code: a.code, tel: a.tel.toLowerCase() }));
 
-// Simulation fragt nach: spricht dieser Sender noch oder wartet er auf die Frequenz?
-speech.pending = (cs) => voice.on && !!window.speechSynthesis && ((voice.current && voice.current.from === cs) || voice.queue.some((q) => q.from === cs));
+// Simulation fragt nach: spricht dieser Sender noch oder wartet er auf die Frequenz? Höchstens 40 s in Echtzeit,
+// unabhängig vom Spieltempo – falls die Sprachausgabe hängt, rollt der Verkehr trotzdem weiter
+const PENDING_MAX = 40000;
+speech.pending = (cs) => {
+  if (!voice.on || !window.speechSynthesis) return false;
+  const now = performance.now();
+  const mine = (q) => q && q.from === cs && now - (queuedAt.get(q) ?? now) < PENDING_MAX;
+  return mine(voice.current) || voice.queue.some(mine);
+};

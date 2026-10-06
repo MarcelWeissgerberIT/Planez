@@ -711,6 +711,7 @@ class HubMode {
     this.raf = requestAnimationFrame((t) => this.loop(t));
     const dt = Math.min(0.1, Math.max(0, (ts - this.last) / 1000));
     this.last = ts;
+    this.sim.speedHint = this.speed;
     if (this.speed && !modalOpen()) this.sim.update(dt * this.speed);
     // Kamera folgt
     const cam = this.renderer.cam;

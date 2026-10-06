@@ -1,6 +1,6 @@
 // Flugzeuge: Lebenszyklus, Navigation im Luftraum, Bewegung auf der Karte
 import { windGoAround, gustPeak } from './gusts.js';
-import { AC_TYPES, AIRLINES, CITIES, AIRPORT } from '../config.js';
+import { AC_TYPES, AIRLINES, CITIES, AIRPORT, TIME_SCALE } from '../config.js';
 import { touchdown } from './touchdown.js';
 import { assignLook } from './spotter.js';
 import { clamp, dist, degDiff, degNorm, DEG, rand, randInt, randRange, angNorm, pathLength } from '../util.js';
@@ -20,6 +20,7 @@ import { vfrTel } from './vfr.js';
 import { isReg, typeAllowed, smallField } from './career.js';
 import { standFits, standFree } from './ground.js';
 import { T } from '../i18n.js';
+import { shapeAt, shapeGap, wingsTouch } from './shape.js';
 // freie, passende Position für einen Gastflieger? (auch schon reservierte zählen als belegt)
 function gaStandFree(state, type) {
   const fake = { type };
@@ -791,7 +792,8 @@ function updateMap(state, ac, dt) {
       ac.v = 0;
       // Line up erst, wenn niemand mehr auf der Bahn aufrollt oder dort steht – sonst stehen zwei hintereinander und
       // die ganze Schlange am Rollhalt blockiert
-      if (ac.clr.lineup || ac.clr.takeoff) {
+      // erst losrollen, wenn die Rücklesung auf der Frequenz zu hören war
+      if ((ac.clr.lineup || ac.clr.takeoff) && rbHeard(state, ac, Math.max(ac.clr.luT ?? -1e9, ac.clr.toT ?? -1e9))) {
         ac.luWaitBy = lineupWait(state, ac);
         if (!ac.luWaitBy) startLineUp(state, ac);
         else if (ac.clr.takeoff && !slotOpen(state, ac, 45)) holdForSlot(state, ac);
@@ -825,9 +827,9 @@ function updateMap(state, ac, dt) {
       } else if (ac.clr.takeoff) {
         // Piste voraus frei?
         const blk = state.acs.find((o) => o !== ac && o.mode === 'map' && ((o.phase === PH.ROLLOUT && !o.vacated && (o.strip || 'N') === 'N') || o.crossing));
-        // erst rollen, wenn Freigabe und Rücklesung auf der Frequenz zu hören waren (höchstens eine Minute warten)
+        // erst rollen, wenn Freigabe und Rücklesung auf der Frequenz zu hören waren
         const since = state.time - (ac.clr.toT ?? -1e9);
-        if (!blk && since >= 3 && (since >= 60 || !speech.pending(ac.cs))) {
+        if (!blk && since >= 3 && rbHeard(state, ac, ac.clr.toT)) {
           ac.phase = PH.TAKEOFF;
           ac.req = null;
           radio(state, ac.cs, `${tel(ac)}, rolling.`, 'sys');
@@ -1138,47 +1140,18 @@ const spanOf = (ac) => {
   const t = AC_TYPES[ac.type] || {};
   return ac.len * (ac.type === 'A388' ? 1.1 : t.light ? 1.3 : t.size === 'L' ? 0.9 : t.size === 'S' ? 1.05 : 0.92);
 };
+// Rücklesung gehört? Die Spieluhr läuft schon bei 1× 7,5-mal so schnell wie die echte Zeit – das Sicherheitsnetz
+// (falls die Sprachausgabe hängt) zählt daher in Echtzeit, rund 45 s; die Sprachausgabe selbst gibt nach 40 s frei
+function rbHeard(state, ac, t) {
+  return !speech.pending(ac.cs) || state.time - (t ?? -1e9) >= 45 * TIME_SCALE * Math.max(1, state.speed || 1);
+}
 function shapeOf(ac, x = ac.x, y = ac.y, hdg = ac.hdg || 0) {
-  const L = ac.len, sp = spanOf(ac), dx = Math.cos(hdg), dy = Math.sin(hdg);
-  const wx = x + dx * 0.05 * L, wy = y + dy * 0.05 * L; // Flügel etwas vor der Mitte
-  const tx = x - dx * 0.42 * L, ty = y - dy * 0.42 * L; // Höhenleitwerk am Heck
-  const cs = sp * 0.8; // Flügelkern für Flügel gegen Flügel (Spitzen dürfen sich auf parallelen Rollwegen nahe kommen)
-  return [
-    [x - (dx * L) / 2, y - (dy * L) / 2, x + (dx * L) / 2, y + (dy * L) / 2, 0.1 * L, 'f'],
-    [wx - (dy * sp) / 2, wy + (dx * sp) / 2, wx + (dy * sp) / 2, wy - (dx * sp) / 2, 0.07 * L, 'w'],
-    [tx - dy * 0.17 * L, ty + dx * 0.17 * L, tx + dy * 0.17 * L, ty - dx * 0.17 * L, 0.07 * L, 't'],
-    [wx - (dy * cs) / 2, wy + (dx * cs) / 2, wx + (dy * cs) / 2, wy - (dx * cs) / 2, 0.04, 'c'],
-  ];
-}
-// kürzester Abstand zweier Strecken
-function segDist(ax, ay, bx, by, cx, cy, ex, ey) {
-  const ptSeg = (px, py, x1, y1, x2, y2) => {
-    const vx = x2 - x1, vy = y2 - y1, l2 = vx * vx + vy * vy;
-    const t = l2 ? clamp(((px - x1) * vx + (py - y1) * vy) / l2, 0, 1) : 0;
-    return Math.hypot(px - x1 - t * vx, py - y1 - t * vy);
-  };
-  const o = (px, py, qx, qy, rx, ry) => Math.sign((qx - px) * (ry - py) - (qy - py) * (rx - px));
-  if (o(ax, ay, bx, by, cx, cy) * o(ax, ay, bx, by, ex, ey) < 0 && o(cx, cy, ex, ey, ax, ay) * o(cx, cy, ex, ey, bx, by) < 0) return 0;
-  return Math.min(ptSeg(ax, ay, cx, cy, ex, ey), ptSeg(bx, by, cx, cy, ex, ey), ptSeg(cx, cy, ax, ay, bx, by), ptSeg(ex, ey, ax, ay, bx, by));
-}
-// Lücke zwischen zwei Umrissen (negativ = sie berühren sich). Rumpf und Leitwerk gegen alles mit voller Fläche; Flügel
-// gegen Flügel nur mit dem Flügelkern – Rollweg A und Vorfeldgasse liegen im Kartenmaßstab so eng, dass sich zwei
-// Großraumjets sonst nie begegnen könnten
-function shapeGap(sa, sb) {
-  let g = 1e9;
-  for (const a of sa)
-    for (const b of sb) {
-      const ka = a[5], kb = b[5];
-      if (ka === 'c' || kb === 'c' ? !(ka === 'c' && kb === 'c') : ka === 'w' && kb === 'w') continue;
-      g = Math.min(g, segDist(a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3]) - (a[4] + b[4]) / 2);
-    }
-  return g;
+  return shapeAt(x, y, hdg, ac.len, spanOf(ac));
 }
 const reach = (ac) => 0.5 * Math.max(ac.len, spanOf(ac)) + 0.1;
 // Überdecken sich die vollen Flügel zweier Flugzeuge (Spitzen)? – für die Auswertung in Tests
 export function wingTouch(a, b) {
-  const wa = shapeOf(a)[1], wb = shapeOf(b)[1];
-  return segDist(wa[0], wa[1], wa[2], wa[3], wb[0], wb[1], wb[2], wb[3]) - (wa[4] + wb[4]) / 2 < 0;
+  return wingsTouch(shapeOf(a), shapeOf(b));
 }
 // Lücke zwischen zwei Flugzeugen (ac optional an anderer Stelle bzw. mit anderem Kurs)
 export function gapBetween(ac, b, x = ac.x, y = ac.y, hdg = ac.hdg) {

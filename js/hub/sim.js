@@ -6,6 +6,13 @@ import { AC_TYPES, AIRLINES, CITIES } from '../config.js';
 import { NM, KT, dist, sub, dot, cross, add, mul, norm, rng, angNorm, brgOfVec, segX } from './geom.js';
 import { findRoute, pathFromRoute, pathAt } from './route.js';
 import { speech } from '../sim/messages.js';
+import { shapeAt, shapeGap } from '../sim/shape.js';
+
+// Flugzeugmaße: AC_TYPES rechnet in Kacheln des Towers (~15,2 m), die Großflughäfen in 20-m-Kacheln – vorher waren die
+// Flugzeuge hier ein Drittel zu groß und überragten beim Rollen die geparkten Nachbarn
+const SIZE = 15.2 / 20;
+const spanK = (t, type) => (type === 'A388' ? 1.1 : t.light ? 1.3 : t.size === 'L' ? 0.9 : t.size === 'S' ? 1.05 : 0.92);
+const shp = (a, x = a.x, y = a.y, h = a.hdg) => shapeAt(x, y, h, a.len, a.span);
 
 const GS = Math.tan((3 * Math.PI) / 180);
 const SPAWN = 12 * NM; // Anflug erscheint 12 NM vor der Schwelle
@@ -138,8 +145,8 @@ export class HubSim {
       num,
       wake: type === 'A388' ? 'J' : tt.wake,
       size: tt.size,
-      len: tt.len,
-      span: tt.len * 0.95,
+      len: tt.len * SIZE,
+      span: tt.len * SIZE * spanK(tt, type),
       city,
       x: 0,
       y: 0,
@@ -509,12 +516,19 @@ export class HubSim {
       const dx = o.x - ac.x, dy = o.y - ac.y;
       if (dx * dx + dy * dy > (look + 4) * (look + 4)) continue;
       const corridor = 1.0 + Math.min(1.0, (o.span + ac.span) * 0.06);
-      let hit = null;
+      let hit = null, side = false;
       for (const sp of samples) {
         if (Math.abs(o.x - sp.x) < corridor && Math.abs(o.y - sp.y) < corridor && Math.hypot(o.x - sp.x, o.y - sp.y) < corridor) {
           hit = sp;
           break;
         }
+      }
+      // Umriss: würde der eigene Rumpf/Flügel den anderen unterwegs berühren (Kreuzungen, seitlich, Kurven)?
+      // Dann rechtzeitig davor anhalten – nicht erst Mitte auf Mitte
+      const sh = this.shapeHit(ac, o, samples, hit ? hit.d : look);
+      if (sh && (!hit || sh.d < hit.d)) {
+        hit = sh;
+        side = true;
       }
       if (!hit) continue;
       // gegenseitige Blockade: es fährt, wer dem anderen weniger im Weg steht (der andere liegt weiter neben dem
@@ -529,6 +543,8 @@ export class HubSim {
           const headOn = Math.cos(o.hdg - ac.hdg) < -0.6;
           go = !headOn || (ac.wait || 0) > 12;
         }
+        // durchfahren nur, wenn der eigene Weg den anderen gar nicht berührt
+        if (go && this.shapeHit(ac, o, samples, 4.5, 0)) go = false;
         if (go) {
           ac.passId = o.id;
           ac.passUntil = this.t + 25;
@@ -537,7 +553,7 @@ export class HubSim {
       }
       // Sicherheitsnetz gegen Ringblockaden (A wartet auf B wartet auf … A): nach langem Warten fährt das ältere
       if ((ac.wait || 0) > 30 && ac.prio < o.prio && this.inCycle(ac, o)) continue;
-      const f = hit.d - (ac.len + o.len) * 0.5 - 0.9;
+      const f = side ? hit.d - 0.9 : hit.d - (ac.len + o.len) * 0.5 - 0.9;
       if (f < free) {
         free = f;
         by = o.id;
@@ -545,6 +561,21 @@ export class HubSim {
     }
     ac.blockedBy = by;
     return free;
+  }
+  // erster Punkt voraus (bis maxD), an dem ac mit Kurs entlang des Weges o berühren würde (Lücke < gap)
+  shapeHit(ac, o, samples, maxD = 16, gap = 0.15) {
+    if (Math.hypot(o.x - ac.x, o.y - ac.y) > maxD + (ac.len + ac.span + o.len + o.span) * 0.5) return null;
+    const so = shp(o);
+    let px = ac.x, py = ac.y;
+    for (const sp of samples) {
+      if (sp.d > maxD) break;
+      const h = Math.atan2(sp.y - py, sp.x - px);
+      px = sp.x;
+      py = sp.y;
+      if (Math.hypot(o.x - sp.x, o.y - sp.y) > (ac.len + ac.span + o.len + o.span) * 0.5 + gap) continue;
+      if (shapeGap(shp(ac, sp.x, sp.y, h), so, true) < gap) return sp;
+    }
+    return null;
   }
   // wartet o (über eine Kette) auf ac? Dann ist es eine Ringblockade
   inCycle(ac, o) {
@@ -885,6 +916,7 @@ export class HubSim {
     ac.phase = P.LINEUP;
     ac.req = null;
     ac.tkClr = andGo;
+    ac.luAt = this.t;
     const lp = this.lineupPath(ac);
     this.setPath(ac, lp, 0);
     ac.stops = [];
@@ -1044,9 +1076,13 @@ export class HubSim {
     ac.req = null;
     return true;
   }
-  // Startlauf erst, wenn Freigabe und Rücklesung auf der Frequenz zu hören waren (höchstens eine Minute)
+  // Aufrollen und Startlauf erst, wenn Freigabe und Rücklesung auf der Frequenz zu hören waren. Sicherheitsnetz (falls
+  // die Sprachausgabe hängt) in Echtzeit, rund 45 s – speedHint setzt die Oberfläche auf das Spieltempo
+  heard(ac, at) {
+    return !speech.pending(ac.tel) || this.t - (at ?? -1e9) >= 45 * Math.max(1, this.speedHint || 1);
+  }
   readyToRoll(ac) {
-    return this.t - (ac.tkAt ?? -1e9) >= 60 || !speech.pending(ac.tel);
+    return this.heard(ac, ac.tkAt);
   }
   clearCross(ac) {
     if (ac.req !== 'cross' || !ac.reqStop) return false;
@@ -1308,6 +1344,11 @@ export class HubSim {
           break;
         }
         case P.LINEUP: {
+          // noch am Rollhalt: erst losrollen, wenn die Rücklesung gesprochen ist
+          if (ac.s < 0.05 && !this.heard(ac, ac.luAt)) {
+            ac.spd = 0;
+            break;
+          }
           const done = this.moveTaxi(ac, dt, 0.32);
           ac.onRwz = this.ap.ends[ac.depEnd].rwy;
           if (done) {
